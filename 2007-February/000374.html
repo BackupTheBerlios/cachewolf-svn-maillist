@@ -1,0 +1,197 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r566 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r566%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702112317.l1BNHZDh027471%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000373.html">
+   <LINK REL="Next"  HREF="000375.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r566 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r566%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702112317.l1BNHZDh027471%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r566 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Mon Feb 12 00:17:35 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000373.html">[Cachewolf-svn] r565 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000375.html">[Cachewolf-svn] r567 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#374">[ date ]</a>
+              <a href="thread.html#374">[ thread ]</a>
+              <a href="subject.html#374">[ subject ]</a>
+              <a href="author.html#374">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-02-12 00:17:32 +0100 (Mon, 12 Feb 2007)
+New Revision: 566
+
+Modified:
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/OCXMLImporter.java
+   trunk/src/CacheWolf/SpiderGC.java
+Log:
+SpiderGC: Bug fixed: nicht gesetzte Addi-WayPoints bekommen jetz 361/91 statt 0/0
+Download von Opencaching: Bug fixed: relativer Pfad bei Bildern wird richtig aufgel?\195?\182st, wenn relativ zu www.opencaching.de
+MovingMap: Bug fixed: Aufruf aus DetailsPanel bei nicht gesetzten Koos nicht m?\195?\182glich.
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2007-02-11 22:14:15 UTC (rev 565)
++++ trunk/src/CacheWolf/MainTab.java	2007-02-11 23:17:32 UTC (rev 566)
+@@ -126,7 +126,7 @@
+ 		} else	
+ 			select(detP);
+ 		Global.mainTab.tbP.refreshTable();
+-	
++
+ 	}
+ 
+ 
+@@ -214,6 +214,10 @@
+ 	 * @param forceCenter
+ 	 */
+ 	public void SwitchToMovingMap(CWPoint centerTo, boolean forceCenter) {
++		if (!centerTo.isValid()) {
++			(new MessageBox(&quot;Error&quot;, &quot;No valid coordinates&quot;, MessageBox.OKB)).execute();
++			return;
++		}
+ 		if (mm == null) {
+ 			mm = new MovingMap(nav, profile.cacheDB);
+ 			nav.setMovingMap(mm);
+@@ -223,26 +227,28 @@
+ 		mm.updatePosition(centerTo.latDec, centerTo.lonDec);
+ 		mm.myExec();
+ 		if (forceCenter) {
+-			while (MapImage.screenDim.width == 0) { try {ewe.sys.mThread.sleep(100);} catch (InterruptedException e) {} } // wait until the window size of the moving map is known note: ewe.sys.sleep() will pause the whole vm - no other thread will run
+-			mm.setCenterOfScreen(centerTo, false); // this can only be executed if mm knows its window size that's why myExec must be executed before
+-			mm.updatePosition(centerTo.latDec, centerTo.lonDec);
+-/*			if(!mm.posCircle.isOnScreen()) { // TODO this doesn't work because lat lon is set to the wished pos and not to gps anymore
++			try {
++				while (MapImage.screenDim.width == 0) { ewe.sys.mThread.sleep(100);} // wait until the window size of the moving map is known note: ewe.sys.sleep() will pause the whole vm - no other thread will run 
++				mm.setCenterOfScreen(centerTo, false); // this can only be executed if mm knows its window size that's why myExec must be executed before
++				mm.updatePosition(centerTo.latDec, centerTo.lonDec);
++				/*			if(!mm.posCircle.isOnScreen()) { // TODO this doesn't work because lat lon is set to the wished pos and not to gps anymore
+ 				mm.setGpsStatus(MovingMap.noGPS); // disconnect movingMap from GPS if GPS-pos is not on the screen
+ 				mm.setResModus(MovingMap.HIGHEST_RESOLUTION);
+ 				mm.updatePosition(centerTo.latDec, centerTo.lonDec);
+ 				mm.setCenterOfScreen(centerTo, true); 
+ 			}
+-*/			//TODO what to do, if there is a map at centerTo, but it is not loaded because of mapSwitchMode == dest &amp; cuurpos und daf&#252;r gibt es keine Karte 
++				 */			//TODO what to do, if there is a map at centerTo, but it is not loaded because of mapSwitchMode == dest &amp; cuurpos und daf&#252;r gibt es keine Karte 
++			}catch (InterruptedException e) { (new MessageBox(&quot;Error&quot;, &quot;This must not happen please report to pfeffer how to produce this error message&quot;, MessageBox.OKB)).execute(); } 
+ 		}
+ 	}
+-	
++
+ 	/** Save any changes from DetailsPanel before operating on the database */
+ 	public void updatePendingChanges() {
+ 		if(detP.isDirty()) {
+ 			detP.saveDirtyWaypoint();
+ 		}
+ 	}
+-	
++
+ 	/** Save the index file and any pending change in DetailsPanel
+ 	 * 
+ 	 * @param askForConfirmation If true, the save can be cancelled by user
+@@ -252,7 +258,7 @@
+ 		updatePendingChanges(); // Updated the cacheDB with pending changes from DetailsPanel
+ 		if (askForConfirmation) { // Don't know whether to save, have to ask
+ 			if (profile.hasUnsavedChanges &amp;&amp;     // Only ask if there were changes 
+-				(new MessageBox(MyLocale.getMsg(144,&quot;Warnung&quot;),MyLocale.getMsg(1207,&quot;Your profile has unsaved changes. Do you want to save?&quot;),MessageBox.DEFOKB|MessageBox.NOB)).execute()==MessageBox.IDOK) {
++					(new MessageBox(MyLocale.getMsg(144,&quot;Warnung&quot;),MyLocale.getMsg(1207,&quot;Your profile has unsaved changes. Do you want to save?&quot;),MessageBox.DEFOKB|MessageBox.NOB)).execute()==MessageBox.IDOK) {
+ 				saveIndex=true; 
+ 			}
+ 		}
+
+Modified: trunk/src/CacheWolf/OCXMLImporter.java
+===================================================================
+--- trunk/src/CacheWolf/OCXMLImporter.java	2007-02-11 22:14:15 UTC (rev 565)
++++ trunk/src/CacheWolf/OCXMLImporter.java	2007-02-11 23:17:32 UTC (rev 566)
+@@ -25,6 +25,7 @@
+ 	static protected final int STAT_CACHE_LOG = 3;
+ 	static protected final int STAT_PICTURE = 4;
+ 	
++	final static String OPENCACHING_HOST = &quot;www.opencaching.de&quot;;
+ 	int state = STAT_INIT;
+ 	int numCacheImported, numDescImported, numLogImported= 0;
+ 	
+@@ -46,7 +47,7 @@
+ 	String picUrl = new String();
+ 	String picTitle =  new String();
+ 	String picID = new String();
+-	String ocSeekUrl = new String(&quot;<A HREF="http://www.opencaching.de/viewcache.php?cacheid=">http://www.opencaching.de/viewcache.php?cacheid=</A>&quot;);
++	String ocSeekUrl = new String(&quot;<A HREF="http://">http://</A>&quot;+OPENCACHING_HOST+&quot;/viewcache.php?cacheid=&quot;);
+ 	String cacheID = new String();
+ 	
+ 	String logData, logIcon, logDate, logFinder;
+@@ -107,7 +108,7 @@
+ 			}	
+ 			picCnt = 0;
+ 			//Build url
+-			url =&quot;<A HREF="http://www.opencaching.de/xml/ocxml11.php?">http://www.opencaching.de/xml/ocxml11.php?</A>&quot;;
++			url =&quot;<A HREF="http://+">http://+</A>&quot; + OPENCACHING_HOST + &quot;/xml/ocxml11.php?&quot;;
+ 			url += &quot;modifiedsince=&quot; + lastS;
+ 			url +=&quot;&amp;cache=1&quot;;
+ 			url +=&quot;&amp;cachedesc=1&quot;;
+@@ -479,6 +480,7 @@
+ 	}
+ 	
+ 	private void getPic(String fetchURL, String picDesc){ // TODO handling of relativ URLs
++		if (!fetchURL.startsWith(&quot;<A HREF="http://">http://</A>&quot;)) fetchURL = &quot;<A HREF="http://">http://</A>&quot; + OPENCACHING_HOST + &quot;/&quot;+fetchURL; // TODO this is not quite correct: actually the &quot;base&quot; URL must be known... but anyway a different baseURL should not happen very often  - it doesn't in my area
+ 		String fileName = holder.wayPoint + &quot;_&quot; + fetchURL.substring(fetchURL.lastIndexOf(&quot;/&quot;)+1);
+ 		fileName = Common.ClearForFileName(fileName);
+ 		// add title
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2007-02-11 22:14:15 UTC (rev 565)
++++ trunk/src/CacheWolf/SpiderGC.java	2007-02-11 23:17:32 UTC (rev 566)
+@@ -443,7 +443,7 @@
+ 				typeRex.search(rowBlock);
+ 				cx.CacheName = nameRex.stringMatched(1);
+ 				if(koordRex.didMatch()) cx.LatLon = koordRex.stringMatched(1); 
+-				else cx.LatLon = &quot;N 00&#176; 00.000 E 000&#176; 00.000&quot;; 
++				else cx.LatLon = &quot;---&quot;; 
+ 				cx.pos.set(cx.LatLon);
+ 				if(typeRex.didMatch()) cx.type = CacheType.typeText2Number(&quot;Waypoint|&quot;+typeRex.stringMatched(1));
+ 				
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000373.html">[Cachewolf-svn] r565 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000375.html">[Cachewolf-svn] r567 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#374">[ date ]</a>
+              <a href="thread.html#374">[ thread ]</a>
+              <a href="subject.html#374">[ subject ]</a>
+              <a href="author.html#374">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

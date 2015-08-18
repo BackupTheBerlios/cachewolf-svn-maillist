@@ -1,0 +1,126 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r391 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r391%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701141454.l0EEs5C5000483%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000119.html">
+   <LINK REL="Next"  HREF="000121.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r391 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r391%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701141454.l0EEs5C5000483%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r391 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sun Jan 14 15:54:05 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000119.html">[Cachewolf-svn] r390 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000121.html">[Cachewolf-svn] r392 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#120">[ date ]</a>
+              <a href="thread.html#120">[ thread ]</a>
+              <a href="subject.html#120">[ subject ]</a>
+              <a href="author.html#120">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-01-14 15:53:57 +0100 (Sun, 14 Jan 2007)
+New Revision: 391
+
+Modified:
+   trunk/src/CacheWolf/Tokenizer.java
+Log:
+Bugfix fuer Strings mit &quot;&quot;
+
+Modified: trunk/src/CacheWolf/Tokenizer.java
+===================================================================
+--- trunk/src/CacheWolf/Tokenizer.java	2007-01-14 12:59:35 UTC (rev 390)
++++ trunk/src/CacheWolf/Tokenizer.java	2007-01-14 14:53:57 UTC (rev 391)
+@@ -51,7 +51,10 @@
+ 	}
+ 
+ 	private boolean getChar(){
+-		if(sourcePointer &gt;= mySource.length()) return false; 
++		if(sourcePointer &gt;= mySource.length()) {
++			look='\n';
++			return false; 
++		}
+ 		look = mySource.charAt(sourcePointer++);
+ 		currentPos++;
+ 		return true;
+@@ -128,22 +131,23 @@
+ 	private void streamString() throws Exception {
+ 		startToken();
+ 		currentStream=&quot;&quot;;
+-		do {
+-			while(getChar() &amp;&amp; look != '\&quot;'){
+-				if (look=='\\') {
+-					if (!getChar()) break;
+-					if (look=='n') currentStream += &quot;\n&quot;;
+-					else currentStream += look;
+-				} else currentStream += look;
+-				// Need to count newlines inside a string spanning multiple lines so that we don't loose track
+-				if (look=='\n') {
+-					currentLine++;
+-					currentPos=0;
+-				}
++		while(getChar()){ // collect chars until next &quot;
++			if (look=='&quot;') {
++				if (lookAhead()!='&quot;') break;  // &quot; not followed by &quot; =&gt; End of string
++				// Two &quot; following each other are replaced by &quot; 
++				currentStream+=&quot;\&quot;&quot;; 
++				getChar();
++			} else if (look=='\\') {
++				if (!getChar()) break;
++				if (look=='n') currentStream += &quot;\n&quot;;
++				else currentStream += look;
++			} else currentStream += look;
++			// Need to count newlines inside a string spanning multiple lines so that we don't loose track
++			if (look=='\n') {
++				currentLine++;
++				currentPos=0;
+ 			}
+-			if (lookAhead()=='&quot;') 
+-				currentStream+=&quot;\&quot;&quot;; // Two &quot; following each other are replaced by &quot;
+-		} while (currentStream.endsWith(&quot;\&quot;&quot;));
++		} // EOT or look==&quot;
+ 		if (look!='&quot;') {
+ 			// Restore start position of string for correct indication of error
+ 			currentLine=thisToken.line;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000119.html">[Cachewolf-svn] r390 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000121.html">[Cachewolf-svn] r392 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#120">[ date ]</a>
+              <a href="thread.html#120">[ thread ]</a>
+              <a href="subject.html#120">[ subject ]</a>
+              <a href="author.html#120">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

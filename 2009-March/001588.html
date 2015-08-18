@@ -1,0 +1,194 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1677 - in trunk: res_noewe/languages src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-March/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1677%20-%20in%20trunk%3A%20res_noewe/languages%20src/CacheWolf&In-Reply-To=%3C200903052252.n25Mqina023470%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001587.html">
+   <LINK REL="Next"  HREF="001589.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1677 - in trunk: res_noewe/languages src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1677%20-%20in%20trunk%3A%20res_noewe/languages%20src/CacheWolf&In-Reply-To=%3C200903052252.n25Mqina023470%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1677 - in trunk: res_noewe/languages src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Thu Mar  5 23:52:44 CET 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001587.html">[Cachewolf-svn] r1676 - in trunk/src/CacheWolf: . navi
+</A></li>
+        <LI>Next message: <A HREF="001589.html">[Cachewolf-svn] r1678 - trunk
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1588">[ date ]</a>
+              <a href="thread.html#1588">[ thread ]</a>
+              <a href="subject.html#1588">[ subject ]</a>
+              <a href="author.html#1588">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2009-03-05 23:52:42 +0100 (Thu, 05 Mar 2009)
+New Revision: 1677
+
+Modified:
+   trunk/res_noewe/languages/DE.cfg
+   trunk/res_noewe/languages/EN.cfg
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/Preferences.java
+Log:
+better gpsbabel integration, should work now in linux
+
+Modified: trunk/res_noewe/languages/DE.cfg
+===================================================================
+--- trunk/res_noewe/languages/DE.cfg	2009-03-05 17:11:48 UTC (rev 1676)
++++ trunk/res_noewe/languages/DE.cfg	2009-03-05 22:52:42 UTC (rev 1677)
+@@ -104,6 +104,7 @@
+ 		212=Alle .xml Dateien (und Bilder) l%f6schen, die nicht in index.xml sind
+ 		213=Verwaiste .xml Dateien l%f6schen
+ 		214=Neuer Wegpunkt
++		215=nach LOC
+ 		300=Type:
+ 		301=Gr%f6%dfe:
+ 		302=Wegpunkt:
+
+Modified: trunk/res_noewe/languages/EN.cfg
+===================================================================
+--- trunk/res_noewe/languages/EN.cfg	2009-03-05 17:11:48 UTC (rev 1676)
++++ trunk/res_noewe/languages/EN.cfg	2009-03-05 22:52:42 UTC (rev 1677)
+@@ -104,6 +104,7 @@
+ 		212=Delete all .xml files not in index.xml and associated pictures
+ 		213=Deleting orphans
+ 		214=New Waypoint
++		215=to LOC
+ 		300=Type:
+ 		301=Size:
+ 		302=Waypoint:
+@@ -125,7 +126,6 @@
+ 		318=Found
+ 		319=Not Found
+ 		320=Owner
+-		320=Besitzer
+ 		321=Error
+ 		322=Couldn't find image/map
+ 		323=Fehler beim Schreiben der Datei
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2009-03-05 17:11:48 UTC (rev 1676)
++++ trunk/src/CacheWolf/MainMenu.java	2009-03-05 22:52:42 UTC (rev 1677)
+@@ -30,7 +30,7 @@
+ 	private MenuItem exportpcx5, exporthtml, exporttop50, exportGPX, exportASC, exportTomTom, exportMSARCSV;
+ 	private MenuItem exportOZI, exportKML, exportTPL, exportExplorist;
+ 	private MenuItem filtCreate, filtClear, filtInvert, filtSelected, filtNonSelected, filtBlack, filtApply;
+-	private MenuItem exportGPS, exportCacheMate,mnuSeparator;
++	private MenuItem exportLOC, exportGPS, exportCacheMate,mnuSeparator;
+ 	private MenuItem orgNewWP, orgCopy, orgMove, orgDelete,orgRebuild;
+ 	public MenuItem cacheTour,orgTravelbugs, mnuForceLogin;
+ 	private MenuItem mnuNewProfile, mnuOpenProfile, mnuEditCenter;
+@@ -66,7 +66,7 @@
+ 		///////////////////////////////////////////////////////////////////////
+ 		// subMenu for export, part of &quot;Application&quot; menu below
+ 		///////////////////////////////////////////////////////////////////////
+-		MenuItem[] exitems = new MenuItem[12];
++		MenuItem[] exitems = new MenuItem[13];
+ 		//Vm.debug(&quot;Hi in MainMenu &quot;+lr);
+ 		exitems[0] = exporthtml = new MenuItem(MyLocale.getMsg(100,&quot;to HTML&quot;));
+ 		exitems[1] = exportpcx5 = new MenuItem(MyLocale.getMsg(101,&quot;to PCX5 Mapsource&quot;));
+@@ -75,14 +75,21 @@
+ 		exitems[4] = exportASC = new MenuItem(MyLocale.getMsg(104,&quot;to CSV&quot;));
+ 		exitems[5] = exportTomTom = new MenuItem(MyLocale.getMsg(105,&quot;to TomTom&quot;));
+ 		exitems[6] = exportMSARCSV = new MenuItem(MyLocale.getMsg(106,&quot;to MS AutoRoute CSV&quot;));
+-		exitems[7] = exportGPS = new MenuItem(MyLocale.getMsg(122,&quot;to GPS&quot;));
+-		if(!(new File(cwd + &quot;/gpsbabel.exe&quot;)).exists()) exitems[7].modifiers = MenuItem.Disabled;
++		exitems[7] = exportLOC = new MenuItem(MyLocale.getMsg(215,&quot;to LOC&quot;));
++		exitems[8] = exportGPS = new MenuItem(MyLocale.getMsg(122,&quot;to GPS&quot;));
++		try{
++			// this will *only* work with ewe.jar at the moment
++			ewe.sys.Process p = Vm.exec(&quot;gpsbabel -V&quot;);
++			p.waitFor();
++		}catch(IOException ioex){
++			exitems[8].modifiers = MenuItem.Disabled;
++		}
+ 		//exitems[8] = exportCacheMate = new MenuItem(MyLocale.getMsg(123,&quot;to Cachemate&quot;));
+ 		//if(!(new File(cwd + &quot;/cmconvert/cmconvert.exe&quot;)).exists()) exitems[8].modifiers = MenuItem.Disabled;
+-		exitems[8] = exportOZI = new MenuItem(MyLocale.getMsg(124,&quot;to OZI&quot;));
+-		exitems[9] = exportKML = new MenuItem(MyLocale.getMsg(125,&quot;to Google Earth&quot;));
+-		exitems[10] = exportExplorist = new MenuItem(MyLocale.getMsg(132,&quot;to Explorist&quot;));
+-		exitems[11] = exportTPL = new MenuItem(MyLocale.getMsg(128,&quot;via Template&quot;));
++		exitems[9] = exportOZI = new MenuItem(MyLocale.getMsg(124,&quot;to OZI&quot;));
++		exitems[10] = exportKML = new MenuItem(MyLocale.getMsg(125,&quot;to Google Earth&quot;));
++		exitems[11] = exportExplorist = new MenuItem(MyLocale.getMsg(132,&quot;to Explorist&quot;));
++		exitems[12] = exportTPL = new MenuItem(MyLocale.getMsg(128,&quot;via Template&quot;));
+ 
+ 		Menu exportMenu = new Menu(exitems, MyLocale.getMsg(107,&quot;Export&quot;));
+ 
+@@ -357,6 +364,10 @@
+ 				MSARCSVExporter msar = new MSARCSVExporter(pref,profile);
+ 				msar.doIt();
+ 			}
++			if(mev.selectedItem == exportLOC){
++				LocExporter loc = new LocExporter();
++				loc.doIt();
++			}
+ 			if(mev.selectedItem == exportGPS){
+ 				Vm.showWait(true);
+ 				LocExporter loc = new LocExporter();
+@@ -365,9 +376,9 @@
+ 				loc.doIt(LocExporter.MODE_AUTO);
+ 				ProgressBarForm.display(MyLocale.getMsg(950,&quot;Transfer&quot;),MyLocale.getMsg(951,&quot;Sending to GPS&quot;), null);
+ 				try{
+-					pref.log(&quot;gpsbabel.exe &quot;+pref.garminGPSBabelOptions+&quot; -i geo -f \&quot;&quot;+ tmpFileName +&quot;\&quot; -o garmin -F &quot; + pref.garminConn +&quot;:&quot;);
++					pref.log(&quot;gpsbabel &quot;+pref.garminGPSBabelOptions+&quot; -i geo -f \&quot;&quot;+ tmpFileName +&quot;\&quot; -o garmin -F &quot; + pref.garminConn +&quot;:&quot;);
+ 					// this will *only* work with ewe.jar at the moment
+-					ewe.sys.Process p = Vm.exec(&quot;gpsbabel.exe &quot;+pref.garminGPSBabelOptions+&quot; -i geo -f \&quot;&quot;+ tmpFileName +&quot;\&quot; -o garmin -F &quot; + pref.garminConn +&quot;:&quot;);
++					ewe.sys.Process p = Vm.exec(&quot;gpsbabel &quot;+pref.garminGPSBabelOptions+&quot; -i geo -f \&quot;&quot;+ tmpFileName +&quot;\&quot; -o garmin -F &quot; + pref.garminConn +&quot;:&quot;);
+ 					p.waitFor();
+ 				}catch(IOException ioex){
+ 					Vm.showWait(false);
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2009-03-05 17:11:48 UTC (rev 1676)
++++ trunk/src/CacheWolf/Preferences.java	2009-03-05 22:52:42 UTC (rev 1677)
+@@ -657,6 +657,7 @@
+ 	 * @param text to log
+ 	 */
+ 	public void log(String text){
++		Vm.debug(text);
+ 		Time dtm = new Time();
+ 		dtm.getTime();
+ 		dtm.setFormat(&quot;dd.MM.yyyy'/'HH:mm&quot;);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001587.html">[Cachewolf-svn] r1676 - in trunk/src/CacheWolf: . navi
+</A></li>
+	<LI>Next message: <A HREF="001589.html">[Cachewolf-svn] r1678 - trunk
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1588">[ date ]</a>
+              <a href="thread.html#1588">[ thread ]</a>
+              <a href="subject.html#1588">[ subject ]</a>
+              <a href="author.html#1588">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

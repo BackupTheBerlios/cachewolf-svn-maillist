@@ -1,0 +1,142 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2058 - experiments/greiol/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-July/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2058%20-%20experiments/greiol/src/CacheWolf&In-Reply-To=%3C200907280727.n6S7R7TB005060%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001979.html">
+   <LINK REL="Next"  HREF="001981.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2058 - experiments/greiol/src/CacheWolf</H1>
+    <B>greiol at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2058%20-%20experiments/greiol/src/CacheWolf&In-Reply-To=%3C200907280727.n6S7R7TB005060%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2058 - experiments/greiol/src/CacheWolf">greiol at mail.berlios.de
+       </A><BR>
+    <I>Tue Jul 28 09:27:07 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001979.html">[Cachewolf-svn] r2057 - experiments/greiol/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001981.html">[Cachewolf-svn] r2059 - experiments/greiol/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1980">[ date ]</a>
+              <a href="thread.html#1980">[ thread ]</a>
+              <a href="subject.html#1980">[ subject ]</a>
+              <a href="author.html#1980">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: greiol
+Date: 2009-07-28 09:27:06 +0200 (Tue, 28 Jul 2009)
+New Revision: 2058
+
+Modified:
+   experiments/greiol/src/CacheWolf/DetailsPanel.java
+Log:
+part 5 save routine
+
+Modified: experiments/greiol/src/CacheWolf/DetailsPanel.java
+===================================================================
+--- experiments/greiol/src/CacheWolf/DetailsPanel.java	2009-07-27 19:59:41 UTC (rev 2057)
++++ experiments/greiol/src/CacheWolf/DetailsPanel.java	2009-07-28 07:27:06 UTC (rev 2058)
+@@ -34,6 +34,7 @@
+ /**
+  * Class to create the panel to show the cache details.&lt;br&gt;
+  * Also allows for creation of a custom waypoint.&lt;br&gt;
++ * TODO: should we add buttons for cache state (enable, disable, archive)?
+  */
+ public class DetailsPanel extends CellPanel {
+ 
+@@ -404,9 +405,10 @@
+ 	 * @return true if changes were saved, false if there were no changes to save
+ 	 */
+ 	protected boolean saveIfNeeded() {
+-		// waypoint
+ 		// userimages ???
+ 		// status
++		// setfound
++		// set owned
+ 		
+ 		//FIXME: check boolean flags
+ 
+@@ -425,6 +427,7 @@
+ 		if (!inpOwner.getText().equals(ch.getCacheOwner())) {
+ 			ch.setCacheOwner(inpOwner.getText());
+ 			needsSaving = true;
++			//TODO: check with alias and somehow check with status 
+ 		}
+ 		
+ 		if (!inpName.getText().equals(ch.getCacheName())) {
+@@ -474,6 +477,38 @@
+ 			}
+ 		}
+ 		
++		// status - die logik dahinter verstehe ich noch nicht
++		if (chcStatus.getText().startsWith(MyLocale.getMsg(318, &quot;Found&quot;))){
++			if (!ch.is_found()) {
++				ch.setFound(true);
++				needsSaving = true;
++			}
++			//FIXME: hier fehlt noch was
++		} else if (chcStatus.getText().startsWith(MyLocale.getMsg(320, &quot;Owner&quot;))) {
++			if (!ch.is_owned()) {
++				ch.setOwned(true);
++				needsSaving = true;
++			}
++		} else {
++			if (ch.is_found() || !ch.getCacheStatus().equals(chcStatus.getText())) {
++				ch.setCacheStatus(chcStatus.getText());
++				ch.setFound(false);
++				needsSaving = true;
++			}
++		}
++		if (chcStatus.getText().startsWith(MyLocale.getMsg(318, &quot;Found&quot;)) &amp;&amp; chcStatus.getText().length() &gt;= MyLocale.getMsg(318, &quot;Found&quot;).length() + 11) {
++			ch.setCacheStatus(chcStatus.getText().substring(MyLocale.getMsg(318, &quot;Found&quot;).length() + 1));
++		} else {
++			ch.setCacheStatus(chcStatus.getText());
++		}
++		
++		//always make this the last check, since it will also save the changes
++		if (!ch.getWayPoint().equals(inpWaypoint.getText().trim().toUpperCase())) {
++			ch.rename(inpWaypoint.getText().trim().toUpperCase());
++			needsSaving = false;
++			needsTableUpdate = true;
++		}
++		
+ 		if (needsSaving) {
+ 			ch.save();
+ 			needsTableUpdate = true;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001979.html">[Cachewolf-svn] r2057 - experiments/greiol/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001981.html">[Cachewolf-svn] r2059 - experiments/greiol/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1980">[ date ]</a>
+              <a href="thread.html#1980">[ thread ]</a>
+              <a href="subject.html#1980">[ subject ]</a>
+              <a href="author.html#1980">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

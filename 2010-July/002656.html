@@ -1,0 +1,342 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2678 - in trunk/src/CacheWolf: . exp imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-July/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2678%20-%20in%20trunk/src/CacheWolf%3A%20.%20exp%20imp&In-Reply-To=%3C20100712140703.077844805B1%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002655.html">
+   <LINK REL="Next"  HREF="002657.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2678 - in trunk/src/CacheWolf: . exp imp</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2678%20-%20in%20trunk/src/CacheWolf%3A%20.%20exp%20imp&In-Reply-To=%3C20100712140703.077844805B1%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2678 - in trunk/src/CacheWolf: . exp imp">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Mon Jul 12 04:07:02 CEST 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002655.html">[Cachewolf-svn] r2677 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="002657.html">[Cachewolf-svn] r2679 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2656">[ date ]</a>
+              <a href="thread.html#2656">[ thread ]</a>
+              <a href="subject.html#2656">[ subject ]</a>
+              <a href="author.html#2656">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2010-07-12 16:07:02 +0200 (Mon, 12 Jul 2010)
+New Revision: 2678
+
+Modified:
+   trunk/src/CacheWolf/CacheHolder.java
+   trunk/src/CacheWolf/CacheHolderDetail.java
+   trunk/src/CacheWolf/CacheType.java
+   trunk/src/CacheWolf/DetailsPanel.java
+   trunk/src/CacheWolf/Filter.java
+   trunk/src/CacheWolf/FilterScreen.java
+   trunk/src/CacheWolf/exp/GPXExporter.java
+   trunk/src/CacheWolf/imp/GPXImporter.java
+Log:
+doing some things better. ex. on StatusFilter
+
+Modified: trunk/src/CacheWolf/CacheHolder.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolder.java	2010-07-12 11:46:26 UTC (rev 2677)
++++ trunk/src/CacheWolf/CacheHolder.java	2010-07-12 14:07:02 UTC (rev 2678)
+@@ -618,18 +618,14 @@
+ 		varParams.put(&quot;LATLON&quot;, (pos!=null &amp;&amp; pos.isValid())?LatLon:&quot;unknown&quot;);
+ 		varParams.put(&quot;LAT&quot;, decSep.replaceAll(pos.getLatDeg(CWPoint.DD)));
+ 		varParams.put(&quot;LON&quot;, decSep.replaceAll(pos.getLonDeg(CWPoint.DD)));		
+-		if (withFoundText &amp;&amp; cacheStatus.length()&gt;=10 &amp;&amp; cacheStatus.charAt(4)=='-') {
+-			int msgNr=318; // normal found			
+-			if (type == CacheType.CW_TYPE_WEBCAM) { msgNr=361;}
+-			else if (type == CacheType.CW_TYPE_EVENT 
+-					|| type == CacheType.CW_TYPE_MEGA_EVENT) { msgNr=355;}
+-			varParams.put(&quot;STATUS&quot;,MyLocale.getMsg(msgNr,&quot;Found&quot;)+&quot; &quot;+cacheStatus);
++		if (withFoundText) {
++			varParams.put(&quot;STATUS&quot;,getStatusText());
+ 		}
+ 		else
+ 			varParams.put(&quot;STATUS&quot;, cacheStatus);
+-		varParams.put(&quot;GC_LOGTYPE&quot;, GetGCLogType());
+-		varParams.put(&quot;STATUS_DATE&quot;, GetStatusDate());
+-		varParams.put(&quot;STATUS_TIME&quot;, GetStatusTime());
++		varParams.put(&quot;GC_LOGTYPE&quot;, getGCLogType());
++		varParams.put(&quot;STATUS_DATE&quot;, getStatusDate());
++		varParams.put(&quot;STATUS_TIME&quot;, getStatusTime());
+ 		varParams.put(&quot;DATE&quot;, dateHidden);
+ 		varParams.put(&quot;CACHE_NAME&quot;, cacheName);
+ 		if (codec instanceof AsciiCodec) { cacheName=Exporter.simplifyString(cacheName);} // use for &quot;NAME&quot;
+@@ -1058,8 +1054,30 @@
+             }
+ 		}
+ 	}
++	
++	public String getFoundText() {
++		int msgNr=318; // normal found			 
++		if (type == CacheType.CW_TYPE_WEBCAM) { msgNr=361;}
++		else if (type == CacheType.CW_TYPE_EVENT 
++				|| type == CacheType.CW_TYPE_MEGA_EVENT) { msgNr=355;}
++		return MyLocale.getMsg(msgNr, &quot;Found&quot;);
++	}
++	
++	public String getStatusText() {
++		if ((cacheStatus.length() == 10 || cacheStatus.length() == 16) &amp;&amp;
++				cacheStatus.charAt(4) == '-') {
++			return getFoundText() + &quot; &quot; + cacheStatus;			
++		} else {
++			if (found) {
++				return getFoundText();
++			}
++			else {
++				return cacheStatus;
++			}
++		}
++	}
+ 
+-	public String GetStatusDate() {
++	public String getStatusDate() {
+ 		String statusDate = &quot;&quot;;
+ 		
+ 		if (is_found() || getCacheStatus().indexOf(MyLocale.getMsg(319,&quot;not found&quot;))&gt;10) {
+@@ -1073,7 +1091,7 @@
+ 		return statusDate;		
+ 	}
+ 	
+-	public String GetStatusTime() {
++	public String getStatusTime() {
+ 		String statusTime = &quot;&quot;;
+ 
+ 		if (is_found() || getCacheStatus().indexOf(MyLocale.getMsg(319,&quot;not found&quot;))&gt;10) {
+@@ -1159,7 +1177,7 @@
+ 		return ret;
+ 	}
+ 	
+-	public String GetGCLogType() {                                                                                
++	public String getGCLogType() {                                                                                
+ 		String gcLogType=_logType[IDX_WRITENOTE][GC_MSG];
+ 		if (is_found()) {
+ 			String msgNr=&quot;318&quot;; // normal found			
+
+Modified: trunk/src/CacheWolf/CacheHolderDetail.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolderDetail.java	2010-07-12 11:46:26 UTC (rev 2677)
++++ trunk/src/CacheWolf/CacheHolderDetail.java	2010-07-12 14:07:02 UTC (rev 2678)
+@@ -108,11 +108,7 @@
+ 			// flags
+ 			CacheHolder ch = getParent();
+ 			if (ch.is_found() &amp;&amp; ch.getCacheStatus().equals(&quot;&quot;)) {
+-				int msgNr=318; // normal found			 
+-				if (ch.getType() == CacheType.CW_TYPE_WEBCAM) { msgNr=361;}
+-				else if (ch.getType() == CacheType.CW_TYPE_EVENT 
+-						|| ch.getType() == CacheType.CW_TYPE_MEGA_EVENT) { msgNr=355;}
+-				ch.setCacheStatus(MyLocale.getMsg(msgNr,&quot;Found&quot;));
++				ch.setCacheStatus(ch.getFoundText());
+ 			}
+ 			//travelbugs:GPX-File contains all actual travelbugs but not the missions
+ 			// we need to check whether the travelbug is already in the existing list
+
+Modified: trunk/src/CacheWolf/CacheType.java
+===================================================================
+--- trunk/src/CacheWolf/CacheType.java	2010-07-12 11:46:26 UTC (rev 2677)
++++ trunk/src/CacheWolf/CacheType.java	2010-07-12 14:07:02 UTC (rev 2678)
+@@ -110,39 +110,39 @@
+ 	String[] ggpx={&quot;Geocache|Custom&quot;,&quot;Custom&quot;,&quot;Custom&quot;,&quot;&quot;};
+ 	private static final CTyp[] cTypRef = {
+ 		// custom waypoints
+-		new CTyp((byte) 0,(byte) 0,'P',&quot;0&quot;,&quot;&quot;,&quot;&quot;,(byte) -128,'C',&quot;typeCustom.png&quot;,new String[] {&quot;Geocache|Custom&quot;,&quot;Custom&quot;,&quot;Custom&quot;,&quot;&quot;},1,0,10,0x000100),
++		new CTyp(CW_TYPE_CUSTOM,CW_TYPE_CUSTOM,'P',&quot;0&quot;,&quot;&quot;,&quot;&quot;,(byte) -128,'C',&quot;typeCustom.png&quot;,new String[] {&quot;Geocache|Custom&quot;,&quot;Custom&quot;,&quot;Custom&quot;,&quot;&quot;},1,0,10,0x000100),
+ 		// Cache waypoints
+-		new CTyp((byte) 2,(byte) 2,'C',&quot;2&quot;,&quot;2&quot;,&quot;2&quot;,(byte) -126,'T',&quot;typeTradi.png&quot;,new String[] {&quot;Geocache|Traditional Cache&quot;,&quot;Geocache&quot;,&quot;Traditional Cache&quot;,&quot;Traditional|Classic&quot;},2,1,0,0x000001),
+-		new CTyp((byte) 3,(byte) 3,'C',&quot;3&quot;,&quot;3&quot;,&quot;3&quot;,(byte) -125,'M',&quot;typeMulti.png&quot;,new String[] {&quot;Geocache|Multi-cache&quot;,&quot;Geocache&quot;,&quot;Multi-cache&quot;,&quot;Multi|Offset&quot;},3,2,1,0x000002),
+-		new CTyp((byte) 4,(byte) 4,'C',&quot;4&quot;,&quot;4&quot;,&quot;4&quot;,(byte) -124,'V',&quot;typeVirtual.png&quot;,new String[] {&quot;Geocache|Virtual Cache&quot;,&quot;Geocache&quot;,&quot;Virtual Cache&quot;,&quot;Virtual&quot;},4,3,2,0x000004),
+-		new CTyp((byte) 5,(byte) 5,'C',&quot;5&quot;,&quot;5&quot;,&quot;&quot;,(byte) -123,'L',&quot;typeLetterbox.png&quot;,new String[] {&quot;Geocache|Letterbox Hybrid&quot;,&quot;Geocache&quot;,&quot;Letterbox Hybrid&quot;,&quot;Letterbox&quot;},5,4,3,0x000008),
+-		new CTyp((byte) 6,(byte) 6,'C',&quot;6&quot;,&quot;6&quot;,&quot;6&quot;,(byte) -122,'X',&quot;typeEvent.png&quot;,new String[] {&quot;Geocache|Event Cache&quot;,&quot;Geocache&quot;,&quot;Event Cache&quot;,&quot;Event&quot;},6,5,4,0x000010),
+-		new CTyp((byte) 100,(byte) 100,'C',&quot;453&quot;,&quot;453&quot;,&quot;&quot;,(byte) 101,'X',&quot;typeMegaevent.png&quot;,new String[] {&quot;Geocache|Mega-Event Cache&quot;,&quot;Geocache&quot;,&quot;Mega-Event Cache&quot;,&quot;Mega&quot;},14,6,9,0x000200),
+-		new CTyp((byte) 11,(byte) 11,'C',&quot;11&quot;,&quot;11&quot;,&quot;5&quot;,(byte) -117,'W',&quot;typeWebcam.png&quot;,new String[] {&quot;Geocache|Webcam Cache&quot;,&quot;Geocache&quot;,&quot;Webcam Cache&quot;,&quot;Webcam&quot;},11,7,5,0x000020),
+-		new CTyp((byte) 8,(byte) 8,'C',&quot;8&quot;,&quot;8&quot;,&quot;&quot;,(byte) -120,'U',&quot;typeUnknown.png&quot;,new String[] {&quot;Geocache|Unknown Cache&quot;,&quot;Geocache&quot;,&quot;Unknown Cache&quot;,&quot;Mystery&quot;},8,8,6,0x000040),
+-		new CTyp((byte) 12,(byte) 12,'C',&quot;12&quot;,&quot;12&quot;,&quot;&quot;,(byte) -116,'O',&quot;typeLocless.png&quot;,new String[] {&quot;Geocache|Locationless (Reverse) Cache&quot;,&quot;Geocache&quot;,&quot;Locationless (Reverse) Cache&quot;,&quot;Locationless&quot;},12,9,8,0x000080),
+-		new CTyp((byte) 13,(byte) 13,'C',&quot;13&quot;,&quot;13&quot;,&quot;&quot;,(byte) -115,'X',&quot;typeCito.png&quot;,new String[] {&quot;Geocache|Cache In Trash Out Event&quot;,&quot;Geocache&quot;,&quot;Cache In Trash Out Event&quot;,&quot;CITO&quot;},13,10,17,0x020000),
+-		new CTyp((byte) 104,(byte) 104,'C',&quot;137&quot;,&quot;137&quot;,&quot;&quot;,(byte) 9,'E',&quot;typeEarth.png&quot;,new String[] {&quot;Geocache|Earthcache&quot;,&quot;Geocache&quot;,&quot;Earthcache&quot;,&quot;Earth&quot;},18,11,7,0x000400),
+-		new CTyp((byte) 101,(byte) 101,'C',&quot;1858&quot;,&quot;1858&quot;,&quot;&quot;,(byte) 100,'G',&quot;typeWhereigo.png&quot;,new String[] {&quot;Geocache|Wherigo Cache&quot;,&quot;Geocache&quot;,&quot;Wherigo Cache&quot;,&quot;Wherigo&quot;},15,12,18,0x040000),
++		new CTyp(CW_TYPE_TRADITIONAL,CW_TYPE_TRADITIONAL,'C',&quot;2&quot;,&quot;2&quot;,&quot;2&quot;,(byte) -126,'T',&quot;typeTradi.png&quot;,new String[] {&quot;Geocache|Traditional Cache&quot;,&quot;Geocache&quot;,&quot;Traditional Cache&quot;,&quot;Traditional|Classic&quot;},2,1,0,0x000001),
++		new CTyp(CW_TYPE_MULTI,CW_TYPE_MULTI,'C',&quot;3&quot;,&quot;3&quot;,&quot;3&quot;,(byte) -125,'M',&quot;typeMulti.png&quot;,new String[] {&quot;Geocache|Multi-cache&quot;,&quot;Geocache&quot;,&quot;Multi-cache&quot;,&quot;Multi|Offset&quot;},3,2,1,0x000002),
++		new CTyp(CW_TYPE_VIRTUAL,CW_TYPE_VIRTUAL,'C',&quot;4&quot;,&quot;4&quot;,&quot;4&quot;,(byte) -124,'V',&quot;typeVirtual.png&quot;,new String[] {&quot;Geocache|Virtual Cache&quot;,&quot;Geocache&quot;,&quot;Virtual Cache&quot;,&quot;Virtual&quot;},4,3,2,0x000004),
++		new CTyp(CW_TYPE_LETTERBOX,CW_TYPE_LETTERBOX,'C',&quot;5&quot;,&quot;5&quot;,&quot;&quot;,(byte) -123,'L',&quot;typeLetterbox.png&quot;,new String[] {&quot;Geocache|Letterbox Hybrid&quot;,&quot;Geocache&quot;,&quot;Letterbox Hybrid&quot;,&quot;Letterbox&quot;},5,4,3,0x000008),
++		new CTyp(CW_TYPE_EVENT,CW_TYPE_EVENT,'C',&quot;6&quot;,&quot;6&quot;,&quot;6&quot;,(byte) -122,'X',&quot;typeEvent.png&quot;,new String[] {&quot;Geocache|Event Cache&quot;,&quot;Geocache&quot;,&quot;Event Cache&quot;,&quot;Event&quot;},6,5,4,0x000010),
++		new CTyp(CW_TYPE_MEGA_EVENT,CW_TYPE_MEGA_EVENT,'C',&quot;453&quot;,&quot;453&quot;,&quot;&quot;,(byte) 101,'X',&quot;typeMegaevent.png&quot;,new String[] {&quot;Geocache|Mega-Event Cache&quot;,&quot;Geocache&quot;,&quot;Mega-Event Cache&quot;,&quot;Mega&quot;},14,6,9,0x000200),
++		new CTyp(CW_TYPE_WEBCAM,CW_TYPE_WEBCAM,'C',&quot;11&quot;,&quot;11&quot;,&quot;5&quot;,(byte) -117,'W',&quot;typeWebcam.png&quot;,new String[] {&quot;Geocache|Webcam Cache&quot;,&quot;Geocache&quot;,&quot;Webcam Cache&quot;,&quot;Webcam&quot;},11,7,5,0x000020),
++		new CTyp(CW_TYPE_UNKNOWN,CW_TYPE_UNKNOWN,'C',&quot;8&quot;,&quot;8&quot;,&quot;&quot;,(byte) -120,'U',&quot;typeUnknown.png&quot;,new String[] {&quot;Geocache|Unknown Cache&quot;,&quot;Geocache&quot;,&quot;Unknown Cache&quot;,&quot;Mystery&quot;},8,8,6,0x000040),
++		new CTyp(CW_TYPE_LOCATIONLESS,CW_TYPE_LOCATIONLESS,'C',&quot;12&quot;,&quot;12&quot;,&quot;&quot;,(byte) -116,'O',&quot;typeLocless.png&quot;,new String[] {&quot;Geocache|Locationless (Reverse) Cache&quot;,&quot;Geocache&quot;,&quot;Locationless (Reverse) Cache&quot;,&quot;Locationless&quot;},12,9,8,0x000080),
++		new CTyp(CW_TYPE_CITO,CW_TYPE_CITO,'C',&quot;13&quot;,&quot;13&quot;,&quot;&quot;,(byte) -115,'X',&quot;typeCito.png&quot;,new String[] {&quot;Geocache|Cache In Trash Out Event&quot;,&quot;Geocache&quot;,&quot;Cache In Trash Out Event&quot;,&quot;CITO&quot;},13,10,17,0x020000),
++		new CTyp(CW_TYPE_EARTH,CW_TYPE_EARTH,'C',&quot;137&quot;,&quot;137&quot;,&quot;&quot;,(byte) 9,'E',&quot;typeEarth.png&quot;,new String[] {&quot;Geocache|Earthcache&quot;,&quot;Geocache&quot;,&quot;Earthcache&quot;,&quot;Earth&quot;},18,11,7,0x000400),
++		new CTyp(CW_TYPE_WHEREIGO,CW_TYPE_WHEREIGO,'C',&quot;1858&quot;,&quot;1858&quot;,&quot;&quot;,(byte) 100,'G',&quot;typeWhereigo.png&quot;,new String[] {&quot;Geocache|Wherigo Cache&quot;,&quot;Geocache&quot;,&quot;Wherigo Cache&quot;,&quot;Wherigo&quot;},15,12,18,0x040000),
+ 		// additional waypoints
+-		new CTyp((byte) 50,(byte) 50,'A',&quot;50&quot;,&quot;&quot;,&quot;&quot;,(byte) -78,'P',&quot;typeParking.png&quot;,new String[] {&quot;Waypoint|Parking Area&quot;,&quot;Parking Area&quot;,&quot;Parking Area&quot;,&quot;&quot;},50,13,11,0x000800),
+-		new CTyp((byte) 51,(byte) 51,'A',&quot;51&quot;,&quot;&quot;,&quot;&quot;,(byte) -77,'S',&quot;typeStage.png&quot;,new String[] {&quot;Waypoint|Stages of a Multicache&quot;,&quot;Stages of a Multicache&quot;,&quot;Stages of a Multicache&quot;,&quot;&quot;},51,14,12,0x001000),
+-		new CTyp((byte) 52,(byte) 52,'A',&quot;52&quot;,&quot;&quot;,&quot;&quot;,(byte) -76,'Q',&quot;typeQuestion.png&quot;,new String[] {&quot;Waypoint|Question to Answer&quot;,&quot;Question to Answer&quot;,&quot;Question to Answer&quot;,&quot;&quot;},52,15,13,0x002000),
+-		new CTyp((byte) 53,(byte) 53,'A',&quot;53&quot;,&quot;&quot;,&quot;&quot;,(byte) -75,'F',&quot;typeFinal.png&quot;,new String[] {&quot;Waypoint|Final Location&quot;,&quot;Final Location&quot;,&quot;Final Location&quot;,&quot;&quot;},53,16,14,0x004000),
+-		new CTyp((byte) 54,(byte) 54,'A',&quot;54&quot;,&quot;&quot;,&quot;&quot;,(byte) -74,'H',&quot;typeTrailhead.png&quot;,new String[] {&quot;Waypoint|Trailhead&quot;,&quot;Trailhead&quot;,&quot;Trailhead&quot;,&quot;&quot;},54,17,15,0x008000),
+-		new CTyp((byte) 55,(byte) 55,'A',&quot;55&quot;,&quot;&quot;,&quot;&quot;,(byte) -73,'R',&quot;typeReference.png&quot;,new String[] {&quot;Waypoint|Reference Point&quot;,&quot;Reference Point&quot;,&quot;Reference Point&quot;,&quot;&quot;},55,18,16,0x010000),
++		new CTyp(CW_TYPE_PARKING,CW_TYPE_PARKING,'A',&quot;50&quot;,&quot;&quot;,&quot;&quot;,(byte) -78,'P',&quot;typeParking.png&quot;,new String[] {&quot;Waypoint|Parking Area&quot;,&quot;Parking Area&quot;,&quot;Parking Area&quot;,&quot;&quot;},50,13,11,0x000800),
++		new CTyp(CW_TYPE_STAGE,CW_TYPE_STAGE,'A',&quot;51&quot;,&quot;&quot;,&quot;&quot;,(byte) -77,'S',&quot;typeStage.png&quot;,new String[] {&quot;Waypoint|Stages of a Multicache&quot;,&quot;Stages of a Multicache&quot;,&quot;Stages of a Multicache&quot;,&quot;&quot;},51,14,12,0x001000),
++		new CTyp(CW_TYPE_QUESTION,CW_TYPE_QUESTION,'A',&quot;52&quot;,&quot;&quot;,&quot;&quot;,(byte) -76,'Q',&quot;typeQuestion.png&quot;,new String[] {&quot;Waypoint|Question to Answer&quot;,&quot;Question to Answer&quot;,&quot;Question to Answer&quot;,&quot;&quot;},52,15,13,0x002000),
++		new CTyp(CW_TYPE_FINAL,CW_TYPE_FINAL,'A',&quot;53&quot;,&quot;&quot;,&quot;&quot;,(byte) -75,'F',&quot;typeFinal.png&quot;,new String[] {&quot;Waypoint|Final Location&quot;,&quot;Final Location&quot;,&quot;Final Location&quot;,&quot;&quot;},53,16,14,0x004000),
++		new CTyp(CW_TYPE_TRAILHEAD,CW_TYPE_TRAILHEAD,'A',&quot;54&quot;,&quot;&quot;,&quot;&quot;,(byte) -74,'H',&quot;typeTrailhead.png&quot;,new String[] {&quot;Waypoint|Trailhead&quot;,&quot;Trailhead&quot;,&quot;Trailhead&quot;,&quot;&quot;},54,17,15,0x008000),
++		new CTyp(CW_TYPE_REFERENCE,CW_TYPE_REFERENCE,'A',&quot;55&quot;,&quot;&quot;,&quot;&quot;,(byte) -73,'R',&quot;typeReference.png&quot;,new String[] {&quot;Waypoint|Reference Point&quot;,&quot;Reference Point&quot;,&quot;Reference Point&quot;,&quot;&quot;},55,18,16,0x010000),
+ 		// error on waypoint
+-		new CTyp((byte) -1,(byte) -1,'E',&quot;&quot;,&quot;&quot;,&quot;&quot;,(byte) -1,'-',&quot;guiError.png&quot;,new String[] {&quot;&quot;,&quot;&quot;,&quot;&quot;,&quot;&quot;},49,-1,-1,0),
++		new CTyp(CW_TYPE_ERROR,CW_TYPE_ERROR,'E',&quot;&quot;,&quot;&quot;,&quot;&quot;,(byte) -1,'-',&quot;guiError.png&quot;,new String[] {&quot;&quot;,&quot;&quot;,&quot;&quot;,&quot;&quot;},49,-1,-1,0),
+         // mapped types (recognized on input from gpx or download-spider / or cw - version)                 
+-		new CTyp((byte) 8,(byte) 1,'C',&quot;&quot;,&quot;&quot;,&quot;1&quot;,(byte) -1,'U',&quot;&quot;,new String[] {&quot;Geocache|Other&quot;,&quot;Geocache&quot;,&quot;Other&quot;,&quot;Other&quot;},21,-1,-1,0),
+-		new CTyp((byte) 8,(byte) 7,'C',&quot;7&quot;,&quot;&quot;,&quot;7&quot;,(byte) -121,'U',&quot;&quot;,new String[] {&quot;Geocache|Quiz&quot;,&quot;Geocache&quot;,&quot;Quiz&quot;,&quot;Quiz&quot;},7,-1,-1,0),
+-		new CTyp((byte) 8,(byte) 9,'C',&quot;9&quot;,&quot;&quot;,&quot;9&quot;,(byte) -119,'U',&quot;&quot;,new String[] {&quot;Geocache|Moving&quot;,&quot;Geocache&quot;,&quot;Moving&quot;,&quot;Moving&quot;},9,-1,-1,0),
+-		new CTyp((byte) 2,(byte) 10,'C',&quot;10&quot;,&quot;&quot;,&quot;10&quot;,(byte) -118,'U',&quot;&quot;,new String[] {&quot;Geocache|DriveIn&quot;,&quot;Geocache&quot;,&quot;DriveIn&quot;,&quot;DriveIn&quot;},10,-1,-1,0),
+-		new CTyp((byte) 6,(byte) 14,'C',&quot;&quot;,&quot;3653&quot;,&quot;&quot;,(byte) -1,'X',&quot;&quot;,new String[] {&quot;Geocache|Lost and Found Event Cache&quot;,&quot;Geocache&quot;,&quot;Lost and Found Event Cache&quot;,&quot;&quot;},6,-1,-1,0),		         
+-		new CTyp((byte) 2,(byte) 102,'C',&quot;&quot;,&quot;9&quot;,&quot;&quot;,(byte) -1,'T',&quot;&quot;,new String[] {&quot;Geocache|Project APE Cache&quot;,&quot;Geocache&quot;,&quot;Project APE Cache&quot;,&quot;APE&quot;},16,-1,-1,0),
+-		new CTyp((byte) 6,(byte) 103,'C',&quot;&quot;,&quot;1304&quot;,&quot;&quot;,(byte) -1,'X',&quot;&quot;,new String[] {&quot;Geocache|GPS Adventures Exhibit&quot;,&quot;Geocache&quot;,&quot;GPS Adventures Exhibit&quot;,&quot;MAZE&quot;},17,-1,-1,0),
+-		new CTyp((byte) 8,(byte) 108,'C',&quot;&quot;,&quot;&quot;,&quot;8&quot;,(byte) -1,'U',&quot;&quot;,new String[] {&quot;only on OC download&quot;,&quot;&quot;,&quot;&quot;,&quot;&quot;},19,-1,-1,0),
+-		new CTyp((byte) 101,(byte) 15,'C',&quot;&quot;,&quot;&quot;,&quot;&quot;,(byte) -62,'G',&quot;&quot;,new String[] {&quot;Hack for V2 Typ&quot;,&quot;&quot;,&quot;&quot;,&quot;&quot;},-1,-1,-1,0),
++		new CTyp(CW_TYPE_UNKNOWN,(byte) 1,'C',&quot;&quot;,&quot;&quot;,&quot;1&quot;,(byte) -1,'U',&quot;&quot;,new String[] {&quot;Geocache|Other&quot;,&quot;Geocache&quot;,&quot;Other&quot;,&quot;Other&quot;},21,-1,-1,0),
++		new CTyp(CW_TYPE_UNKNOWN,(byte) 7,'C',&quot;7&quot;,&quot;&quot;,&quot;7&quot;,(byte) -121,'U',&quot;&quot;,new String[] {&quot;Geocache|Quiz&quot;,&quot;Geocache&quot;,&quot;Quiz&quot;,&quot;Quiz&quot;},7,-1,-1,0),
++		new CTyp(CW_TYPE_UNKNOWN,(byte) 9,'C',&quot;9&quot;,&quot;&quot;,&quot;9&quot;,(byte) -119,'U',&quot;&quot;,new String[] {&quot;Geocache|Moving&quot;,&quot;Geocache&quot;,&quot;Moving&quot;,&quot;Moving&quot;},9,-1,-1,0),
++		new CTyp(CW_TYPE_TRADITIONAL,(byte) 10,'C',&quot;10&quot;,&quot;&quot;,&quot;10&quot;,(byte) -118,'U',&quot;&quot;,new String[] {&quot;Geocache|DriveIn&quot;,&quot;Geocache&quot;,&quot;DriveIn&quot;,&quot;DriveIn&quot;},10,-1,-1,0),
++		new CTyp(CW_TYPE_EVENT,(byte) 14,'C',&quot;&quot;,&quot;3653&quot;,&quot;&quot;,(byte) -1,'X',&quot;&quot;,new String[] {&quot;Geocache|Lost and Found Event Cache&quot;,&quot;Geocache&quot;,&quot;Lost and Found Event Cache&quot;,&quot;&quot;},6,-1,-1,0),		         
++		new CTyp(CW_TYPE_TRADITIONAL,(byte) 102,'C',&quot;&quot;,&quot;9&quot;,&quot;&quot;,(byte) -1,'T',&quot;&quot;,new String[] {&quot;Geocache|Project APE Cache&quot;,&quot;Geocache&quot;,&quot;Project APE Cache&quot;,&quot;APE&quot;},16,-1,-1,0),
++		new CTyp(CW_TYPE_EVENT,(byte) 103,'C',&quot;&quot;,&quot;1304&quot;,&quot;&quot;,(byte) -1,'X',&quot;&quot;,new String[] {&quot;Geocache|GPS Adventures Exhibit&quot;,&quot;Geocache&quot;,&quot;GPS Adventures Exhibit&quot;,&quot;MAZE&quot;},17,-1,-1,0),
++		new CTyp(CW_TYPE_UNKNOWN,(byte) 108,'C',&quot;&quot;,&quot;&quot;,&quot;8&quot;,(byte) -1,'U',&quot;&quot;,new String[] {&quot;only on OC download&quot;,&quot;&quot;,&quot;&quot;,&quot;&quot;},19,-1,-1,0),
++		new CTyp(CW_TYPE_WHEREIGO,(byte) 15,'C',&quot;&quot;,&quot;&quot;,&quot;&quot;,(byte) -62,'G',&quot;&quot;,new String[] {&quot;Hack for V2 Typ&quot;,&quot;&quot;,&quot;&quot;,&quot;&quot;},-1,-1,-1,0),
+ 	};
+ 	// public static final int anzCacheTyps=cTypRef.length;
+ 	public static final byte maxCWCType=110;
+
+Modified: trunk/src/CacheWolf/DetailsPanel.java
+===================================================================
+--- trunk/src/CacheWolf/DetailsPanel.java	2010-07-12 11:46:26 UTC (rev 2677)
++++ trunk/src/CacheWolf/DetailsPanel.java	2010-07-12 14:07:02 UTC (rev 2678)
+@@ -330,24 +330,7 @@
+ 		btnCoordinates.setText(ch.pos.toString());
+ 		inpHidden.setText(mainCache.getDateHidden());
+ 		inpOwner.setText(mainCache.getCacheOwner());
+-
+-		int msgNr=318; // normal found
+-    	if (cache.getType() == CacheType.CW_TYPE_WEBCAM) { msgNr=361;}
+-    	else if (cache.getType() == CacheType.CW_TYPE_EVENT 
+-    			|| cache.getType() == CacheType.CW_TYPE_MEGA_EVENT) { msgNr=355;}
+-
+-		if ((cache.getCacheStatus().length() == 10 || cache.getCacheStatus().length() == 16) &amp;&amp;
+-				cache.getCacheStatus().charAt(4) == '-') {
+-			// todo found text for webcam or event
+-			chcStatus.setText(MyLocale.getMsg(msgNr, &quot;Found&quot;) + &quot; &quot; + ch.getCacheStatus());			
+-		} else {
+-			chcStatus.setText(ch.getCacheStatus());
+-			// If the cache status contains a date, do not overwrite it with
+-			// 'found' message
+-			if (ch.is_found()) {
+-				chcStatus.setText(MyLocale.getMsg(msgNr, &quot;Found&quot;));
+-			}
+-		}
++		chcStatus.setText(cache.getStatusText());
+ 		chcType.setInt(CacheType.cw2GuiSelect(ch.getType()));
+ 		if (ch.is_black()) {
+ 			btnBlack.image = imgBlack;
+
+Modified: trunk/src/CacheWolf/Filter.java
+===================================================================
+--- trunk/src/CacheWolf/Filter.java	2010-07-12 11:46:26 UTC (rev 2677)
++++ trunk/src/CacheWolf/Filter.java	2010-07-12 14:07:02 UTC (rev 2678)
+@@ -509,13 +509,13 @@
+ 	        ///////////////////////////////
+ 	        if (!cacheStatus.equals(&quot;&quot;)) {
+ 	        	if (!useRegexp) {
+-	        		if (ch.getCacheStatus().toLowerCase().indexOf(cacheStatus.toLowerCase())&lt;0) {
++	        		if (ch.getStatusText().toLowerCase().indexOf(cacheStatus.toLowerCase())&lt;0) {
+ 	        			cacheFiltered = true;
+ 	        			break;
+ 	        		}
+ 	        	} else {
+ 	        		Regex rex=new Regex(cacheStatus.toLowerCase());
+-	        		rex.search(ch.getCacheStatus().toLowerCase());
++	        		rex.search(ch.getStatusText().toLowerCase());
+ 	        		if (rex.stringMatched()==null) {
+ 	        			cacheFiltered = true;
+ 	        			break;
+
+Modified: trunk/src/CacheWolf/FilterScreen.java
+===================================================================
+--- trunk/src/CacheWolf/FilterScreen.java	2010-07-12 11:46:26 UTC (rev 2677)
++++ trunk/src/CacheWolf/FilterScreen.java	2010-07-12 14:07:02 UTC (rev 2678)
+@@ -156,7 +156,7 @@
+ 		pnlAttributes.addLast(chkNotOwned = new mCheckBox(MyLocale.getMsg(732,&quot;Anderer Besitzer&quot;)), CellConstants.DONTSTRETCH, CellConstants.FILL);
+ 
+ 		pnlAttributes.addNext(new mLabel(MyLocale.getMsg(307,&quot;Status:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		pnlAttributes.addLast(chcStatus = new mComboBox(new String[]{&quot;&quot;, MyLocale.getMsg(313,&quot;Flag 1&quot;), MyLocale.getMsg(314,&quot;Flag 2&quot;), MyLocale.getMsg(315,&quot;Flag 3&quot;), MyLocale.getMsg(316,&quot;Flag 4&quot;), MyLocale.getMsg(317,&quot;Search&quot;), MyLocale.getMsg(318,&quot;Found&quot;), MyLocale.getMsg(319,&quot;Not Found&quot;), MyLocale.getMsg(320,&quot;Owner&quot;)},0),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
++		pnlAttributes.addLast(chcStatus = new mComboBox(CacheHolder.GetGuiLogTypes(),0),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 		pnlAttributes.addLast(chkUseRegexp = new mCheckBox(MyLocale.getMsg(299,&quot;Regular expression&quot;)));
+ 		
+ 		//////////////////////////
+
+Modified: trunk/src/CacheWolf/exp/GPXExporter.java
+===================================================================
+--- trunk/src/CacheWolf/exp/GPXExporter.java	2010-07-12 11:46:26 UTC (rev 2677)
++++ trunk/src/CacheWolf/exp/GPXExporter.java	2010-07-12 14:07:02 UTC (rev 2678)
+@@ -103,7 +103,7 @@
+ 					} else {
+ 						strBuf.append(&quot;        &lt;groundspeak:log id=\&quot;&quot; ).append( Integer.toString(counter) ).append( &quot;\&quot;&gt;\r\n&quot;);
+ 					}
+-					strBuf.append(&quot;          &lt;groundspeak:date&gt;&quot;).append(SafeXML.cleanGPX(ch.GetStatusDate())).append(&quot;T&quot;).append(SafeXML.cleanGPX(ch.GetStatusTime())).append(&quot;:00&lt;/groundspeak:date&gt;\r\n&quot;);
++					strBuf.append(&quot;          &lt;groundspeak:date&gt;&quot;).append(SafeXML.cleanGPX(ch.getStatusDate())).append(&quot;T&quot;).append(SafeXML.cleanGPX(ch.getStatusTime())).append(&quot;:00&lt;/groundspeak:date&gt;\r\n&quot;);
+ 					if ( det.OwnLog != null ) {
+ 						strBuf.append(&quot;          &lt;groundspeak:type&gt;&quot;).append(image2TypeText(det.OwnLog.getIcon())).append(&quot;&lt;/groundspeak:type&gt;\r\n&quot;);
+ 					} else {
+
+Modified: trunk/src/CacheWolf/imp/GPXImporter.java
+===================================================================
+--- trunk/src/CacheWolf/imp/GPXImporter.java	2010-07-12 11:46:26 UTC (rev 2677)
++++ trunk/src/CacheWolf/imp/GPXImporter.java	2010-07-12 14:07:02 UTC (rev 2678)
+@@ -357,7 +357,7 @@
+ 		}
+ 		if (name.equals(&quot;sym&quot;)&amp;&amp; strData.endsWith(&quot;Found&quot;)) {
+ 			holder.setFound(true);
+-			holder.setCacheStatus(MyLocale.getMsg(318,&quot;Found&quot;));
++			holder.setCacheStatus(holder.getFoundText());
+ 			return;
+ 		}
+ 		if (name.equals(&quot;groundspeak:travelbugs&quot;)) {
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002655.html">[Cachewolf-svn] r2677 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="002657.html">[Cachewolf-svn] r2679 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2656">[ date ]</a>
+              <a href="thread.html#2656">[ thread ]</a>
+              <a href="subject.html#2656">[ subject ]</a>
+              <a href="author.html#2656">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

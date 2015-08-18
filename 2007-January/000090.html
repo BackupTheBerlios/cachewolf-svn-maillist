@@ -1,0 +1,180 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r378 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r378%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701102252.l0AMqki9025350%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000089.html">
+   <LINK REL="Next"  HREF="000091.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r378 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r378%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701102252.l0AMqki9025350%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r378 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Wed Jan 10 23:52:46 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000089.html">[Cachewolf-svn] [Bug #9930] SpiderGC: &lt;Enter&gt; im Passworteingabe
+</A></li>
+        <LI>Next message: <A HREF="000091.html">[Cachewolf-svn] [Bug #9930] SpiderGC: &lt;Enter&gt; im Passworteingabe
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#90">[ date ]</a>
+              <a href="thread.html#90">[ thread ]</a>
+              <a href="subject.html#90">[ subject ]</a>
+              <a href="author.html#90">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-01-10 23:52:43 +0100 (Wed, 10 Jan 2007)
+New Revision: 378
+
+Modified:
+   trunk/src/CacheWolf/Extractor.java
+   trunk/src/CacheWolf/InfoBox.java
+   trunk/src/CacheWolf/OCXMLImporterScreen.java
+   trunk/src/CacheWolf/SpiderGC.java
+   trunk/src/CacheWolf/myTableControl.java
+Log:
+[ Bug #9930 ] SpiderGC: &lt;Enter&gt; im Passworteingabe
+neue Fehlermeldung, wenn versucht wurde per rechtsklick einen Opencaching-cache zu aktuelisieren
+
+
+Modified: trunk/src/CacheWolf/Extractor.java
+===================================================================
+--- trunk/src/CacheWolf/Extractor.java	2007-01-10 20:52:24 UTC (rev 377)
++++ trunk/src/CacheWolf/Extractor.java	2007-01-10 22:52:43 UTC (rev 378)
+@@ -49,7 +49,7 @@
+ 		* that is being searched through.
+ 		*/
+ 		public boolean endOfSearch(){
+-			if(startOffset &gt;= searchText.length()) return true;
++			if(searchText == null || startOffset &gt;= searchText.length()) return true;
+ 			else return false;
+ 		}
+ 		
+@@ -59,6 +59,7 @@
+ 		*	is returned til it's end.
+ 		*/
+ 		public String findNext(){
++			if (searchText == null) return new String(); //maby null should 
+ 			int idxStart = searchText.indexOf(start,startOffset);
+ 			int idxEnd = searchText.indexOf(end, idxStart+start.length());
+ 			////Vm.debug(&quot;Start: &quot; + Convert.toString(idxStart) + &quot; End: &quot; + Convert.toString(idxEnd));
+
+Modified: trunk/src/CacheWolf/InfoBox.java
+===================================================================
+--- trunk/src/CacheWolf/InfoBox.java	2007-01-10 20:52:24 UTC (rev 377)
++++ trunk/src/CacheWolf/InfoBox.java	2007-01-10 22:52:43 UTC (rev 378)
+@@ -39,7 +39,10 @@
+ 			this.addNext(mL, CellConstants.STRETCH, CellConstants.FILL);
+ 			this.addLast(feedback, CellConstants.STRETCH, CellConstants.FILL);
+ 		}
++		mC.setHotKey(0, IKeys.ESCAPE);
+ 		this.addNext(mC, CellConstants.STRETCH, CellConstants.FILL);
++		mB.setHotKey(0, IKeys.ACTION);
++		mB.setHotKey(0, IKeys.ENTER);
+ 		this.addLast(mB, CellConstants.STRETCH, CellConstants.FILL);
+ 	}
+ 	
+
+Modified: trunk/src/CacheWolf/OCXMLImporterScreen.java
+===================================================================
+--- trunk/src/CacheWolf/OCXMLImporterScreen.java	2007-01-10 20:52:24 UTC (rev 377)
++++ trunk/src/CacheWolf/OCXMLImporterScreen.java	2007-01-10 22:52:43 UTC (rev 378)
+@@ -49,8 +49,13 @@
+ 			this.addLast(missingCheckBox, CellConstants.DONTSTRETCH, CellConstants.DONTFILL|CellConstants.WEST);
+ 		}
+ 
+-		this.addNext(cancelB = new mButton(MyLocale.getMsg(1604,&quot;Cancel&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		this.addLast(okB = new mButton(MyLocale.getMsg(1605,&quot;OK&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		cancelB = new mButton(MyLocale.getMsg(1604,&quot;Cancel&quot;));
++		cancelB.setHotKey(0, IKeys.ESCAPE);
++		this.addNext(cancelB,CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		okB = new mButton(MyLocale.getMsg(1605,&quot;OK&quot;));
++		okB.setHotKey(0, IKeys.ACTION);
++		okB.setHotKey(0, IKeys.ENTER);
++		this.addLast(okB,CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 	}
+ 	public void onEvent(Event ev){
+ 		if (ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.PRESSED){
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2007-01-10 20:52:24 UTC (rev 377)
++++ trunk/src/CacheWolf/SpiderGC.java	2007-01-10 22:52:43 UTC (rev 378)
+@@ -65,7 +65,7 @@
+ 		} else return code;
+ 		infB.close(0);
+ 		infB = new InfoBox(&quot;Status&quot;, &quot;Logging in...&quot;);
+-		infB.show();
++		infB.exec();
+ 		try{
+ 			pref.log(&quot;Fetching login page&quot;);
+ 			start = fetch(&quot;<A HREF="http://www.geocaching.com/login/Default.aspx">http://www.geocaching.com/login/Default.aspx</A>&quot;);
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2007-01-10 20:52:24 UTC (rev 377)
++++ trunk/src/CacheWolf/myTableControl.java	2007-01-10 22:52:43 UTC (rev 378)
+@@ -71,15 +71,22 @@
+ 			SpiderGC spider = new SpiderGC(pref, profile);
+ 			Vm.showWait(true);
+ 			spider.login();
+-			//TODO pr&#252;fen, ob es sich um ein gc oder oc cache handelt. Aber wie?
++			boolean alreadySaid = false;
+ 			for(int i = 0; i &lt;	db.size(); i++){
+ 				ch = (CacheHolder)db.get(i);
+ 				if(ch.is_Checked == true) {
+-					spider.spiderSingle(i);
++					if ( (ch.wayPoint.length() &gt; 1 &amp;&amp; ch.wayPoint.substring(0,2).equalsIgnoreCase(&quot;GC&quot;))
++							|| (ch.mainCache != null &amp;&amp;	ch.mainCache.wayPoint.length() &gt; 1 	&amp;&amp; ch.mainCache.wayPoint.substring(0,2).equalsIgnoreCase(&quot;GC&quot;)) ) 
++					{
++						spider.spiderSingle(i);
++					} else if (!alreadySaid) {
++						alreadySaid = true;
++						(new MessageBox(&quot;Information&quot;,&quot;Diese Funktion steht gegenw&#228;rtig nur f&#252;r Geocaching.com zur Verf&#252;gung&quot;, MessageBox.OKB)).exec();
++					}
+ 				}
+ 			}
++			tbp.refreshTable();
+ 			Vm.showWait(false);
+-			tbp.refreshTable();
+ 		}
+ 		if (selectedItem.toString().equals(MyLocale.getMsg(1019,&quot;Center&quot;))){
+ 			CacheHolder thisCache = (CacheHolder)tbp.cacheDB.get(tbp.getSelectedCache());
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000089.html">[Cachewolf-svn] [Bug #9930] SpiderGC: &lt;Enter&gt; im Passworteingabe
+</A></li>
+	<LI>Next message: <A HREF="000091.html">[Cachewolf-svn] [Bug #9930] SpiderGC: &lt;Enter&gt; im Passworteingabe
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#90">[ date ]</a>
+              <a href="thread.html#90">[ thread ]</a>
+              <a href="subject.html#90">[ subject ]</a>
+              <a href="author.html#90">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

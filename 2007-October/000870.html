@@ -1,0 +1,247 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r977 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-October/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r977%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200710132238.l9DMcNU3007747%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000869.html">
+   <LINK REL="Next"  HREF="000871.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r977 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r977%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200710132238.l9DMcNU3007747%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r977 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sun Oct 14 00:38:23 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000869.html">[Cachewolf-svn] r976 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000871.html">[Cachewolf-svn] r978 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#870">[ date ]</a>
+              <a href="thread.html#870">[ thread ]</a>
+              <a href="subject.html#870">[ subject ]</a>
+              <a href="author.html#870">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-10-14 00:38:14 +0200 (Sun, 14 Oct 2007)
+New Revision: 977
+
+Modified:
+   trunk/src/CacheWolf/CacheHolder.java
+   trunk/src/CacheWolf/CacheHolderDetail.java
+   trunk/src/CacheWolf/SpiderGC.java
+Log:
+Spider: Fix for red and blue circles and logs when reading GPX file
+
+
+Modified: trunk/src/CacheWolf/CacheHolder.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolder.java	2007-10-13 18:54:45 UTC (rev 976)
++++ trunk/src/CacheWolf/CacheHolder.java	2007-10-13 22:38:14 UTC (rev 977)
+@@ -187,7 +187,7 @@
+ 
+ public void setLatLon(String latLon) {
+ 	latLon=latLon.trim();
+-	if (!latLon.equals(LatLon)) is_update=true;
++	if (!latLon.equals(LatLon.trim())) is_update=true;
+ 	LatLon = latLon;
+ 	pos.set(latLon);
+ }
+
+Modified: trunk/src/CacheWolf/CacheHolderDetail.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolderDetail.java	2007-10-13 18:54:45 UTC (rev 976)
++++ trunk/src/CacheWolf/CacheHolderDetail.java	2007-10-13 22:38:14 UTC (rev 977)
+@@ -38,10 +38,20 @@
+ 	 }
+ 
+ 	 public void setLongDescription(String longDescription) {
+-	 	if (!LongDescription.equals(longDescription)) is_update=true;
++	 	if (LongDescription.equals(&quot;&quot;)) is_new=true;
++	 	else if (!stripControlChars(LongDescription).equals(stripControlChars(longDescription))) is_update=true;
+ 	 	LongDescription = longDescription;
+ 	 }
+ 	 
++	 private String stripControlChars(String desc) {
++		 StringBuffer sb=new StringBuffer(desc.length());
++		 for (int i=0; i&lt;desc.length(); i++) {
++			char c=desc.charAt(i);
++			if (c&gt;' ') sb.append(c);
++		 }
++		 return sb.toString();
++	 }
++	 
+ 	 public void setHints(String hints) {
+ 	 	if (!Hints.equals(hints)) is_update=true;
+ 	 	Hints = hints;
+@@ -49,9 +59,19 @@
+ 	 
+ 	 public void setCacheLogs(Vector logs) {
+ 		  // Number of logs has changed, set the log_update flag
+-		 if (logs.size()!=CacheLogs.size()) is_log_update=true;
+-		 CacheLogs=logs;
+-		 // Count the number of not-found logs
++		 //if (logs.size()!=CacheLogs.size()) is_log_update=true;
++		 int size=logs.size();
++		 for (int i=0; i&lt;size; i++) { // Loop over all new logs
++			 addLog((String)logs.elementAt(i));
++		 }
++		 //CacheLogs=logs;
++		 countNotFoundLogs();
++	 }
++
++	 /**
++	  *  Count the number of not-found logs
++	  */
++	 public void countNotFoundLogs() {
+ 		int countNoFoundLogs = 0;
+ 		String loganal = &quot;&quot;;
+ 		while(countNoFoundLogs &lt; CacheLogs.size() &amp;&amp; countNoFoundLogs &lt; 5){
+@@ -162,14 +182,14 @@
+ 		  //&lt;img src='icon_smile.gif'&gt;&nbsp;2005-10-30 by Schatzpirat&lt;/strong&gt;&lt;br&gt;
+ 		  //get Date of latest log in old cachedata
+ 		  Extractor extOldDate;
+-		  String oldLogDate = new String();
++		  String oldLogDate = &quot;&quot;;
+ 		  if(this.CacheLogs.size()&gt;0){
+-			extOldDate = new Extractor((String) this.CacheLogs.get(0), &quot;;&quot;,&quot; by&quot;, 0, true);
+-			oldLogDate= new String(extOldDate.findNext());
++			extOldDate = new Extractor((String) this.CacheLogs.get(0), &quot;;&quot;,&quot; &quot;, 0, true);
++			oldLogDate= extOldDate.findNext();
+ 		  }
+ 
+ 		  String newLogDate;
+-		  Extractor extNewDate = new Extractor(logEntry, &quot;;&quot;,&quot; by&quot;, 0, true);
++		  Extractor extNewDate = new Extractor(logEntry, &quot;;&quot;,&quot; &quot;, 0, true);
+ 		  newLogDate = extNewDate.findNext();
+ 		  if (newLogDate.compareTo(oldLogDate)&gt; 0){
+ 	  		  // oldest log from new cachedata is younger than stored data
+@@ -181,12 +201,17 @@
+ 			  return;
+ 		  }
+ 		  if (newLogDate.compareTo(oldLogDate)== 0){
+-			  // logdate is equal, so check, if finder is equal
++			  // logdate is equal, so check, if date&amp;finder is equal
+ 			  String newLogFinder, oldLogFinder;
+-			  Extractor extOldFinder = new Extractor((String) this.CacheLogs.get(0), &quot;by &quot;,&quot;&lt;&quot;, 0, true);
++			  Extractor extOldFinder = new Extractor((String) this.CacheLogs.get(0), &quot;;&quot;,&quot;&lt;&quot;, 0, true);
+ 			  oldLogFinder = extOldFinder.findNext().toLowerCase();
++			  // Check whether the last old log was inserted without a &quot; by &quot; between date and finder
++			  if (oldLogFinder.indexOf(&quot; by&quot;)&lt;0) {
++				  int i=oldLogFinder.indexOf(&quot; &quot;);
++				  if (i&gt;0) oldLogFinder=oldLogFinder.substring(0,i)+&quot; by&quot;+oldLogFinder.substring(i);
++			  }
+ 			  
+-			  Extractor extNewFinder = new Extractor(logEntry, &quot;by &quot;,&quot;&lt;&quot;, 0, true);
++			  Extractor extNewFinder = new Extractor(logEntry, &quot;;&quot;,&quot;&lt;&quot;, 0, true);
+ 			  newLogFinder = extNewFinder.findNext().toLowerCase();
+ 			  
+ 			  if (newLogFinder.compareTo(oldLogFinder)!= 0){
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2007-10-13 18:54:45 UTC (rev 976)
++++ trunk/src/CacheWolf/SpiderGC.java	2007-10-13 22:38:14 UTC (rev 977)
+@@ -455,13 +455,14 @@
+ 			try{
+ 				chD.is_new = !isUpdate;
+ 				chD.is_update = false;
++				chD.is_log_update=false;
+ 				chD.is_HTML = true;
+ 				chD.is_available = true;
+ 				chD.is_archived = false;
+ 				chD.is_incomplete = false;
+ 				// Save size of logs to be able to check whether any new logs were added
+-				int logsz = chD.CacheLogs.size();
+-				chD.CacheLogs.clear();
++				//int logsz = chD.CacheLogs.size();
++				//chD.CacheLogs.clear();
+ 				chD.addiWpts.clear();
+ 				chD.Images.clear();
+ 				chD.ImagesText.clear();
+@@ -787,7 +788,7 @@
+ 				chD.is_found = true;
+ 				chD.CacheStatus = d;
+ 			}
+-			if (nLogs&lt;=MAXLOGS) reslts.add(&quot;&lt;img src='&quot;+ icon +&quot;'&gt;&nbsp;&quot; + d + &quot; &quot; + name +&quot;&lt;br&gt;&quot;+ exLog.findNext());
++			if (nLogs&lt;=MAXLOGS) reslts.add(&quot;&lt;img src='&quot;+ icon +&quot;'&gt;&nbsp;&quot; + d + &quot; by &quot; + name +&quot;&lt;br&gt;&quot;+ exLog.findNext());
+ 
+ 			singleLog = exSingleLog.findNext();
+ 			exIcon.setSource(singleLog);
+@@ -1020,14 +1021,22 @@
+ 				CacheHolderDetail cxD = new CacheHolderDetail();
+ 				Extractor exPrefix=new Extractor(rowBlock,p.getProp(&quot;prefixExStart&quot;),p.getProp(&quot;prefixExEnd&quot;),0,true);
+ 				String prefix=exPrefix.findNext();
++				String adWayPoint;
+ 				if (prefix.length()==2)
+-					cxD.wayPoint=prefix+wayPoint.substring(2);
++					adWayPoint=prefix+wayPoint.substring(2);
+ 				else	
+-				cxD.wayPoint = MyLocale.formatLong(counter, &quot;00&quot;) + wayPoint.substring(2);
++				    adWayPoint = MyLocale.formatLong(counter, &quot;00&quot;) + wayPoint.substring(2);
+ 				counter++;
+-				try{ // If addi exists, try to read it to preserve the notes
+-					cxD.readCache(profile.dataDir);
+-				} catch (Exception ex) {};
++				int idx=profile.getCacheIndex(adWayPoint);
++				if (idx&gt;=0) {
++					cxD=new CacheHolderDetail((CacheHolder) cacheDB.get(idx));
++					try{ // If addi exists, try to read it to preserve the notes
++						cxD.readCache(profile.dataDir);
++					} catch (Exception ex) {};
++				} else {
++					cxD=new CacheHolderDetail(); cxD.wayPoint=adWayPoint;
++				}
++				cxD.is_update=false; cxD.is_new=false;
+ 				nameRex.search(rowBlock);
+ 				koordRex.search(rowBlock);
+ 				typeRex.search(rowBlock);
+@@ -1039,9 +1048,8 @@
+ 				cxD.setLongDescription(descRex.stringMatched(1));
+ 				cxD.is_found = is_found;
+ 				cxD.saveCacheDetails(profile.dataDir);
+-
+-				int idx=profile.getCacheIndex(cxD.wayPoint);
+ 				if (idx&lt;0){
++					cxD.is_new=true; cxD.is_update=false;
+ 					cacheDB.add(new CacheHolder(cxD));
+ 				}else {
+ 					CacheHolder cx=(CacheHolder) cacheDB.get(idx);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000869.html">[Cachewolf-svn] r976 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000871.html">[Cachewolf-svn] r978 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#870">[ date ]</a>
+              <a href="thread.html#870">[ thread ]</a>
+              <a href="subject.html#870">[ subject ]</a>
+              <a href="author.html#870">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

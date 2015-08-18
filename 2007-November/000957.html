@@ -1,0 +1,179 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1064 - in trunk/src/CacheWolf: . navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-November/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1064%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C200711130941.lAD9ftAE031716%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000956.html">
+   <LINK REL="Next"  HREF="000958.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1064 - in trunk/src/CacheWolf: . navi</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1064%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C200711130941.lAD9ftAE031716%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1064 - in trunk/src/CacheWolf: . navi">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Tue Nov 13 10:41:55 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000956.html">[Cachewolf-svn] r1063 - trunk/src/CacheWolf/navi
+</A></li>
+        <LI>Next message: <A HREF="000958.html">[Cachewolf-svn] r1065 - trunk/res_noewe
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#957">[ date ]</a>
+              <a href="thread.html#957">[ thread ]</a>
+              <a href="subject.html#957">[ subject ]</a>
+              <a href="author.html#957">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-11-13 10:41:40 +0100 (Tue, 13 Nov 2007)
+New Revision: 1064
+
+Modified:
+   trunk/src/CacheWolf/HttpConnection.java
+   trunk/src/CacheWolf/PreferencesScreen.java
+   trunk/src/CacheWolf/navi/MapLoader.java
+Log:
+Http-Connection: proxy configuration incooperated, so that the class who wants to download something doesn't need to care about proxy config any more. Hopefully this works as I cannot test it.
+
+Modified: trunk/src/CacheWolf/HttpConnection.java
+===================================================================
+--- trunk/src/CacheWolf/HttpConnection.java	2007-11-12 20:37:32 UTC (rev 1063)
++++ trunk/src/CacheWolf/HttpConnection.java	2007-11-13 09:41:40 UTC (rev 1064)
+@@ -110,6 +110,21 @@
+ Object originalPostData;
+ 
+ /**
++ * Set these when the class is instantiated the first time.
++ * afterwards you don't need to set proxy parameters anymore
++ */
++
++private static String proxy = Global.getPref().myproxy;
++private static int proxyPort = Common.parseInt(Global.getPref().myproxyport);
++private static boolean useProxy = Global.getPref().proxyActive;
++
++public static void setProxy(String proxyi, int proxyporti, boolean useproxyi) {
++	proxy = proxyi;
++	proxyPort = proxyporti;
++	useProxy = useproxyi;
++}
++
++/**
+  * This returns true if post data has been set for this connection.
+  */
+ public boolean hasPostData()
+@@ -268,24 +283,30 @@
+ public HttpConnection(String url)
+ //===================================================================
+ {
+-	url = ewe.io.File.fixupPath(url);
+-	//ewe.sys.Vm.debug(&quot;url: &quot;+url);
+-	port = 80;
+-	String uu = url.toLowerCase();
+-	if (uu.startsWith(&quot;<A HREF="http://">http://</A>&quot;)){
+-		uu = url.replace('\\','/');
+-		host = uu.substring(7);
+-		int first = host.indexOf('/');
+-		if (first == -1) document = &quot;/&quot;;
+-		else {
+-			document = host.substring(first);
+-			host = host.substring(0,first);
++	if (useProxy) { 
++		host = proxy;
++		port = proxyPort;
++		document = url;
++	} else {
++		url = ewe.io.File.fixupPath(url);
++		//ewe.sys.Vm.debug(&quot;url: &quot;+url);
++		port = 80;
++		String uu = url.toLowerCase();
++		if (uu.startsWith(&quot;<A HREF="http://">http://</A>&quot;)){
++			uu = url.replace('\\','/');
++			host = uu.substring(7);
++			int first = host.indexOf('/');
++			if (first == -1) document = &quot;/&quot;;
++			else {
++				document = host.substring(first);
++				host = host.substring(0,first);
++			}
++			int colon = host.indexOf(':');
++			if (colon != -1){
++				port = ewe.sys.Convert.toInt(host.substring(colon+1));
++				host = host.substring(0,colon);
++			}
+ 		}
+-		int colon = host.indexOf(':');
+-		if (colon != -1){
+-			port = ewe.sys.Convert.toInt(host.substring(colon+1));
+-			host = host.substring(0,colon);
+-		}
+ 	}
+ }
+ 
+
+Modified: trunk/src/CacheWolf/PreferencesScreen.java
+===================================================================
+--- trunk/src/CacheWolf/PreferencesScreen.java	2007-11-12 20:37:32 UTC (rev 1063)
++++ trunk/src/CacheWolf/PreferencesScreen.java	2007-11-13 09:41:40 UTC (rev 1064)
+@@ -243,6 +243,7 @@
+ 				pref.myproxy = Proxy.getText();
+ 				pref.myproxyport = ProxyPort.getText();
+ 				pref.proxyActive=chkProxyActive.getState();
++				HttpConnection.setProxy(pref.myproxy, Common.parseInt(pref.myproxyport), pref.proxyActive); // TODO generate an error message if proxy port is not a number
+ 				//myPreferences.nLogs = Convert.parseInt(nLogs.getText());
+ 				pref.autoReloadLastProfile=chkAutoLoad.getState();
+ 				pref.showDeletedImages=chkShowDeletedImg.getState();
+
+Modified: trunk/src/CacheWolf/navi/MapLoader.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MapLoader.java	2007-11-12 20:37:32 UTC (rev 1063)
++++ trunk/src/CacheWolf/navi/MapLoader.java	2007-11-13 09:41:40 UTC (rev 1064)
+@@ -256,12 +256,7 @@
+ 			forceredirect = false;
+ 			realurl = url;
+ 		}
+-		if(proxy.length()&gt;0){
+-			connImg = new HttpConnection(proxy, Convert.parseInt(port), realurl);
+-			//Vm.debug(&quot;Loading quelle: &quot; + quelle);
+-		}else{
+-			connImg = new HttpConnection(realurl);
+-		}
++		connImg = new HttpConnection(realurl);
+ 		connImg.setRequestorProperty(&quot;USER_AGENT&quot;, &quot;Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.7.5) Gecko/20041107 Firefox/1.0&quot;);
+ 		connImg.setRequestorProperty(&quot;Connection&quot;, &quot;close&quot;);
+ 		connImg.setRequestorProperty(&quot;Cookie&quot;, &quot;jscript=1; path=/;&quot;);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000956.html">[Cachewolf-svn] r1063 - trunk/src/CacheWolf/navi
+</A></li>
+	<LI>Next message: <A HREF="000958.html">[Cachewolf-svn] r1065 - trunk/res_noewe
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#957">[ date ]</a>
+              <a href="thread.html#957">[ thread ]</a>
+              <a href="subject.html#957">[ subject ]</a>
+              <a href="author.html#957">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

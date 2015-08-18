@@ -1,0 +1,442 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r361 - in trunk: resources src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r361%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200701071940.l07JetZA031515%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000043.html">
+   <LINK REL="Next"  HREF="000045.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r361 - in trunk: resources src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r361%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200701071940.l07JetZA031515%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r361 - in trunk: resources src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sun Jan  7 20:40:55 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000043.html">[Cachewolf-svn] r360 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000045.html">[Cachewolf-svn] r362 - in trunk: resources src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#44">[ date ]</a>
+              <a href="thread.html#44">[ thread ]</a>
+              <a href="subject.html#44">[ subject ]</a>
+              <a href="author.html#44">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-01-07 20:40:51 +0100 (Sun, 07 Jan 2007)
+New Revision: 361
+
+Modified:
+   trunk/resources/cachewolf.Languages.cfg
+   trunk/src/CacheWolf/MainForm.java
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/Preferences.java
+   trunk/src/CacheWolf/PreferencesScreen.java
+   trunk/src/CacheWolf/TablePanel.java
+Log:
+Update vom PreferencesScreen in zwei Tabs (kann kuenftig leicht erweitert werden).
+Neue Optionen zur Darstellung (Menue unten, Tabs unten).
+
+Modified: trunk/resources/cachewolf.Languages.cfg
+===================================================================
+--- trunk/resources/cachewolf.Languages.cfg	2007-01-07 17:31:12 UTC (rev 360)
++++ trunk/resources/cachewolf.Languages.cfg	2007-01-07 19:40:51 UTC (rev 361)
+@@ -88,6 +88,11 @@
+ 		324= - neu versuchen?
+ 		325=Zuwenige Referenzpunkte, Karte nicht kalibriert
+ 		326=Es steht keine kalibrierte Karte zur Verf%fcgung
++		340=Cachebilder:
++		341=Eigene Bilder:
++		342=Gel%f6scht
++		343=Nicht genug Speicher um Bild zu laden
++		344=Datei l%f6schen
+ 		400=Dekodieren
+ 		500=Umschalten
+ 		600=Pr%e4ferenzen
+@@ -111,6 +116,15 @@
+ 		618=Kopieren
+ 		619=Parse
+ 		620=Speichern
++		621=Allgemein
++		622=Ansicht
++		623=Bilder:
++		624=Gel%f6schte Bilder zeigen
++		625=Ansicht (braucht Neustart):
++		626=Men%fc oben
++		627=Tabs oben
++		628=Status zeigen
++		629=Profil auto. laden
+ 		700=Filter setzen
+ 		701=Entfernung
+ 		702=Schwierigkeit
+@@ -324,6 +338,11 @@
+ 		324= - retry?
+ 		325=Not enough reference points, map not calibrated
+ 		326=No calibrated map available
++		340=Cache Images:
++		341=User Images:
++		342=Deleted
++		343=Not enough free memory to load cache image
++		344=Delete image
+ 		400=Dekode
+ 		500=Switch
+ 		600=Preferences
+@@ -347,6 +366,15 @@
+ 		618=Copy
+ 		619=Parse
+ 		620=Save
++		621=General
++		622=Screen
++		623=Images:
++		624=Show deleted images
++		625=Screen layout (needs restart):
++		626=Menu top
++		627=Tabs top
++		628=Show status
++		629=Autoload last profile
+ 		700=Set filter
+ 		701=Distance
+ 		702=Difficulty
+
+Modified: trunk/src/CacheWolf/MainForm.java
+===================================================================
+--- trunk/src/CacheWolf/MainForm.java	2007-01-07 17:31:12 UTC (rev 360)
++++ trunk/src/CacheWolf/MainForm.java	2007-01-07 19:40:51 UTC (rev 361)
+@@ -10,7 +10,7 @@
+ */
+ public class MainForm extends Form {
+ 	
+-	StatusBar statBar;
++	StatusBar statBar=null;
+ 	Preferences pref = Global.getPref(); // Singleton pattern
+ 	Profile profile = Global.getProfile();
+ 	MainTab mTab;
+@@ -68,9 +68,14 @@
+ 			}
+ 		} else Vm.setSIP(0);
+ 		//Vm.setParameter(Vm.SET_ALWAYS_SHOW_SIP_BUTTON,1);
+-		statBar = new StatusBar(pref, profile.cacheDB);
+-		this.addLast(mMenu = new MainMenu(this),CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		this.addLast(mTab = new MainTab(pref,profile,statBar),CellConstants.STRETCH, CellConstants.FILL);
++		if (pref.showStatus) statBar = new StatusBar(pref, profile.cacheDB);
++		if (pref.menuAtTop) {
++			this.addLast(mMenu = new MainMenu(this),CellConstants.DONTSTRETCH, CellConstants.FILL);
++			this.addLast(mTab = new MainTab(pref,profile,statBar),CellConstants.STRETCH, CellConstants.FILL);
++		} else {
++			this.addLast(mTab = new MainTab(pref,profile,statBar),CellConstants.STRETCH, CellConstants.FILL);
++			this.addLast(mMenu = new MainMenu(this),CellConstants.DONTSTRETCH, CellConstants.FILL);
++		}
+ 		mMenu.setTablePanel(mTab.getTablePanel());
+ 		
+ 	}
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2007-01-07 17:31:12 UTC (rev 360)
++++ trunk/src/CacheWolf/MainTab.java	2007-01-07 19:40:51 UTC (rev 361)
+@@ -33,6 +33,7 @@
+ 	public MainTab(Preferences p, Profile prof,StatusBar statBar){
+ 		pref = p;
+ 		profile=prof;
++		if (!pref.tabsAtTop) tabLocation=SOUTH;
+ 		cDB = profile.cacheDB;
+ 		MyLocale.setSIPButton();
+ 		ch.wayPoint = &quot;null&quot;;
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2007-01-07 17:31:12 UTC (rev 360)
++++ trunk/src/CacheWolf/Preferences.java	2007-01-07 19:40:51 UTC (rev 361)
+@@ -11,8 +11,6 @@
+ *	A class to hold the preferences that were loaded upon start up of CacheWolf.
+ *	This class is also capable of parsing the prefs.xml file as well as
+ *	saving the current settings of preferences.
+-*  Last change:
+-*    20061123 salzkammergut Added garminConn, used MyLocale
+ */
+ public class Preferences extends MinML{
+ 	
+@@ -58,7 +56,11 @@
+ 	public String lastDistOC[] = new String[4];
+ 	public String garminConn=&quot;com1&quot;;  // The type of connection which GPSBABEL uses: com1 OR usb.
+ 	// TODO Add garminConn to user interface. For the time being this can only be set by manually editing the pref file
+-		
++
++	public boolean menuAtTop=true;
++	public boolean tabsAtTop=true;
++	public boolean showStatus=true;
++	
+ 	//public String last_sync_opencaching = new String();
+ 	//public String distOC = new String();
+ 	public boolean downloadPicsOC = true; //TODO Sollten die auch im Profil gespeichert werden mit Preferences als default Werte ?
+@@ -355,6 +357,11 @@
+ 		if (name.equals(&quot;imagepanel&quot;)) {
+ 			showDeletedImages = Boolean.valueOf(atts.getValue(&quot;showdeletedimages&quot;)).booleanValue();
+ 		}
++		if (name.equals(&quot;screen&quot;)) {
++			menuAtTop=Boolean.valueOf(atts.getValue(&quot;menuattop&quot;)).booleanValue();
++			tabsAtTop=Boolean.valueOf(atts.getValue(&quot;tabsattop&quot;)).booleanValue();
++			showStatus=Boolean.valueOf(atts.getValue(&quot;showstatus&quot;)).booleanValue();
++		}
+ 	}
+ 
+ 	public void characters( char ch[], int start, int length )
+@@ -422,6 +429,7 @@
+ 			outp.print(&quot;    &lt;fixedsip state = \&quot;&quot;+fixSIP+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;garmin connection = \&quot;&quot;+garminConn+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;lastprofile autoreload=\&quot;&quot;+autoReloadLastProfile+&quot;\&quot;&gt;&quot;+lastProfile+&quot;&lt;/lastprofile&gt;\n&quot;); //RB
++			outp.print(&quot;    &lt;screen menuattop=\&quot;&quot;+menuAtTop+&quot;\&quot; tabsattop=\&quot;&quot;+tabsAtTop+&quot;\&quot; showstatus=\&quot;&quot;+showStatus+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;imagepanel showdeletedimages=\&quot;&quot;+showDeletedImages+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;opencaching downloadPicsOC=\&quot;&quot;+downloadPicsOC+&quot;\&quot; downloadMaps=\&quot;&quot;+downloadMapsOC+&quot;\&quot; downloadMissing=\&quot;&quot;+downloadmissingOC+&quot;\&quot;/&gt;\n&quot;);
+ 			// Obsolete data kept for backward compatibility
+
+Modified: trunk/src/CacheWolf/PreferencesScreen.java
+===================================================================
+--- trunk/src/CacheWolf/PreferencesScreen.java	2007-01-07 17:31:12 UTC (rev 360)
++++ trunk/src/CacheWolf/PreferencesScreen.java	2007-01-07 19:40:51 UTC (rev 361)
+@@ -15,77 +15,117 @@
+ public class PreferencesScreen extends Form {
+ 	mButton cancelB, applyB, brwBt, gpsB,btnCentre;
+ 	mChoice NS, EW;
+-	mInput NSDeg, NSm, EWDeg, EWm, DataDir, Proxy, ProxyPort, Alias, nLogs, Browser, fontSize;
+-	mCheckBox dif, ter, loc, own, hid, stat, dist, bear, chkAutoLoad;
++	mInput NSDeg, NSm, EWDeg, EWm, DataDir, Proxy, ProxyPort, Alias, nLogs, Browser, fontSize, inpGPS;
++	mCheckBox dif, ter, loc, own, hid, stat, dist, bear, chkAutoLoad, chkShowDeletedImg, chkMenuAtTop, 
++	          chkTabsAtTop, chkShowStatus;
++	mTabbedPanel mTab;
++	mChoice chcGarminPort;
++	
+ 	Preferences pref;
+-
+-	CellPanel content = new CellPanel();
++	
++	CellPanel pnlGeneral = new CellPanel();
++	CellPanel pnlDisplay = new CellPanel();
+ 	ScrollBarPanel scp;
++	String [] garminPorts= new String[]{&quot;com1&quot;,&quot;com2&quot;,&quot;com3&quot;,&quot;com4&quot;,&quot;usb&quot;};
+ 	
+ 	public PreferencesScreen (Preferences p){
+-		scp = new ScrollBarPanel(content);
++		mTab=new mTabbedPanel();
++		
++		//scp = new ScrollBarPanel(pnlGeneral);
+ 		pref = p;
+ 		this.title = MyLocale.getMsg(600,&quot;Preferences&quot;);
+ 		//this.resizable = false;
+ 		//this.moveable = true;
+ 		//this.windowFlagsToSet = Window.FLAG_MAXIMIZE;
+ 		
+-		
+-		content.addNext(new mLabel(MyLocale.getMsg(601,&quot;Your Alias:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		content.addLast(new mLabel(&quot;Browser:&quot;),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		/////////////////////////////////////////////////////////
++		// First panel - General
++		/////////////////////////////////////////////////////////
++		pnlGeneral.addNext(new mLabel(MyLocale.getMsg(601,&quot;Your Alias:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		pnlGeneral.addNext(new mLabel(&quot;Browser:&quot;),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		pnlGeneral.addLast(gpsB = new mButton(&quot;GPS&quot;),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 
+ 		Alias = new mInput();
+ 		Browser = new mInput();
+ 		Alias.setText(pref.myAlias);
+ 		Browser.setText(pref.browser);
+-		content.addNext(Alias,CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		pnlGeneral.addNext(Alias,CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		//content.addNext(Alias.setTag(Control.SPAN, new Dimension(3,1)),content.DONTSTRETCH, (content.HFILL|content.WEST));
+-		content.addNext(Browser,CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		content.addLast(gpsB = new mButton(&quot;GPS&quot;),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-
+-			//content.addLast(new mLabel(MyLocale.getMsg(602,&quot;Your Location:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-			//content.addLast(btnCentre = new mButton(pref.curCentrePt.toString(CWPoint.CW)),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+-			content.addNext(new mLabel(MyLocale.getMsg(603,&quot;Data Directory:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-			content.addLast(brwBt = new mButton(MyLocale.getMsg(604,&quot;Browse&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.EAST));
+-			DataDir = new mInput();
+-			DataDir.setText(pref.baseDir);
+-			content.addLast(DataDir.setTag(Control.SPAN, new Dimension(3,1)),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.EAST));
+-			content.addLast(chkAutoLoad = new mCheckBox(&quot;Autoload last profile&quot;),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-			if (pref.autoReloadLastProfile) chkAutoLoad.setState(true);
++		pnlGeneral.addNext(Browser,CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		pnlGeneral.addLast(inpGPS=new mInput(&quot;&quot;));
++		inpGPS.modify(ControlConstants.Disabled|ControlConstants.NoFocus,0);
++		inpGPS.setText(pref.mySPO.portName+&quot;/&quot;+pref.mySPO.baudRate);
++		
++		pnlGeneral.addNext(new mLabel(MyLocale.getMsg(603,&quot;Data Directory:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		pnlGeneral.addLast(brwBt = new mButton(MyLocale.getMsg(604,&quot;Browse&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.EAST));
++		DataDir = new mInput();
++		DataDir.setText(pref.baseDir);
++		pnlGeneral.addLast(DataDir.setTag(Control.SPAN, new Dimension(3,1)),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.EAST));
++		pnlGeneral.addLast(chkAutoLoad = new mCheckBox(MyLocale.getMsg(629,&quot;Autoload last profile&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		if (pref.autoReloadLastProfile) chkAutoLoad.setState(true);
+ 			
+ 		//content.addNext(nLogs = new mInput(),content.DONTSTRETCH, (content.DONTFILL|content.WEST));
+ 		//nLogs.setText(Convert.toString(myPreferences.nLogs));
+ 		//content.addLast(new mLabel(&quot;Logs&quot;), content.DONTSTRETCH, (content.DONTFILL|content.WEST));
+-		content.addNext(new mLabel(&quot;Proxy&quot;),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		content.addNext(new mLabel(&quot;Port&quot;),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		content.addLast(new mLabel(&quot;Font&quot;),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		content.addNext(Proxy = new mInput(),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
++		pnlGeneral.addNext(new mLabel(&quot;Proxy&quot;),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		pnlGeneral.addNext(new mLabel(&quot;Port&quot;),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		pnlGeneral.addLast(new mLabel(&quot;Font&quot;),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		pnlGeneral.addNext(Proxy = new mInput(),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 		Proxy.setText(pref.myproxy);
+-		content.addNext(ProxyPort = new mInput(),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+-		content.addLast(fontSize = new mInput(),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
++		pnlGeneral.addNext(ProxyPort = new mInput(),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
++		pnlGeneral.addLast(fontSize = new mInput(),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 		ProxyPort.setText(pref.myproxyport);
+ 		fontSize.setText(Convert.toString(pref.fontSize));
+-		content.addLast(new mLabel(MyLocale.getMsg(605,&quot;Display Preferences&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		content.addNext(dif = new mCheckBox(MyLocale.getMsg(606,&quot;Difficulty&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		pnlGeneral.addNext(new mLabel(&quot;Garmin PC Port&quot;));
++		pnlGeneral.addNext(chcGarminPort=new mChoice(garminPorts,0));
++		chcGarminPort.selectItem(pref.garminConn);
++		pnlGeneral.addLast(new mLabel(&quot;&quot;));
++		
++		/////////////////////////////////////////////////////////
++		// Second panel - Screen
++		/////////////////////////////////////////////////////////
++		
++		pnlDisplay.addLast(new mLabel(MyLocale.getMsg(605,&quot;Display Preferences&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		pnlDisplay.addNext(dif = new mCheckBox(MyLocale.getMsg(606,&quot;Difficulty&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		if(pref.tablePrefs[2] == 1) dif.setState(true);
+-		content.addNext(ter = new mCheckBox(MyLocale.getMsg(607,&quot;Terrain&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		pnlDisplay.addNext(ter = new mCheckBox(MyLocale.getMsg(607,&quot;Terrain&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		if(pref.tablePrefs[3] == 1) ter.setState(true);
+-		content.addLast(loc = new mCheckBox(MyLocale.getMsg(608,&quot;Location&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		pnlDisplay.addLast(loc = new mCheckBox(MyLocale.getMsg(608,&quot;Location&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		if(pref.tablePrefs[6] == 1) loc.setState(true);
+-		content.addNext(own = new mCheckBox(MyLocale.getMsg(609,&quot;Owner&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		pnlDisplay.addNext(own = new mCheckBox(MyLocale.getMsg(609,&quot;Owner&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		if(pref.tablePrefs[7] == 1) own.setState(true); 
+-		content.addNext(hid = new mCheckBox(MyLocale.getMsg(610,&quot;Hidden&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		pnlDisplay.addNext(hid = new mCheckBox(MyLocale.getMsg(610,&quot;Hidden&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		if(pref.tablePrefs[8] == 1) hid.setState(true);
+-		content.addLast(stat = new mCheckBox(MyLocale.getMsg(611,&quot;Status&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		pnlDisplay.addLast(stat = new mCheckBox(MyLocale.getMsg(611,&quot;Status&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		if(pref.tablePrefs[9] == 1) stat.setState(true);
+-		content.addNext(dist = new mCheckBox(MyLocale.getMsg(612,&quot;Distance&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		pnlDisplay.addNext(dist = new mCheckBox(MyLocale.getMsg(612,&quot;Distance&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		if(pref.tablePrefs[10] == 1) dist.setState(true);
+-		content.addLast(bear = new mCheckBox(MyLocale.getMsg(613,&quot;Bearing&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		pnlDisplay.addLast(bear = new mCheckBox(MyLocale.getMsg(613,&quot;Bearing&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		if(pref.tablePrefs[11] == 1) bear.setState(true);
+-		content.addNext(cancelB = new mButton(MyLocale.getMsg(614,&quot;Cancel&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		content.addLast(applyB = new mButton(MyLocale.getMsg(615,&quot;Apply&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		pnlDisplay.addLast(new mLabel(MyLocale.getMsg(623,&quot;Images&quot;)),CellConstants.VSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		pnlDisplay.addLast(chkShowDeletedImg = new mCheckBox(MyLocale.getMsg(624,&quot;Show deleted images&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		if (pref.showDeletedImages) chkShowDeletedImg.setState(true);
++		pnlDisplay.addLast(new mLabel(MyLocale.getMsg(625,&quot;Screen layout (needs restart)&quot;)));
++		pnlDisplay.addNext(chkMenuAtTop = new mCheckBox(MyLocale.getMsg(626,&quot;Menu top&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		chkMenuAtTop.setState(pref.menuAtTop);
++		pnlDisplay.addNext(chkTabsAtTop = new mCheckBox(MyLocale.getMsg(627,&quot;Tabs top&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		chkTabsAtTop.setState(pref.tabsAtTop);
++		pnlDisplay.addLast(chkShowStatus = new mCheckBox(MyLocale.getMsg(628,&quot;Show status&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		chkShowStatus.setState(pref.showStatus);
++		//pnlDisplay.addLast(new mLabel(&quot;&quot;));
++		
++		
++		mTab.addCard(pnlGeneral,MyLocale.getMsg(621,&quot;General&quot;),null);
++		mTab.addCard(pnlDisplay,MyLocale.getMsg(622,&quot;Screen&quot;),null);
++		//this.addLast(scp.getScrollablePanel(), CellConstants.STRETCH, CellConstants.FILL);
++		
++		this.addLast(mTab);
++		addNext(cancelB = new mButton(MyLocale.getMsg(614,&quot;Cancel&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		addLast(applyB = new mButton(MyLocale.getMsg(615,&quot;Apply&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++
+ 	
+-		this.addLast(scp.getScrollablePanel(), CellConstants.STRETCH, CellConstants.FILL);
++
++	
+ 	}
+ 	
+ 	public void onEvent(Event ev){
+@@ -122,6 +162,11 @@
+ 				pref.tablePrefs[10] = (dist.getState()==true ? 1 : 0);
+ 				pref.tablePrefs[11] = (bear.getState()==true ? 1 : 0);
+ 				pref.autoReloadLastProfile=chkAutoLoad.getState();
++				pref.showDeletedImages=chkShowDeletedImg.getState();
++				pref.garminConn=chcGarminPort.getSelectedItem().toString();
++				pref.menuAtTop=chkMenuAtTop.getState();
++				pref.tabsAtTop=chkTabsAtTop.getState();
++				pref.showStatus=chkShowStatus.getState();
+ 				pref.savePreferences();
+ 				pref.dirty = true; // Need to update table in case columns were enabled/disabled
+ 				this.close(0);
+@@ -144,6 +189,8 @@
+ 					pref.mySPO.baudRate = spo.baudRate;
+ 					pref.forwardGPS = spo.forwardGpsChkB.getState();
+ 					pref.forwardGpsHost = spo.inputBoxForwardHost.getText();
++					inpGPS.setText(pref.mySPO.portName+&quot;/&quot;+pref.mySPO.baudRate);
++
+ 				}
+ 			}
+ 			// change destination waypoint
+
+Modified: trunk/src/CacheWolf/TablePanel.java
+===================================================================
+--- trunk/src/CacheWolf/TablePanel.java	2007-01-07 17:31:12 UTC (rev 360)
++++ trunk/src/CacheWolf/TablePanel.java	2007-01-07 19:40:51 UTC (rev 361)
+@@ -48,7 +48,7 @@
+ 		}
+ */		
+ 		addLast(new ScrollBarPanel(tc = new myTableControl()));
+-		addLast(statBar,CellConstants.DONTSTRETCH, CellConstants.FILL);
++		if (statBar!=null) addLast(statBar,CellConstants.DONTSTRETCH, CellConstants.FILL);
+ 		Menu m = new Menu(new String[]{MyLocale.getMsg(1010,&quot;Goto&quot;),MyLocale.getMsg(1019,&quot;Center&quot;),&quot;-&quot;,MyLocale.getMsg(1011,&quot;Filter&quot;),MyLocale.getMsg(1012,&quot;Delete&quot;),MyLocale.getMsg(1014,&quot;Update&quot;),&quot;-&quot;,MyLocale.getMsg(1015,&quot;Select all&quot;),MyLocale.getMsg(1016,&quot;De-select all&quot;)},MyLocale.getMsg(1013,&quot;With selection&quot;));
+ 		tc.setMenu(m);
+ 		tc.profile=profile;
+@@ -96,13 +96,13 @@
+ 		// tc.setTableModel(myMod); Not needed ?
+ 		myMod.updateRows();
+ 		tc.update(true);
+-		statBar.updateDisplay();
++		if (statBar!=null) statBar.updateDisplay();
+ 	}
+ 	
+ 	public void refreshTable(){
+ 		myMod.updateRows();
+ 		tc.update(true);
+-		statBar.updateDisplay();
++		if (statBar!=null) statBar.updateDisplay();
+ 	}
+ 	
+ 	/**
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000043.html">[Cachewolf-svn] r360 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000045.html">[Cachewolf-svn] r362 - in trunk: resources src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#44">[ date ]</a>
+              <a href="thread.html#44">[ thread ]</a>
+              <a href="subject.html#44">[ subject ]</a>
+              <a href="author.html#44">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

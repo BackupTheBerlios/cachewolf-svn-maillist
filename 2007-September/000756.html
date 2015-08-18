@@ -1,0 +1,1496 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r864 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-September/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r864%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200709012213.l81MDLeq029309%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000755.html">
+   <LINK REL="Next"  HREF="000757.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r864 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r864%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200709012213.l81MDLeq029309%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r864 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sun Sep  2 00:13:21 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000755.html">[Cachewolf-svn] r863 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000757.html">[Cachewolf-svn] r865 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#756">[ date ]</a>
+              <a href="thread.html#756">[ thread ]</a>
+              <a href="subject.html#756">[ subject ]</a>
+              <a href="author.html#756">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-09-02 00:13:11 +0200 (Sun, 02 Sep 2007)
+New Revision: 864
+
+Modified:
+   trunk/src/CacheWolf/CacheHolder.java
+   trunk/src/CacheWolf/CacheHolderDetail.java
+   trunk/src/CacheWolf/CacheList.java
+   trunk/src/CacheWolf/GPXImporter.java
+   trunk/src/CacheWolf/LOCXMLImporter.java
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/OCXMLImporter.java
+   trunk/src/CacheWolf/Profile.java
+   trunk/src/CacheWolf/SpiderGC.java
+Log:
+Cachetour: Bugfix (<A HREF="http://www.geoclub.de/ftopic18379.html">http://www.geoclub.de/ftopic18379.html</A>)
+Ueberarbeitung von CacheHolder/CacheHolderDetail (mit Auswirkungen auf diverse Importer)
+Ueberarbeitung von SpiderGC (Fehlende Tags in spider.def erzeugen Exception)
+
+
+Modified: trunk/src/CacheWolf/CacheHolder.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolder.java	2007-09-01 21:55:37 UTC (rev 863)
++++ trunk/src/CacheWolf/CacheHolder.java	2007-09-01 22:13:11 UTC (rev 864)
+@@ -1,4 +1,5 @@
+ package CacheWolf;
++import ewe.sys.Vm;
+ import ewe.util.Vector;
+ 
+ /**
+@@ -8,53 +9,93 @@
+ *	
+ */
+ public class CacheHolder {
+-protected String NODISTANCE = &quot;? km&quot;;
+-protected String NOBEARING = &quot;?&quot;;
+-protected String EMPTY = &quot;&quot;;
++protected static final String NODISTANCE = &quot;? km&quot;;
++protected static final String NOBEARING = &quot;?&quot;;
++protected static final String EMPTY = &quot;&quot;;
+ 
++/** Cachestatus is Found, Not found or a date in format yyyy-mm-dd hh:mm for found date */
+ public String CacheStatus = EMPTY;
++/** The name of the waypoint typicall GC.... or OC.... or CW...... (can be any characters) */
+ public String wayPoint = EMPTY;
++/** The name of the cache (short description) */
+ public String CacheName = EMPTY;
++/** The alias of the owner */
+ public String CacheOwner = EMPTY;
++/** The coordinates of the cache */
+ public CWPoint pos = new CWPoint();
++/** The coordinates of the cache */
+ public String LatLon = pos.toString();
++/** The date when the cache was hidden in format yyyy-mm-dd */
+ public String DateHidden = EMPTY;
++/** The size of the cache (as per GC cache sizes Micro, Small, ....) */
+ public String CacheSize = &quot;None&quot;;
++/** The distance from the center in km */
+ public double kilom = 0;
++/** The formatted distance such as &quot;x.xx km&quot; */
+ public String distance = NODISTANCE;
++/** The bearing N, NNE, NE, ENE ... from the current center to this point */
+ public String bearing = NOBEARING;
++/** The angle (0=North, 180=South) from the current center to this point */
+ public double degrees = 0;
++/** The difficulty of the cache from 1 to 5 in .5 incements */ 
+ public String hard = EMPTY;
++/** The terrain rating of the cache from 1 to 5 in .5 incements */
+ public String terrain = EMPTY;
+-public String type = &quot;0&quot;;
++/** The cache type (@see CacheType for translation table)  */
++public String type = &quot;0&quot;; //TODO Should be an int
++/** True if the cache has been archived */
+ public boolean is_archived = false;
++/** True if the cache is available for searching */
+ public boolean is_available = true;
++/** True if we own this cache */
+ public boolean is_owned = false;
++/** True if we have found this cache */
+ public boolean is_found = false;
++/** If this is true, the cache has been filtered (is currently invisible) */
+ public boolean is_filtered = false;
++/** True if the number of logs for this cache has changed */
+ public boolean is_log_update = false;
++/** True if cache details have changed: longDescription, Hints,  */
+ public boolean is_update = false;
+-public boolean is_selected = false;
++/** True if the cache data is incomplete (e.g. an error occurred during spidering */
+ public boolean is_incomplete = false;
++/** True if the cache is blacklisted */
+ public boolean is_black = false;
++/** True if the cache is new */
+ public boolean is_new = false;
++/** True if the cache is part of the results of a search */
+ public boolean is_flaged = false;
++/** True if the cache has been selected using the tick box in the list view */
+ public boolean is_Checked = false;
+-public String dirty = EMPTY;
++/** Not used: This attribute is saved with the cache and read back but never set */
++//public String dirty = EMPTY;
++/** The unique OC cache ID */
+ public String ocCacheID = EMPTY;
++/** The number of times this cache has not been found (max. 5) */
+ public int noFindLogs = 0;
++/** True if this cache has travelbugs */
+ public boolean has_bug = false;
++/** True if the cache description is stored in HTML format */
+ public boolean is_HTML = true;
++/** List of additional waypoints associated with this waypoint */
+ public Vector addiWpts = new Vector();
++/** If this is an additional waypoint, this links back to the main waypoint */
+ public CacheHolder mainCache;
++/** The date this cache was last synced with OC in format yyyyMMddHHmmss */
++public String lastSyncOC = EMPTY;
++/** When sorting the cacheDB this field is used. The relevant field is copied here and
++ *  the sort is always done on this field to speed up the sorting process 
++ */
+ public String sort;
+-public String lastSyncOC = EMPTY;
+-
+ //static int nObjects=0;
+ CacheHolder() {//nObjects++;Vm.debug(&quot;CacheHolder() nO=&quot;+nObjects);
+ }
+ 
+ CacheHolder(CacheHolder ch) {//nObjects++;Vm.debug(&quot;CacheHolder(ch) nO=&quot;+nObjects);
++	update(ch);
++}
++
++public void update(CacheHolder ch) {
+ 	this.CacheStatus=ch.CacheStatus;
+ 	this.wayPoint = ch.wayPoint;
+ 	this.CacheName = ch.CacheName;
+@@ -77,7 +118,6 @@
+ 	this.is_filtered = ch.is_filtered;
+ 	this.is_log_update = ch.is_log_update;
+ 	this.is_update = ch.is_update;
+-	this.is_selected = ch.is_selected;
+ 	this.is_incomplete = ch.is_incomplete;
+ 	this.is_black=ch.is_black;
+ 	this.addiWpts = ch.addiWpts;
+@@ -85,16 +125,22 @@
+ 	this.is_new=ch.is_new;
+ 	this.is_flaged = ch.is_flaged;
+ 	this.is_Checked = ch.is_Checked;
+-    this.dirty = ch.dirty;
++    //this.dirty = ch.dirty;
+ 	this.ocCacheID = ch.ocCacheID;
+ 	this.noFindLogs = ch.noFindLogs;
+ 	this.has_bug = ch.has_bug;
+ 	this.is_HTML = ch.is_HTML;
+ 	this.sort=ch.sort;
+ 	this.lastSyncOC = ch.lastSyncOC;
+-	
+ }
+ 
++public void setLatLon(String latLon) {
++	latLon=latLon.trim();
++	if (!latLon.equals(LatLon)) is_update=true;
++	LatLon = latLon;
++	pos.set(latLon);
++}
++
+ public boolean isAddiWpt() {
+ 	   return CacheType.isAddiWpt(this.type);
+    }
+
+Modified: trunk/src/CacheWolf/CacheHolderDetail.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolderDetail.java	2007-09-01 21:55:37 UTC (rev 863)
++++ trunk/src/CacheWolf/CacheHolderDetail.java	2007-09-01 22:13:11 UTC (rev 864)
+@@ -36,7 +36,33 @@
+ 	 public CacheHolderDetail(CacheHolder ch) {
+ 		 super(ch);
+ 	 }
+-	  
++
++	 public void setLongDescription(String longDescription) {
++	 	if (!LongDescription.equals(longDescription)) is_update=true;
++	 	LongDescription = longDescription;
++	 }
++	 
++	 public void setHints(String hints) {
++	 	if (!Hints.equals(hints)) is_update=true;
++	 	Hints = hints;
++	 }
++	 
++	 public void setCacheLogs(Vector logs) {
++		  // Number of logs has changed, set the log_update flag
++		 if (logs.size()!=CacheLogs.size()) is_log_update=true;
++		 CacheLogs=logs;
++		 // Count the number of not-found logs
++		int countNoFoundLogs = 0;
++		String loganal = &quot;&quot;;
++		while(countNoFoundLogs &lt; CacheLogs.size() &amp;&amp; countNoFoundLogs &lt; 5){
++			loganal = (String)CacheLogs.get(countNoFoundLogs);
++			if(loganal.indexOf(&quot;icon_sad&quot;)&gt;0) {
++				countNoFoundLogs++;
++			}else break;
++		}
++		noFindLogs = countNoFoundLogs;
++	 }
++	 
+ 	  /**
+ 	 * Method to update an existing cache with new data. This is
+ 	 * necessary to avoid missing old logs.
+@@ -44,59 +70,22 @@
+ 	 * @return CacheHolder with updated data
+ 	 */
+ 	public CacheHolderDetail update(CacheHolderDetail newCh){
++		  super.update(newCh);
+ 		  // flags
+-		  this.is_available = newCh.is_available;
+-		  this.is_archived = newCh.is_archived;
+-		  // update is_owned only if not the owner ????
+-		  if (this.is_owned == false) this.is_owned = newCh.is_owned;
+-		  // update is_found if not already found
+-		  if (this.is_found == false) this.is_found = newCh.is_found;
+-		  // no else, because status can change.
+ 		  if (this.is_found == true) this.CacheStatus = MyLocale.getMsg(318,&quot;Found&quot;);
+-		  
+-		  
+-		  this.is_new = false;
+-		  this.is_update = false;
+-		  this.is_log_update = false;
+-		  
+-		  //name and owner
+-		  this.CacheName = newCh.CacheName;
+-		  this.CacheOwner = newCh.CacheOwner;
+ 
+-		  //classification
+-		  this.hard = newCh.hard;
+-		  this.terrain = newCh.terrain;
+-		  this.type = newCh.type;
+-		  
+ 		  //travelbugs: overriding is OK, since GPX-File contains all actual travelbugs
+-		  this.has_bug = newCh.has_bug;
++		  this.has_bug = newCh.Travelbugs.size()&gt;0;
+ 		  this.Travelbugs = newCh.Travelbugs;
+ 		  
+ 		  // URL
+ 		  this.URL = newCh.URL;
+ 		  
+-		  //coords
+-		  this.LatLon = newCh.LatLon;
+-		  this.pos.set(newCh.pos);
+-
+-		  // check only length of the description to see, if there was an update
+-		  if (this.LongDescription.length() != newCh.LongDescription.length()){
+-			  this.is_update = true;
+-		  }
+-		  // same for hints
+-		  if (this.Hints.length() != newCh.Hints.length()){
+-			  this.is_update = true;
+-		  }
++		  setLongDescription(newCh.LongDescription);
++		  setHints(newCh.Hints);
++		  setCacheLogs(newCh.CacheLogs);
+ 		  
+-		  // description &amp; hints
+-		  this.is_HTML = newCh.is_HTML;
+-		  this.LongDescription = newCh.LongDescription;
+-		  this.Hints = newCh.Hints;
+-
+-		  //Logs
+-		  //&lt;img src='icon_smile.gif'&gt;&nbsp;2005-10-30 by Schatzpirat&lt;/strong&gt;&lt;br&gt;
+-		  //get Date of latest log in old cachedata
+-		  Extractor extOldDate;
++/*		  Extractor extOldDate;
+ 		  String oldLogDate = EMPTY;
+ 		  if(this.CacheLogs.size()&gt;0){
+ 			extOldDate = new Extractor((String) this.CacheLogs.get(0), &quot;;&quot;,&quot; by&quot;, 0, true);
+@@ -120,20 +109,12 @@
+ 			  }
+ 			  else currLog--;
+ 		  }//while
+-	   	 //Check for number sukzessive DNF logs
+-		 int z = 0;
+-		 String loganal = EMPTY;
+-		 //Vm.debug(&quot;Checking size: &quot;);
+-		 //int sz = newCh.CacheLogs.size();
+-		 //Vm.debug(&quot;log size: &quot; + sz);
+-	 	 while(z &lt; newCh.CacheLogs.size() &amp;&amp; z &lt; 5){
+-			loganal = (String)newCh.CacheLogs.get(z);
+-			if(loganal.indexOf(&quot;icon_sad&quot;)&gt;0) {
+-				z++;
+-			}else break;
+-		 }
+-		 noFindLogs = z;
+-		 this.Solver=newCh.Solver;
++		  
++		  //Logs
++		  //&lt;img src='icon_smile.gif'&gt;&nbsp;2005-10-30 by Schatzpirat&lt;/strong&gt;&lt;br&gt;
++		  //get Date of latest log in old cachedata
++*/
++		  if (newCh.Solver.length()&gt;0) this.Solver=newCh.Solver;
+ 	 	return this;
+ 	  }
+ 	  
+
+Modified: trunk/src/CacheWolf/CacheList.java
+===================================================================
+--- trunk/src/CacheWolf/CacheList.java	2007-09-01 21:55:37 UTC (rev 863)
++++ trunk/src/CacheWolf/CacheList.java	2007-09-01 22:13:11 UTC (rev 864)
+@@ -22,6 +22,7 @@
+     /** The extension for cachelists (CL) */ 
+     private final String EXTENSION=&quot;CL&quot;;
+ 	private final String TITLE=MyLocale.getMsg(188,&quot;CACHETOUR: NEW&quot;);
++	private static int applyCount=0; // Counts the number of times we apply the list
+     CacheList() {
+ 		this.setPreferredSize(100,-1); 
+ 		this.equalWidths=true;
+@@ -168,8 +169,11 @@
+ 				int activeTab=Global.mainTab.cardPanel.selectedItem;
+ 				if (activeTab==0) 
+ 					Global.mainTab.tbP.tc.repaint();
+-				else
++				else {
++					// We need to change to the list view first to load a new cache
++					Global.mainTab.onEvent(new MultiPanelEvent(0,Global.mainTab,0));
+ 					Global.mainTab.onEvent(new MultiPanelEvent(0,Global.mainTab,activeTab));
++				}
+ 			}
+ 		}
+ 		if (ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.PRESSED) {
+@@ -227,31 +231,48 @@
+ 					lstCaches.select(sel+1);
+ 				}
+ 			} else if (ev.target==btnFilter) {
+-				Vector cacheDB=Global.getProfile().cacheDB;
+-				CacheHolder ch;
+-				// Start by setting all caches to filtered
+-				for(int i = cacheDB.size()-1; i &gt;=0 ; i--){
+-					ch = (CacheHolder)cacheDB.get(i);
+-					ch.is_filtered=true ; // ignore blacklist attribute
+-					ch.sort=&quot;\uFFFF&quot;;
+-				}
+-				// Now &quot;unfilter&quot; the caches in our list
+-				for (int i = cacheList.size()-1; i&gt;=0; i--) {
+-					ch = (CacheHolder)cacheList.get(i);
+-					ch.is_filtered=false;
+-					ch.sort=MyLocale.formatLong(i,&quot;00000&quot;);
+-				}
+-				// The sort command places all filtered caches at the end
+-				cacheDB.sort(new mySort(),false);
+-				Filter.filterActive=true;
+-				Filter.filterInverted=false;
+-				updateScreen();
+-			}
++				applyCacheList();			}
+ 		}
+ 		changeUpDownButtonStatus();
+ 	}
+ 
+-
++	/** Apply the cache list */
++	public void applyCacheList() {
++		Vector cacheDB=Global.getProfile().cacheDB;
++		CacheHolder ch;
++		String apply=&quot;\uFFFF&quot;+Convert.toString(applyCount++);
++		// Start by setting all caches to filtered
++		for(int i = cacheDB.size()-1; i &gt;=0 ; i--){
++			ch = (CacheHolder)cacheDB.get(i);
++			ch.is_filtered=true ; // ignore blacklist attribute
++			ch.sort=apply;
++		}
++		// Now &quot;unfilter&quot; the caches in our list
++		for (int i = cacheList.size()-1; i&gt;=0; i--) {
++			ch = (CacheHolder)cacheList.get(i);
++			/* If the cache was reloaded from a GPX file since we dragged it into the list,
++			   the pointer ch points to a CacheHolder object that is no longer part of cacheDB.
++			   In this case we need to search the cacheDB for an object with the name of ch.wayPoint
++			   and use that object. To speed up this process and avoid having to search the whole
++			   cacheDB for each entry in cacheList, we simply compare the sort field of ch to apply.
++			*/
++			if (!ch.sort.equals(apply)) {
++				int idx=Global.getProfile().getCacheIndex(ch.wayPoint);
++				if (idx==-1) continue;
++				ch=null;
++				ch=(CacheHolder) cacheDB.get(idx);
++			}
++			ch.is_filtered=false;
++			ch.sort=MyLocale.formatLong(i,&quot;00000&quot;);
++		}
++		// The sort command places all filtered caches at the end
++		cacheDB.sort(new mySort(),false);
++		Filter.filterActive=true;
++		Filter.filterInverted=false;
++		updateScreen();
++		
++	}
++	
+ 	/** Add a cache (and its addis) to the list 
+ 	 * @return true if the cache is not already in lstCaches */
+ 	public boolean addCache(String wayPoint) {
+
+Modified: trunk/src/CacheWolf/GPXImporter.java
+===================================================================
+--- trunk/src/CacheWolf/GPXImporter.java	2007-09-01 21:55:37 UTC (rev 863)
++++ trunk/src/CacheWolf/GPXImporter.java	2007-09-01 22:13:11 UTC (rev 864)
+@@ -39,7 +39,8 @@
+ 	public static final int DOIT_WITHSPOILER = 2;
+ 	boolean getMaps = false;
+ 	SpiderGC imgSpider;
+-		
++	StringBuffer strBuf;
++	
+ 	public GPXImporter(Preferences p, Profile prof, String f )
+ 	{
+ 		profile=prof;
+@@ -53,7 +54,6 @@
+ 		inCache = false;
+ 		inLogs = false;
+ 		inBug =false;
+-		strData = new String();
+ 		//index db for faster search
+ 		CacheHolder ch;
+ 		for(int i = 0; i&lt;cacheDB.size();i++){
+@@ -148,7 +148,7 @@
+ 			}
+ 	}
+ 	public void startElement(String name, AttributeList atts){
+-		strData =&quot;&quot;;
++		strBuf=new StringBuffer(300);
+ 		if (name.equals(&quot;gpx&quot;)){
+ 			// check for opencaching
+ 			if (atts.getValue(&quot;creator&quot;).indexOf(&quot;opencaching&quot;)&gt; 0) fromOC = true;
+@@ -161,8 +161,8 @@
+ 		}
+ 		if (name.equals(&quot;wpt&quot;)) {
+ 			holder = new CacheHolderDetail();
+-			holder.LatLon = latdeg2min(atts.getValue(&quot;lat&quot;)) + &quot; &quot; +londeg2min(atts.getValue(&quot;lon&quot;));
+ 			holder.pos.set(Common.parseDouble(atts.getValue(&quot;lat&quot;)),Common.parseDouble(atts.getValue(&quot;lon&quot;)));
++			holder.LatLon=holder.pos.toString();
+ 			inWpt = true;
+ 			inLogs = false;
+ 			inBug = false;
+@@ -234,6 +234,7 @@
+ 	}
+ 	
+ 	public void endElement(String name){
++		strData=strBuf.toString();
+ 		//Vm.debug(&quot;Ende: &quot; + name);
+ 		
+ 		// logs
+@@ -468,70 +469,11 @@
+ 
+ 	}
+ 	public void characters(char[] ch,int start,int length){
+-		String chars = new String(ch,start,length);
+-		strData += chars;
+-		if (debugGPX) Vm.debug(&quot;Char: &quot; + chars);
++		strBuf.append(ch,start,length);
++		if (debugGPX) Vm.debug(&quot;Char: &quot; + strBuf.toString());
+ 	}
+ 	
+-	public static String latdeg2min(String lat){
+-		String res = new String();
+-		String deg = new String();
+-		String min = new String();
+-		Double minDouble = new Double();
+-		
+-		// Get degrees
+-		if (lat.indexOf('.') &lt; 0) lat = lat + &quot;.0&quot;;
+-		deg = lat.substring(0, lat.indexOf('.'));
+-		if (deg.substring(0,1).equals(&quot;-&quot;)){
+-			res = &quot;S &quot; + replace(deg, &quot;-&quot;,&quot;&quot;) + &quot;&#176; &quot;;
+-		}
+-		else  res = &quot;N &quot; + deg + &quot;&#176; &quot;;
+ 
+-		// Get minutes
+-		min = lat.substring(lat.indexOf('.')+1);
+-		minDouble.set(Common.parseDouble(&quot;0.&quot; +min)*60);
+-		minDouble.decimalPlaces = 3;
+-				
+-		// and back to string
+-		min = minDouble.toString().replace(',','.');
+-		// add leading '0'
+-		if (min.indexOf('.') == 1) min = &quot;0&quot; + min;
+-		// Build return string
+-		res += min;
+-		return res;
+-	}
+-	public static String londeg2min(String lon){
+-		String res = new String();
+-		String deg = new String();
+-		String min = new String();
+-		Double minDouble = new Double();
+-		
+-		
+-		// Get degrees
+-		if (lon.indexOf('.') &lt; 0) lon = lon + &quot;.0&quot;;
+-		deg = lon.substring(0, lon.indexOf('.'));
+-		if (deg.substring(0,1).equals(&quot;-&quot;)){
+-			res = &quot;W &quot;;
+-			deg = replace(deg, &quot;-&quot;,&quot;&quot;);
+-		} else  res = &quot;E &quot;;
+-		// fill up leading '0'
+-		for (int i=deg.length();i&lt;3;i++)
+-			res += &quot;0&quot;;
+-		res += deg + &quot;&#176; &quot;;
+-		// Get minutes
+-		min = lon.substring(lon.indexOf('.')+1);
+-		minDouble.set(Common.parseDouble(&quot;0.&quot;+ min) * 60);
+-		minDouble.decimalPlaces = 3;
+-				
+-		// and back to string
+-		min = minDouble.toString().replace(',','.');
+-		// add leading '0'
+-		if (min.indexOf('.') == 1) min = &quot;0&quot; + min;
+-		// Build return string
+-		res += min;
+-		return res;
+-	}
+-
+ 	public static String typeText2Image(String typeText){
+ 		if (typeText.equals(&quot;Found it&quot;)||typeText.equals(&quot;Found&quot;)||typeText.equals(&quot;find&quot;)) return &quot;&lt;img src='icon_smile.gif'&gt;&nbsp;&quot;;
+ 		if (typeText.equals(&quot;Didn't find it&quot;)||typeText.equals(&quot;Not Found&quot;)||typeText.equals(&quot;no_find&quot;)) return &quot;&lt;img src='icon_sad.gif'&gt;&nbsp;&quot;;
+@@ -598,7 +540,7 @@
+ 		if (imgSpider == null) imgSpider = new SpiderGC(pref, profile, false);
+ 		
+ 		if (fromTC) {
+-			imgSpider.getImages(holder.LongDescription, holder);
++				imgSpider.getImages(holder.LongDescription, holder);
+ 		}
+ 		else {
+ 			addr = &quot;<A HREF="http://www.geocaching.com/seek/cache_details.aspx?wp=">http://www.geocaching.com/seek/cache_details.aspx?wp=</A>&quot; + holder.wayPoint ;
+
+Modified: trunk/src/CacheWolf/LOCXMLImporter.java
+===================================================================
+--- trunk/src/CacheWolf/LOCXMLImporter.java	2007-09-01 21:55:37 UTC (rev 863)
++++ trunk/src/CacheWolf/LOCXMLImporter.java	2007-09-01 22:13:11 UTC (rev 864)
+@@ -90,8 +90,8 @@
+ 			return;
+ 		}
+ 		if (name.equals(&quot;coord&quot;)){
+-			holder.LatLon = GPXImporter.latdeg2min(atts.getValue(&quot;lat&quot;)) + &quot; &quot; + GPXImporter.londeg2min(atts.getValue(&quot;lon&quot;));
+ 			holder.pos.set(Common.parseDouble(atts.getValue(&quot;lat&quot;)),Common.parseDouble(atts.getValue(&quot;lon&quot;)));
++			holder.LatLon = holder.pos.toString();
+ 			return;
+ 		}
+ 
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2007-09-01 21:55:37 UTC (rev 863)
++++ trunk/src/CacheWolf/MainTab.java	2007-09-01 22:13:11 UTC (rev 864)
+@@ -95,8 +95,7 @@
+ 			// Perform clean up actions for the panel we are leaving
+ 			onLeavingPanel(oldCard);
+ 			// Prepare actions for the panel we are about to enter
+-			onEnteringPanel(getSelectedItem());
+-			oldCard=getSelectedItem();
++			onEnteringPanel(oldCard=((MultiPanelEvent)ev).selectedIndex);
+ 		}
+ 		super.onEvent(ev); //Make sure you call this.
+ 		// If we are in Listview update status
+
+Modified: trunk/src/CacheWolf/OCXMLImporter.java
+===================================================================
+--- trunk/src/CacheWolf/OCXMLImporter.java	2007-09-01 21:55:37 UTC (rev 863)
++++ trunk/src/CacheWolf/OCXMLImporter.java	2007-09-01 22:13:11 UTC (rev 864)
+@@ -54,6 +54,7 @@
+ 	String logData, logIcon, logDate, logFinder;
+ 	int logtype;
+ 	String user;
++	double longitude;
+ 
+ 
+ 	public OCXMLImporter(Preferences p,Profile prof)
+@@ -440,12 +441,12 @@
+ 		}
+ 
+ 		if(name.equals(&quot;longitude&quot;)){
+-			chD.LatLon = GPXImporter.londeg2min(strData);
++			longitude = Common.parseDouble(strData);
+ 			return;
+ 		}
+ 		if(name.equals(&quot;latitude&quot;)) {
+-			chD.LatLon = GPXImporter.latdeg2min(strData) + &quot; &quot; + chD.LatLon;
+-			chD.pos.set(chD.LatLon);
++			chD.pos.set(Common.parseDouble(strData),longitude);
++			chD.LatLon = chD.pos.toString();
+ 			return;
+ 		}
+ 		if(name.equals(&quot;difficulty&quot;)) {
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2007-09-01 21:55:37 UTC (rev 863)
++++ trunk/src/CacheWolf/Profile.java	2007-09-01 22:13:11 UTC (rev 864)
+@@ -160,7 +160,8 @@
+ 					detfile.print(&quot;    &lt;CACHE name = \&quot;&quot;+SafeXML.clean(ch.CacheName)+&quot;\&quot; owner = \&quot;&quot;+SafeXML.clean(ch.CacheOwner)+
+ 							//&quot;\&quot; lat = \&quot;&quot;+ SafeXML.clean(ch.LatLon) +
+ 							&quot;\&quot; lat = \&quot;&quot;+ ch.pos.latDec + &quot;\&quot; lon = \&quot;&quot;+ch.pos.lonDec+
+-							&quot;\&quot; hidden = \&quot;&quot;+ch.DateHidden+&quot;\&quot; wayp = \&quot;&quot;+SafeXML.clean(ch.wayPoint)+&quot;\&quot; status = \&quot;&quot;+ch.CacheStatus+&quot;\&quot; type = \&quot;&quot;+ch.type+&quot;\&quot; dif = \&quot;&quot;+ch.hard+&quot;\&quot; terrain = \&quot;&quot; + ch.terrain + &quot;\&quot; dirty = \&quot;&quot; + ch.dirty + &quot;\&quot; size = \&quot;&quot;+ch.CacheSize+&quot;\&quot; online = \&quot;&quot; + Convert.toString(ch.is_available) + &quot;\&quot; archived = \&quot;&quot; + Convert.toString(ch.is_archived) + &quot;\&quot; has_bug = \&quot;&quot; + Convert.toString(ch.has_bug) + &quot;\&quot; black = \&quot;&quot; + Convert.toString(ch.is_black) + &quot;\&quot; owned = \&quot;&quot; + Convert.toString(ch.is_owned) + &quot;\&quot; found = \&quot;&quot; + Convert.toString(ch.is_found) + &quot;\&quot; is_new = \&quot;&quot; + Convert.toString(ch.is_new) +&quot;\&quot; is_log_update = \&quot;&quot; + Convert.toString(ch.is_log_update) + &quot;\&quot; is_update = \&quot;&quot; + Convert.toString(ch.is_update) + &quot;\&quot; is_HTML = \&quot;&quot; + Convert.toString(ch.is_HTML) + &quot;\&quot; DNFLOGS = \&quot;&quot; + ch.noFindLogs + &quot;\&quot; ocCacheID = \&quot;&quot; + ch.ocCacheID + &quot;\&quot; is_INCOMPLETE = \&quot;&quot;+Convert.toString(ch.is_incomplete)+ &quot;\&quot; lastSyncOC = \&quot;&quot; + ch.lastSyncOC + &quot;\&quot; /&gt;\n&quot;);
++							&quot;\&quot; hidden = \&quot;&quot;+ch.DateHidden+&quot;\&quot; wayp = \&quot;&quot;+SafeXML.clean(ch.wayPoint)+&quot;\&quot; status = \&quot;&quot;+ch.CacheStatus+&quot;\&quot; type = \&quot;&quot;+ch.type+&quot;\&quot; dif = \&quot;&quot;+ch.hard+&quot;\&quot; terrain = \&quot;&quot; + ch.terrain + &quot;\&quot; dirty = \&quot;false&quot; + // ch.dirty + dirty is not used, so we save it as false 
++							&quot;\&quot; size = \&quot;&quot;+ch.CacheSize+&quot;\&quot; online = \&quot;&quot; + Convert.toString(ch.is_available) + &quot;\&quot; archived = \&quot;&quot; + Convert.toString(ch.is_archived) + &quot;\&quot; has_bug = \&quot;&quot; + Convert.toString(ch.has_bug) + &quot;\&quot; black = \&quot;&quot; + Convert.toString(ch.is_black) + &quot;\&quot; owned = \&quot;&quot; + Convert.toString(ch.is_owned) + &quot;\&quot; found = \&quot;&quot; + Convert.toString(ch.is_found) + &quot;\&quot; is_new = \&quot;&quot; + Convert.toString(ch.is_new) +&quot;\&quot; is_log_update = \&quot;&quot; + Convert.toString(ch.is_log_update) + &quot;\&quot; is_update = \&quot;&quot; + Convert.toString(ch.is_update) + &quot;\&quot; is_HTML = \&quot;&quot; + Convert.toString(ch.is_HTML) + &quot;\&quot; DNFLOGS = \&quot;&quot; + ch.noFindLogs + &quot;\&quot; ocCacheID = \&quot;&quot; + ch.ocCacheID + &quot;\&quot; is_INCOMPLETE = \&quot;&quot;+Convert.toString(ch.is_incomplete)+ &quot;\&quot; lastSyncOC = \&quot;&quot; + ch.lastSyncOC + &quot;\&quot; /&gt;\n&quot;);
+ 				}
+ 			}
+ 			detfile.print(&quot;&lt;/CACHELIST&gt;\n&quot;);
+@@ -220,7 +221,8 @@
+ 					ch.type = ex.findNext();
+ 					ch.hard = ex.findNext();
+ 					ch.terrain = ex.findNext();
+-					ch.dirty = ex.findNext();
++					//ch.dirty =  ch.dirty is not used 
++					ex.findNext(); // Need to skip dirty
+ 					ch.CacheSize = ex.findNext();
+ 					ch.is_available = ex.findNext().equals(&quot;true&quot;) ? true : false;
+ 					ch.is_archived = ex.findNext().equals(&quot;true&quot;) ? true : false;
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2007-09-01 21:55:37 UTC (rev 863)
++++ trunk/src/CacheWolf/SpiderGC.java	2007-09-01 22:13:11 UTC (rev 864)
+@@ -41,49 +41,35 @@
+ 	/**
+ 	 * The maximum number of logs that will be stored
+ 	 */
+-	public static int MAXLOGS=250;
++	public static int MAXLOGS=250; // Can be pre-set from preferences
++	public static String passwort = &quot;&quot;; // Can be pre-set from preferences
+ 
+ 	private static int ERR_LOGIN = -10;
+ 	private static Preferences pref;
+ 	private Profile profile;
+-	static String viewstate = &quot;&quot;;
+-	static String passwort = &quot;&quot;;
+-	static String cookieID = &quot;&quot;;
+-	static String cookieSession = &quot;&quot;;
+-	static double distance = 0;
+-	Regex inRex = new Regex();
+-	Vector cacheDB;
+-	Vector cachesToLoad = new Vector();
+-	Hashtable indexDB;
+-	InfoBox infB;
++	private static String viewstate = &quot;&quot;;
++	private static String cookieID = &quot;&quot;;
++	private static String cookieSession = &quot;&quot;;
++	private static double distance = 0;
++	private Regex inRex = new Regex();
++	private Vector cacheDB;
++	private Vector cachesToLoad = new Vector();
++	private Hashtable indexDB;
++	private InfoBox infB;
+ 	private boolean loggedIn = false;
+-	private static Properties p=null;
++	private static myProperties p=null;
+ 
+ 	public SpiderGC(Preferences prf, Profile profile, boolean bypass){
+ 		this.profile=profile;
+ 		this.cacheDB = profile.cacheDB;
+ 		pref = prf;
+-		try {
+-			if (p==null) {
+-				p=new Properties();
+-				p.load(new FileInputStream(File.getProgramDirectory()+&quot;/spider.def&quot;));
+-			}
+-		} catch (Exception ex) {
+-			p=null;
+-			pref.log(&quot;Failed to load spider.def&quot;,ex);
+-			// We don't display an error message box here, as the call to
+-			// spiderSingle or doIt will do this
++		if (p==null) {
++			pref.logInit();
++			p=new myProperties();
+ 		}
+ 		MAXLOGS=pref.maxLogsToSpider;
+ 	}
+ 
+-	private boolean existsSpiderDef() {
+-		if (p==null) {
+-			(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), MyLocale.getMsg(5504,&quot;Could not load 'spider.def'&quot;), MessageBox.OKB)).execute();
+-			return false;
+-		}
+-		return true;
+-	}
+ 	/**
+ 	 * Method to login the user to gc.com
+ 	 * It will request a password and use the alias defined in preferences
+@@ -91,10 +77,15 @@
+ 	 * If the login fails, an appropriate message is displayed.
+ 	 */
+ 	public int login(){
+-		pref.logInit();
+ 		loggedIn = false;
+-		//Access the page once to get a viewstate
+-		String start,doc,loginPage;
++		String start,doc,loginPage,loginSuccess,nextPage;
++		try {
++			loginPage=p.getProp(&quot;loginPage&quot;);
++			loginSuccess=p.getProp(&quot;loginSuccess&quot;);
++			nextPage=p.getProp(&quot;nextPage&quot;);
++		} catch (Exception ex) { // Tag not found in spider.def
++			return ERR_LOGIN;
++		}
+ 		//Get password
+ 		InfoBox infB = new InfoBox(MyLocale.getMsg(5506,&quot;Password&quot;), MyLocale.getMsg(5505,&quot;Enter Password&quot;), InfoBox.INPUT);
+ 		infB.feedback.setText(passwort); // Remember the PWD for next time
+@@ -108,12 +99,9 @@
+ 		infB.exec();
+ 		try{
+ 			pref.log(&quot;Fetching login page&quot;);
+-			start = fetch(loginPage=p.getProperty(&quot;loginPage&quot;));   //<A HREF="http://www.geocaching.com/login/Default.aspx">http://www.geocaching.com/login/Default.aspx</A>
+-		}catch (NullPointerException ex) {
+-			(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), MyLocale.getMsg(5497,&quot;Error missing tag in spider.def&quot;) + &quot;: loginPage&quot;, MessageBox.OKB)).execute();
+-			pref.log(&quot;Error missing tag in spider.def: loginPage&quot;,ex);
+-			return ERR_LOGIN;
+-		}catch(Exception ex){
++			//Access the page once to get a viewstate
++			start = fetch(loginPage);   //<A HREF="http://www.geocaching.com/login/Default.aspx">http://www.geocaching.com/login/Default.aspx</A>
++		} catch(Exception ex){
+ 			infB.close(0);
+ 			(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), MyLocale.getMsg(5499,&quot;Error loading login page&quot;), MessageBox.OKB)).execute();
+ 			pref.log(&quot;Could not fetch: gc.com login page&quot;,ex);
+@@ -138,18 +126,15 @@
+ 				    + &quot;&amp;&quot; + URL.encodeURL(&quot;myPassword&quot;,false) +&quot;=&quot;+ encodeUTF8(new String(Utils.encodeJavaUtf8String(passwort)))
+ 				    + &quot;&amp;&quot; + URL.encodeURL(&quot;cookie&quot;,false) +&quot;=&quot;+ URL.encodeURL(&quot;on&quot;,false)
+ 				    + &quot;&amp;&quot; + URL.encodeURL(&quot;Button1&quot;,false) +&quot;=&quot;+ URL.encodeURL(&quot;Login&quot;,false);
+-				start = fetch_post(loginPage, doc, p.getProperty(&quot;nextPage&quot;));  // /login/default.aspx
+-				if(start.indexOf(p.getProperty(&quot;loginSuccess&quot;)) &gt; 0) pref.log(&quot;Login successful&quot;);
++				start = fetch_post(loginPage, doc, nextPage);  // /login/default.aspx
++				if(start.indexOf(loginSuccess) &gt; 0) 
++					pref.log(&quot;Login successful&quot;);
+ 				else {
+ 					pref.log(&quot;Login failed. Wrong Account or Password?&quot;);
+ 					infB.close(0);
+ 				    (new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), MyLocale.getMsg(5501,&quot;Login failed! Wrong account or password?&quot;), MessageBox.OKB)).execute();
+ 					return ERR_LOGIN;
+ 				}
+-			}catch (NullPointerException ex) {
+-				(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), MyLocale.getMsg(5497,&quot;Error missing tag in spider.def&quot;) + &quot;: loginSuccess&quot;, MessageBox.OKB)).execute();
+-				pref.log(&quot;Error missing tag in spider.def: loginSuccess&quot;,ex);
+-				return ERR_LOGIN;
+ 			}catch(Exception ex){
+ 				pref.log(&quot;Login failed.&quot;, ex);
+ 				infB.close(0);
+@@ -194,7 +179,6 @@
+ 	public boolean spiderSingle(int number, InfoBox infB){
+ 		boolean ret=false;
+ 		this.infB = infB;
+-		if (!existsSpiderDef()) return false;
+ 		CacheHolder ch = (CacheHolder)cacheDB.get(number);
+ 		if (ch.isAddiWpt()) return false;  // No point re-spidering an addi waypoint, comes with parent
+ 
+@@ -217,7 +201,7 @@
+ 			if (ret) {
+ 				pref.log(&quot;Saving to:&quot; + profile.dataDir);
+ 				chD.saveCacheDetails(profile.dataDir);
+-				cacheDB.set(number, new CacheHolder(chD)); // TODO Could copy into existing object
++				((CacheHolder) cacheDB.get(number)).update(chD); 
+ 			}
+ 		}catch(Exception ex){
+ 			pref.log(&quot;Error spidering &quot; + chD.wayPoint + &quot; in spiderSingle&quot;);
+@@ -232,14 +216,15 @@
+ 	 */
+ 	public String getCacheCoordinates(String wayPoint) {
+ 		String completeWebPage;
++		// Check whether spider definitions could be loaded, if not issue appropriate message and terminate
++		// Try to login. If login fails, issue appropriate message and terminate
++		if (login()!=Form.IDOK) {
++			return &quot;&quot;;
++		}
+ 		InfoBox infB = new InfoBox(&quot;Info&quot;, &quot;Loading&quot;, InfoBox.PROGRESS_WITH_WARNINGS);
+ 		infB.exec();
+-		// Check whether spider definitions could be loaded, if not issue appropriate message and terminate
+-		if (!existsSpiderDef()) return &quot;&quot;;
+-		// Try to login. If login fails, issue appropriate message and terminate
+-		if (login()!=Form.IDOK) return &quot;&quot;;
+-		String doc = p.getProperty(&quot;waypoint&quot;) + wayPoint;
+ 		try{
++			String doc = p.getProp(&quot;waypoint&quot;) + wayPoint;
+ 			pref.log(&quot;Fetching: &quot; + wayPoint);
+ 			completeWebPage = fetch(doc);
+ 		}catch(Exception ex){
+@@ -248,7 +233,11 @@
+ 			return &quot;&quot;;
+ 		}
+ 		infB.close(0);
+-		return getLatLon(completeWebPage);
++		try {
++			return getLatLon(completeWebPage);
++		} catch (Exception ex) {
++			return &quot;????&quot;;
++		}
+ 	}
+ 
+ 	/**
+@@ -258,7 +247,6 @@
+ 		String postStr, dummy, ln, wpt;
+ 		Regex lineRex;
+ 		CacheHolderDetail chD;
+-		if (!existsSpiderDef()) return;
+ 		CWPoint origin = pref.curCentrePt; // No need to copy curCentrePt as it is only read and not written
+ 		if (!origin.isValid()) {
+ 			(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), MyLocale.getMsg(5509,&quot;Coordinates for center must be set&quot;), MessageBox.OKB)).execute();
+@@ -297,7 +285,7 @@
+ 		infB.exec();
+ 		//Get first page
+ 		try{
+-			ln = p.getProperty(&quot;firstPage&quot;) + origin.getLatDeg(CWPoint.DD) + p.getProperty(&quot;firstPage2&quot;) +origin.getLonDeg(CWPoint.DD);
++			ln = p.getProp(&quot;firstPage&quot;) + origin.getLatDeg(CWPoint.DD) + p.getProp(&quot;firstPage2&quot;) +origin.getLonDeg(CWPoint.DD);
+ 			if(doNotgetFound) ln = ln + &quot;&amp;f=1&quot;;
+ 			pref.log(&quot;Getting first page: &quot;+ln);
+ 			start = fetch(ln);
+@@ -312,55 +300,66 @@
+ 		dummy = &quot;&quot;;
+ 		//String lineBlck = &quot;&quot;;
+ 		int page_number = 4;
+-		lineRex = new Regex(p.getProperty(&quot;lineRex&quot;)); //&quot;&lt;tr bgcolor=((?s).*?)&lt;/tr&gt;&quot;
++		try  {
++			lineRex = new Regex(p.getProp(&quot;lineRex&quot;)); //&quot;&lt;tr bgcolor=((?s).*?)&lt;/tr&gt;&quot;
++		} catch (Exception ex) {
++			infB.close(0);
++			Vm.showWait(false);
++			return;
++		}
+ 		int found_on_page = 0;
+-		//Loop till maximum distance has been found or no more caches are in the list
+-		while(distance &gt; 0){
+-			if (infB.isClosed) break;
+-			rex.search(start);
+-			viewstate = rex.stringMatched(1);
+-			//Vm.debug(&quot;In loop&quot;);
+-			Regex listBlockRex = new Regex(p.getProperty(&quot;listBlockRex&quot;)); // &quot;&lt;table id=\&quot;dlResults\&quot;((?s).*?)&lt;/table&gt;&quot;
+-			listBlockRex.search(start);
+-			dummy = listBlockRex.stringMatched(1);
+-			try{
+-				lineRex.search(dummy);
+-			}catch(NullPointerException nex){}
+-			while(lineRex.didMatch()){
+-				//Vm.debug(getDist(lineRex.stringMatched(1)) + &quot; / &quot; +getWP(lineRex.stringMatched(1)));
+-				found_on_page++;
+-				if(getDist(lineRex.stringMatched(1)) &lt;= distance){
+-					if(indexDB.get((String)getWP(lineRex.stringMatched(1))) == null){
+-						cachesToLoad.add(getWP(lineRex.stringMatched(1)));
+-					} else pref.log(getWP(lineRex.stringMatched(1))+&quot; already in DB&quot;);
+-				} else distance = 0;
+-				lineRex.searchFrom(dummy, lineRex.matchedTo());
+-			}
+-			infB.setInfo(MyLocale.getMsg(5511,&quot;Found &quot;) + cachesToLoad.size() + MyLocale.getMsg(5512,&quot; caches&quot;));
+-			if(found_on_page &lt; 20) distance = 0;
+-			postStr = p.getProperty(&quot;firstLine&quot;) + origin.getLatDeg(CWPoint.DD) + &quot;&amp;&quot; + origin.getLonDeg(CWPoint.DD);
+-			if(doNotgetFound) postStr = postStr + p.getProperty(&quot;showOnlyFound&quot;);
+-			if(distance &gt; 0){
+-				page_number++;
+-				if(page_number &gt;= 15) page_number = 5;
+-				doc = URL.encodeURL(&quot;__VIEWSTATE&quot;,false) +&quot;=&quot;+ URL.encodeURL(viewstate,false)
+-				//if(doNotgetFound) doc += &quot;&amp;f=1&quot;;
+-				    + &quot;&amp;&quot; + URL.encodeURL(&quot;__EVENTTARGET&quot;,false) +&quot;=&quot;+ URL.encodeURL(&quot;ResultsPager:_ctl&quot;+page_number,false)
+-				    + &quot;&amp;&quot; + URL.encodeURL(&quot;__EVENTARGUMENT&quot;,false) +&quot;=&quot;+ URL.encodeURL(&quot;&quot;,false);
++		try {
++			//Loop till maximum distance has been found or no more caches are in the list
++			while(distance &gt; 0){
++				if (infB.isClosed) break;
++				rex.search(start);
++				viewstate = rex.stringMatched(1);
++				//Vm.debug(&quot;In loop&quot;);
++				Regex listBlockRex = new Regex(p.getProp(&quot;listBlockRex&quot;)); // &quot;&lt;table id=\&quot;dlResults\&quot;((?s).*?)&lt;/table&gt;&quot;
++				listBlockRex.search(start);
++				dummy = listBlockRex.stringMatched(1);
+ 				try{
+-					start = &quot;&quot;;
+-					pref.log(&quot;Fetching next list page:&quot; + doc);
+-					start = fetch_post(postStr, doc, p.getProperty(&quot;nextListPage&quot;));
+-				}catch(Exception ex){
+-					//Vm.debug(&quot;Couldn't get the next page&quot;);
+-					pref.log(&quot;Error getting next page&quot;);
+-				}finally{
++					lineRex.search(dummy);
++				}catch(NullPointerException nex){}
++				while(lineRex.didMatch()){
++					//Vm.debug(getDist(lineRex.stringMatched(1)) + &quot; / &quot; +getWP(lineRex.stringMatched(1)));
++					found_on_page++;
++					if(getDist(lineRex.stringMatched(1)) &lt;= distance){
++						if(indexDB.get((String)getWP(lineRex.stringMatched(1))) == null){
++							cachesToLoad.add(getWP(lineRex.stringMatched(1)));
++						} else pref.log(getWP(lineRex.stringMatched(1))+&quot; already in DB&quot;);
++					} else distance = 0;
++					lineRex.searchFrom(dummy, lineRex.matchedTo());
+ 				}
++				infB.setInfo(MyLocale.getMsg(5511,&quot;Found &quot;) + cachesToLoad.size() + MyLocale.getMsg(5512,&quot; caches&quot;));
++				if(found_on_page &lt; 20) distance = 0;
++				postStr = p.getProp(&quot;firstLine&quot;) + origin.getLatDeg(CWPoint.DD) + &quot;&amp;&quot; + origin.getLonDeg(CWPoint.DD);
++				if(doNotgetFound) postStr = postStr + p.getProp(&quot;showOnlyFound&quot;);
++				if(distance &gt; 0){
++					page_number++;
++					if(page_number &gt;= 15) page_number = 5;
++					doc = URL.encodeURL(&quot;__VIEWSTATE&quot;,false) +&quot;=&quot;+ URL.encodeURL(viewstate,false)
++					//if(doNotgetFound) doc += &quot;&amp;f=1&quot;;
++					    + &quot;&amp;&quot; + URL.encodeURL(&quot;__EVENTTARGET&quot;,false) +&quot;=&quot;+ URL.encodeURL(&quot;ResultsPager:_ctl&quot;+page_number,false)
++					    + &quot;&amp;&quot; + URL.encodeURL(&quot;__EVENTARGUMENT&quot;,false) +&quot;=&quot;+ URL.encodeURL(&quot;&quot;,false);
++					try{
++						start = &quot;&quot;;
++						pref.log(&quot;Fetching next list page:&quot; + doc);
++						start = fetch_post(postStr, doc, p.getProp(&quot;nextListPage&quot;));
++					}catch(Exception ex){
++						//Vm.debug(&quot;Couldn't get the next page&quot;);
++						pref.log(&quot;Error getting next page&quot;);
++					}finally{
++					}
++				}
++				//Vm.debug(&quot;Distance is now: &quot; + distance);
++				found_on_page = 0;
+ 			}
+-			//Vm.debug(&quot;Distance is now: &quot; + distance);
+-			found_on_page = 0;
++		} catch (Exception ex) { // Some tag missing from spider.def
++			infB.close(0);
++			Vm.showWait(false);
++			return;
+ 		}
+-
+ 		pref.log(&quot;Found &quot; + cachesToLoad.size() + &quot; caches&quot;);
+ 		if (!infB.isClosed) infB.setInfo(MyLocale.getMsg(5511,&quot;Found &quot;) + cachesToLoad.size() + MyLocale.getMsg(5512,&quot; caches&quot;));
+ 
+@@ -404,9 +403,9 @@
+ 	 * @return false if the infoBox was closed
+ 	 */
+ 	private boolean getCacheByWaypointName(CacheHolderDetail chD, boolean isUpdate, boolean fetchImages, boolean doNotGetFound, boolean fetchAllLogs) {
+-		String completeWebPage,origLongDesc;
+-		String doc = p.getProperty(&quot;getPageByName&quot;) + chD.wayPoint +(fetchAllLogs?p.getProperty(&quot;fetchAllLogs&quot;):&quot;&quot;);
++		String completeWebPage;
+ 		try{
++			String doc = p.getProp(&quot;getPageByName&quot;) + chD.wayPoint +(fetchAllLogs?p.getProp(&quot;fetchAllLogs&quot;):&quot;&quot;);
+ 			pref.log(&quot;Fetching: &quot; + chD.wayPoint);
+ 			completeWebPage = fetch(doc);
+ 		}catch(Exception ex){
+@@ -430,19 +429,16 @@
+ 				chD.Images.clear();
+ 				chD.ImagesText.clear();
+ 
+-				if(completeWebPage.indexOf(p.getProperty(&quot;cacheUnavailable&quot;)) &gt;= 0) chD.is_available = false;
+-				if(completeWebPage.indexOf(p.getProperty(&quot;cacheArchived&quot;)) &gt;= 0) chD.is_archived = true;
++				if(completeWebPage.indexOf(p.getProp(&quot;cacheUnavailable&quot;)) &gt;= 0) chD.is_available = false;
++				if(completeWebPage.indexOf(p.getProp(&quot;cacheArchived&quot;)) &gt;= 0) chD.is_archived = true;
+ 				//==========
+ 				// General Cache Data
+ 				//==========
+-				chD.LatLon = getLatLon(completeWebPage);
+-				chD.pos.set(chD.LatLon);
++				chD.setLatLon(getLatLon(completeWebPage));
+ 				if (pref.debug) pref.log(&quot;LatLon: &quot; + chD.LatLon);
+ 
+ 				pref.log(&quot;Trying description&quot;);
+-				origLongDesc = chD.LongDescription;
+-				chD.LongDescription = getLongDesc(completeWebPage);
+-				if(isUpdate &amp;&amp; !chD.LongDescription.equals(origLongDesc)) chD.is_update = true;
++				chD.setLongDescription(getLongDesc(completeWebPage));
+ 				pref.log(&quot;Got description&quot;);
+ 
+ 				pref.log(&quot;Getting cache name&quot;);
+@@ -462,7 +458,7 @@
+ 				if (pref.debug) pref.log(&quot;Hidden: &quot; + chD.DateHidden);
+ 
+ 				pref.log(&quot;Trying hints&quot;);
+-				chD.Hints = getHints(completeWebPage);
++				chD.setHints(getHints(completeWebPage));
+ 				pref.log(&quot;Got hints&quot;);
+ 				if (pref.debug) pref.log(&quot;Hints: &quot; + chD.Hints);
+ 
+@@ -490,20 +486,9 @@
+ 				// Logs
+ 				//==========
+ 				pref.log(&quot;Trying logs&quot;);
+-				chD.CacheLogs = getLogs(completeWebPage, chD);
+-				// Count the number of not-found logs
+-				int countNoFoundLogs = 0;
+-				String loganal = &quot;&quot;;
+-				while(countNoFoundLogs &lt; chD.CacheLogs.size() &amp;&amp; countNoFoundLogs &lt; 5){
+-					loganal = (String)chD.CacheLogs.get(countNoFoundLogs);
+-					if(loganal.indexOf(&quot;icon_sad&quot;)&gt;0) {
+-						countNoFoundLogs++;
+-					}else break;
+-				}
+-				chD.noFindLogs = countNoFoundLogs;
+-				chD.is_log_update = false;
+-				if(isUpdate &amp;&amp; chD.CacheLogs.size()&gt;logsz) chD.is_log_update = true;
++				chD.setCacheLogs(getLogs(completeWebPage, chD));
+ 				pref.log(&quot;Found logs&quot;);
++				
+ 				// If the switch is set to not store found caches and we found the cache =&gt; return
+ 				if (chD.is_found &amp;&amp; doNotGetFound) return !infB.isClosed;
+ 
+@@ -536,9 +521,7 @@
+ 				pref.log(&quot;Getting attributes&quot;);
+ 				getAttributes(completeWebPage, chD);
+ 				pref.log(&quot;Got attributes&quot;);
+-
+-
+-
++				if (chD.is_new) chD.is_update=false;
+ 			}catch(Exception ex){
+ 				pref.log(&quot;Error reading cache: &quot;+chD.wayPoint);
+ 				pref.log(&quot;Exception in getCacheByWaypointName: &quot;,ex);
+@@ -566,8 +549,8 @@
+ 	 * @param doc A previously fetched cachepage
+ 	 * @return Distance
+ 	 */
+-	private double getDist(String doc){
+-		inRex = new Regex(p.getProperty(&quot;distRex&quot;));
++	private double getDist(String doc) throws Exception {
++		inRex = new Regex(p.getProp(&quot;distRex&quot;));
+ 		inRex.search(doc);
+ 		if(doc.indexOf(&quot;Here&quot;) &gt;= 0) return(0);
+ 		if (!inRex.didMatch()) return 0;
+@@ -580,8 +563,8 @@
+ 	 * @param doc A previously fetched cachepage
+ 	 * @return Name of waypoint to add to list
+ 	 */
+-	private String getWP(String doc){
+-		inRex = new Regex(p.getProperty(&quot;waypointRex&quot;));
++	private String getWP(String doc) throws Exception {
++		inRex = new Regex(p.getProp(&quot;waypointRex&quot;));
+ 		inRex.search(doc);
+ 		if (!inRex.didMatch()) return &quot;???&quot;;
+ 		return inRex.stringMatched(1);
+@@ -592,8 +575,8 @@
+ 	 * @param doc A previously fetched cachepage
+ 	 * @return Cache coordinates
+ 	 */
+-	private String getLatLon(String doc){
+-		inRex = new Regex(p.getProperty(&quot;latLonRex&quot;));
++	private String getLatLon(String doc) throws Exception{
++		inRex = new Regex(p.getProp(&quot;latLonRex&quot;));
+ 		inRex.search(doc);
+ 		if (!inRex.didMatch()) return &quot;???&quot;;
+ 		return inRex.stringMatched(1);
+@@ -604,10 +587,10 @@
+ 	 * @param doc A previously fetched cachepage
+ 	 * @return the long description
+ 	 */
+-	private String getLongDesc(String doc){
++	private String getLongDesc(String doc) throws Exception{
+ 		String res = &quot;&quot;;
+-		inRex = new Regex(p.getProperty(&quot;shortDescRex&quot;));
+-		Regex rex2 = new Regex(p.getProperty(&quot;longDescRex&quot;));
++		inRex = new Regex(p.getProp(&quot;shortDescRex&quot;));
++		Regex rex2 = new Regex(p.getProp(&quot;longDescRex&quot;));
+ 		inRex.search(doc);
+ 		rex2.search(doc);
+ 		res = ((inRex.stringMatched(1)==null)?&quot;&quot;:inRex.stringMatched(1)) + &quot;&lt;br&gt;&quot;;
+@@ -620,8 +603,8 @@
+ 	 * @param doc A previously fetched cachepage
+ 	 * @return the name of the cache
+ 	 */
+-	private String getName(String doc){
+-		inRex = new Regex(p.getProperty(&quot;cacheNameRex&quot;));
++	private String getName(String doc) throws Exception{
++		inRex = new Regex(p.getProp(&quot;cacheNameRex&quot;));
+ 		inRex.search(doc);
+ 		if (!inRex.didMatch()) return &quot;???&quot;;
+ 		return inRex.stringMatched(1);
+@@ -632,8 +615,8 @@
+ 	 * @param doc A previously fetched cachepage
+ 	 * @return the cache owner
+ 	 */
+-	private String getOwner(String doc){
+-		inRex = new Regex(p.getProperty(&quot;cacheOwnerRex&quot;));
++	private String getOwner(String doc) throws Exception{
++		inRex = new Regex(p.getProp(&quot;cacheOwnerRex&quot;));
+ 		inRex.search(doc);
+ 		if (!inRex.didMatch()) return &quot;???&quot;;
+ 		return inRex.stringMatched(1);
+@@ -644,8 +627,8 @@
+ 	 * @param doc A previously fetched cachepage
+ 	 * @return Hidden date
+ 	 */
+-	private String getDateHidden(String doc){
+-		inRex = new Regex(p.getProperty(&quot;dateHiddenRex&quot;));
++	private String getDateHidden(String doc) throws Exception{
++		inRex = new Regex(p.getProp(&quot;dateHiddenRex&quot;));
+ 		inRex.search(doc);
+ 		if (!inRex.didMatch()) return &quot;???&quot;;
+ 		return inRex.stringMatched(1);
+@@ -656,8 +639,8 @@
+ 	 * @param doc A previously fetched cachepage
+ 	 * @return Cachehints
+ 	 */
+-	private String getHints(String doc){
+-		inRex = new Regex(p.getProperty(&quot;hintsRex&quot;));
++	private String getHints(String doc) throws Exception{
++		inRex = new Regex(p.getProp(&quot;hintsRex&quot;));
+ 		inRex.search(doc);
+ 		if (!inRex.didMatch()) return &quot;&quot;;
+ 		return inRex.stringMatched(1);
+@@ -668,8 +651,8 @@
+ 	 * @param doc A previously fetched cachepage
+ 	 * @return Cache size
+ 	 */
+-	private String getSize(String doc){
+-		inRex = new Regex(p.getProperty(&quot;sizeRex&quot;));
++	private String getSize(String doc) throws Exception{
++		inRex = new Regex(p.getProp(&quot;sizeRex&quot;));
+ 		inRex.search(doc);
+ 		if(inRex.didMatch()) return inRex.stringMatched(1);
+ 		else return &quot;None&quot;;
+@@ -680,8 +663,8 @@
+ 	 * @param doc A previously fetched cachepage
+ 	 * @return The cache difficulty
+ 	 */
+-	private String getDiff(String doc){
+-		inRex = new Regex(p.getProperty(&quot;difficultyRex&quot;));
++	private String getDiff(String doc) throws Exception{
++		inRex = new Regex(p.getProp(&quot;difficultyRex&quot;));
+ 		inRex.search(doc);
+ 		if(inRex.didMatch()) return inRex.stringMatched(1);
+ 		else return &quot;&quot;;
+@@ -692,8 +675,8 @@
+ 	 * @param doc A previously fetched cachepage
+ 	 * @return Terrain rating
+ 	 */
+-	private String getTerr(String doc){
+-		inRex = new Regex(p.getProperty(&quot;terrainRex&quot;));
++	private String getTerr(String doc) throws Exception{
++		inRex = new Regex(p.getProp(&quot;terrainRex&quot;));
+ 		inRex.search(doc);
+ 		if(inRex.didMatch()) return inRex.stringMatched(1);
+ 		else return &quot;&quot;;
+@@ -704,8 +687,8 @@
+ 	 * @param doc A previously fetched cachepage
+ 	 * @return the waypoint type (Tradi, Multi, etc.)
+ 	 */
+-	private String getType(String doc){
+-		inRex = new Regex(p.getProperty(&quot;cacheTypeRex&quot;));
++	private String getType(String doc) throws Exception{
++		inRex = new Regex(p.getProp(&quot;cacheTypeRex&quot;));
+ 		inRex.search(doc);
+ 		if(inRex.didMatch()) return inRex.stringMatched(1);
+ 		else return &quot;&quot;;
+@@ -717,11 +700,11 @@
+ 	 * @param chD Cache Details
+ 	 * @return A HTML string containing the logs
+ 	 */
+-	private Vector getLogs(String doc, CacheHolderDetail chD){
++	private Vector getLogs(String doc, CacheHolderDetail chD) throws Exception{
+ 		String icon = &quot;&quot;;
+ 		String name = &quot;&quot;;
+ 		Vector reslts = new Vector();
+-		Regex blockRex = new Regex(p.getProperty(&quot;blockRex&quot;));
++		Regex blockRex = new Regex(p.getProp(&quot;blockRex&quot;));
+ 		blockRex.search(doc);
+ 		doc = blockRex.stringMatched(1);
+ 		//Vm.debug(&quot;Log Block: &quot; + doc);
+@@ -739,15 +722,15 @@
+ 		}
+ 		*/
+ 		String singleLog = &quot;&quot;;
+-		Extractor exSingleLog = new Extractor(doc,p.getProperty(&quot;singleLogExStart&quot;), p.getProperty(&quot;singleLogExEnd&quot;), 0, false); // maybe here is some change neccessary because findnext now gives the whole endstring back???
++		Extractor exSingleLog = new Extractor(doc,p.getProp(&quot;singleLogExStart&quot;), p.getProp(&quot;singleLogExEnd&quot;), 0, false); // maybe here is some change neccessary because findnext now gives the whole endstring back???
+ 		singleLog = exSingleLog.findNext();
+-		Extractor exIcon = new Extractor(singleLog,p.getProperty(&quot;iconExStart&quot;), p.getProperty(&quot;iconExEnd&quot;), 0, true);
+-		Extractor exNameTemp = new Extractor(singleLog,p.getProperty(&quot;nameTempExStart&quot;), p.getProperty(&quot;nameTempExEnd&quot;), 0 , true);
++		Extractor exIcon = new Extractor(singleLog,p.getProp(&quot;iconExStart&quot;), p.getProp(&quot;iconExEnd&quot;), 0, true);
++		Extractor exNameTemp = new Extractor(singleLog,p.getProp(&quot;nameTempExStart&quot;), p.getProp(&quot;nameTempExEnd&quot;), 0 , true);
+ 		String nameTemp = &quot;&quot;;
+ 		nameTemp = exNameTemp.findNext();
+-		Extractor exName = new Extractor(nameTemp, p.getProperty(&quot;nameExStart&quot;), p.getProperty(&quot;nameExEnd&quot;), 0 , true);
+-		Extractor exDate = new Extractor(singleLog,p.getProperty(&quot;dateExStart&quot;), p.getProperty(&quot;dateExEnd&quot;), 0 , true);
+-		Extractor exLog = new Extractor(singleLog, p.getProperty(&quot;logExStart&quot;), p.getProperty(&quot;logExEnd&quot;), 0, true);
++		Extractor exName = new Extractor(nameTemp, p.getProp(&quot;nameExStart&quot;), p.getProp(&quot;nameExEnd&quot;), 0 , true);
++		Extractor exDate = new Extractor(singleLog,p.getProp(&quot;dateExStart&quot;), p.getProp(&quot;dateExEnd&quot;), 0 , true);
++		Extractor exLog = new Extractor(singleLog, p.getProp(&quot;logExStart&quot;), p.getProp(&quot;logExEnd&quot;), 0, true);
+ 		//Vm.debug(&quot;Log Block: &quot; + singleLog);
+ 		int nLogs=0;
+ 		while(exSingleLog.endOfSearch() == false){
+@@ -762,7 +745,7 @@
+ 			icon = exIcon.findNext();
+ 			name = exName.findNext();
+ 			String d=DateFormat.logdate2YMD(exDate.findNext());
+-			if((icon.equals(p.getProperty(&quot;icon_smile&quot;)) || icon.equals(p.getProperty(&quot;icon_camera&quot;))) &amp;&amp;
++			if((icon.equals(p.getProp(&quot;icon_smile&quot;)) || icon.equals(p.getProp(&quot;icon_camera&quot;))) &amp;&amp;
+ 				(name.equals(pref.myAlias) || (pref.myAlias2.length()&gt;0 &amp;&amp; name.equals(pref.myAlias2))) )  {
+ 				chD.is_found = true;
+ 				chD.CacheStatus = d;
+@@ -792,11 +775,11 @@
+ 	 * @param doc The previously fetched cachepage
+ 	 * @return A HTML formatted string with bug names and there purpose
+ 	 */
+-	public void getBugs(CacheHolderDetail chD, String doc){
+-		Extractor exBlock = new Extractor(doc,p.getProperty(&quot;blockExStart&quot;),p.getProperty(&quot;blockExEnd&quot;) ,0,Extractor.EXCLUDESTARTEND);
++	public void getBugs(CacheHolderDetail chD, String doc) throws Exception{
++		Extractor exBlock = new Extractor(doc,p.getProp(&quot;blockExStart&quot;),p.getProp(&quot;blockExEnd&quot;) ,0,Extractor.EXCLUDESTARTEND);
+ 		String bugBlock = exBlock.findNext();
+ 		//Vm.debug(&quot;Bugblock: &quot;+bugBlock);
+-		Extractor exBug = new Extractor(bugBlock,p.getProperty(&quot;bugExStart&quot;),p.getProperty(&quot;bugExEnd&quot;),0,Extractor.EXCLUDESTARTEND);
++		Extractor exBug = new Extractor(bugBlock,p.getProp(&quot;bugExStart&quot;),p.getProp(&quot;bugExEnd&quot;),0,Extractor.EXCLUDESTARTEND);
+ 		String link,bug,linkPlusBug,bugDetails;
+ 		String oldInfoBox=infB.getInfo();
+ 		chD.Travelbugs.clear();
+@@ -813,7 +796,7 @@
+ 					infB.setInfo(oldInfoBox+MyLocale.getMsg(5514,&quot;\nGetting bug: &quot;)+bug);
+ 					pref.log(&quot;Fetching bug details: &quot;+bug);
+ 					bugDetails = fetch(link);
+-					Extractor exDetails = new Extractor(bugDetails,p.getProperty(&quot;bugDetailsStart&quot;),p.getProperty(&quot;bugDetailsEnd&quot;),0,Extractor.EXCLUDESTARTEND);
++					Extractor exDetails = new Extractor(bugDetails,p.getProp(&quot;bugDetailsStart&quot;),p.getProp(&quot;bugDetailsEnd&quot;),0,Extractor.EXCLUDESTARTEND);
+ 					tb.setMission(exDetails.findNext());
+ 					Extractor exGuid = new Extractor(bugDetails,&quot;details.aspx?guid=&quot;,&quot;\&quot; id=\&quot;Form1&quot;,0,Extractor.EXCLUDESTARTEND); // TODO Replace with spider.def see also further down
+ 					tb.setGuid(exGuid.findNext());
+@@ -839,17 +822,23 @@
+ 		int imgCounter = 0;
+ 		String imgName, oldImgName, imgType, imgUrl;
+ 		Vector spideredUrls=new Vector(15);
++		Extractor exImgBlock;
+ 		int idxUrl; // Index of already spidered Url in list of spideredUrls
+ 		//========
+ 		//In the long description
+ 		//========
+ 		String longDesc = &quot;&quot;;
+-		if (chD.wayPoint.startsWith(&quot;TC&quot;)) longDesc = doc;
+-		else longDesc = getLongDesc(doc);
+-		longDesc = STRreplace.replace(longDesc, &quot;&lt;img&quot;, &quot;&lt;IMG&quot;);
+-		longDesc = STRreplace.replace(longDesc, &quot;src=&quot;, &quot;SRC=&quot;);
+-		longDesc = STRreplace.replace(longDesc, &quot;'&quot;, &quot;\&quot;&quot;);
+-		Extractor exImgBlock = new Extractor(longDesc,p.getProperty(&quot;imgBlockExStart&quot;),p.getProperty(&quot;imgBlockExEnd&quot;), 0, false);
++		try {
++			if (chD.wayPoint.startsWith(&quot;TC&quot;)) longDesc = doc;
++			else 
++				longDesc = getLongDesc(doc);
++			longDesc = STRreplace.replace(longDesc, &quot;&lt;img&quot;, &quot;&lt;IMG&quot;);
++			longDesc = STRreplace.replace(longDesc, &quot;src=&quot;, &quot;SRC=&quot;);
++			longDesc = STRreplace.replace(longDesc, &quot;'&quot;, &quot;\&quot;&quot;);
++			exImgBlock = new Extractor(longDesc,p.getProp(&quot;imgBlockExStart&quot;),p.getProp(&quot;imgBlockExEnd&quot;), 0, false);
++		} catch (Exception ex) {//Missing property in spider.def
++			return;
++		}
+ 		//Vm.debug(&quot;In getImages: Have longDesc&quot; + longDesc);
+ 		String tst;
+ 		tst = exImgBlock.findNext();
+@@ -890,10 +879,15 @@
+ 		//========
+ 		//In the image span
+ 		//========
+-		Extractor spanBlock = new Extractor(doc,p.getProperty(&quot;imgSpanExStart&quot;),p.getProperty(&quot;imgSpanExEnd&quot;), 0 , true);
+-		tst = spanBlock.findNext();
+-		Extractor exImgName = new Extractor(tst,p.getProperty(&quot;imgNameExStart&quot;),p.getProperty(&quot;imgNameExEnd&quot;), 0 , true);
+-		exImgSrc = new Extractor(tst,p.getProperty(&quot;imgSrcExStart&quot;),p.getProperty(&quot;imgSrcExEnd&quot;), 0, true);
++		Extractor spanBlock,exImgName;
++		try {
++			spanBlock = new Extractor(doc,p.getProp(&quot;imgSpanExStart&quot;),p.getProp(&quot;imgSpanExEnd&quot;), 0 , true);
++			tst = spanBlock.findNext();
++			exImgName = new Extractor(tst,p.getProp(&quot;imgNameExStart&quot;),p.getProp(&quot;imgNameExEnd&quot;), 0 , true);
++			exImgSrc = new Extractor(tst,p.getProp(&quot;imgSrcExStart&quot;),p.getProp(&quot;imgSrcExEnd&quot;), 0, true);
++		} catch (Exception ex) { // Missing property in spider .def
++			return;
++		}
+ 		while(exImgSrc.endOfSearch() == false){
+ 			imgUrl = exImgSrc.findNext();
+ 			//Vm.debug(&quot;Img Url: &quot; +imgUrl);
+@@ -971,59 +965,57 @@
+ 	 * @param wayPoint The name of the cache
+ 	 * @param is_found Found status of the cached (is inherited by the additional waypoints)
+ 	 */
+-	public void getAddWaypoints(String doc, String wayPoint, boolean is_found){
+-		Extractor exWayBlock = new Extractor(doc,p.getProperty(&quot;wayBlockExStart&quot;),p.getProperty(&quot;wayBlockExEnd&quot;), 0, false);
++	public void getAddWaypoints(String doc, String wayPoint, boolean is_found) throws Exception{
++		Extractor exWayBlock = new Extractor(doc,p.getProp(&quot;wayBlockExStart&quot;),p.getProp(&quot;wayBlockExEnd&quot;), 0, false);
+ 		String wayBlock = &quot;&quot;;
+ 		String rowBlock = &quot;&quot;;
+ 		wayBlock = exWayBlock.findNext();
+-		Regex nameRex = new Regex(p.getProperty(&quot;nameRex&quot;));
+-		Regex koordRex = new Regex(p.getProperty(&quot;koordRex&quot;));
+-		Regex descRex = new Regex(p.getProperty(&quot;descRex&quot;));
+-		Regex typeRex = new Regex(p.getProperty(&quot;typeRex&quot;));
++		Regex nameRex = new Regex(p.getProp(&quot;nameRex&quot;));
++		Regex koordRex = new Regex(p.getProp(&quot;koordRex&quot;));
++		Regex descRex = new Regex(p.getProp(&quot;descRex&quot;));
++		Regex typeRex = new Regex(p.getProp(&quot;typeRex&quot;));
+ 		int counter = 0;
+ 		if(exWayBlock.endOfSearch() == false &amp;&amp; wayBlock.indexOf(&quot;No additional waypoints to display.&quot;)&lt;0){
+-			Extractor exRowBlock = new Extractor(wayBlock,p.getProperty(&quot;rowBlockExStart&quot;),p.getProperty(&quot;rowBlockExEnd&quot;), 0, false);
++			Extractor exRowBlock = new Extractor(wayBlock,p.getProp(&quot;rowBlockExStart&quot;),p.getProp(&quot;rowBlockExEnd&quot;), 0, false);
+ 			rowBlock = exRowBlock.findNext();
+ 			rowBlock = exRowBlock.findNext();
+ 			while(exRowBlock.endOfSearch()==false){
+-				CacheHolderDetail cx = new CacheHolderDetail();
+-				cx.wayPoint = MyLocale.formatLong(counter, &quot;00&quot;) + wayPoint.substring(2);
++				CacheHolderDetail cxD = new CacheHolderDetail();
++				cxD.wayPoint = MyLocale.formatLong(counter, &quot;00&quot;) + wayPoint.substring(2);
+ 				counter++;
+ 				try{ // If addi exists, try to read it to preserve the notes
+-					cx.readCache(profile.dataDir);
++					cxD.readCache(profile.dataDir);
+ 				} catch (Exception ex) {};
+ 				nameRex.search(rowBlock);
+ 				koordRex.search(rowBlock);
+ 				typeRex.search(rowBlock);
+-				cx.CacheName = nameRex.stringMatched(1);
+-				//Vm.debug(&quot;Addi: &quot; + cx.CacheName);
+-				if(koordRex.didMatch()) cx.pos.set(koordRex.stringMatched(1));
+-				cx.LatLon = cx.pos.toString();
+-				//cx.pos.set(cx.LatLon);
+-				if(typeRex.didMatch()) cx.type = CacheType.typeText2Number(&quot;Waypoint|&quot;+typeRex.stringMatched(1));
++				cxD.CacheName = nameRex.stringMatched(1);
++				if(koordRex.didMatch()) cxD.setLatLon(koordRex.stringMatched(1));
++				if(typeRex.didMatch()) cxD.type = CacheType.typeText2Number(&quot;Waypoint|&quot;+typeRex.stringMatched(1));
+ 				rowBlock = exRowBlock.findNext();
+ 				descRex.search(rowBlock);
+-				cx.LongDescription = descRex.stringMatched(1);
+-				//Vm.debug(descRex.stringMatched(1));
+-				int idx=profile.getCacheIndex(cx.wayPoint);
+-				cx.is_found = is_found;
+-				//Vm.debug(&quot;IDX: &quot; + idx);
++				cxD.setLongDescription(descRex.stringMatched(1));
++				cxD.is_found = is_found;
++				cxD.saveCacheDetails(profile.dataDir);
++				
++				int idx=profile.getCacheIndex(cxD.wayPoint);
+ 				if (idx&lt;0){
+-					cacheDB.add(new CacheHolder(cx));
+-				}else if (((CacheHolder) cacheDB.get(idx)).is_Checked &amp;&amp; // Only re-spider existing addi waypoints that are ticked
+-						!((CacheHolder) cacheDB.get(idx)).is_filtered) // and are visible (i.e.  not filtered)
+-					cacheDB.set(idx,new CacheHolder(
+-					    new CacheHolderDetail(((CacheHolder) cacheDB.get(idx))).update(cx)));
+-				cx.saveCacheDetails(profile.dataDir);
++					cacheDB.add(new CacheHolder(cxD));
++				}else {
++					CacheHolder cx=(CacheHolder) cacheDB.get(idx);
++					if (cx.is_Checked &amp;&amp; // Only re-spider existing addi waypoints that are ticked
++				 	   !cx.is_filtered) // and are visible (i.e.  not filtered)
++					   cx.update(cxD);
++				}
+ 				rowBlock = exRowBlock.findNext();
+ 			}
+ 		}
+ 	}
+ 
+-	private void getAttributes(String doc, CacheHolderDetail chD) {
+-		Extractor attBlock = new Extractor(doc,p.getProperty(&quot;attBlockExStart&quot;),p.getProperty(&quot;attBlockExEnd&quot;), 0 , true);
++	private void getAttributes(String doc, CacheHolderDetail chD) throws Exception {
++		Extractor attBlock = new Extractor(doc,p.getProp(&quot;attBlockExStart&quot;),p.getProp(&quot;attBlockExEnd&quot;), 0 , true);
+ 		String atts = attBlock.findNext();
+-		Extractor attEx = new Extractor(atts,p.getProperty(&quot;attExStart&quot;),p.getProperty(&quot;attExEnd&quot;), 0 , true);
++		Extractor attEx = new Extractor(atts,p.getProp(&quot;attExStart&quot;),p.getProp(&quot;attExEnd&quot;), 0 , true);
+ 		String attribute=attEx.findNext();
+ 		chD.attributes.clear();
+ 		while (attEx.endOfSearch()==false) {
+@@ -1286,27 +1278,30 @@
+ 	 * @param name The name (or partial name) of a travelbug
+ 	 * @return the id of the bug
+ 	 */
+-	public String getBugId(String name) {
++	public String getBugId (String name) {
+ 		String bugList;
+-		if (!existsSpiderDef()) return &quot;&quot;;
+ 		try{
+ 			//infB.setInfo(oldInfoBox+&quot;\nGetting bug: &quot;+bug);
+ 			pref.log(&quot;Fetching bugId: &quot;+name);
+-			bugList = fetch(p.getProperty(&quot;getBugByName&quot;)+STRreplace.replace(SafeXML.clean(name),&quot; &quot;,&quot;+&quot;));
++			bugList = fetch(p.getProp(&quot;getBugByName&quot;)+STRreplace.replace(SafeXML.clean(name),&quot; &quot;,&quot;+&quot;));
+ 		}catch(Exception ex){
+ 			pref.log(&quot;Could not fetch bug list&quot;);
+ 			bugList=&quot;&quot;;
+ 		}
+-		if (bugList.equals(&quot;&quot;) || bugList.indexOf(p.getProperty(&quot;bugNotFound&quot;))&gt;=0) {
+-			(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), MyLocale.getMsg(6020,&quot;Travelbug not found.&quot;), MessageBox.OKB)).execute();
++		try {
++			if (bugList.equals(&quot;&quot;) || bugList.indexOf(p.getProp(&quot;bugNotFound&quot;))&gt;=0) {
++				(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), MyLocale.getMsg(6020,&quot;Travelbug not found.&quot;), MessageBox.OKB)).execute();
++				return &quot;&quot;;
++			}
++			if (bugList.indexOf(p.getProp(&quot;bugTotalRecords&quot;))&lt;0) {
++				(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), MyLocale.getMsg(6021,&quot;More than one travelbug found. Specify name more precisely.&quot;), MessageBox.OKB)).execute();
++				return &quot;&quot;;
++			}
++			Extractor exGuid = new Extractor(bugList,p.getProp(&quot;bugGuidExStart&quot;),p.getProp(&quot;bugGuidExEnd&quot;),0,Extractor.EXCLUDESTARTEND); // TODO Replace with spider.def
++			return exGuid.findNext();
++		} catch (Exception ex) {
+ 			return &quot;&quot;;
+ 		}
+-		if (bugList.indexOf(p.getProperty(&quot;bugTotalRecords&quot;))&lt;0) {
+-			(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), MyLocale.getMsg(6021,&quot;More than one travelbug found. Specify name more precisely.&quot;), MessageBox.OKB)).execute();
+-			return &quot;&quot;;
+-		}
+-		Extractor exGuid = new Extractor(bugList,p.getProperty(&quot;bugGuidExStart&quot;),p.getProperty(&quot;bugGuidExEnd&quot;),0,Extractor.EXCLUDESTARTEND); // TODO Replace with spider.def
+-		return exGuid.findNext();
+ 	}
+ 
+ 	/**
+@@ -1317,23 +1312,47 @@
+ 	 */
+ 	public String getBugMissionByGuid(String guid) {
+ 		String bugDetails;
+-		if (!existsSpiderDef()) return &quot;&quot;;
+ 		try{
+ 			//infB.setInfo(oldInfoBox+&quot;\nGetting bug: &quot;+bug);
+ 			pref.log(&quot;Fetching bug detailsById: &quot;+guid);
+ 			if (guid.length()&gt;10)
+-				bugDetails = fetch(p.getProperty(&quot;getBugByGuid&quot;)+guid);
++				bugDetails = fetch(p.getProp(&quot;getBugByGuid&quot;)+guid);
+ 			else
+-				bugDetails = fetch(p.getProperty(&quot;getBugById&quot;)+guid);
++				bugDetails = fetch(p.getProp(&quot;getBugById&quot;)+guid);
+ 		}catch(Exception ex){
+ 			pref.log(&quot;Could not fetch bug details&quot;);
+ 			bugDetails=&quot;&quot;;
+ 		}
+-		if (bugDetails.indexOf(p.getProperty(&quot;bugNotFound&quot;))&gt;=0) {
+-			(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), MyLocale.getMsg(6020,&quot;Travelbug not found.&quot;), MessageBox.OKB)).execute();
++		try {
++			if (bugDetails.indexOf(p.getProp(&quot;bugNotFound&quot;))&gt;=0) {
++				(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), MyLocale.getMsg(6020,&quot;Travelbug not found.&quot;), MessageBox.OKB)).execute();
++				return &quot;&quot;;
++			}
++			Extractor exDetails = new Extractor(bugDetails,p.getProp(&quot;bugDetailsStart&quot;),p.getProp(&quot;bugDetailsEnd&quot;),0,Extractor.EXCLUDESTARTEND);
++			return exDetails.findNext();
++		} catch (Exception ex) {
+ 			return &quot;&quot;;
+ 		}
+-		Extractor exDetails = new Extractor(bugDetails,p.getProperty(&quot;bugDetailsStart&quot;),p.getProperty(&quot;bugDetailsEnd&quot;),0,Extractor.EXCLUDESTARTEND);
+-		return exDetails.findNext();
+ 	}
++
++	private class myProperties extends Properties {
++		myProperties() {
++			super();
++			try {
++				load(new FileInputStream(File.getProgramDirectory()+&quot;/spider.def&quot;));
++			} catch (Exception ex) {
++				pref.log(&quot;Failed to load spider.def&quot;,ex);
++				(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), MyLocale.getMsg(5504,&quot;Could not load 'spider.def'&quot;), MessageBox.OKB)).execute();
++			}
++		}
++		public String getProp(String key) throws Exception {
++			String s=super.getProperty(key);
++			if (s==null) {
++				(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), MyLocale.getMsg(5497,&quot;Error missing tag in spider.def&quot;) + &quot;: &quot;+key, MessageBox.OKB)).execute();
++				throw new Exception(&quot;Missing tag in spider.def: &quot;+key);
++			}
++			return s;
++		}
++		
++	}
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000755.html">[Cachewolf-svn] r863 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000757.html">[Cachewolf-svn] r865 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#756">[ date ]</a>
+              <a href="thread.html#756">[ thread ]</a>
+              <a href="subject.html#756">[ subject ]</a>
+              <a href="author.html#756">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

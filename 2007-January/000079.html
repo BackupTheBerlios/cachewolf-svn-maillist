@@ -1,0 +1,151 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r374 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r374%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701092212.l09MCDPe001723%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000078.html">
+   <LINK REL="Next"  HREF="000080.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r374 - trunk/src/CacheWolf</H1>
+    <B>bilbowolf at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r374%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701092212.l09MCDPe001723%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r374 - trunk/src/CacheWolf">bilbowolf at mail.berlios.de
+       </A><BR>
+    <I>Tue Jan  9 23:12:13 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000078.html">[Cachewolf-svn] r373 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000080.html">[Feature #2226] Filter f&#252;r Earthcache und Megaevent
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#79">[ date ]</a>
+              <a href="thread.html#79">[ thread ]</a>
+              <a href="subject.html#79">[ subject ]</a>
+              <a href="author.html#79">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: bilbowolf
+Date: 2007-01-09 23:12:11 +0100 (Tue, 09 Jan 2007)
+New Revision: 374
+
+Modified:
+   trunk/src/CacheWolf/Filter.java
+   trunk/src/CacheWolf/FilterScreen.java
+Log:
+Feature Request #2226 Filter f?\195?\188r Earth und MegaEvent umgesetzt.
+
+Modified: trunk/src/CacheWolf/Filter.java
+===================================================================
+--- trunk/src/CacheWolf/Filter.java	2007-01-09 21:59:28 UTC (rev 373)
++++ trunk/src/CacheWolf/Filter.java	2007-01-09 22:12:11 UTC (rev 374)
+@@ -18,8 +18,7 @@
+ 	public static final int GREATER = 1;
+ 	public static final int FOUND = 2;
+ 	public static final int NOTFOUND = 3;
+-	
+-	
++
+ 	public static final int TRADITIONAL = 1;
+ 	public static final int MULTI = 2;
+ 	public static final int VIRTUAL = 4;
+@@ -29,6 +28,9 @@
+ 	public static final int MYSTERY = 64;
+ 	public static final int LOCLESS = 128;
+ 	public static final int ADDIWPT = 256;
++	public static final int MEGA = 512;
++	public static final int EARTH = 1024;
++	
+ 	// End of type declares
+ 	public static final int N = 1;
+ 	public static final int NNE = 2;
+@@ -236,6 +238,8 @@
+ 			if(ch.type.equals(&quot;11&quot;)) cacheTypePattern |= WEBCAM;
+ 			if(ch.type.equals(&quot;12&quot;)) cacheTypePattern |= LOCLESS;
+ 			if (CacheType.isAddiWpt(ch.type)) cacheTypePattern |= ADDIWPT;
++			if(ch.type.equals(&quot;137&quot;))cacheTypePattern |= EARTH;
++			if(ch.type.equals(&quot;453&quot;))cacheTypePattern |= MEGA;
+ 			
+ 			cacheRosePattern = 0;
+ 			if(ch.bearing.equals(&quot;NW&quot;)) cacheRosePattern |= NW;
+
+Modified: trunk/src/CacheWolf/FilterScreen.java
+===================================================================
+--- trunk/src/CacheWolf/FilterScreen.java	2007-01-09 21:59:28 UTC (rev 373)
++++ trunk/src/CacheWolf/FilterScreen.java	2007-01-09 22:12:11 UTC (rev 374)
+@@ -15,7 +15,7 @@
+ 	mButton btCancel, btApply,btRoute,btArea;
+ 	
+ 	mChoice distChc, difChc, terrChc, lastChc;
+-	mCheckBox foundChk, tradChk, virtualChk, eventChk;
++	mCheckBox foundChk, tradChk, virtualChk, eventChk, earthChk, megaChk;
+ 	mCheckBox ownedChk, multiChk, letterChk, webcamChk, mysteryChk,addiWptChk, loclessChk;
+ 	mInput distIn, difIn, terrIn, lastIn, foundIn;
+ 	Vector cacheDB;
+@@ -66,6 +66,8 @@
+ 		content.addLast(ownedChk = new mCheckBox((String)lr.get(707,&quot;Owned&quot;)), CellConstants.DONTSTRETCH, CellConstants.FILL);
+ 		
+ 		CellPanel ctype = new CellPanel();
++		
++		ctype.addLast(new mLabel(&quot;__________&quot;));
+ 		ctype.addNext(tradChk = new mCheckBox(&quot;Traditonal&quot;), CellConstants.DONTSTRETCH, CellConstants.FILL);
+ 		ctype.addNext(multiChk = new mCheckBox(&quot;Multi&quot;), CellConstants.DONTSTRETCH, CellConstants.FILL);
+ 		ctype.addLast(virtualChk = new mCheckBox(&quot;Virtual&quot;), CellConstants.DONTSTRETCH, CellConstants.FILL);
+@@ -75,9 +77,12 @@
+ 		ctype.addLast(webcamChk = new mCheckBox(&quot;Webcam&quot;), CellConstants.DONTSTRETCH, CellConstants.FILL);
+ 		
+ 		ctype.addNext(mysteryChk = new mCheckBox(&quot;Mystery&quot;), CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		ctype.addNext(addiWptChk = new mCheckBox(&quot;Add. Wpt&quot;), CellConstants.DONTSTRETCH, CellConstants.FILL);
++		ctype.addNext(earthChk = new mCheckBox(&quot;Earth&quot;), CellConstants.DONTSTRETCH, CellConstants.FILL);
+ 		ctype.addLast(loclessChk = new mCheckBox(&quot;Locationless&quot;), CellConstants.DONTSTRETCH, CellConstants.FILL);
+ 		
++		ctype.addNext(megaChk = new mCheckBox(&quot;Mega-Ev.&quot;), CellConstants.DONTSTRETCH, CellConstants.FILL);
++		ctype.addLast(addiWptChk = new mCheckBox(&quot;Add. Wpt&quot;), CellConstants.DONTSTRETCH, CellConstants.FILL);
++		ctype.addLast(new mLabel(&quot;__________&quot;));
+ 		content.addLast(ctype, CellConstants.STRETCH,CellConstants.FILL);
+ 		
+ 		CellPanel roseP = new CellPanel();
+@@ -166,6 +171,8 @@
+ 				if(mysteryChk.getState()) typeMatchPattern |= Filter.MYSTERY;
+ 				if(loclessChk.getState()) typeMatchPattern |= Filter.LOCLESS;
+ 				if(addiWptChk.getState()) typeMatchPattern |= Filter.ADDIWPT;
++				if(earthChk.getState()) typeMatchPattern |= Filter.EARTH;
++				if(megaChk.getState()) typeMatchPattern |= Filter.MEGA;
+ 				flt.typeMatchPattern = typeMatchPattern;
+ 				int roseMatchPattern = 0;
+ 				if(N.getState()) roseMatchPattern |= Filter.N;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000078.html">[Cachewolf-svn] r373 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000080.html">[Feature #2226] Filter f&#252;r Earthcache und Megaevent
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#79">[ date ]</a>
+              <a href="thread.html#79">[ thread ]</a>
+              <a href="subject.html#79">[ subject ]</a>
+              <a href="author.html#79">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

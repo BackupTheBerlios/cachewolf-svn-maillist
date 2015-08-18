@@ -1,0 +1,204 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1790 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-May/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1790%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200905091039.n49Ad85p012109%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001707.html">
+   <LINK REL="Next"  HREF="001709.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1790 - trunk/src/CacheWolf</H1>
+    <B>engywuck at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1790%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200905091039.n49Ad85p012109%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1790 - trunk/src/CacheWolf">engywuck at mail.berlios.de
+       </A><BR>
+    <I>Sat May  9 12:39:08 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001707.html">[Cachewolf-svn] r1789 - in trunk/src: CacheWolf CacheWolf/navi exp
+</A></li>
+        <LI>Next message: <A HREF="001709.html">[Cachewolf-svn] r1791 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1708">[ date ]</a>
+              <a href="thread.html#1708">[ thread ]</a>
+              <a href="subject.html#1708">[ subject ]</a>
+              <a href="author.html#1708">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: engywuck
+Date: 2009-05-09 12:39:00 +0200 (Sat, 09 May 2009)
+New Revision: 1790
+
+Modified:
+   trunk/src/CacheWolf/CacheHolder.java
+   trunk/src/CacheWolf/CacheType.java
+   trunk/src/CacheWolf/RadarPanel.java
+Log:
+Fixing typo with WHERIGO-Type;
+Code centralisation based on Greiol's suggestions. 
+
+Modified: trunk/src/CacheWolf/CacheHolder.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolder.java	2009-05-09 08:37:53 UTC (rev 1789)
++++ trunk/src/CacheWolf/CacheHolder.java	2009-05-09 10:39:00 UTC (rev 1790)
+@@ -1170,20 +1170,12 @@
+     }
+ 
+ 	/**
+-	 * Gets the type of cache as integer. Internally it is saved as byte, so some conversion has
+-	 * to be done as not every integer value which is (historically) attributed to the cache types
+-	 * fits in the byte value range.
++	 * Gets the type of cache as integer.
+ 	 * @return Cache type
+ 	 */
+ 	public int getType() {
+-		int result;
+-		switch (type) {
+-		case 100: result = 1848; break;
+-		case 101: result = 453; break;
+-		default: result = type + 128;
++		return CacheType.toInt(type);
+     }
+-    	return result;
+-    }
+ 
+ 	/**
+ 	 * Sets the type of the cache. As the cache type values are int for the rest of CacheWolf
+@@ -1191,12 +1183,7 @@
+ 	 * @param type Cache Type
+ 	 */
+ 	public void setType(int type) {
+-		byte newType;
+-		switch (type) {
+-		case 1848: newType = 100; break;
+-		case 453: newType = 101; break;
+-		default: newType = (byte)(type - 128);
+-    }
++		byte newType = CacheType.toByte(type);
+ 		Global.getProfile().notifyUnsavedChanges(newType != this.type);		
+     	this.type = newType;
+     }
+
+Modified: trunk/src/CacheWolf/CacheType.java
+===================================================================
+--- trunk/src/CacheWolf/CacheType.java	2009-05-09 08:37:53 UTC (rev 1789)
++++ trunk/src/CacheWolf/CacheType.java	2009-05-09 10:39:00 UTC (rev 1790)
+@@ -29,8 +29,9 @@
+ */
+ 
+ public class CacheType {
+-	public static Image cacheImages[] = new Image[454]; // Images are used by TableControl
+-	public static int WHERIGO=200; // The cache we mapped the wherigo to
++	private static Image cacheImages[] = new Image[454]; // Images are used by TableControl
++	public static final int WHERIGO=100; // The cache we mapped the wherigo to
++	public static final int MEGA_EVENT=101; // Mapping for Mega Event 
+ 	static {
+ 		cacheImages[0] = new Image(&quot;0.png&quot;);
+ 		//cacheImages[1] = new Image();
+@@ -58,7 +59,7 @@
+ 		cacheImages[110] = new Image(&quot;110.png&quot;);
+ 		cacheImages[137] = new Image(&quot;137.png&quot;);
+ 		cacheImages[WHERIGO] = new Image(&quot;1858.png&quot;);  // Fudge as whereigo is really 1858
+-		cacheImages[453] = new Image(&quot;453.png&quot;);
++		cacheImages[MEGA_EVENT] = new Image(&quot;453.png&quot;);
+ 	}
+ 
+ 	//Types from gc.com
+@@ -304,10 +305,44 @@
+ 
+ 		
+ 	public static Image cache2Img(int cacheType) {
+-		if (cacheType==1858)
+-			return cacheImages[WHERIGO];
+-		else	
+-			return cacheImages[cacheType]; 
++		int index = cacheType;
++		switch (cacheType) {
++			case 1858: index =  WHERIGO; break;
++			case 453:  index =  MEGA_EVENT; break;
++		}
++		return cacheImages[index];
+ 	}
++	
++	/**
++	 * Packs the cache type into the range of a byte. For the int values which don't fit in the 
++	 * byte range, some conversion has to be done.
++	 * @param cacheType Cache Type as integer
++	 * @return A corresponding byte value. 
++	 */
++	public static byte toByte(int cacheType) {
++		int result = cacheType-128;
++		switch (cacheType) {
++			case 1858: result =  WHERIGO; break;
++			case 453:  result =  MEGA_EVENT; break;
++			default: result = cacheType-128;
++		}
++		return (byte)(result);
++	}
++	
++	/**
++	 * Unpacks the cache type from byte to int. 
++	 * @param cacheType Cache type as byte
++	 * @return The cache type as int
++	 */
++	public static int toInt(byte cacheType) {
++		int result;
++		switch (cacheType) {
++		case WHERIGO:     result =  1858; break;
++		case MEGA_EVENT:  result =  453; break;
++		default: result = cacheType+128;
++		}
++		return result;
++	}
++	
+ 
+ }
+
+Modified: trunk/src/CacheWolf/RadarPanel.java
+===================================================================
+--- trunk/src/CacheWolf/RadarPanel.java	2009-05-09 08:37:53 UTC (rev 1789)
++++ trunk/src/CacheWolf/RadarPanel.java	2009-05-09 10:39:00 UTC (rev 1790)
+@@ -134,7 +134,7 @@
+ 					}
+ 					Image imgCache=CacheType.cache2Img(holder.getType());
+ 					// If we have no image for the cache type use a question mark
+-					if (imgCache==null) imgCache=CacheType.cacheImages[8]; 
++					if (imgCache==null) imgCache=CacheType.cache2Img(8); 
+ 					rpi = new RadarPanelImage(imgCache);
+ 					rpi.wayPoint = holder.getWayPoint();
+ 					rpi.rownum = i;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001707.html">[Cachewolf-svn] r1789 - in trunk/src: CacheWolf CacheWolf/navi exp
+</A></li>
+	<LI>Next message: <A HREF="001709.html">[Cachewolf-svn] r1791 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1708">[ date ]</a>
+              <a href="thread.html#1708">[ thread ]</a>
+              <a href="subject.html#1708">[ subject ]</a>
+              <a href="author.html#1708">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

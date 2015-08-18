@@ -1,0 +1,331 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1995 - trunk/src/exp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-July/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1995%20-%20trunk/src/exp&In-Reply-To=%3C200907062104.n66L4MLC028798%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001913.html">
+   <LINK REL="Next"  HREF="001915.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1995 - trunk/src/exp</H1>
+    <B>greiol at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1995%20-%20trunk/src/exp&In-Reply-To=%3C200907062104.n66L4MLC028798%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1995 - trunk/src/exp">greiol at mail.berlios.de
+       </A><BR>
+    <I>Mon Jul  6 23:04:22 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001913.html">[Cachewolf-svn] r1994 - trunk/src/CacheWolf/imp
+</A></li>
+        <LI>Next message: <A HREF="001915.html">[Cachewolf-svn] r1996 - trunk/res_noewe
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1914">[ date ]</a>
+              <a href="thread.html#1914">[ thread ]</a>
+              <a href="subject.html#1914">[ subject ]</a>
+              <a href="author.html#1914">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: greiol
+Date: 2009-07-06 23:04:19 +0200 (Mon, 06 Jul 2009)
+New Revision: 1995
+
+Modified:
+   trunk/src/exp/GpxExportNg.java
+Log:
+now works with blanks in path names on windows - still no solution for java on linux and blanks
+
+Modified: trunk/src/exp/GpxExportNg.java
+===================================================================
+--- trunk/src/exp/GpxExportNg.java	2009-07-06 19:25:15 UTC (rev 1994)
++++ trunk/src/exp/GpxExportNg.java	2009-07-06 21:04:19 UTC (rev 1995)
+@@ -63,14 +63,19 @@
+ 	final static int GPX_COMPACT = 0;
+ 	/** export is PQ like */
+ 	final static int GPX_PQLIKE = 1;
+-	/** export follows gc.com myfinds format */
++	/** export follows gc.com MyFinds format */
+ 	final static int GPX_MYFINDSPQ = 2;
+-
++	/** name used as key when storing preferences */
+ 	final static String expName = &quot;GpxExportNG&quot;;
++	/** string representation of true */
+ 	final static String TRUE = &quot;True&quot;;
++	/** string representation of false */
+ 	final static String FALSE = &quot;False&quot;;
++	/** object used to determine custom symbols and POI categories */
+ 	private static GarminMap poiMapper;
++	/** maximum number of logs to export. can be overwritten with preferences, default unlimited*/
+ 	private int maxLogs = ewe.math.Number.INTEGER_MAX_VALUE;
++	/** number of errors / warnings during export */
+ 	private int exportErrors = 0;
+ 
+ 	final static String GPXHEADER = &quot;&lt;?xml version=\&quot;1.0\&quot; encoding=\&quot;utf-8\&quot;?&gt;\n&quot;
+@@ -295,20 +300,18 @@
+ 						if (!copyPoiIcon(tempDir, key, prefix, poiZip))
+ 							exportErrors++;
+ 
+-					// TODO: check with blanks and on windows
+-					String gpsBabelCommand = Global.getPref().gpsbabel
+-							.concat(&quot; -i gpx -f &quot;)
+-							.concat(tempDir + FileBase.separator + prefix + key + &quot;.gpx&quot;)
+-							.concat(&quot; -o garmin_gpi,sleep=1,category=\&quot;&quot;)
+-							.concat(prefix + key).concat(&quot;\&quot;,bitmap=&quot;)
+-							.concat(tempDir + FileBase.separator + prefix + key	+ &quot;.bmp&quot;)
+-							.concat(&quot; -F &quot;)
+-							.concat(outDir + FileBase.separator + prefix + key + &quot;.gpi&quot;);
++					String[] cmdStack = new String[9];
++					cmdStack[0]=Global.getPref().gpsbabel;
++					cmdStack[1]=&quot;-i&quot;;
++					cmdStack[2]=&quot;gpx&quot;;
++					cmdStack[3]=&quot;-f&quot;;
++					cmdStack[4]=tempDir + FileBase.separator + prefix + key + &quot;.gpx&quot;;
++					cmdStack[5]=&quot;-o&quot;;
++					cmdStack[6]=&quot;garmin_gpi,sleep=1,category=&quot;+prefix + key+&quot;,bitmap=&quot;+tempDir + FileBase.separator + prefix + key	+ &quot;.bmp&quot;;
++					cmdStack[7]=&quot;-F&quot;;
++					cmdStack[8]=outDir + FileBase.separator + prefix + key + &quot;.gpi&quot;;
+ 
+-					if (Global.getPref().debug)
+-						Global.getPref().log(gpsBabelCommand);
+-
+-					Process babelProcess = Vm.exec(gpsBabelCommand);
++					Process babelProcess = startProcess(cmdStack);
+ 					StreamReader errorStream = new StreamReader(babelProcess.getErrorStream());
+ 					while (errorStream.isOpen()) {
+ 						String errorMsg = errorStream.readALine();
+@@ -423,32 +426,33 @@
+ 
+ 			if (sendToGarmin) {
+ 				try {
+-					String gpsBabelCommand;
+-					gpsBabelCommand = Global.getPref().gpsbabel
+-						.concat(&quot; &quot;)
+-						.concat(Global.getPref().garminGPSBabelOptions)
+-						.concat(&quot; -i gpx -f &quot;)
+-						.concat(file.getCreationName())
+-						.concat(&quot; -o garmin -F &quot;)
+-						.concat(Global.getPref().garminConn)
+-						.concat(&quot;:&quot;);
+-					if (Global.getPref().debug)
+-						Global.getPref().log(&quot;GPX Export: gpsbabelcommand is &quot;+ gpsBabelCommand);
++					String[] cmdStack = new String[9];
++					cmdStack[0]=Global.getPref().gpsbabel;
++					cmdStack[1]=&quot;-i&quot;;
++					cmdStack[2]=&quot;gpx&quot;;
++					cmdStack[3]=&quot;-f&quot;;
++					cmdStack[4]=file.getCreationName();
++					cmdStack[5]=&quot;-o&quot;;
++					cmdStack[6]=&quot;garmin&quot;;
++					cmdStack[7]=&quot;-F&quot;;
++					cmdStack[8]=Global.getPref().garminConn.concat(&quot;:&quot;);
+ 					
+-					Process babelProcess = Vm.exec(gpsBabelCommand);
+-					StreamReader errorStream = new StreamReader(babelProcess.getErrorStream());
+-					while (errorStream.isOpen()) {
+-						String errorMsg = errorStream.readALine();
+-						if (errorMsg != null) {
+-							Global.getPref().log(&quot;GPX Export: &quot; + errorMsg);
+-							exportErrors++;
++					Process babelProcess = this.startProcess(cmdStack);
++					if (babelProcess != null) {
++						StreamReader errorStream = new StreamReader(babelProcess.getErrorStream());
++						while (errorStream.isOpen()) {
++							String errorMsg = errorStream.readALine();
++							if (errorMsg != null) {
++								Global.getPref().log(&quot;GPX Export: &quot; + errorMsg);
++								exportErrors++;
++							}
++							try {
++								babelProcess.exitValue();
++								errorStream.close();
++							} catch (IllegalThreadStateException e) {
++								// still running
++							}
+ 						}
+-						try {
+-							babelProcess.exitValue();
+-							errorStream.close();
+-						} catch (IllegalThreadStateException e) {
+-							// still running
+-						}
+ 					}
+ 				} catch (Exception ex) {
+ 					Global.getPref().log(&quot;GPX Export error :&quot;, ex, Global.getPref().debug);
+@@ -462,6 +466,11 @@
+ 		}
+ 	}
+ 
++	/**
++	 * wrapper for formatting a cache. will call some subroutines to do the actual work
++	 * @param ch
++	 * @return
++	 */
+ 	private String formatCache(CacheHolder ch) {
+ 		// no addis or custom in MyFindsPq - and of course only finds
+ 		if ((GPX_MYFINDSPQ == outType) &amp;&amp; ((ch.getType() == CacheType.CW_TYPE_CUSTOM) || ch.isAddiWpt() || !ch.is_found()))
+@@ -494,6 +503,11 @@
+ 		return ret.toString();
+ 	}
+ 
++	/**
++	 * generate minimal waypoint information according to GPX specification
++	 * @param ch
++	 * @return
++	 */
+ 	private String formatCompact(CacheHolder ch) {
+ 
+ 		Transformer trans = new Transformer(true);
+@@ -604,6 +618,11 @@
+ 		return trans.replaceFirst(GPXCOMPACT);
+ 	}
+ 
++	/**
++	 * format gc.com extended cache information as found in a PQ
++	 * @param ch cacheholder
++	 * @return formatted cache information for cache waypoints or emty string for all other waypoints (additional / custom)
++	 */
+ 	private String formatPqExtensions(CacheHolder ch) {
+ 		// no details pq details for addis or custom waypoints
+ 		if (ch.getType() == CacheType.CW_TYPE_CUSTOM || ch.isAddiWpt())
+@@ -644,12 +663,22 @@
+ 		return ret.toString();
+ 	}
+ 
++	/**
++	 * format TB information as found in a gc.com GPX file
++	 * @param ch cacheholder containing TB information
++	 * @return
++	 */
+ 	public String formatTbs(CacheHolder ch) {
+ 		Transformer trans = new Transformer(true);
+ 		return &quot;&quot;;
+ 		// return trans.replaceFirst(GPXTB);
+ 	}
+ 
++	/**
++	 * format cache logs as found in a gc.com GPX file
++	 * @param ch cacheholder containing the logs
++	 * @return formatted logs or empty string if no logs are present
++	 */
+ 	public String formatLogs(CacheHolder ch) {
+ 		LogList logs = ch.getFreshDetails().CacheLogs;
+ 		StringBuffer ret = new StringBuffer();
+@@ -686,12 +715,21 @@
+ 		return ret.toString();
+ 	}
+ 
++	/**
++	 * format the header of the GPX file
++	 * @return
++	 */
+ 	public String formatHeader() {
+ 		Transformer trans = new Transformer(true);
+ 		trans.add(new Regex(&quot;@@CREATEDATE@@&quot;, new Date().setFormat(&quot;yyyy-MM-dd&quot;).toString()));
+ 		return trans.replaceFirst(GPXHEADER);
+ 	}
+ 
++	/**
++	 * format a long description as found in the gc.com GPX files
++	 * @param ch cacheholder to format
++	 * @return formatted output
++	 */
+ 	public String formatLongDescription(CacheHolder ch) {
+ 		if (ch.isAddiWpt() || ch.getType() == CacheType.CW_TYPE_CUSTOM) {
+ 			return ch.details.LongDescription;
+@@ -706,7 +744,7 @@
+ 			}
+ 			// FIXME: format is not quite right yet
+ 			// FIXME: cut Addis off in GPXimporter otherwise people who use GPX to feed CacheWolf have them doubled
+-			if (ch.addiWpts.size() &gt; 0) {
++			if (ch.addiWpts.size() &gt; 0 &amp;&amp; outType != GPX_MYFINDSPQ) {
+ 				if (ch.is_HTML()) {
+ 					ret.append(&quot;\n\n&lt;p&gt;Additional Waypoints&lt;/p&gt;&quot;);
+ 				} else {
+@@ -783,8 +821,15 @@
+ 		}
+ 	}
+ 
+-	boolean copyPoiIcon(String outdir, String type, String prefix,
+-			ZipFile poiZip) {
++	/**
++	 * copy the bitmap identified by &lt;code&gt;prefix&lt;/code&gt; and &lt;code&gt;type&lt;/code&gt; from &lt;code&gt;poiZip&lt;/code&gt; to &lt;code&gt;outdir&lt;/code&gt;
++	 * @param outdir
++	 * @param type
++	 * @param prefix
++	 * @param poiZip
++	 * @return true on success, false otherwise
++	 */
++	boolean copyPoiIcon(String outdir, String type, String prefix, ZipFile poiZip) {
+ 		ZipEntry icon;
+ 		byte[] buff;
+ 		int len;
+@@ -812,6 +857,35 @@
+ 		}
+ 		return true;
+ 	}
++	
++	/**
++	 * Execute the command defined by cmd
++	 * @param cmd command and options to execute. if command or options include a space quatation marks are added. this will not wirk with the java version on unix systems
++	 * @return a handle to the process on success or null otherwise
++	 */
++	Process startProcess(String[] cmd) {
++		String command = &quot;&quot;;
++		if (cmd.length == 0) {
++			exportErrors++;
++			Global.getPref().log(&quot;GPX Export: empty gpsbabel command&quot;);
++			return null;
++		}
++		
++		for (int i = 0; i &lt; cmd.length; i++) {
++			if (cmd[i].indexOf(&quot; &quot;) &gt; -1) {
++				cmd[i]=&quot;\&quot;&quot;+cmd[i]+&quot;\&quot;&quot;;
++			}
++			command = command.concat(cmd[i]).concat(&quot; &quot;);
++		}
++		
++		try {
++			return Vm.exec(command);
++		} catch (IOException e) {
++			Global.getPref().log(&quot;error excuting &quot;+command, e, Global.getPref().debug);
++			exportErrors++;
++			return null;
++		}
++	}
+ 
+ 	/**
+ 	 * dialog to set the GPX exporter options
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001913.html">[Cachewolf-svn] r1994 - trunk/src/CacheWolf/imp
+</A></li>
+	<LI>Next message: <A HREF="001915.html">[Cachewolf-svn] r1996 - trunk/res_noewe
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1914">[ date ]</a>
+              <a href="thread.html#1914">[ thread ]</a>
+              <a href="subject.html#1914">[ subject ]</a>
+              <a href="author.html#1914">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

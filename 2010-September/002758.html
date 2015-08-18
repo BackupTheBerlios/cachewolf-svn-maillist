@@ -1,0 +1,179 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2770 - trunk/src/CacheWolf/imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-September/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2770%20-%20trunk/src/CacheWolf/imp&In-Reply-To=%3C20100906121848.2306A481051%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002757.html">
+   <LINK REL="Next"  HREF="002759.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2770 - trunk/src/CacheWolf/imp</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2770%20-%20trunk/src/CacheWolf/imp&In-Reply-To=%3C20100906121848.2306A481051%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2770 - trunk/src/CacheWolf/imp">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Mon Sep  6 02:18:48 CEST 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002757.html">[Cachewolf-svn] r2769 - in trunk: res_noewe src/CacheWolf	src/CacheWolf/imp
+</A></li>
+        <LI>Next message: <A HREF="002759.html">[Cachewolf-svn] r2771 - trunk/src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2758">[ date ]</a>
+              <a href="thread.html#2758">[ thread ]</a>
+              <a href="subject.html#2758">[ subject ]</a>
+              <a href="author.html#2758">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2010-09-06 14:18:47 +0200 (Mon, 06 Sep 2010)
+New Revision: 2770
+
+Modified:
+   trunk/src/CacheWolf/imp/FieldnotesImporter.java
+Log:
+correct setting of status with date
+
+Modified: trunk/src/CacheWolf/imp/FieldnotesImporter.java
+===================================================================
+--- trunk/src/CacheWolf/imp/FieldnotesImporter.java	2010-09-04 11:15:05 UTC (rev 2769)
++++ trunk/src/CacheWolf/imp/FieldnotesImporter.java	2010-09-06 12:18:47 UTC (rev 2770)
+@@ -8,10 +8,16 @@
+ import CacheWolf.MyLocale;
+ import CacheWolf.Preferences;
+ import CacheWolf.Profile;
++import HTML.Tmpl.Util;
++import HTML.Tmpl.Element.Element;
++import ewe.io.BufferedReader;
++import ewe.io.FileNotFoundException;
+ import ewe.io.FileReader;
++import ewe.io.IOException;
+ import ewe.io.JavaUtf8Codec;
+ import ewe.sys.Vm;
+ import ewe.sys.Time;
++import ewe.util.EmptyStackException;
+ import ewe.util.mString;
+ 
+ public class FieldnotesImporter {
+@@ -42,7 +48,65 @@
+ 			Vm.showWait(false);
+ 		}
+ 	}
++/* TODO Import of files with UNICODE Charset 
++	private void read_file(String filename)
++			throws FileNotFoundException, 
++				IllegalStateException,
++				IOException, 
++				EmptyStackException
++	{
++		BufferedReader br=openFile(filename);
++
++		String line;
++
++		Element e = null;
++		if(elements.empty())
++			e = __template__;
++		else
++			e = (Element)elements.pop();
++
++		max_includes--;
++		while((line=br.readLine()) != null) {
++			Util.debug_print(&quot;Line: &quot; + line);
++			e = parseLine(line+&quot;\n&quot;, e);
++		}
++		max_includes++;
++
++		br.close();
++		br=null;
++
++	}
+ 	
++	private BufferedReader openFile(String filename)
++	throws FileNotFoundException{
++		boolean add_path=true;
++		if(!elements.empty() &amp;&amp; !search_path_on_include)
++			add_path=false;
++
++		if(filename.startsWith(&quot;/&quot;))
++			add_path=false;
++
++		if(this.path == null)
++			add_path=false;
++
++		Util.debug_print(&quot;open &quot; + filename);
++		if(!add_path)
++			return new BufferedReader(new FileReader(filename));
++
++		BufferedReader br=null;
++
++		for(int i=0; i&lt;this.path.length; i++) {
++			try {
++				Util.debug_print(&quot;trying &quot; + this.path[i] +	&quot;/&quot; + filename);
++				br = new BufferedReader(new FileReader(this.path[i] + &quot;/&quot; + filename));
++				break;
++			} catch (FileNotFoundException fnfe) {}
++		}
++		if(br == null) throw new FileNotFoundException(filename);
++		return br;
++	}
++ */
++	
+ 	private void parse(String s) {
+ 		final byte WPPOS=0;
+ 		final byte DATEPOS=1;
+@@ -63,16 +127,17 @@
+ 			CacheHolder ch = cacheDB.get(wayPoint);
+ 			if (ch!=null) {
+ 				if (l1[LOGTYPPOS].equals(ch.getGCFoundText())) {
+-					ch.setCacheStatus(l1[DATEPOS].replace('T',' ').replace('Z', ' '));
++					String stmp=ch.getCacheStatus();
++					ch.setCacheStatus(l1[DATEPOS].replace('T',' ').replace('Z', ' ').trim());
+ 					ch.setFound(true);
+ 				} else {
+ 					String stmp=ch.getCWLogText(l1[LOGTYPPOS]);
+ 					if(stmp.equals(&quot;&quot;)) 
+-						ch.setCacheStatus(l1[LOGTYPPOS]);
++						ch.setCacheStatus(l1[LOGTYPPOS]); // eingelesener 
+ 					else ch.setCacheStatus(stmp); // Statustext (ohne Datum/Uhrzeit)
+ 					ch.setFound(false);
+ 				}				
+-				ch.getCacheDetails(false).setCacheNotes(logText);
++				if (!logText.equals(&quot;&quot;)) ch.getCacheDetails(false).setCacheNotes(logText);
+ 				ch.save();
+ 			}
+ 		}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002757.html">[Cachewolf-svn] r2769 - in trunk: res_noewe src/CacheWolf	src/CacheWolf/imp
+</A></li>
+	<LI>Next message: <A HREF="002759.html">[Cachewolf-svn] r2771 - trunk/src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2758">[ date ]</a>
+              <a href="thread.html#2758">[ thread ]</a>
+              <a href="subject.html#2758">[ subject ]</a>
+              <a href="author.html#2758">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

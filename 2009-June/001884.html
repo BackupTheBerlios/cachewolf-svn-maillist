@@ -1,0 +1,202 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1965 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-June/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1965%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200906291742.n5THgWcR001849%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001883.html">
+   <LINK REL="Next"  HREF="001885.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1965 - trunk/src/CacheWolf</H1>
+    <B>greiol at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1965%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200906291742.n5THgWcR001849%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1965 - trunk/src/CacheWolf">greiol at mail.berlios.de
+       </A><BR>
+    <I>Mon Jun 29 19:42:32 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001883.html">[Cachewolf-svn] r1964 - trunk/src/CacheWolf/imp
+</A></li>
+        <LI>Next message: <A HREF="001885.html">[Cachewolf-svn] r1966 - trunk/src/exp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1884">[ date ]</a>
+              <a href="thread.html#1884">[ thread ]</a>
+              <a href="subject.html#1884">[ subject ]</a>
+              <a href="author.html#1884">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: greiol
+Date: 2009-06-29 19:42:30 +0200 (Mon, 29 Jun 2009)
+New Revision: 1965
+
+Modified:
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/Preferences.java
+Log:
+moved gpsbabel detection to preferences
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2009-06-29 17:39:58 UTC (rev 1964)
++++ trunk/src/CacheWolf/MainMenu.java	2009-06-29 17:42:30 UTC (rev 1965)
+@@ -65,7 +65,6 @@
+ 	private Form father;
+ 	private TablePanel tbp;
+ 	private FilterScreen scnFilter=new FilterScreen();
+-	private boolean addExeToGpsbabel = false;
+ 	private static boolean searchInDescriptionAndNotes = false;
+ 	private static boolean searchInLogs = false;
+ 
+@@ -108,33 +107,9 @@
+ 		exitems[6] = exportMSARCSV = new MenuItem(MyLocale.getMsg(106,&quot;to MS AutoRoute CSV&quot;));
+ 		exitems[7] = exportLOC = new MenuItem(MyLocale.getMsg(215,&quot;to LOC&quot;));
+ 		exitems[8] = exportGPS = new MenuItem(MyLocale.getMsg(122,&quot;to GPS&quot;));
+-		boolean gpsbabelFound = false;
+-		try{
+-			// this will *only* work with ewe.jar at the moment
+-			ewe.sys.Process p = Vm.exec(&quot;gpsbabel -V&quot;);
+-			p.waitFor();
+-			gpsbabelFound = true;
+-		}catch(IOException ioex){
+-			// Most of the time there will be an exception, so don't complain
+-		}
+-		if ( !gpsbabelFound ) {
+-			try{
+-				// this will *only* work with ewe.jar at the moment
+-				ewe.sys.Process p = Vm.exec(&quot;gpsbabel.exe -V&quot;);
+-				p.waitFor();
+-				addExeToGpsbabel = true;
+-				gpsbabelFound = true;
+-			}catch(IOException ioex){
+-				// Most of the time there will be an exception, so don't complain
+-			}
+-		}		
+-		
+-		if ( !gpsbabelFound ) {
++		if ( Global.getPref().gpsbabel == null ) {
+ 			exitems[8].modifiers = MenuItem.Disabled;	
+ 		}
+-		
+-		//exitems[8] = exportCacheMate = new MenuItem(MyLocale.getMsg(123,&quot;to Cachemate&quot;));
+-		//if(!(new File(cwd + &quot;/cmconvert/cmconvert.exe&quot;)).exists()) exitems[8].modifiers = MenuItem.Disabled;
+ 		exitems[9] = exportOZI = new MenuItem(MyLocale.getMsg(124,&quot;to OZI&quot;));
+ 		exitems[10] = exportKML = new MenuItem(MyLocale.getMsg(125,&quot;to Google Earth&quot;));
+ 		exitems[11] = exportExplorist = new MenuItem(MyLocale.getMsg(132,&quot;to Explorist&quot;));
+@@ -435,6 +410,7 @@
+ 				loc.doIt();
+ 			}
+ 			if(mev.selectedItem == exportGPS){
++				String gpsBabelCommand;
+ 				Vm.showWait(true);
+ 				LocExporter loc = new LocExporter();
+ 				//String tmpFileName = FileBase.getProgramDirectory() + &quot;/temp.loc&quot;;
+@@ -444,21 +420,16 @@
+ 				loc.setTmpFileName(tmpFileName);
+ 				loc.doIt(LocExporter.MODE_AUTO);
+ 				ProgressBarForm.display(MyLocale.getMsg(950,&quot;Transfer&quot;),MyLocale.getMsg(951,&quot;Sending to GPS&quot;), null);
+-				try{
+-					String gpsBabelCommand = &quot;&quot;;
+-					if ( addExeToGpsbabel ) {
+-						gpsBabelCommand = &quot;gpsbabel.exe &quot;+pref.garminGPSBabelOptions+&quot; -i geo -f &quot;+ tmpFileName +&quot; -o garmin -F &quot; + pref.garminConn +&quot;:&quot;;
+-					} else {
+-						gpsBabelCommand = &quot;gpsbabel &quot;+pref.garminGPSBabelOptions+&quot; -i geo -f &quot;+ tmpFileName +&quot; -o garmin -F &quot; + pref.garminConn +&quot;:&quot;;						
+-					}
+-					pref.log( gpsBabelCommand );
++				gpsBabelCommand = pref.gpsbabel+&quot; &quot;+pref.garminGPSBabelOptions+&quot; -i geo -f &quot;+ tmpFileName +&quot; -o garmin -F &quot; + pref.garminConn +&quot;:&quot;;
++				if (pref.debug)	pref.log( gpsBabelCommand );
++				try {
+ 					// this will *only* work with ewe.jar at the moment
+ 					ewe.sys.Process p = Vm.exec( gpsBabelCommand );
+ 					p.waitFor();
+ 				}catch(IOException ioex){
+ 					Vm.showWait(false);
+ 					(new MessageBox(&quot;Error&quot;, &quot;Garmin export unsuccessful&quot;, FormBase.OKB)).execute();
+-					pref.log(&quot;Error exporting to Garmin&quot;,ioex);
++					pref.log(&quot;Error exporting to Garmin&quot;,ioex,pref.debug);
+ 				};
+ 				ProgressBarForm.clear();
+ 				Vm.showWait(false);
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2009-06-29 17:39:58 UTC (rev 1964)
++++ trunk/src/CacheWolf/Preferences.java	2009-06-29 17:42:30 UTC (rev 1965)
+@@ -102,6 +102,8 @@
+ 			}
+ 		} else
+ 			fontSize = 11;
++		
++		setgpsbabel();
+ 	}
+ 
+     //////////////////////////////////////////////////////////////////////////////////////
+@@ -236,7 +238,7 @@
+ 
+ 	//////////////////////////////////////////////
+ 	/** The debug switch (Can be used to activate dormant code) by adding
+-	 * the line: &lt;pre&gt;&lt;debug value=&quot;true&quot;&gt;&lt;/pre&gt;
++	 * the line: &lt;pre&gt;&lt;debug value=&quot;true&quot; /&gt;&lt;/pre&gt;
+ 	 * to the pref.xml file.
+ 	 */
+ 	public boolean debug = false;
+@@ -913,4 +915,25 @@
+ 		}
+ 		return result;
+ 	}
++	
++	public String gpsbabel = null;
++	
++	public void setgpsbabel() {
++		try{
++			ewe.sys.Process p = Vm.exec(&quot;gpsbabel -V&quot;);
++			p.waitFor();
++			gpsbabel=&quot;gpsbabel&quot;;
++		}catch(IOException ioex){
++			// Most of the time there will be an exception, so don't complain
++		}
++		if ( gpsbabel == null ) {
++			try{
++				ewe.sys.Process p = Vm.exec(&quot;gpsbabel.exe -V&quot;);
++				p.waitFor();
++				gpsbabel = &quot;gpsbabel.exe&quot;;
++			}catch(IOException ioex){
++				// Most of the time there will be an exception, so don't complain
++			}
++		}
++	}
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001883.html">[Cachewolf-svn] r1964 - trunk/src/CacheWolf/imp
+</A></li>
+	<LI>Next message: <A HREF="001885.html">[Cachewolf-svn] r1966 - trunk/src/exp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1884">[ date ]</a>
+              <a href="thread.html#1884">[ thread ]</a>
+              <a href="subject.html#1884">[ subject ]</a>
+              <a href="author.html#1884">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

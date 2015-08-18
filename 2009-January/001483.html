@@ -1,0 +1,666 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1589 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1589%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200901101423.n0AENRmM021220%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001482.html">
+   <LINK REL="Next"  HREF="001484.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1589 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1589%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200901101423.n0AENRmM021220%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1589 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sat Jan 10 15:23:27 CET 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001482.html">[Cachewolf-svn] r1588 - experiments/EVEhist/src/cachewolf
+</A></li>
+        <LI>Next message: <A HREF="001484.html">[Cachewolf-svn] r1590 - experiments/EVEhist/src/cachewolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1483">[ date ]</a>
+              <a href="thread.html#1483">[ thread ]</a>
+              <a href="subject.html#1483">[ subject ]</a>
+              <a href="author.html#1483">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2009-01-10 15:23:21 +0100 (Sat, 10 Jan 2009)
+New Revision: 1589
+
+Modified:
+   trunk/src/CacheWolf/MainForm.java
+   trunk/src/CacheWolf/Preferences.java
+Log:
+Added code to save size of main window
+
+
+Modified: trunk/src/CacheWolf/MainForm.java
+===================================================================
+--- trunk/src/CacheWolf/MainForm.java	2009-01-09 00:01:30 UTC (rev 1588)
++++ trunk/src/CacheWolf/MainForm.java	2009-01-10 14:23:21 UTC (rev 1589)
+@@ -13,7 +13,7 @@
+ 	public boolean cacheListVisible=false;
+     public CacheList cacheList;
+     SplittablePanel split;
+-	
++
+ 	StatusBar statBar=null;
+ 	Preferences pref = Global.getPref(); // Singleton pattern
+ 	Profile profile = Global.getProfile();
+@@ -31,21 +31,21 @@
+ 	public MainForm(){
+ 		doIt();
+ 	}
+-	
++
+ 	public MainForm(boolean dbg, String pathtoprefxml){
+ 		pref.debug = dbg;
+-		pref.setPathToConfigFile(pathtoprefxml); // in case pathtoprefxml == null the preferences will determine the path itself 
++		pref.setPathToConfigFile(pathtoprefxml); // in case pathtoprefxml == null the preferences will determine the path itself
+ 		doIt();
+ 	}
+ 	protected void checkButtons() {
+ 		if (pref.hasCloseButton) super.checkButtons();
+-	} 
++	}
+ 
+ 	protected boolean canExit(int exitCode) {
+ 		mTab.saveUnsavedChanges(true);
+ 		return pref.hasCloseButton;
+ 	}
+-	
++
+ 	public void doIt(){
+ 		//CellPanel [] p = addToolbar();
+ 		Global.mainForm=this;
+@@ -54,22 +54,29 @@
+ 		this.resizable = true;
+ 		this.moveable = true;
+ 		this.windowFlagsToSet = WindowConstants.FLAG_MAXIMIZE_ON_PDA;
+-		if(Vm.isMobile() == true) {
+-			//this.windowFlagsToSet |=Window.FLAG_FULL_SCREEN;
+-			this.resizable = false;
+-			this.moveable = false;
+-		}
+-		Rect screen = ((ewe.fx.Rect) (Window.getGuiInfo(WindowConstants.INFO_SCREEN_RECT,null,new ewe.fx.Rect(),0)));
+-		if ( screen.height &gt;= 600 &amp;&amp; screen.width &gt;= 800) this.setPreferredSize(800, 600);
++		//Rect screen = ((ewe.fx.Rect) (Window.getGuiInfo(WindowConstants.INFO_SCREEN_RECT,null,new ewe.fx.Rect(),0)));
++		//if ( screen.height &gt;= 600 &amp;&amp; screen.width &gt;= 800) this.setPreferredSize(800, 600);
+ 		this.resizeOnSIP = true;
+-		InfoBox infB = null;  
++		InfoBox infB = null;
+ 		try{
+ 			pref.readPrefFile();
+ 			if (MyLocale.initErrors.length() != 0) {
+ 				new MessageBox(&quot;Error&quot;, MyLocale.initErrors, FormBase.OKB).execute();
+ 			}
++			if(Vm.isMobile() == true) {
++				//this.windowFlagsToSet |=Window.FLAG_FULL_SCREEN;
++				this.resizable = false;
++				this.moveable = false;
++			} else {
++				int h,w;
++				h=pref.myAppHeight;
++				if (h&gt;MyLocale.getScreenHeight()) h=MyLocale.getScreenHeight();
++				w=pref.myAppWidth;
++				if (w&gt;MyLocale.getScreenWidth()) w=MyLocale.getScreenWidth();
++				this.setPreferredSize(w,h);
++			}
+ 			addGuiFont();
+-			if (!pref.selectProfile(profile,Preferences.PROFILE_SELECTOR_ONOROFF, true)) 
++			if (!pref.selectProfile(profile,Preferences.PROFILE_SELECTOR_ONOROFF, true))
+ 				ewe.sys.Vm.exit(0); // User MUST select or create a profile
+ 			Vm.showWait(true);
+ 			// Load CacheList
+@@ -79,15 +86,15 @@
+ 			profile.readIndex();
+ 			pref.curCentrePt.set(profile.centre);
+ 			profile.updateBearingDistance();
+-			boolean saveHasUnsavedChanges = profile.hasUnsavedChanges; 
+-			profile.restoreFilter(); // this method sets hasUnsavedChanges to true 
++			boolean saveHasUnsavedChanges = profile.hasUnsavedChanges;
++			profile.restoreFilter(); // this method sets hasUnsavedChanges to true
+ 			profile.hasUnsavedChanges = saveHasUnsavedChanges ; // in case that the profile is new, it hasUnsavedChanges, so set it back
+ 			setTitle(&quot;Cachewolf &quot;+Version.getRelease()+&quot; - &quot;+profile.name);
+ 		} catch (Exception e){
+ 			if(pref.debug == true) Vm.debug(&quot;MainForm:: Exception:: &quot; + e.toString());
+ 		}
+-		
+-		
++
++
+ 		if(pref.fixSIP == true){
+ 			if (Gui.screenIs(Gui.PDA_SCREEN) &amp;&amp; Vm.isMobile()) {
+ 				//Vm.setSIP(Vm.SIP_LEAVE_BUTTON|Vm.SIP_ON);
+@@ -95,20 +102,20 @@
+ 				Device.preventIdleState(true);
+ 			}
+ 		} else Vm.setSIP(0);
+-		
++
+         if (pref.showStatus) statBar = new StatusBar(pref, profile.cacheDB);
+ 		mMenu = new MainMenu(this);
+ 		mTab = new MainTab(mMenu,statBar);
+ 		split=new SplittablePanel(PanelSplitter.HORIZONTAL);
+ 		split.theSplitter.thickness=0; split.theSplitter.modify(Invisible,0);
+ 		CellPanel pnlCacheList = split.getNextPanel();
+-		CellPanel pnlMainTab = split.getNextPanel(); 
++		CellPanel pnlMainTab = split.getNextPanel();
+ 		split.setSplitter(PanelSplitter.MIN_SIZE|PanelSplitter.BEFORE,PanelSplitter.HIDDEN|PanelSplitter.BEFORE,PanelSplitter.CLOSED);
+ 		pnlCacheList.addLast(cacheList=new CacheList(),STRETCH,FILL);
+ 		pnlMainTab.addLast(mTab,STRETCH,FILL);
+-		
++
+ 		mTab.dontAutoScroll=true;
+-		
++
+ 		this.addLast(split,STRETCH,FILL);
+ 		/*
+ 		if (pref.menuAtTop) {
+@@ -126,22 +133,22 @@
+ 		Vm.showWait(false);
+ 	}
+ 
+-	
++
+ 	private void addGuiFont(){
+ 		Font defaultGuiFont = mApp.findFont(&quot;gui&quot;);
+ 		int sz = (pref.fontSize);
+-		Font newGuiFont = new Font(defaultGuiFont.getName(), defaultGuiFont.getStyle(), sz); 
+-		mApp.addFont(newGuiFont, &quot;gui&quot;); 
++		Font newGuiFont = new Font(defaultGuiFont.getName(), defaultGuiFont.getStyle(), sz);
++		mApp.addFont(newGuiFont, &quot;gui&quot;);
+ 		mApp.fontsChanged();
+ 		mApp.mainApp.font = newGuiFont;
+ 	}
+-	
++
+ 	public void doPaint(Graphics g, Rect r){
+ 		pref.myAppHeight = this.height;
+ 		pref.myAppWidth = this.width;
+ 		super.doPaint(g,r);
+ 	}
+-	
++
+ 	public void onEvent(Event ev){ // Preferences have been changed by PreferencesScreen
+ 		if(pref.dirty == true){
+ 			mTab.getTablePanel().myMod.setColumnNamesAndWidths();
+@@ -155,7 +162,7 @@
+ 	public void toggleCacheListVisible() {
+ 		cacheListVisible=!cacheListVisible;
+ 		if (cacheListVisible) {
+-			// Make the splitterbar visible with a width of 6 
++			// Make the splitterbar visible with a width of 6
+ 			split.theSplitter.modify(0,Invisible);
+ 			split.theSplitter.resizeTo(6,split.theSplitter.getRect().height);
+ 			Global.mainForm.mMenu.cacheTour.modifiers|=MenuItem.Checked;
+@@ -167,7 +174,7 @@
+ 		}
+ 		split.theSplitter.doOpenClose(cacheListVisible);
+ 		Global.mainForm.mMenu.repaint();
+-		
++
+ 	}
+-	
++
+ }
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2009-01-09 00:01:30 UTC (rev 1588)
++++ trunk/src/CacheWolf/Preferences.java	2009-01-10 14:23:21 UTC (rev 1589)
+@@ -36,9 +36,9 @@
+ 	}
+ 
+ 	private static Preferences _reference;
+-	
++
+ 	private String pathToConfigFile;
+-	
++
+ 	/**
+ 	 * Call this method to set the path of the config file &lt;br&gt;
+ 	 * If you call it with null it defaults to [program-dir]/pref.xml
+@@ -54,7 +54,7 @@
+ 			log(&quot;Vm.getenv(APPDATA: &quot; + test); // this works also in win32.exe (ewe-vm on win xp)
+ 			test = Vm.getenv(&quot;HOME&quot;, &quot;/&quot;); // This should return on *nix system the home dir
+ 			log(&quot;Vm.getenv(HOME: &quot; + test);
+-			test = System.getProperty(&quot;user.dir&quot;); // return in java-vm on win xp: &lt;working dir&gt; or maybe &lt;program dir&gt; 
++			test = System.getProperty(&quot;user.dir&quot;); // return in java-vm on win xp: &lt;working dir&gt; or maybe &lt;program dir&gt;
+ 			log(&quot;System.getProperty(user.dir: &quot; + test); // in win32.exe -&gt; null
+ 			test = System.getProperty(&quot;user.home&quot;); // in MS-java-VM env variable $HOME is ignored and always &lt;windir&gt;\java returned, see <A HREF="http://support.microsoft.com/kb/177181/en-us/">http://support.microsoft.com/kb/177181/en-us/</A>
+ 			log(&quot;System.getProperty(user.home: &quot; + test); // in win32.exe -&gt; null
+@@ -65,7 +65,7 @@
+ 		}
+ 		else {
+ 			if (new FileBugfix(p).isDirectory()) p_ = FileBase.makePath(p, &quot;pref.xml&quot;);
+-			else p_ = p; 
++			else p_ = p;
+ 		}
+ 		pathToConfigFile = STRreplace.replace(p_, &quot;//&quot;, &quot;/&quot;); // this is necessary in case that the root dir is the dir where the pref.xml is stored
+ 		pathToConfigFile = pathToConfigFile.replace('\\', '/');
+@@ -91,31 +91,31 @@
+ 				else
+ 					fontSize = 16;
+ 			}
+-		} else 
++		} else
+ 			fontSize = 11;
+ 	}
+ 
+     //////////////////////////////////////////////////////////////////////////////////////
+     // Public fields stored in pref.xml
+ 	//////////////////////////////////////////////////////////////////////////////////////
+-	
++
+ 	/** The base directory contains one subdirectory for each profile*/
+-	public String baseDir = &quot;&quot;;  
++	public String baseDir = &quot;&quot;;
+ 	/** Name of last used profile */
+-	public String lastProfile=&quot;&quot;; 
++	public String lastProfile=&quot;&quot;;
+ 	/** If true, the last profile is reloaded automatically without a dialogue */
+-	public boolean autoReloadLastProfile=false; 
++	public boolean autoReloadLastProfile=false;
+ 	/** This is the login alias for geocaching.com and opencaching.de */
+ 	public String myAlias = &quot;&quot;;
+ 	/** Optional password */
+ 	public String password=&quot;&quot;;
+-	/** This is an alternative alias used to identify found caches (i.e. if using multiple IDs) 
++	/** This is an alternative alias used to identify found caches (i.e. if using multiple IDs)
+ 	 *  It is currently not used yet */
+ 	public String myAlias2 = &quot;&quot;;
+ 	/** The path to the browser */
+ 	public String browser = &quot;&quot;;
+ 	/** Name of proxy for spidering */
+-	public String myproxy = &quot;&quot;;    
++	public String myproxy = &quot;&quot;;
+ 	/** Proxyport when spidering */
+ 	public String myproxyport = &quot;&quot;;
+ 	/** Flag whether proxy is to be used */
+@@ -156,12 +156,12 @@
+ 	/** If this flag is true, only non-logged travelbug journeys will be shown */
+ 	public boolean travelbugShowOnlyNonLogged=false;
+ 	/** If this is true, deleted images are shown with a ? in the imagepanel */
+-	public boolean showDeletedImages=true; 
++	public boolean showDeletedImages=true;
+ 	/** This setting determines how many logs are shown per page of hintlogs (default 5) */
+ 	public int logsPerPage=DEFAULT_LOGS_PER_PAGE;
+ 	/** Initial height of hints field (set to 0 to hide them initially) */
+-	public int initialHintHeight=DEFAULT_INITIAL_HINT_HEIGHT; 
+-	/** Maximum logs to spider */ 
++	public int initialHintHeight=DEFAULT_INITIAL_HINT_HEIGHT;
++	/** Maximum logs to spider */
+ 	public int maxLogsToSpider = DEFAULT_MAX_LOGS_TO_SPIDER;
+ 	/** True if the Solver should ignore the case of variables */
+ 	public boolean solverIgnoreCase=true;
+@@ -170,9 +170,9 @@
+ 	/** True if the description panel should show images */
+ 	public boolean descShowImg=true;
+ 	/** The type of connection which GPSBABEL uses: com1 OR usb. */
+-	public String garminConn=&quot;com1&quot;;  
++	public String garminConn=&quot;com1&quot;;
+ 	/** Additional options for GPSBabel, i.e. -s to synthethise short names */
+-	public String garminGPSBabelOptions=&quot;&quot;; 
++	public String garminGPSBabelOptions=&quot;&quot;;
+ 	/** Max. length for Garmin waypoint names (for etrex which can only accept 6 chars) */
+ 	public int garminMaxLen=0;
+ 	public boolean downloadPicsOC = true; //TODO Sollten die auch im Profil gespeichert werden mit Preferences als default Werte ?
+@@ -186,14 +186,14 @@
+ 	/** True if the goto panel is North centered */
+ 	public boolean northCenteredGoto = true;
+ 	/** If not null, a customs map path has been specified by the user */
+-	private String customMapsPath=null; 
++	private String customMapsPath=null;
+ 	/** Number of CacheHolder details that are kept in memory */
+ 	public int maxDetails=50;
+ 	/** Number of details to delete when maxDetails have been stored in cachesWithLoadedDetails */
+ 	public int deleteDetails=5;
+ 	/** The locale code (DE, EN, ...) */
+-	public String language=&quot;&quot;; 
+-	
++	public String language=&quot;&quot;;
++
+ 	//////////////////////////////////////////////
+ 	/** The debug switch (Can be used to activate dormant code) by adding
+ 	 * the line: &lt;pre&gt;&lt;debug value=&quot;true&quot;&gt;&lt;/pre&gt;
+@@ -205,25 +205,25 @@
+     //////////////////////////////////////////////////////////////////////////////////////
+     // Public fields not stored in pref.xml
+ 	//////////////////////////////////////////////////////////////////////////////////////
+-	
++
+ 	/** The height of the application */
+-	public int myAppHeight = 0;
++	public int myAppHeight = 600;
+ 	/** The width of the application */
+-	public int myAppWidth = 0;
++	public int myAppWidth = 800;
+ 	/** True if the preferences were changed and need to be saved */
+ 	public boolean dirty = false;
+-	
++
+     //////////////////////////////////////////////////////////////////////////////////////
+     // Read pref.xml file
+ 	//////////////////////////////////////////////////////////////////////////////////////
+-	
++
+ 	/**
+ 	 * Method to open and parse the config file (pref.xml). Results are stored in the
+ 	 * public variables of this class.
+ 	 * If you want to specify a non default config file call setPathToConfigFile() first.
+ 	 */
+ 	public void readPrefFile(){
+-		if (pathToConfigFile == null) setPathToConfigFile(null); // this sets the default value 
++		if (pathToConfigFile == null) setPathToConfigFile(null); // this sets the default value
+ 		try{
+ 			ewe.io.Reader r = new ewe.io.InputStreamReader(new ewe.io.FileInputStream(pathToConfigFile));
+ 			parse(r);
+@@ -234,13 +234,13 @@
+ 		}catch(Exception e){
+ 			if (e instanceof NullPointerException)
+ 				log(&quot;Error reading pref.xml: NullPointerException in Element &quot;+lastName +&quot;. Wrong attribute?&quot;,e,true);
+-			else 
++			else
+ 				log(&quot;Error reading pref.xml: &quot;, e);
+ 		}
+ 	}
+ 
+-	/** Helper variables for XML parser */ 
+-	private StringBuffer collectElement=null; 
++	/** Helper variables for XML parser */
++	private StringBuffer collectElement=null;
+ 	private String lastName; // The string to the last XML that was processed
+ 
+ 	/**
+@@ -295,7 +295,7 @@
+ 		}
+ 		else if (name.equals(&quot;listview&quot;)) {
+ 			listColMap=atts.getValue(&quot;colmap&quot;);
+-			listColWidth=atts.getValue(&quot;colwidths&quot;)+&quot;,30,30&quot;; // append default values for older versions	
++			listColWidth=atts.getValue(&quot;colwidths&quot;)+&quot;,30,30&quot;; // append default values for older versions
+ 			if((new StringTokenizer(listColWidth,&quot;,&quot;)).countTokens()&lt;15) listColWidth+=&quot;,30,30&quot;; // for older versions
+ 		}
+ 		else if(name.equals(&quot;proxy&quot;)) {
+@@ -316,13 +316,17 @@
+ 		}
+ 		else if (name.equals(&quot;descpanel&quot;)) {
+ 			descShowImg = Boolean.valueOf(atts.getValue(&quot;showimages&quot;)).booleanValue();
+-		} 
++		}
+ 		else if (name.equals(&quot;screen&quot;)) {
+ 			menuAtTop=Boolean.valueOf(atts.getValue(&quot;menuattop&quot;)).booleanValue();
+ 			tabsAtTop=Boolean.valueOf(atts.getValue(&quot;tabsattop&quot;)).booleanValue();
+ 			showStatus=Boolean.valueOf(atts.getValue(&quot;showstatus&quot;)).booleanValue();
+ 			if (atts.getValue(&quot;hasclosebutton&quot;)!=null)
+ 				hasCloseButton=Boolean.valueOf(atts.getValue(&quot;hasclosebutton&quot;)).booleanValue();
++			if (atts.getValue(&quot;h&quot;)!=null) {
++				myAppHeight=Convert.toInt(atts.getValue(&quot;h&quot;));
++				myAppWidth=Convert.toInt(atts.getValue(&quot;w&quot;));
++			}
+ 		}
+ 		else if (name.equals(&quot;hintlogpanel&quot;)) {
+ 			logsPerPage = Convert.parseInt(atts.getValue(&quot;logsperpage&quot;));
+@@ -340,13 +344,13 @@
+ 			customMapsPath=atts.getValue(&quot;dir&quot;).replace('\\', '/');
+ 		}
+ 		else if (name.equals(&quot;debug&quot;)) debug=Boolean.valueOf(atts.getValue(&quot;value&quot;)).booleanValue();
+-		
++
+ 		else if (name.equals(&quot;expPath&quot;)){
+ 			exporterPaths.put(atts.getValue(&quot;key&quot;),atts.getValue(&quot;value&quot;));
+ 		}
+ 		else if (name.equals(&quot;travelbugs&quot;)) {
+ 			travelbugColMap=atts.getValue(&quot;colmap&quot;);
+-			travelbugColWidth=atts.getValue(&quot;colwidths&quot;);	
++			travelbugColWidth=atts.getValue(&quot;colwidths&quot;);
+ 			travelbugShowOnlyNonLogged=Boolean.valueOf(atts.getValue(&quot;shownonlogged&quot;)).booleanValue();
+ 		}
+ 		else if (name.equals(&quot;gotopanel&quot;)) {
+@@ -370,7 +374,7 @@
+ 		if (collectElement!=null) {
+ 			collectElement.append(ch,start,length); // Collect the name of the last profile
+ 		}
+-	}	
++	}
+ 
+ 	/**
+ 	 * Method that gets called when the end of an element has been identified in pref.xml
+@@ -385,12 +389,12 @@
+     //////////////////////////////////////////////////////////////////////////////////////
+     // Write pref.xml file
+ 	//////////////////////////////////////////////////////////////////////////////////////
+-	
++
+ 	/**
+ 	 * Method to save current preferences in the pref.xml file
+ 	 */
+ 	public void savePreferences(){
+-		if (pathToConfigFile == null) setPathToConfigFile(null); // this sets the default value 
++		if (pathToConfigFile == null) setPathToConfigFile(null); // this sets the default value
+ 		try{
+ 			PrintWriter outp =  new PrintWriter(new BufferedWriter(new FileWriter(pathToConfigFile)));
+ 			outp.print(&quot;&lt;?xml version=\&quot;1.0\&quot; encoding=\&quot;ISO-8859-1\&quot;?&gt;\n&quot;);
+@@ -406,7 +410,8 @@
+ 			outp.print(&quot;	&lt;portforward active= \&quot;&quot; + SafeXML.strxmlencode(Convert.toString(forwardGPS)) + &quot;\&quot; destinationHost = \&quot;&quot; + SafeXML.strxmlencode(forwardGpsHost) + &quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;	&lt;portlog active= \&quot;&quot; + SafeXML.strxmlencode(Convert.toString(logGPS)) + &quot;\&quot; logTimer = \&quot;&quot; + SafeXML.strxmlencode(logGPSTimer) + &quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;font size =\&quot;&quot; + SafeXML.strxmlencode(fontSize) + &quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;    &lt;screen menuattop=\&quot;&quot; + SafeXML.strxmlencode(menuAtTop) + &quot;\&quot; tabsattop=\&quot;&quot; + SafeXML.strxmlencode(tabsAtTop) + &quot;\&quot; showstatus=\&quot;&quot; + SafeXML.strxmlencode(showStatus) + &quot;\&quot; hasclosebutton=\&quot;&quot; + SafeXML.strxmlencode(hasCloseButton) + &quot;\&quot;/&gt;\n&quot;);
++			outp.print(&quot;    &lt;screen menuattop=\&quot;&quot;+menuAtTop+&quot;\&quot; tabsattop=\&quot;&quot;+tabsAtTop+&quot;\&quot; showstatus=\&quot;&quot;+showStatus+&quot;\&quot; hasclosebutton=\&quot;&quot;+hasCloseButton+
++	                &quot;\&quot; h=\&quot;&quot;+myAppHeight+&quot;\&quot; w=\&quot;&quot;+myAppWidth+&quot;\&quot; /&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;fixedsip state = \&quot;&quot; + SafeXML.strxmlencode(fixSIP) + &quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;listview colmap=\&quot;&quot; + SafeXML.strxmlencode(listColMap) + &quot;\&quot; colwidths=\&quot;&quot; + SafeXML.strxmlencode(listColWidth) + &quot;\&quot; /&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;travelbugs colmap=\&quot;&quot; + SafeXML.strxmlencode(travelbugColMap) + &quot;\&quot; colwidths=\&quot;&quot; + SafeXML.strxmlencode(travelbugColWidth) + &quot;\&quot; shownonlogged=\&quot;&quot; + SafeXML.strxmlencode(travelbugShowOnlyNonLogged) + &quot;\&quot; /&gt;\n&quot;);
+@@ -441,32 +446,32 @@
+ 	//////////////////////////////////////////////////////////////////////////////////////
+ 
+ 	private static final String mapsPath = &quot;maps/standard&quot;;
+-	
++
+ 	/**
+ 	 * custom = set by the user
+ 	 * @return custom Maps Path, null if not set
+ 	 */
+ 	public String getCustomMapsPath() {
+-	   return customMapsPath;	
++	   return customMapsPath;
+ 	}
+-	
++
+ 	public void saveCustomMapsPath(String mapspath_) {
+ 		if (customMapsPath == null || !customMapsPath.equals(mapspath_)) {
+ 			customMapsPath=new String(mapspath_).replace('\\', '/');
+ 			savePreferences();
+ 		}
+ 	}
+-	
++
+ 	/**
+ 	 * gets the path to the calibrated maps
+ 	 * it first tries if there are manually imported maps
+-	 * in &lt;baseDir&gt;/maps/standard then it tries 
++	 * in &lt;baseDir&gt;/maps/standard then it tries
+ 	 * the legacy dir: &lt;program-dir&gt;/maps
+ 	 * In case in both locations are no .wfl-files
+ 	 * it returns  &lt;baseDir&gt;/maps/expedia - the place where
+ 	 * the automatically downloaded maps are placed.
+-	 * 
+-	 * 
++	 *
++	 *
+ 	 */
+ 	public String getMapLoadPath() {
+ 		saveCustomMapsPath(getMapLoadPathInternal());
+@@ -475,8 +480,8 @@
+ 	private String getMapLoadPathInternal() {
+ 		// here could also a list of map-types displayed...
+ 		// standard dir
+-		String ret = getCustomMapsPath(); 
+-		if (ret != null) return ret; 
++		String ret = getCustomMapsPath();
++		if (ret != null) return ret;
+ 		ret = getMapManuallySavePath(false);
+ 		File t = new FileBugfix(ret);
+ 		String[] f = t.list(&quot;*.wfl&quot;, FileBase.LIST_FILES_ONLY);
+@@ -490,7 +495,7 @@
+ 				if (f2 != null &amp;&amp; f2.length &gt; 0) return  ret;
+ 			}
+ 		}
+-		// lagacy dir 
++		// lagacy dir
+ 		ret = FileBase.getProgramDirectory() + &quot;/maps&quot;;
+ 		t.set(null, ret);
+ 		f = t.list(&quot;*.wfl&quot;, FileBase.LIST_FILES_ONLY);
+@@ -519,7 +524,7 @@
+ 		}
+ 		// expedia dir
+ 		// return getMapExpediaLoadPath();
+-		
++
+ 		//whole maps directory
+ 		return Global.getPref().baseDir.replace('\\', '/') + &quot;maps&quot;;
+ 	}
+@@ -531,7 +536,7 @@
+ 	 */
+ 	public String getMapManuallySavePath(boolean create) {
+ 		String mapsDir = baseDir + mapsPath;
+-		if (create &amp;&amp; !(new FileBugfix(mapsDir).isDirectory())) { // dir exists? 
++		if (create &amp;&amp; !(new FileBugfix(mapsDir).isDirectory())) { // dir exists?
+ 			if (new FileBugfix(mapsDir).mkdirs() == false) {// dir creation failed?
+ 				(new MessageBox(MyLocale.getMsg(321,&quot;Error&quot;), MyLocale.getMsg(172,&quot;Error: cannot create maps directory: \n&quot;)+mapsDir, FormBase.OKB)).exec();
+ 				return null;
+@@ -546,7 +551,7 @@
+ 	public String getMapDownloadSavePath(String mapkind) {
+ 		String subdir = Global.getProfile().dataDir.substring(Global.getPref().baseDir.length()).replace('\\', '/');
+ 		String mapsDir = Global.getPref().baseDir + &quot;maps/&quot; + Common.ClearForFileName(mapkind)+ &quot;/&quot; + subdir;
+-		if (!(new FileBugfix(mapsDir).isDirectory())) { // dir exists? 
++		if (!(new FileBugfix(mapsDir).isDirectory())) { // dir exists?
+ 			if (new FileBugfix(mapsDir).mkdirs() == false) // dir creation failed?
+ 			{(new MessageBox(MyLocale.getMsg(321,&quot;Error&quot;), MyLocale.getMsg(172,&quot;Error: cannot create maps directory: \n&quot;)+new FileBugfix(mapsDir).getParentFile(), FormBase.OKB)).exec();
+ 			return null;
+@@ -558,17 +563,17 @@
+ 	public String getMapExpediaLoadPath() {
+ 		return Global.getPref().baseDir.replace('\\', '/') + &quot;maps/expedia&quot;; // baseDir has trailing /
+ 	}
+-	
++
+     //////////////////////////////////////////////////////////////////////////////////////
+     // Profile Selector
+ 	//////////////////////////////////////////////////////////////////////////////////////
+-	
++
+ 	static protected final int PROFILE_SELECTOR_FORCED_ON=0;
+ 	static protected final int PROFILE_SELECTOR_FORCED_OFF=1;
+ 	static protected final int PROFILE_SELECTOR_ONOROFF=2;
+ 
+ 	/**
+-	 * Open Profile selector screen 
++	 * Open Profile selector screen
+ 	 * @param prof
+ 	 * @param showProfileSelector
+ 	 * @return True if a profile was selected
+@@ -587,8 +592,8 @@
+ 		baseDir=baseDir.replace('\\','/');
+ 		if (!baseDir.endsWith(&quot;/&quot;)) baseDir+=&quot;/&quot;;
+ 		boolean profileExists=true;  // Assume that the profile exists
+-		do {	
+-			if(!profileExists || (showProfileSelector==PROFILE_SELECTOR_FORCED_ON) || 
++		do {
++			if(!profileExists || (showProfileSelector==PROFILE_SELECTOR_FORCED_ON) ||
+ 					(showProfileSelector==PROFILE_SELECTOR_ONOROFF &amp;&amp; !autoReloadLastProfile)){ // Ask for the profile
+ 				ProfilesForm f = new ProfilesForm(baseDir,lastProfile,!profileExists || hasNewButton);
+ 				int code = f.execute();
+@@ -620,7 +625,7 @@
+ 
+ 	/** Log file is in program directory and called log.txt */
+ 	private final String LOGFILENAME=FileBase.getProgramDirectory()+&quot;/log.txt&quot;;
+-	
++
+ 	/**
+ 	 * Method to delete an existing log file. Called on every SpiderGC.
+ 	 * The log file is also cleared when Preferences is created and the filesize &gt; 60KB
+@@ -630,7 +635,7 @@
+ 		logFile.delete();
+ 		log(&quot;CW Version &quot;+Version.getReleaseDetailed());
+ 	}
+-	
++
+ 	/**
+ 	 * Method to log messages to a file called log.txt
+ 	 * It will always append to an existing file.
+@@ -662,7 +667,7 @@
+ 	}
+ 
+ 	/** Log an exception to the log file with or without a stack trace
+-	 * 
++	 *
+ 	 * @param text Optional message (Can be empty string)
+ 	 * @param e The exception
+ 	 * @param withStackTrace If true and the debug switch is true, the stack trace is appended to the log
+@@ -675,24 +680,24 @@
+ 		String msg;
+ 		if (text.equals(&quot;&quot;)) msg=text; else msg=text+&quot;\n&quot;;
+ 		if (e!=null) {
+-			if (withStackTrace &amp;&amp; debug) 
++			if (withStackTrace &amp;&amp; debug)
+ 				msg+=ewe.sys.Vm.getAStackTrace(e);
+ 			else
+ 				msg+=e.toString();
+ 		}
+ 		log(msg);
+ 	}
+-	
++
+ 	/** Log an exception to the log file without a stack trace, i.e.
+-	 * where a stack trace is not needed because the location/cause of the error is clear 
+-	 * 
++	 * where a stack trace is not needed because the location/cause of the error is clear
++	 *
+ 	 * @param message Optional message (Can be empty string)
+ 	 * @param e The exception
+ 	 */
+ 	public void log(String message,Exception e) {
+ 		log (message,e,false);
+ 	}
+-		
++
+     //////////////////////////////////////////////////////////////////////////////////////
+     // Exporter path functions
+ 	//////////////////////////////////////////////////////////////////////////////////////
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001482.html">[Cachewolf-svn] r1588 - experiments/EVEhist/src/cachewolf
+</A></li>
+	<LI>Next message: <A HREF="001484.html">[Cachewolf-svn] r1590 - experiments/EVEhist/src/cachewolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1483">[ date ]</a>
+              <a href="thread.html#1483">[ thread ]</a>
+              <a href="subject.html#1483">[ subject ]</a>
+              <a href="author.html#1483">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

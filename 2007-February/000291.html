@@ -1,0 +1,221 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r499 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r499%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702032335.l13NZFD6006063%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000290.html">
+   <LINK REL="Next"  HREF="000292.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r499 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r499%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702032335.l13NZFD6006063%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r499 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Sun Feb  4 00:35:15 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000290.html">[Cachewolf-svn] [Feature #3112] Abgleich von Profilen
+</A></li>
+        <LI>Next message: <A HREF="000292.html">[Cachewolf-svn] r500 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#291">[ date ]</a>
+              <a href="thread.html#291">[ thread ]</a>
+              <a href="subject.html#291">[ subject ]</a>
+              <a href="author.html#291">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-02-04 00:35:02 +0100 (Sun, 04 Feb 2007)
+New Revision: 499
+
+Modified:
+   trunk/src/CacheWolf/MapLoaderGui.java
+   trunk/src/CacheWolf/MovingMap.java
+Log:
+MovingMap: bug fixed: kein gps-update nach zoomen
+MovingMap: bug (vermutlich) fixed: Karten von Koordinate 0/0 werden nicht mehr geholt
+
+Modified: trunk/src/CacheWolf/MapLoaderGui.java
+===================================================================
+--- trunk/src/CacheWolf/MapLoaderGui.java	2007-02-03 13:14:07 UTC (rev 498)
++++ trunk/src/CacheWolf/MapLoaderGui.java	2007-02-03 23:35:02 UTC (rev 499)
+@@ -157,7 +157,7 @@
+ 						tmpca.set(ch.LatLon);
+ 						ch.pos = new CWPoint(tmpca);
+ 					}
+-					if (ch.pos.isValid()) {
++					if (ch.pos.isValid() &amp;&amp; ch.pos.latDec != 0 &amp;&amp; ch.pos.lonDec != 0) { // TODO != 0 sollte verschwinden, sobald das handling von nicht gesetzten Koos &#252;berall korrekt ist
+ 						numdownloaded++;
+ 						progressBox.setInfo(&quot;Downloading map from expedia.de\n&quot;+numdownloaded+&quot; / &quot;+numCaches+&quot;\n for cache:\n&quot;+ch.CacheName);
+ 						ml.downloadMap(ch.pos.latDec, ch.pos.lonDec, (int)scale, size.x, size.y, mapsDir);
+
+Modified: trunk/src/CacheWolf/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/MovingMap.java	2007-02-03 13:14:07 UTC (rev 498)
++++ trunk/src/CacheWolf/MovingMap.java	2007-02-03 23:35:02 UTC (rev 499)
+@@ -465,8 +465,13 @@
+ 	 *
+ 	 */
+ 	public void resetCenterOfMap() {
+-		posCircleX = pref.myAppWidth/2; // maybe this could /should be repleced to windows size
+-		posCircleY = pref.myAppHeight/2;
++		if (width != 0) {
++			posCircleX = width /2;
++			posCircleY = height /2;
++		} else {
++			posCircleX = pref.myAppWidth/2; // maybe this could /should be repleced to windows size
++			posCircleY = pref.myAppHeight/2;
++		}
+ 		posCircle.hidden = false;
+ 		posCircle.setLocation(posCircleX-posCircle.getWidth()/2, posCircleY-posCircle.getHeight()/2);
+ 	}
+@@ -688,7 +693,7 @@
+ 			}
+ 		}
+ 	}
+-	
++
+ 	int mapChangeModus;
+ 	float scaleWanted;
+ 	boolean wantMapTest = true; // if true updateposition calls setBestMap regulary even if the currentmap covers the whole screen
+@@ -746,16 +751,16 @@
+ 		if (modus == NORMAL_KEEP_RESOLUTION) scaleWanted = currentMap.scale;
+ 		else setBestMap(posCircleLat, posCircleLon);
+ 	}
+-/**
+- * method to get a point on the screen which must be included in the map
+- * the map methods are looking for. If the poscircle is on the screen this will be 
+- * that point. If it is outside then the center of the screen will be used.
+- * 
+- * returns [0] = CWPoint of that point, [1] Rect describing the screen around it 
+- * @param lat
+- * @param lon
+- * @return
+- */
++	/**
++	 * method to get a point on the screen which must be included in the map
++	 * the map methods are looking for. If the poscircle is on the screen this will be 
++	 * that point. If it is outside then the center of the screen will be used.
++	 * 
++	 * returns [0] = CWPoint of that point, [1] Rect describing the screen around it 
++	 * @param lat
++	 * @param lon
++	 * @return
++	 */
+ 	public Object[] getRectForMapChange(double lat, double lon) {
+ 		int w = (width != 0 ? width : pref.myAppWidth); // width == 0 happens if this routine is run before the windows is on the screen
+ 		int h = (height != 0 ? height : pref.myAppHeight);
+@@ -775,7 +780,7 @@
+ 		ret[1] = new Rect(x, y, w, h);
+ 		return ret; 
+ 	}
+-	
++
+ 	/**
+ 	 * 
+ 	 * @param betterOverview true: getmap with better overview
+@@ -790,7 +795,7 @@
+ 		if (m != null) setMap(m, posCircleLat, posCircleLon);
+ 		else (new MessageBox(&quot;Error&quot;, &quot;No &quot;+ (betterOverview ? &quot;less&quot; : &quot;more&quot;) + &quot; deteiled map available&quot;, MessageBox.OKB)).execute();
+ 	}
+-	
++
+ 	public void loadMapForAllCaches(){
+ 		Area sur = Global.getProfile().getSourroundingArea(true);
+ 		MapInfoObject newmap = maps.getMapForArea(sur.topleft, sur.buttomright);
+@@ -1116,14 +1121,17 @@
+ 	}
+ 
+ 	public boolean imageBeginDragged(AniImage which,Point pos) {
+-		if (mm.zoomingMode == true) {
+-			saveMapLoc = pos;
+-			mm.ignoreGps = true;
++		if (mm.zoomingMode == true) { // zoom
++//			saveMapLoc = pos;
++	//		saveGpsIgnoreStatus = mm.ignoreGps;
++		//	mm.ignoreGps = true;
+ 			return false;
+ 		}
++		// move (drag) map
+ 		//if (!(which == null || which == mapImage || which instanceof TrackOverlay || which == mm.directionArrows) ) return false;
+ 		saveGpsIgnoreStatus = mm.ignoreGps; 
+ 		mm.ignoreGps = true;
++		paintingZoomArea = true;
+ 		saveMapLoc = pos;
+ 		bringMapToTop();
+ 		if (mapImage.isOnScreen() &amp;&amp; !mapImage.hidden ) return super.imageBeginDragged(mapImage, pos);
+@@ -1145,16 +1153,19 @@
+ 			saveMapLoc = new Point (ev.x, ev.y);
+ 		}
+ 		if (mm.zoomingMode &amp;&amp; ev.type == PenEvent.PEN_DOWN) {
++			saveGpsIgnoreStatus = mm.ignoreGps;
++			mm.ignoreGps = true;
+ 			saveMapLoc = new Point (ev.x, ev.y);
+ 			paintingZoomArea = true;
+ 			mm.zoomingMode = true;
+-		}
++		} 
+ 		if (!mm.zoomingMode &amp;&amp; ev.type == PenEvent.PEN_DOWN &amp;&amp; ev.modifiers == PenEvent.RIGHT_BUTTON) {
+ 			penHeld(new Point (ev.x, ev.y));
+ 		}
+ 		if (mm.zoomingMode &amp;&amp; ev.type == PenEvent.PEN_UP ) {
+ 			paintingZoomArea = false;
+ 			mm.zoomingMode = false;
++			mm.ignoreGps = saveGpsIgnoreStatus;
+ 			removeImage(mm.buttonImageLensActivated);
+ 			addImage(mm.buttonImageLens);
+ 			if (java.lang.Math.abs(lastZoomWidth) &lt; 15 || java.lang.Math.abs(lastZoomHeight) &lt; 15)  {
+@@ -1299,7 +1310,7 @@
+ 			else moveToCenterMI.modifiers |= MenuItem.Disabled;
+ 			mapsMenu.addItem(moveToCenterMI);
+ 			mapsMenu.addItem(moveToGpsMI);
+-			
++
+ 			//m.set(Menu., status)
+ 			mapsMenu.exec(this, new Point(which.location.x, which.location.y), this);
+ 		}
+@@ -1326,7 +1337,7 @@
+ 		} 
+ 		mm.SnapToGps();
+ 	}
+-	
++
+ 	public void penHeld(Point p){
+ 		//	if (!menuIsActive()) doMenu(p);
+ 		if (!mm.zoomingMode) { 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000290.html">[Cachewolf-svn] [Feature #3112] Abgleich von Profilen
+</A></li>
+	<LI>Next message: <A HREF="000292.html">[Cachewolf-svn] r500 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#291">[ date ]</a>
+              <a href="thread.html#291">[ thread ]</a>
+              <a href="subject.html#291">[ subject ]</a>
+              <a href="author.html#291">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

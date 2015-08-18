@@ -1,0 +1,229 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r543 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r543%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702091821.l19IL40j020172%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000343.html">
+   <LINK REL="Next"  HREF="000345.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r543 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r543%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702091821.l19IL40j020172%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r543 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Fri Feb  9 19:21:04 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000343.html">[Cachewolf-svn] r542 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000345.html">[Cachewolf-svn] r544 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#344">[ date ]</a>
+              <a href="thread.html#344">[ thread ]</a>
+              <a href="subject.html#344">[ subject ]</a>
+              <a href="author.html#344">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-02-09 19:21:00 +0100 (Fri, 09 Feb 2007)
+New Revision: 543
+
+Modified:
+   trunk/src/CacheWolf/Preferences.java
+Log:
+Preferences: Bugfix NullPointerException bei nicht existierendem Basisverzeichnis
+Zwei neue &quot;log&quot; Aufrufe zur verbesserten Analyse von Exceptions am PDA
+
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2007-02-09 17:43:04 UTC (rev 542)
++++ trunk/src/CacheWolf/Preferences.java	2007-02-09 18:21:00 UTC (rev 543)
+@@ -198,7 +198,7 @@
+ 	 */
+ 	public String getMapExpediaSavePath() {
+ 		String subdir = Global.getProfile().dataDir.substring(Global.getPref().baseDir.length());
+-		String mapsDir = Global.getPref().baseDir + &quot;/maps/expedia/&quot; + subdir;
++		String mapsDir = Global.getPref().baseDir + &quot;maps/expedia/&quot; + subdir;
+ 		if (!(new File(mapsDir).isDirectory())) { // dir exists? 
+ 			if (new File(mapsDir).mkdirs() == false) // dir creation failed?
+ 			{(new MessageBox(&quot;Error&quot;, &quot;Error: cannot create maps directory: \n&quot;+new File(mapsDir).getParentFile(), MessageBox.OKB)).exec();
+@@ -209,18 +209,10 @@
+ 	}
+ 
+ 	public String getMapExpediaLoadPath() {
+-		return Global.getPref().baseDir + &quot;/maps/expedia&quot;;
++		return Global.getPref().baseDir + &quot;maps/expedia&quot;; // baseDir has trailing /
+ 	}
+ 
+ 	/**
+-	 * Returns true if coordinates have been set.
+-	 * Does not validate! if coordinates are real.
+-	 */
+-	public boolean existCenter(){
+-		return curCentrePt.latDec!=0.0 &amp;&amp; curCentrePt.lonDec!=0.0; // TODO: use cusCentrePt.isValid() 
+-	}
+-
+-	/**
+ 	 * Method to open and parse the pref.xml file. Results are stored in the
+ 	 * public variables of this class.
+ 	 */
+@@ -233,9 +225,9 @@
+ 			r.close();
+ 		}catch(Exception e){
+ 			if (e instanceof NullPointerException)
+-				Vm.debug(&quot;NullPointerException in Element &quot;+lastName +&quot;. Wrong attribute?&quot;);
++				log(&quot;Error reading pref.xml: NullPointerException in Element &quot;+lastName +&quot;. Wrong attribute?&quot;,e,true);
+ 			else 
+-				Vm.debug(e.toString());
++				log(&quot;Error reading pref.xml: &quot;, e);
+ 		}
+ 	}
+ 
+@@ -248,12 +240,14 @@
+ 
+ 	public boolean selectProfile(Profile prof, int showProfileSelector, boolean hasNewButton) {
+ 		// If datadir is empty, ask for one
+-		if (baseDir.length()==0) {
+-			FileChooser fc = new FileChooser(FileChooser.DIRECTORY_SELECT,null);
+-			fc.title = &quot;Select base directory for cache data&quot;;
+-			// If no base directory given, terminate
+-			if (fc.execute() == FileChooser.IDCANCEL) ewe.sys.Vm.exit(0);
+-			baseDir = fc.getChosenFile().toString();
++		if (baseDir.length()==0 || !(new File(baseDir)).exists()) {
++			do {
++				FileChooser fc = new FileChooser(FileChooser.DIRECTORY_SELECT,baseDir);
++				fc.title = &quot;Select base directory for cache data&quot;;
++				// If no base directory given, terminate
++				if (fc.execute() == FileChooser.IDCANCEL) ewe.sys.Vm.exit(0);
++				baseDir = fc.getChosenFile().toString();
++			}while (!(new File(baseDir)).exists());
+ 		}
+ 		baseDir=baseDir.replace('\\','/');
+ 		if (!baseDir.endsWith(&quot;/&quot;)) baseDir+=&quot;/&quot;;
+@@ -471,6 +465,7 @@
+ 		if (name.equals(&quot;solver&quot;)) {
+ 			solverIgnoreCase=Boolean.valueOf(atts.getValue(&quot;ignorevariablecase&quot;)).booleanValue();
+ 		}
++		if (name.equals(&quot;debug&quot;)) debug=Boolean.valueOf(atts.getValue(&quot;value&quot;)).booleanValue();
+ 	}
+ 
+ 	public void characters( char ch[], int start, int length )
+@@ -551,18 +546,31 @@
+ 			outp.print(&quot;	&lt;profile2 name = \&quot;&quot;+profiles[1]+&quot;\&quot; lat = \&quot;&quot;+ lats[1] +&quot;\&quot; lon = \&quot;&quot;+ longs[1] +&quot;\&quot; dir = \&quot;&quot;+ profdirs[1] +&quot;\&quot; lastsyncoc= \&quot;&quot; + lastSyncOC[1] + &quot;\&quot; lastdistoc= \&quot;&quot; + lastDistOC[1] + &quot;\&quot; /&gt;\n&quot;);
+ 			outp.print(&quot;	&lt;profile3 name = \&quot;&quot;+profiles[2]+&quot;\&quot; lat = \&quot;&quot;+ lats[2] +&quot;\&quot; lon = \&quot;&quot;+ longs[2] +&quot;\&quot; dir = \&quot;&quot;+ profdirs[2] +&quot;\&quot; lastsyncoc= \&quot;&quot; + lastSyncOC[2] + &quot;\&quot; lastdistoc= \&quot;&quot; + lastDistOC[2] + &quot;\&quot; /&gt;\n&quot;);
+ 			outp.print(&quot;	&lt;profile4 name = \&quot;&quot;+profiles[3]+&quot;\&quot; lat = \&quot;&quot;+ lats[3] +&quot;\&quot; lon = \&quot;&quot;+ longs[3] +&quot;\&quot; dir = \&quot;&quot;+ profdirs[3] +&quot;\&quot; lastsyncoc= \&quot;&quot; + lastSyncOC[3] + &quot;\&quot; lastdistoc= \&quot;&quot; + lastDistOC[3] + &quot;\&quot; /&gt;\n&quot;);
++			if (debug) outp.print(&quot;    &lt;debug value=\&quot;true\&quot; /&gt;\n&quot;); // Keep the debug switch if it is set
+ 			outp.print(&quot;&lt;/preferences&gt;&quot;);
+ 			outp.close();
+ 		} catch (Exception e) {
+-			Vm.debug(&quot;Problem saving: &quot; +datei);
+-			Vm.debug(&quot;Error: &quot; +e.toString());
++			log(&quot;Problem saving: &quot; +datei,e,true);
+ 		}
+ 	}
+ 
+ 	/**
++	 * Method to delete an existing log file. Called on every SpiderGC.
++	 * The log file is also cleared when Preferences is created and the filesize &gt; 60KB
++	 */
++	public void logInit(){
++		File logFile = new File(LOGFILENAME);
++		logFile.delete();
++	}
++	
++	/**
+ 	 * Method to log messages to a file called log.txt
+ 	 * It will always append to an existing file.
+-	 * @param text
++	 * To show the message on the console, the global variable debug must be set.
++	 * This can be done by adding
++	 * &lt;pre&gt;&lt;debug value=&quot;true&quot;&gt;&lt;/pre&gt;
++	 * to the pref.xml file
++	 * @param text to log
+ 	 */
+ 	public void log(String text){
+ 		Time dtm = new Time();
+@@ -579,15 +587,39 @@
+ 		}finally{
+ 			strout.close();
+ 		}
++		if (debug) Vm.debug(text);
+ 	}
+ 
+-	/**
+-	 * Method to delete an existing log file. Something like a &quot;reset&quot;.
+-	 * Should be used &quot;from time to time&quot; to make sure the log file does not grow
+-	 * to a huge size! Called on every SpiderGC
++	/** Log an exception to the log file with or without a stack trace
++	 * 
++	 * @param text Optional message (Can be empty string)
++	 * @param e The exception
++	 * @param withStackTrace If true and the debug switch is true, the stack trace is appended to the log
++	 * The debug switch can be set by including the line &lt;i&gt;&lt;debug value=&quot;true&quot;&gt;&lt;/debug&gt;&lt;/i&gt; in the pref.xml file
++	 * or by manually setting it (i.e. in BE versions or RC versions) by including the line
++	 * &lt;pre&gt;Global.getPref().debug=true;&lt;/pre&gt;
++	 * in Version.getRelease()
+ 	 */
+-	public void logInit(){
+-		File logFile = new File(LOGFILENAME);
+-		logFile.delete();
++	public void log(String text,Exception e, boolean withStackTrace) {
++		String msg;
++		if (text.equals(&quot;&quot;)) msg=text; else msg=text+&quot;\n&quot;;
++		if (e!=null) {
++			if (withStackTrace &amp;&amp; debug) 
++				msg+=ewe.sys.Vm.getAStackTrace(e);
++			else
++				msg+=e.toString();
++		}
++		log(msg);
+ 	}
++	
++	/** Log an exception to the log file without a stack trace, i.e.
++	 * where a stack trace is not needed because the location/cause of the error is clear 
++	 * 
++	 * @param message Optional message (Can be empty string)
++	 * @param e The exception
++	 */
++	public void log(String message,Exception e) {
++		log (message,e,false);
++	}
++		
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000343.html">[Cachewolf-svn] r542 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000345.html">[Cachewolf-svn] r544 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#344">[ date ]</a>
+              <a href="thread.html#344">[ thread ]</a>
+              <a href="subject.html#344">[ subject ]</a>
+              <a href="author.html#344">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

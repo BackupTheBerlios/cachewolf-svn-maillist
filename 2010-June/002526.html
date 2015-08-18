@@ -1,0 +1,152 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2599 - trunk/src/CacheWolf/imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-June/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2599%20-%20trunk/src/CacheWolf/imp&In-Reply-To=%3C201006131410.o5DEAoLw024256%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002525.html">
+   <LINK REL="Next"  HREF="002527.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2599 - trunk/src/CacheWolf/imp</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2599%20-%20trunk/src/CacheWolf/imp&In-Reply-To=%3C201006131410.o5DEAoLw024256%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2599 - trunk/src/CacheWolf/imp">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Sun Jun 13 16:10:50 CEST 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002525.html">[Cachewolf-svn] r2598 - in trunk: res_noewe res_noewe/templates	src/CacheWolf src/CacheWolf/exp
+</A></li>
+        <LI>Next message: <A HREF="002527.html">[Cachewolf-svn] r2600 - trunk/src/CacheWolf/exp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2526">[ date ]</a>
+              <a href="thread.html#2526">[ thread ]</a>
+              <a href="subject.html#2526">[ subject ]</a>
+              <a href="author.html#2526">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2010-06-13 16:10:48 +0200 (Sun, 13 Jun 2010)
+New Revision: 2599
+
+Modified:
+   trunk/src/CacheWolf/imp/GPXImporter.java
+Log:
+some corrections for the new OC gpx format.
+
+Modified: trunk/src/CacheWolf/imp/GPXImporter.java
+===================================================================
+--- trunk/src/CacheWolf/imp/GPXImporter.java	2010-06-12 15:58:17 UTC (rev 2598)
++++ trunk/src/CacheWolf/imp/GPXImporter.java	2010-06-13 14:10:48 UTC (rev 2599)
+@@ -56,7 +56,6 @@
+ 	public static final int DOIT_ASK = 0;
+ 	public static final int DOIT_NOSPOILER = 1;
+ 	public static final int DOIT_WITHSPOILER = 2;
+-	boolean getMaps = false;
+ 	SpiderGC imgSpider;
+ 	StringBuffer strBuf;
+ 	private int doitHow;
+@@ -232,7 +231,7 @@
+ 		}
+ 
+ 		
+-		if (name.equals(&quot;groundspeak:long_description&quot;)) {
++		if (name.indexOf(&quot;long_description&quot;) &gt; -1) {
+ 			holder.setHTML(atts.getValue(&quot;html&quot;).toLowerCase().equals(&quot;true&quot;));
+ 		}
+ 		if (name.equals(&quot;description&quot;) || name.equals(&quot;terra:description&quot;) ) {
+@@ -302,12 +301,9 @@
+ 		}
+ 		
+ 		if (name.equals(&quot;wpt&quot;)){
+-			// Add cache Data only, if waypoint not already in database
+-			//if (searchWpt(cacheDB, holder.wayPoint)== -1){
++			
+ 			int index=cacheDB.getIndex(holder.getWayPoint());
+-			//Vm.debug(&quot;here ?!?!?&quot;);
+-			//Vm.debug(&quot;could be new!!!!&quot;);
+-			if (index == -1){
++			if (index == -1){// Add cache Data only, if waypoint not already in database
+ 				holder.setNoFindLogs(holder.getCacheDetails(false).CacheLogs.countNotFoundLogs());
+ 				holder.setNew(true);
+ 				cacheDB.add(holder);
+@@ -316,13 +312,6 @@
+ 				if(doSpider) {
+ 					if(spiderOK &amp;&amp; holder.is_archived() == false){
+ 							if(holder.getLatLon().length() &gt; 1){
+-							if(getMaps){
+-								ParseLatLon pll = new ParseLatLon(holder.getLatLon(),&quot;.&quot;);
+-								pll.parse();
+-								//MapLoader mpl = new MapLoader(pref.myproxy, pref.myproxyport);
+-								//mpl.loadTo(profile.dataDir + &quot;/&quot; + holder.wayPoint + &quot;_map.gif&quot;, &quot;3&quot;);
+-								//mpl.loadTo(profile.dataDir + &quot;/&quot; + holder.wayPoint + &quot;_map_2.gif&quot;, &quot;10&quot;);
+-							}
+ 						}
+ 						if(holder.getWayPoint().startsWith(&quot;GC&quot;)|| fromTC) {
+ 							//spiderImages();
+@@ -440,7 +429,7 @@
+ 			holder.setLastSync(&quot;&quot;);
+ 		}
+ 		
+-		if ((name.equals(&quot;groundspeak:name&quot;)|| name.equals(&quot;terra:name&quot;)) &amp;&amp; inCache) {
++		if (name.indexOf(&quot;name&quot;)&gt;-1 &amp;&amp; inCache) {
+ 			holder.setCacheName(strData);
+ 			return;
+ 		}
+@@ -482,18 +471,18 @@
+ 			holder.setCacheSize(CacheSize.tcGpxString2Cw(strData));
+ 		}
+ 
+-		if (name.equals(&quot;groundspeak:short_description&quot;)|| name.equals(&quot;summary&quot;)) {
++		if (name.indexOf(&quot;short_description&quot;) &gt; -1|| name.equals(&quot;summary&quot;)) {
+ 			if (holder.is_HTML())	holder.getCacheDetails(false).LongDescription =SafeXML.cleanback(strData)+&quot;&lt;br&gt;&quot;; // &lt;br&gt; needed because we also use a &lt;br&gt; in SpiderGC. Without it the comparison in ch.update fails
+ 			else holder.getCacheDetails(false).LongDescription =strData+&quot;\n&quot;;
+ 			return;
+ 		}
+ 
+-		if (name.equals(&quot;groundspeak:long_description&quot;)|| name.equals(&quot;description&quot;)|| name.equals(&quot;terra:description&quot;)) {
++		if (name.indexOf(&quot;long_description&quot;) &gt; -1 || name.equals(&quot;description&quot;)|| name.equals(&quot;terra:description&quot;)) {
+ 			if (holder.is_HTML())	holder.getCacheDetails(false).LongDescription +=SafeXML.cleanback(strData);
+ 			else holder.getCacheDetails(false).LongDescription +=strData;
+ 			return;
+ 		}
+-		if (name.equals(&quot;groundspeak:encoded_hints&quot;) || name.equals(&quot;hints&quot;)) {
++		if (name.indexOf(&quot;encoded_hints&quot;) &gt; -1 || name.equals(&quot;hints&quot;)) {
+ 			holder.getCacheDetails(false).Hints = Common.rot13(strData);
+ 			return;
+ 		}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002525.html">[Cachewolf-svn] r2598 - in trunk: res_noewe res_noewe/templates	src/CacheWolf src/CacheWolf/exp
+</A></li>
+	<LI>Next message: <A HREF="002527.html">[Cachewolf-svn] r2600 - trunk/src/CacheWolf/exp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2526">[ date ]</a>
+              <a href="thread.html#2526">[ thread ]</a>
+              <a href="subject.html#2526">[ subject ]</a>
+              <a href="author.html#2526">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

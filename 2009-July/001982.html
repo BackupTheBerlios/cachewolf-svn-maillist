@@ -1,0 +1,199 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2060 - in trunk: . src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-July/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2060%20-%20in%20trunk%3A%20.%20src/CacheWolf&In-Reply-To=%3C200907281854.n6SIs92p010093%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001981.html">
+   <LINK REL="Next"  HREF="001983.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2060 - in trunk: . src/CacheWolf</H1>
+    <B>greiol at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2060%20-%20in%20trunk%3A%20.%20src/CacheWolf&In-Reply-To=%3C200907281854.n6SIs92p010093%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2060 - in trunk: . src/CacheWolf">greiol at mail.berlios.de
+       </A><BR>
+    <I>Tue Jul 28 20:54:09 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001981.html">[Cachewolf-svn] r2059 - experiments/greiol/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001983.html">[Cachewolf-svn] r2061 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1982">[ date ]</a>
+              <a href="thread.html#1982">[ thread ]</a>
+              <a href="subject.html#1982">[ subject ]</a>
+              <a href="author.html#1982">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: greiol
+Date: 2009-07-28 20:54:07 +0200 (Tue, 28 Jul 2009)
+New Revision: 2060
+
+Removed:
+   trunk/cachewolf/
+Modified:
+   trunk/src/CacheWolf/DetailsPanel.java
+   trunk/src/CacheWolf/Profile.java
+Log:
+delete empty directory
+only build references between caches in one place
+
+Modified: trunk/src/CacheWolf/DetailsPanel.java
+===================================================================
+--- trunk/src/CacheWolf/DetailsPanel.java	2009-07-28 17:43:50 UTC (rev 2059)
++++ trunk/src/CacheWolf/DetailsPanel.java	2009-07-28 18:54:07 UTC (rev 2060)
+@@ -582,7 +582,9 @@
+ 		// affecting the details are immediately saved
+ 		// Now update the table
+ 		CacheHolder ch = thisCache; // TODO variable ch is redundant
+-
++		
++		ch.checkIncomplete();
++		
+ 		/*
+ 		 * The references have to be rebuilt if: - the cachetype changed from
+ 		 * addi-&gt;normal or normal-&gt;addi - the old cachetype or the new cachetype
+@@ -594,35 +596,16 @@
+ 						.equals(oldWaypoint))) {
+ 			// If we changed the type to addi, check that a parent exists
+ 			if (CacheType.isAddiWpt(ch.getType())) {
+-				int idx;
+-				if (ch.getWayPoint().length() &lt; 5)
+-					idx = -1;
+-				else {
+-					idx = profile.getCacheIndex(&quot;GC&quot; + ch.getWayPoint().substring(ch.getWayPoint().length() == 5 ? 1 : 2));
+-					if (idx &lt; 0)
+-						idx = profile.getCacheIndex(&quot;OC&quot; + ch.getWayPoint().substring(ch.getWayPoint().length() == 5 ? 1 : 2));
+-					if (idx &lt; 0)
+-						idx = profile.getCacheIndex(&quot;CW&quot;+ ch.getWayPoint().substring(ch.getWayPoint().length() == 5 ? 1 : 2));
+-					if (idx &lt; 0)
+-						(new MessageBox(
+-								MyLocale.getMsg(144, &quot;Warning&quot;),
+-								MyLocale.getMsg(734,&quot;No main cache found for addi waypoint &quot;)
+-										+ &quot; &quot;+ ch.getWayPoint()+ &quot;\n&quot;
+-										+ MyLocale.getMsg(735,&quot;Addi Waypoints must have the format xxYYYY, where xx are any 2 chars and YYYY are the main cache's chars after the GC&quot;),
+-								FormBase.OKB)).execute();
+-				}
+-				profile.buildReferences(); // TODO this takes quite long -&gt; use
+-											// profile.setAddiRef
+-				// instead
++				profile.setAddiRef(ch);
+ 			} else {
+-				profile.buildReferences(); // we have to do this to release the
+-											// link between the
+-				// two caches
++				// rebuild links between caches
++				profile.buildReferences();
+ 			}
++		} else {
++			// set status also on addi wpts
++			ch.setAttributesToAddiWpts();
+ 		}
+-		// set status also on addi wpts
+-		ch.setAttributesToAddiWpts();
+-		ch.checkIncomplete();
++		
+ 		dirty_notes = false;
+ 		dirty_details = false;
+ 		setNeedsTableUpdate(false);
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2009-07-28 17:43:50 UTC (rev 2059)
++++ trunk/src/CacheWolf/Profile.java	2009-07-28 18:54:07 UTC (rev 2060)
+@@ -446,11 +446,14 @@
+ 			mainindex = getCacheIndex(&quot;OC&quot; + mainwpt);
+ 		if (mainindex &lt; 0)
+ 			mainindex = getCacheIndex(&quot;CW&quot; + mainwpt);
+-		if (mainindex &lt; 0)
+-			throw new IllegalArgumentException(&quot;no main cache found for: &quot; + ch.getWayPoint());
+-		CacheHolder mainch = cacheDB.get(mainindex);
+-		mainch.addiWpts.add(ch);
+-		ch.mainCache = mainch;
++		if (mainindex &lt; 0) {
++			ch.setIncomplete(true);
++		} else {
++			CacheHolder mainch = cacheDB.get(mainindex);
++			mainch.addiWpts.add(ch);
++			ch.mainCache = mainch;
++			ch.setAttributesFromMainCache();
++		}
+ 	}
+ 
+ 	public String toString() {
+@@ -530,7 +533,7 @@
+ 	 * and main cache.
+ 	 */
+ 	public void buildReferences(){
+-		CacheHolder ch, mainCh;
++		CacheHolder ch;
+ 
+ 		// Build index for faster search and clear all references
+ 		for (int i = cacheDB.size() - 1; i &gt;= 0; i--) {
+@@ -543,28 +546,13 @@
+ 		int max = cacheDB.size();
+ 		for (int i = 0; i &lt; max; i++) {
+ 			ch = cacheDB.get(i);
+-			if (ch.isAddiWpt()) {
+-				// search main cache
+-				mainCh = cacheDB.get(&quot;GC&quot; + ch.getWayPoint().substring(2));
+-				if (mainCh == null)  // TODO save the source (GC or OC or Custom) of the maincache somewhere else to avoid ambiguity of addi-wpt-names
+-					mainCh = cacheDB.get(&quot;OC&quot; + ch.getWayPoint().substring(2));
+-				if (mainCh == null)  // TODO save the source (GC or OC or Custom) of the maincache somewhere else to avoid ambiguity of addi-wpt-names
+-					mainCh = cacheDB.get(&quot;CW&quot; + ch.getWayPoint().substring(2));
+-
+-				if (mainCh != null) {
+-					mainCh.addiWpts.add(ch);
+-					ch.mainCache = mainCh;
+-					ch.setAttributesFromMainCache();
+-				}// if
+-			}// if
+-		}// for
++			if (ch.isAddiWpt()) 
++				setAddiRef(ch);
++		}
+ 		// sort addi wpts
+ 		for (int i = 0; i &lt; max; i++) {
+ 			ch = cacheDB.get(i);
+ 			if (ch.hasAddiWpt() &amp;&amp; (ch.addiWpts.size() &gt; 1)) {
+-				// ch.addiWpts.sort(new
+-				// MyComparer(ch.addiWpts,MyLocale.getMsg(1002,&quot;Waypoint&quot;),ch.addiWpts.size()),
+-				// false);
+ 				ch.addiWpts.sort(new ewe.util.Comparer() {
+ 					public int compare(Object o1, Object o2) {
+ 						return ((CacheHolder) o1).getWayPoint().compareTo(
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001981.html">[Cachewolf-svn] r2059 - experiments/greiol/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001983.html">[Cachewolf-svn] r2061 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1982">[ date ]</a>
+              <a href="thread.html#1982">[ thread ]</a>
+              <a href="subject.html#1982">[ subject ]</a>
+              <a href="author.html#1982">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

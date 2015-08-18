@@ -1,0 +1,141 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1714 - trunk
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-March/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1714%20-%20trunk&In-Reply-To=%3C200903172227.n2HMRK4E020281%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001629.html">
+   <LINK REL="Next"  HREF="001631.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1714 - trunk</H1>
+    <B>greiol at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1714%20-%20trunk&In-Reply-To=%3C200903172227.n2HMRK4E020281%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1714 - trunk">greiol at mail.berlios.de
+       </A><BR>
+    <I>Tue Mar 17 23:27:20 CET 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001629.html">[Cachewolf-svn] r1713 - in trunk/src: . build
+</A></li>
+        <LI>Next message: <A HREF="001631.html">[Cachewolf-svn] r1715 - trunk/src/exp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1630">[ date ]</a>
+              <a href="thread.html#1630">[ thread ]</a>
+              <a href="subject.html#1630">[ subject ]</a>
+              <a href="author.html#1630">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: greiol
+Date: 2009-03-17 23:27:19 +0100 (Tue, 17 Mar 2009)
+New Revision: 1714
+
+Modified:
+   trunk/build.xml
+Log:
+added experimental cab building support
+
+Modified: trunk/build.xml
+===================================================================
+--- trunk/build.xml	2009-03-17 22:26:22 UTC (rev 1713)
++++ trunk/build.xml	2009-03-17 22:27:19 UTC (rev 1714)
+@@ -1,7 +1,7 @@
+ &lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; standalone=&quot;no&quot;?&gt;
+ &lt;project name=&quot;CacheWolf&quot; default=&quot;release&quot;&gt;
+ 
+-	&lt;!-- ewe builder on exist for windows and linux --&gt;
++	&lt;!-- ewe builder only exist for windows and linux --&gt;
+ 	&lt;fail message=&quot;unsupport operating system. sorry&quot;&gt;
+ 		&lt;condition&gt;
+ 			&lt;not&gt;
+@@ -26,7 +26,7 @@
+ 	&lt;property name=&quot;assemble.dir&quot; value=&quot;assemble&quot;/&gt;
+ 
+ 	&lt;!-- lists of files to be packaged, this should become less confusing later on --&gt;
+-	&lt;property name=&quot;template.files&quot; value=&quot;**/*.tpl&quot;/&gt;
++	&lt;property name=&quot;template.files&quot; value=&quot;*/*.tpl&quot;/&gt;
+ 	&lt;property name=&quot;icons.gui.files&quot; value=&quot;dnf.gif,bug.gif,red.png,yellow.png,blue.png&quot;/&gt;
+ 	&lt;property name=&quot;icons.log.files&quot; value=&quot;traffic_cone.gif,recommendedlog.gif,icon_smile.gif,icon_sad.gif,icon_rsvp.gif,icon_note.gif,icon_needsmaint.gif,icon_maint.gif,icon_enabled.gif,icon_disabled.gif,icon_camera.gif,icon_attended.gif,big_smile.gif,coord_update.gif,icon_greenlight.gif,icon_redlight.gif&quot;/&gt;
+ 	&lt;property name=&quot;icons.cache.files&quot; value=&quot;11.gif,8.gif,6.gif,5.gif,4.gif,3.gif,2.gif,1858.gif,13.gif,137.gif,12.gif&quot;/&gt;
+@@ -46,9 +46,20 @@
+ 	&lt;/target&gt;
+ 
+ 	&lt;!-- &lt;target name=&quot;release&quot; depends=&quot;CW-ARM,CW-MIPS,CW-SH3,CW-PPC2003,CW-EWE,CW-Win32,CW-Java&quot; description=&quot;package all platforms&quot;&gt; --&gt;
+-	&lt;target name=&quot;release&quot; depends=&quot;CW-PPC2003,CW-EWE,CW-Win32,CW-Java&quot; description=&quot;package all platforms&quot;&gt;
++	&lt;target name=&quot;release&quot; depends=&quot;CW-PPC2003,CW-PPC2003-CAB,CW-EWE,CW-Win32,CW-Java&quot; description=&quot;package all platforms&quot;&gt;
+ 		&lt;echo message=&quot;packages for all platforms are now in ${pkg.dir}&quot;/&gt;
+ 	&lt;/target&gt;
++
++	&lt;target name=&quot;CW-PPC2003-CAB&quot; depends=&quot;CW-PPC2003,compilecabhelper&quot; description=&quot;package PPC2003 build as CAB&quot; if=&quot;build.cab&quot;&gt;
++		&lt;delete dir=&quot;${assemble.dir}&quot;/&gt;
++		&lt;mkdir dir=&quot;${assemble.dir}&quot;/&gt;
++		&lt;java classname=&quot;build.CabHelper&quot; classpath=&quot;bin&quot;&gt;
++			&lt;arg value=&quot;${pkg.dir}/CacheWolf-PPC2003.zip&quot;/&gt;
++			&lt;arg value=&quot;${assemble.dir}&quot;/&gt;
++		&lt;/java&gt;
++		&lt;cab cabfile=&quot;${pkg.dir}/CacheWolf-PPC2003.cab&quot; basedir=&quot;${assemble.dir}&quot;/&gt;
++		&lt;delete dir=&quot;${assemble.dir}&quot;/&gt;
++	&lt;/target&gt;
+ 	
+ 	&lt;target name=&quot;CW-ARM&quot; depends=&quot;ewebuild&quot; description=&quot;package ARM release of CacheWolf&quot;&gt;
+ 		&lt;mkdir dir=&quot;${assemble.dir}&quot;/&gt;
+@@ -225,7 +236,7 @@
+ 			&lt;fileset dir=&quot;resources/attributes&quot;/&gt;
+ 		&lt;/copy&gt;
+ 		&lt;!-- copy addons --&gt;
+-		&lt;copy todir=&quot;${assemble.dir}/addons&quot;&gt;
++		&lt;copy todir=&quot;${assemble.dir}&quot;&gt;
+ 			&lt;fileset dir=&quot;res_noewe&quot;&gt;
+ 				&lt;include name=&quot;Garmin*.zip&quot;/&gt;
+ 				&lt;include name=&quot;POI*.zip&quot;/&gt;
+@@ -240,4 +251,16 @@
+ 		&lt;!-- spider.def --&gt;
+ 		&lt;copy todir=&quot;${assemble.dir}&quot; file=&quot;res_noewe/spider.def&quot;/&gt;
+ 	&lt;/target&gt;
++
++	&lt;target name=&quot;compilecabhelper&quot; description=&quot;helper classes for building cabs&quot; if=&quot;build.cab&quot;&gt;
++		&lt;mkdir dir=&quot;${classes.dir}&quot;/&gt;
++		&lt;javac
++			source=&quot;1.5&quot; 
++			target=&quot;1.5&quot; 
++			encoding=&quot;windows-1252&quot;
++			destdir=&quot;${classes.dir}&quot;
++			srcdir=&quot;src&quot;
++			includes=&quot;build/*.java&quot;
++		/&gt;
++	&lt;/target&gt;
+ &lt;/project&gt;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001629.html">[Cachewolf-svn] r1713 - in trunk/src: . build
+</A></li>
+	<LI>Next message: <A HREF="001631.html">[Cachewolf-svn] r1715 - trunk/src/exp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1630">[ date ]</a>
+              <a href="thread.html#1630">[ thread ]</a>
+              <a href="subject.html#1630">[ subject ]</a>
+              <a href="author.html#1630">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

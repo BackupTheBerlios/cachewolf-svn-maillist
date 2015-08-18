@@ -1,0 +1,204 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r853 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-August/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r853%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200708282127.l7SLRV8p012098%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000744.html">
+   <LINK REL="Next"  HREF="000746.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r853 - trunk/src/CacheWolf</H1>
+    <B>mik77 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r853%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200708282127.l7SLRV8p012098%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r853 - trunk/src/CacheWolf">mik77 at mail.berlios.de
+       </A><BR>
+    <I>Tue Aug 28 23:27:31 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000744.html">[Cachewolf-svn] r852 - trunk/resources
+</A></li>
+        <LI>Next message: <A HREF="000746.html">[Cachewolf-svn] r854 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#745">[ date ]</a>
+              <a href="thread.html#745">[ thread ]</a>
+              <a href="subject.html#745">[ subject ]</a>
+              <a href="author.html#745">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mik77
+Date: 2007-08-28 23:27:21 +0200 (Tue, 28 Aug 2007)
+New Revision: 853
+
+Modified:
+   trunk/src/CacheWolf/GotoPanel.java
+Log:
+Coordinate format change now via context menu instead of radio buttons
+
+Modified: trunk/src/CacheWolf/GotoPanel.java
+===================================================================
+--- trunk/src/CacheWolf/GotoPanel.java	2007-08-28 19:19:24 UTC (rev 852)
++++ trunk/src/CacheWolf/GotoPanel.java	2007-08-28 21:27:21 UTC (rev 853)
+@@ -29,8 +29,6 @@
+ 	public Navigate myNavigation;
+ 	mButton btnGPS, btnCenter,btnSave;
+ 	mButton btnGoto, btnMap;
+-	mCheckBox chkDMM, chkDMS, chkDD, chkUTM;
+-	CheckBoxGroup chkFormat = new CheckBoxGroup();
+ 	int currFormat;
+ 
+ 	mLabel lblPosition, lblSats, lblSpeed, lblBearMov, lblBearWayP, lblDist, lblHDOP;
+@@ -47,7 +45,6 @@
+ 	Preferences pref;
+ 	Profile profile;
+ 	// different panels to avoid spanning
+-	CellPanel FormatP = new CellPanel();
+ 	CellPanel ButtonP = new CellPanel();
+ 	CellPanel CoordsP = new CellPanel();
+ 	CellPanel roseP = new CellPanel();
+@@ -66,6 +63,9 @@
+ 
+ 	GotoRose rose;
+ 	int ticker = 0;
++	
++	Menu mnuContext;
++	MenuItem miDMM, miDMS, miDD, miUTM;
+ 
+ 	/**
+ 	 * Create GotoPanel 
+@@ -88,25 +88,31 @@
+ 		ButtonP.addNext(btnSave = new mButton(MyLocale.getMsg(311,&quot;Create Waypoint&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		ButtonP.addLast(btnMap = new mButton(&quot;Map&quot;),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 
+-		//Format selection for coords
+-		FormatP.addNext(chkDD =new mCheckBox(&quot;d.d&#176;&quot;),CellConstants.DONTSTRETCH, CellConstants.WEST);
+-		FormatP.addNext(chkDMM =new mCheckBox(&quot;d&#176;m.m\'&quot;),CellConstants.DONTSTRETCH, CellConstants.WEST);
+-		FormatP.addNext(chkDMS =new mCheckBox(&quot;d&#176;m\'s\&quot;&quot;),CellConstants.DONTSTRETCH,CellConstants.WEST);
+-		FormatP.addLast(chkUTM =new mCheckBox(&quot;UTM&quot;),CellConstants.DONTSTRETCH, CellConstants.WEST);
+-
+-		chkDD.setGroup(chkFormat);
+-		chkDMM.setGroup(chkFormat);
+-		chkDMS.setGroup(chkFormat);
+-		chkUTM.setGroup(chkFormat);
++		//Format selection for coords		
++		//context menu
++		mnuContext = new Menu();
++		mnuContext.addItem(miDD = new MenuItem(&quot;d.d&#176;&quot;));
++		miDD.modifiers &amp;= ~MenuItem.Checked;
++		mnuContext.addItem(miDMM = new MenuItem(&quot;d&#176;m.m\'&quot;));
++		miDMM.modifiers |= MenuItem.Checked;
++		mnuContext.addItem(miDMS = new MenuItem(&quot;d&#176;m\'s\&quot;&quot;));
++		miDMS.modifiers &amp;= ~MenuItem.Checked;
++		mnuContext.addItem(miUTM = new MenuItem(&quot;UTM&quot;));
++		miUTM.modifiers &amp;= ~MenuItem.Checked;
+ 		currFormat = CWPoint.DMM;
+-		chkFormat.selectIndex(currFormat);
+ 
+ 		//Coords
+ 		CoordsP.addNext(lblGPS = new mLabel(&quot;GPS: &quot;),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		lblGPS.backGround = RED;
++		lblGPS.setMenu(mnuContext);
++		lblGPS.modifyAll(Control.WantHoldDown, 0);
+ 		CoordsP.addLast(lblPosition = new mLabel(myNavigation.gpsPos.toString(currFormat)),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
++		lblPosition.setMenu(mnuContext);
++		lblPosition.modifyAll(Control.WantHoldDown, 0);
+ 		CoordsP.addNext(lblDST = new mLabel(MyLocale.getMsg(1500,&quot;DST:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		lblDST.backGround = new Color(0,0,255);
++		lblDST.setMenu(mnuContext);
++		lblDST.modifyAll(Control.WantHoldDown, 0);
+ 		CoordsP.addLast(btnGoto = new mButton(getGotoBtnText()),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 
+ 		//Rose for bearing
+@@ -165,7 +171,6 @@
+ 
+ 		//add Panels
+ 		this.addLast(ButtonP,CellConstants.DONTSTRETCH, CellConstants.DONTFILL|CellConstants.WEST).setTag(SPAN,new Dimension(2,1));
+-		this.addLast(FormatP,CellConstants.DONTSTRETCH, CellConstants.DONTFILL|CellConstants.WEST).setTag(SPAN,new Dimension(2,1));
+ 		this.addLast(CoordsP,CellConstants.HSTRETCH, CellConstants.HFILL|CellConstants.NORTH).setTag(SPAN,new Dimension(2,1));
+ 		this.addNext(roseP,CellConstants.DONTSTRETCH, CellConstants.DONTFILL|CellConstants.WEST).setTag(SPAN,new Dimension(1,1));
+ 		this.addLast(GotoP,CellConstants.HSTRETCH, CellConstants.HFILL|CellConstants.NORTHWEST).setTag(SPAN,new Dimension(1,2));
+@@ -339,15 +344,44 @@
+ 	 */
+ 
+ 	public void onEvent(Event ev){
++		if (ev instanceof MenuEvent) { 
++			if (ev.type == MenuEvent.SELECTED ) {
++				MenuItem action = (MenuItem) mnuContext.getSelectedItem(); 
++				if (mnuContext.getSelectedItem() != null) {
++					if (action == miDD) {
++						mnuContext.close();
++						currFormat = CWPoint.DD;
++					}
++					if (action == miDMM) {
++						mnuContext.close();
++						currFormat = CWPoint.DMM;
++					}
++					if (action == miDMS) {
++						mnuContext.close();
++						currFormat = CWPoint.DMS;
++					}
++					if (action == miUTM) {
++						mnuContext.close();
++						currFormat = CWPoint.UTM;
++					}
++					miDD.modifiers &amp;= ~MenuItem.Checked;
++					miDMM.modifiers &amp;= ~MenuItem.Checked;
++					miDMS.modifiers &amp;= ~MenuItem.Checked;
++					miUTM.modifiers &amp;= ~MenuItem.Checked;
++					switch (currFormat) {
++					case CWPoint.DD: miDD.modifiers |= MenuItem.Checked; break;   
++					case CWPoint.DMM: miDMM.modifiers |= MenuItem.Checked; break;   
++					case CWPoint.DMS: miDMS.modifiers |= MenuItem.Checked; break;   
++					case CWPoint.UTM: miUTM.modifiers |= MenuItem.Checked; break;
++					}
+ 
+-		if(ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.PRESSED){
+-			// display coords in another format
+-			if (ev.target == chkFormat){
+-				currFormat = chkFormat.getSelectedIndex();
+-				lblPosition.setText(myNavigation.gpsPos.toString(currFormat));
+-				btnGoto.setText(getGotoBtnText());
++					lblPosition.setText(myNavigation.gpsPos.toString(currFormat));
++					btnGoto.setText(getGotoBtnText());
++				}
+ 			}
++		}
+ 
++		if(ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.PRESSED){
+ 			// start/stop GPS connection
+ 			if (ev.target == btnGPS){
+ 				if (btnGPS.getText().equals(&quot;Start&quot;)) startGps();
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000744.html">[Cachewolf-svn] r852 - trunk/resources
+</A></li>
+	<LI>Next message: <A HREF="000746.html">[Cachewolf-svn] r854 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#745">[ date ]</a>
+              <a href="thread.html#745">[ thread ]</a>
+              <a href="subject.html#745">[ subject ]</a>
+              <a href="author.html#745">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

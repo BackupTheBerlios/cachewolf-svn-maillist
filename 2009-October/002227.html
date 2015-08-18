@@ -1,0 +1,111 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2303 - in trunk: res_noewe src/CacheWolf/imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-October/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2303%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf/imp&In-Reply-To=%3C200910231822.n9NIM2e1027619%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002226.html">
+   <LINK REL="Next"  HREF="002228.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2303 - in trunk: res_noewe src/CacheWolf/imp</H1>
+    <B>mik77 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2303%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf/imp&In-Reply-To=%3C200910231822.n9NIM2e1027619%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2303 - in trunk: res_noewe src/CacheWolf/imp">mik77 at mail.berlios.de
+       </A><BR>
+    <I>Fri Oct 23 20:22:02 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002226.html">[Cachewolf-svn] r2302 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="002228.html">[Cachewolf-svn] r2304 - trunk/res_noewe/symbols
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2227">[ date ]</a>
+              <a href="thread.html#2227">[ thread ]</a>
+              <a href="subject.html#2227">[ subject ]</a>
+              <a href="author.html#2227">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mik77
+Date: 2009-10-23 20:22:00 +0200 (Fri, 23 Oct 2009)
+New Revision: 2303
+
+Modified:
+   trunk/res_noewe/spider.def
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+Reverted regex change for long description, because it doesn't work on EWE/EXE. I've done the trimming in SpiderGC.java
+
+Modified: trunk/res_noewe/spider.def
+===================================================================
+--- trunk/res_noewe/spider.def	2009-10-22 21:05:42 UTC (rev 2302)
++++ trunk/res_noewe/spider.def	2009-10-23 18:22:00 UTC (rev 2303)
+@@ -32,6 +32,7 @@
+ # Version 4.8 - 20090805 More specific unavailability detection
+ # Version 4.9 - 20091018 Should work now with proxies and cachetypes as background
+ # Version 4.10- 20091021 Tags in Description are now correctly closed
++# Version 4.11- 20091023 Reverted last change, because it doesn't work with EWE/EXE
+ #============================================================
+ # A suffix of Rex indicates a regular expression
+ # A suffix of ExStart indicates the start of an Extractor search pattern
+@@ -85,7 +86,9 @@
+ cacheArchived      = This cache\ has\ been\ archived
+ latLonRex          = &lt;span\ id=&quot;LatLon&quot;\ style=&quot;font-weight:bold;&quot;&gt;((?s).*?)&lt;/span&gt;
+ shortDescRex       = &lt;span\ id=&quot;ShortDescription&quot;&gt;((?s).*?)&lt;/span&gt;
+-longDescRex        = &lt;span\ id=&quot;LongDescription&quot;&gt;((?s).*?)&lt;/span&gt;(?:\\s*)&lt;br\ /&gt;(?:\\s*)&lt;/p&gt;(?:\\s*)&lt;p&gt;(?:\\s*)&lt;strong&gt;Additional\ Hints&nbsp;\\(&lt;/strong&gt;
++#This version doesn't work with EWE/EXE, so we trim the tags in code
++#longDescRex        = &lt;span\ id=&quot;LongDescription&quot;&gt;((?s).*?)&lt;/span&gt;(?:\\s*)&lt;br\ /&gt;(?:\\s*)&lt;/p&gt;(?:\\s*)&lt;p&gt;(?:\\s*)&lt;strong&gt;Additional\ Hints&nbsp;\\(&lt;/strong&gt;
++longDescRex        = &lt;span\ id=&quot;LongDescription&quot;&gt;((?s).*?)&lt;strong&gt;Additional\ Hints&nbsp;\\(&lt;/strong&gt;
+ cacheNameRex       = &lt;span\ id=&quot;CacheName&quot;&gt;((?s).*?)&lt;/span&gt;
+ cacheOwnerRex      = &lt;span\ id=&quot;CacheOwner&quot;&gt;by\ &lt;a\ href=(?:(?s).*?)&gt;((?s).*?)&lt;/a&gt;&lt;/span&gt;
+ dateHiddenRex      = &lt;span\ id=&quot;DateHidden&quot;&gt;((?s).*?)&lt;/span&gt;
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2009-10-22 21:05:42 UTC (rev 2302)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2009-10-23 18:22:00 UTC (rev 2303)
+@@ -985,6 +985,10 @@
+ 		rex2.search(doc);
+ 		res = ((inRex.stringMatched(1)==null)?&quot;&quot;:inRex.stringMatched(1)) + &quot;&lt;br&gt;&quot;;
+ 		res += rex2.stringMatched(1);
++		int spanEnd = res.lastIndexOf(&quot;&lt;/span&gt;&quot;);
++		if (spanEnd &gt;= 0) {
++			res = res.substring(0, spanEnd);
++		}
+ 		return res; // SafeXML.cleanback(res);
+ 	}
+ 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002226.html">[Cachewolf-svn] r2302 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="002228.html">[Cachewolf-svn] r2304 - trunk/res_noewe/symbols
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2227">[ date ]</a>
+              <a href="thread.html#2227">[ thread ]</a>
+              <a href="subject.html#2227">[ subject ]</a>
+              <a href="author.html#2227">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

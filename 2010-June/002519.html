@@ -1,0 +1,127 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2592 - in trunk/src/CacheWolf: . exp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-June/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2592%20-%20in%20trunk/src/CacheWolf%3A%20.%20exp&In-Reply-To=%3C201006080743.o587hNxr003842%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002518.html">
+   <LINK REL="Next"  HREF="002520.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2592 - in trunk/src/CacheWolf: . exp</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2592%20-%20in%20trunk/src/CacheWolf%3A%20.%20exp&In-Reply-To=%3C201006080743.o587hNxr003842%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2592 - in trunk/src/CacheWolf: . exp">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Tue Jun  8 09:43:23 CEST 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002518.html">[Cachewolf-svn] r2591 - trunk/res_noewe/languages
+</A></li>
+        <LI>Next message: <A HREF="002520.html">[Cachewolf-svn] r2593 - in trunk: res_noewe/languages	res_noewe/symbols res_noewe/symbols/Harry1999	res_noewe/symbols/OCSymbols res_noewe/symbols/oder1	res_noewe/symbols/oder2 res_noewe/symbols/z.B.big	res_noewe/symbols/z.B.small src/CacheWolf src/CacheWolf/exp	src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2519">[ date ]</a>
+              <a href="thread.html#2519">[ thread ]</a>
+              <a href="subject.html#2519">[ subject ]</a>
+              <a href="author.html#2519">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2010-06-08 09:43:21 +0200 (Tue, 08 Jun 2010)
+New Revision: 2592
+
+Modified:
+   trunk/src/CacheWolf/CacheHolder.java
+   trunk/src/CacheWolf/exp/ExploristExporter.java
+Log:
+Explorist Exporter shorten Name to 20 chars
+
+Modified: trunk/src/CacheWolf/CacheHolder.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolder.java	2010-06-07 12:18:06 UTC (rev 2591)
++++ trunk/src/CacheWolf/CacheHolder.java	2010-06-08 07:43:21 UTC (rev 2592)
+@@ -624,10 +624,7 @@
+ 		if (codec instanceof AsciiCodec) { cacheName=Exporter.simplifyString(cacheName);} // use for &quot;NAME&quot;
+ 		if (badChars != null) { cacheName=badChars.replaceAll(cacheName); } // use for &quot;NAME&quot;
+ 		varParams.put(&quot;NAME&quot;, cacheName); // !!! cacheName used twice
+-		String shortName=removeCharsfromString(cacheName, shortNameLength, selbstLaute);
+-		if (shortName.length()&gt;shortNameLength) {
+-			shortName=removeCharsfromString(shortName, shortNameLength, mitLauteKlein());
+-		}
++		String shortName=shortenName(cacheName, shortNameLength);
+ 		varParams.put(&quot;SHORTNAME&quot;, shortName);
+ 		varParams.put(&quot;TRAVELBUG&quot;, (bugs?&quot;Y&quot;:&quot;N&quot;));
+ 		varParams.put(&quot;GMTYPE&quot;, gm != null ? gm.getIcon(this) : &quot;&quot;);
+@@ -744,7 +741,8 @@
+ 	private final static Time nowtime() {
+ 		Time nt = new Time();
+ 		return nt.setFormat(&quot;HH:mm&quot;);
+-	}	
++	}
++
+ 	private final static String selbstLaute=&quot;aeiouAEIOU&quot;;
+ 	private final static String mitLauteKlein() {
+ 		final StringBuffer lower=new StringBuffer(26);// region/language dependent ?
+@@ -753,6 +751,10 @@
+ 		}
+ 		return lower.toString();
+ 	}
++	public String shortenName(String Name, int maxLength) {
++		String shortName=removeCharsfromString(Name, maxLength, selbstLaute);
++		return  removeCharsfromString(shortName, maxLength, mitLauteKlein());
++	}
+     private static String removeCharsfromString( String text, int MaxLength, String chars ) {
+         if ( text == null ) return null;
+         int originalTextLength = text.length();
+
+Modified: trunk/src/CacheWolf/exp/ExploristExporter.java
+===================================================================
+--- trunk/src/CacheWolf/exp/ExploristExporter.java	2010-06-07 12:18:06 UTC (rev 2591)
++++ trunk/src/CacheWolf/exp/ExploristExporter.java	2010-06-08 07:43:21 UTC (rev 2592)
+@@ -231,10 +231,9 @@
+ 			} else if (ch.getType() == 55) {
+ 				add = &quot;Re:&quot;;
+ 			}
+-			sb.append(add).append(removeCommas(ch.getCacheName()));
+-		} else {
+-			sb.append(removeCommas(ch.getCacheName()));
++			sb.append(add);
+ 		}
++		sb.append(removeCommas(ch.shortenName(ch.getCacheName(), 20)).substring(0,20));
+ 		sb.append(&quot;,&quot;);
+ 		sb.append(removeCommas(ch.getCacheOwner()));
+ 		sb.append(&quot;,&quot;);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002518.html">[Cachewolf-svn] r2591 - trunk/res_noewe/languages
+</A></li>
+	<LI>Next message: <A HREF="002520.html">[Cachewolf-svn] r2593 - in trunk: res_noewe/languages	res_noewe/symbols res_noewe/symbols/Harry1999	res_noewe/symbols/OCSymbols res_noewe/symbols/oder1	res_noewe/symbols/oder2 res_noewe/symbols/z.B.big	res_noewe/symbols/z.B.small src/CacheWolf src/CacheWolf/exp	src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2519">[ date ]</a>
+              <a href="thread.html#2519">[ thread ]</a>
+              <a href="subject.html#2519">[ subject ]</a>
+              <a href="author.html#2519">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

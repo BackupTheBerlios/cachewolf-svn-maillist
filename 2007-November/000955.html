@@ -1,0 +1,187 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1062 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-November/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1062%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200711121820.lACIKRI9007182%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000954.html">
+   <LINK REL="Next"  HREF="000956.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1062 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1062%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200711121820.lACIKRI9007182%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1062 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Mon Nov 12 19:20:27 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000954.html">[Cachewolf-svn] r1061 - trunk/src/CacheWolf/navi
+</A></li>
+        <LI>Next message: <A HREF="000956.html">[Cachewolf-svn] r1063 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#955">[ date ]</a>
+              <a href="thread.html#955">[ thread ]</a>
+              <a href="subject.html#955">[ subject ]</a>
+              <a href="author.html#955">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-11-12 19:20:07 +0100 (Mon, 12 Nov 2007)
+New Revision: 1062
+
+Added:
+   trunk/src/CacheWolf/Rebuild.java
+Log:
+Finally the Rebuild file. Missed this previously as Eclipse had unticked the file (for reasons unknown to me). Sorry about the delay.
+
+
+Added: trunk/src/CacheWolf/Rebuild.java
+===================================================================
+--- trunk/src/CacheWolf/Rebuild.java	2007-11-12 01:48:10 UTC (rev 1061)
++++ trunk/src/CacheWolf/Rebuild.java	2007-11-12 18:20:07 UTC (rev 1062)
+@@ -0,0 +1,104 @@
++package CacheWolf;
++
++import ewe.io.FileReader;
++import ewe.sys.Handle;
++import ewe.ui.MessageBox;
++import ewe.ui.ProgressBarForm;
++import utils.FileBugfix;
++
++public class Rebuild {
++	String [] xmlFiles;
++	
++	public Rebuild() {}
++	
++	public void rebuild() {	
++		int i;
++		Profile prof=Global.getProfile();
++		
++		myProgressBarForm pbf = new myProgressBarForm();
++		Handle h = new Handle();
++		pbf.setTask(h,MyLocale.getMsg(209,&quot;Rebuilding index&quot;));
++		pbf.exec();
++
++		FileBugfix file=new FileBugfix(Global.getProfile().dataDir);
++		xmlFiles=file.list(&quot;*.xml&quot;,0);
++		int orphans=0; // xml Files without entry in database
++		int nAdded=0;  // caches added to database
++		for (i=0; i&lt;xmlFiles.length; i++) {
++			String wayPoint=xmlFiles[i].substring(0,xmlFiles[i].indexOf('.'));
++			if (wayPoint.charAt(0)=='i' || 			// Check for index.xml and index.bak
++				prof.getCacheIndex(wayPoint)&gt;=0)		// Check for waypoints already in database 
++				xmlFiles[i]=null;   				// Remove existing caches or index.xml
++			else {
++				//ewe.sys.Vm.debug(&quot;Orphan: &quot;+wayPoint);
++				orphans++;
++			}
++		}
++		if (orphans&gt;0) { // At least one cache not in database
++			int nProcessed=0;
++			// Now do the actual work
++			for(i = 0; i&lt;xmlFiles.length; i++){
++				if (xmlFiles[i]!=null) {
++					h.progress = ((float)nProcessed++)/(float)(orphans);
++					h.changed();
++					String details=getCacheDetails(prof.dataDir+xmlFiles[i]);
++					if (details!=null) { // In older Versions of CW the &lt;CACHE... /&gt; line was not stored in the cache.xml
++						CacheHolder ch=new CacheHolder(details);
++						prof.cacheDB.add(ch);
++						nAdded++;
++						xmlFiles[i]=null;
++					} else Global.getPref().log(&quot;File &quot;+xmlFiles[i]+&quot; not in index.xml&quot;);
++				}
++				if (pbf.isClosed) break;
++			}
++			(new MessageBox(MyLocale.getMsg(327, &quot;Information&quot;), 
++					  MyLocale.getMsg(210,&quot;Caches nicht in index.xml: &quot;)+orphans+
++					  MyLocale.getMsg(211,&quot;\nDavon hinzugef&#252;gt: &quot;)+nAdded
++					, MessageBox.OKB)).execute();
++			prof.buildReferences();
++			prof.saveIndex(Global.getPref(),true);
++		}
++		if (orphans!=nAdded &amp;&amp; (new MessageBox(MyLocale.getMsg(327, &quot;Information&quot;),
++					MyLocale.getMsg(212,&quot;Delete all .xml files not in index.xml and associated pictures&quot;), 
++					MessageBox.YESB | MessageBox.NOB)).execute()==MessageBox.YESB) {
++			h = new Handle();
++			pbf.setTask(h,MyLocale.getMsg(213,&quot;Deleting orphans&quot;));
++			DataMover dm=new DataMover();
++			int nDeleted=0;
++			for (i=0; i&lt;xmlFiles.length; i++) {
++				if (xmlFiles[i]!=null){	
++					h.progress = ((float)nDeleted++)/(float)(orphans-nAdded);
++					h.changed();
++					String wayPoint=xmlFiles[i].substring(0,xmlFiles[i].indexOf('.'));
++					dm.deleteCacheFiles(wayPoint,prof.dataDir);
++				}
++			}
++		}
++		pbf.exit(0);
++	}
++
++	private String getCacheDetails(String xmlFile) {
++		try {
++			FileReader in = new FileReader(xmlFile);
++			String text= in.readAll();
++			in.close();
++			int start,end;
++			// Check that we have not accidentally listed another xml file in the directory
++			if (text.indexOf(&quot;&lt;CACHEDETAILS&gt;&quot;)&lt;0 || (start=text.indexOf(&quot;&lt;CACHE &quot;))&lt;0) return null;
++			end=text.indexOf(&quot;/&gt;&quot;,start);
++			return text.substring(start,end+2);
++		} catch (Exception ex) {
++			return null;
++		}
++	}
++
++	class myProgressBarForm extends ProgressBarForm {
++		 boolean isClosed=false;
++		 protected boolean canExit(int exitCode) {
++			isClosed=true;
++			return true;
++		 }
++	 }
++	 
++	
++}
+
+
+Property changes on: trunk/src/CacheWolf/Rebuild.java
+___________________________________________________________________
+Name: svn:keywords
+   + LastChangedRevision
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000954.html">[Cachewolf-svn] r1061 - trunk/src/CacheWolf/navi
+</A></li>
+	<LI>Next message: <A HREF="000956.html">[Cachewolf-svn] r1063 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#955">[ date ]</a>
+              <a href="thread.html#955">[ thread ]</a>
+              <a href="subject.html#955">[ subject ]</a>
+              <a href="author.html#955">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

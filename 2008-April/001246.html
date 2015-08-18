@@ -1,0 +1,131 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1352 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-April/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1352%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200804101352.m3ADq1FO031107%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001245.html">
+   <LINK REL="Next"  HREF="001247.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1352 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1352%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200804101352.m3ADq1FO031107%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1352 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Thu Apr 10 15:52:01 CEST 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001245.html">[Cachewolf-svn] r1351 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001247.html">[Cachewolf-svn] r1353 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1246">[ date ]</a>
+              <a href="thread.html#1246">[ thread ]</a>
+              <a href="subject.html#1246">[ subject ]</a>
+              <a href="author.html#1246">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2008-04-10 15:51:59 +0200 (Thu, 10 Apr 2008)
+New Revision: 1352
+
+Modified:
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/TablePanel.java
+   trunk/src/CacheWolf/myTableControl.java
+Log:
+Bug fixed: avoid ArrayIndexOutOfBoundException in case of an empty profile
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2008-04-10 13:25:30 UTC (rev 1351)
++++ trunk/src/CacheWolf/MainMenu.java	2008-04-10 13:51:59 UTC (rev 1352)
+@@ -524,7 +524,7 @@
+ 			// &quot;Organise&quot; pulldown menu
+ 			///////////////////////////////////////////////////////////////////////
+ 			if(mev.selectedItem == orgNewWP){
+-				Global.mainTab.lastselected = ((CacheHolder)cacheDB.get(Global.mainTab.tbP.getSelectedCache())).wayPoint;
++				if (Global.mainTab.tbP.getSelectedCache() &gt;= 0) Global.mainTab.lastselected = ((CacheHolder)cacheDB.get(Global.mainTab.tbP.getSelectedCache())).wayPoint;
+ 				Global.mainTab.newWaypoint(new CacheHolder());
+ 			}
+ 
+
+Modified: trunk/src/CacheWolf/TablePanel.java
+===================================================================
+--- trunk/src/CacheWolf/TablePanel.java	2008-04-10 13:25:30 UTC (rev 1351)
++++ trunk/src/CacheWolf/TablePanel.java	2008-04-10 13:51:59 UTC (rev 1352)
+@@ -94,14 +94,18 @@
+ 	/** Move all filtered caches to the end of the table and redisplay table */
+ 	//TODO Add a sort here to restore the sort after a filter
+ 	public void refreshTable(){
+-		String wayPoint = ((CacheHolder)cacheDB.get(getSelectedCache())).wayPoint;
++		String wayPoint;
++		if (getSelectedCache() &gt;= 0) wayPoint = ((CacheHolder)cacheDB.get(getSelectedCache())).wayPoint;
++		else wayPoint = null;
+ 		myMod.updateRows();
+ 
+ 		// Check whether the currently selected cache is still visible
+-		int rownum = Global.getProfile().getCacheIndex(wayPoint);
+-		if ( (rownum &lt; 0) || (rownum&gt;=myMod.numRows) )
+-			rownum = 0;	
+-
++		int rownum = 0;
++		if (wayPoint != null) {
++			rownum = Global.getProfile().getCacheIndex(wayPoint);
++			if ( (rownum &lt; 0) || (rownum&gt;=myMod.numRows) )
++				rownum = 0;	
++		}
+ 		selectRow(rownum);
+ 
+ 		tc.update(true); // Update and repaint
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2008-04-10 13:25:30 UTC (rev 1351)
++++ trunk/src/CacheWolf/myTableControl.java	2008-04-10 13:51:59 UTC (rev 1352)
+@@ -159,6 +159,10 @@
+ 		}
+ 
+ 		if (selectedItem.toString().equals(MyLocale.getMsg(1019,&quot;Centre&quot;))){
++			if (tbp.getSelectedCache() &lt; 0) {
++				Global.getPref().log(&quot;popupMenuEvent: getSelectedCache() &lt; 0&quot;);
++				return;
++			}
+ 			CacheHolder thisCache = (CacheHolder)cacheDB.get(tbp.getSelectedCache());
+ 			CWPoint cp=new CWPoint(thisCache.LatLon);
+ 			if (!cp.isValid()){
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001245.html">[Cachewolf-svn] r1351 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001247.html">[Cachewolf-svn] r1353 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1246">[ date ]</a>
+              <a href="thread.html#1246">[ thread ]</a>
+              <a href="subject.html#1246">[ subject ]</a>
+              <a href="author.html#1246">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

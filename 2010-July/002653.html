@@ -1,0 +1,157 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2675 - in trunk: res_noewe/languages src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-July/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2675%20-%20in%20trunk%3A%20res_noewe/languages%20src/CacheWolf&In-Reply-To=%3C20100712093102.F0D17480584%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002657.html">
+   <LINK REL="Next"  HREF="002658.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2675 - in trunk: res_noewe/languages src/CacheWolf</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2675%20-%20in%20trunk%3A%20res_noewe/languages%20src/CacheWolf&In-Reply-To=%3C20100712093102.F0D17480584%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2675 - in trunk: res_noewe/languages src/CacheWolf">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Mon Jul 12 11:31:02 CEST 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002657.html">[Cachewolf-svn] r2679 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="002658.html">[Cachewolf-svn] [Bug #17270] Auswertung der gc.com Spracheinstellung
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2653">[ date ]</a>
+              <a href="thread.html#2653">[ thread ]</a>
+              <a href="subject.html#2653">[ subject ]</a>
+              <a href="author.html#2653">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2010-07-12 11:31:02 +0200 (Mon, 12 Jul 2010)
+New Revision: 2675
+
+Modified:
+   trunk/res_noewe/languages/DE.cfg
+   trunk/src/CacheWolf/CacheHolder.java
+Log:
+coordinates of caches with statustext starting with solved (&lt;language.cfg&gt; Nr. 362) will not be changed by updates (gpx-import, oc-update, gc-update inc spider)
+
+Modified: trunk/res_noewe/languages/DE.cfg
+===================================================================
+--- trunk/res_noewe/languages/DE.cfg	2010-07-11 18:09:21 UTC (rev 2674)
++++ trunk/res_noewe/languages/DE.cfg	2010-07-12 09:31:02 UTC (rev 2675)
+@@ -228,7 +228,7 @@
+ 		359=Besitzer Wartung
+ 		360=Merker 2
+ 		361=Webcambild gemacht
+-		362=gel%f6st (
++		362=gel%f6st
+ 		400=Dekodieren
+ 		401=Kodieren
+ 		500=Umschalten
+
+Modified: trunk/src/CacheWolf/CacheHolder.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolder.java	2010-07-11 18:09:21 UTC (rev 2674)
++++ trunk/src/CacheWolf/CacheHolder.java	2010-07-12 09:31:02 UTC (rev 2675)
+@@ -436,10 +436,6 @@
+ 		}
+ 		return result;
+ 	}
+-	
+-	public void update(CacheHolder ch) {
+-		update(ch, false);
+-	}
+ 	/** 
+ 	 * Updates Cache information with information provided by cache given as argument. This is used
+ 	 * to update the cache with the information retrieved from files or web: The argument cache
+@@ -449,34 +445,31 @@
+ 	 * @param overwrite If &lt;code&gt;true&lt;/code&gt;, then &lt;i&gt;status&lt;/i&gt;, &lt;i&gt;is_found&lt;/i&gt; and &lt;i&gt;position&lt;/i&gt;
+ 	 * is updated, otherwise not.
+ 	 */
+-	public void update(CacheHolder ch, boolean overwrite) {
++	public void update(CacheHolder ch) {
+ 		this.recommendationScore = ch.recommendationScore;
+ 		this.setNumFoundsSinceRecommendation(ch.getNumFoundsSinceRecommendation());
+ 		this.setNumRecommended(ch.getNumRecommended());
+-		if (overwrite) {
+-			this.setCacheStatus(ch.getCacheStatus());
+-			this.setFound(ch.is_found());
+-			this.pos = ch.pos;
+-			this.LatLon = ch.LatLon;
+-		} else {
+-			/* Here we have to distinguish several cases:
+-	   this.is_found       this                ch               Update 'this'
+-	   --------------------------------------------------------------------
+-	   false               empty               yyyy-mm-dd       yes
+-	   true                &quot;Found&quot;             yyyy-mm-dd       yes
+-	   true                yyyy-mm-dd          yyyy-mm-dd       no (or yes)
+-	   true                yyyy-mm-dd hh:mm    yyyy-mm-dd       no
+-	   any                 any                 empty            no
+-			 */
+-			if (!this.is_found() || this.getCacheStatus().indexOf(&quot;:&quot;)&lt;0) {
+-				// don't overwrite with empty data
+-				if (!ch.getCacheStatus().trim().equals(&quot;&quot;)) {
+-					this.setCacheStatus(ch.getCacheStatus());
+-				}
+-				this.setFound(ch.is_found());
++		boolean mayChangeCoordinates = !this.cacheStatus.startsWith(MyLocale.getMsg(362,&quot;solved&quot;));
++		/* Here we have to distinguish several cases:
++		 * this.is_found       this                ch               Update 'this'
++		 *                                         (values are
++		 *                                     empty or yyyy-mm-dd)
++		 * ----------------------------------------------------------------------
++		 * false               any                 yyyy-mm-dd       yes
++		 * true                &quot;Found&quot;             yyyy-mm-dd       yes
++		 * true                yyyy-mm-dd          yyyy-mm-dd       yes (or no)
++		 * true                yyyy-mm-dd hh:mm    yyyy-mm-dd       no
++		*/
++		if (!this.found || this.cacheStatus.indexOf(&quot;:&quot;)&lt;0) {
++			// don't overwrite with empty data
++			if (!ch.getCacheStatus().trim().equals(&quot;&quot;)) {
++				this.setCacheStatus(ch.getCacheStatus());
+ 			}
+-			// Don't overwrite valid coordinates with invalid ones
+-			if (ch.pos.isValid() || !this.pos.isValid()) {
++			this.setFound(ch.is_found());
++		}
++		// Don't overwrite valid coordinates with invalid ones
++		if (ch.pos.isValid() || !this.pos.isValid()) {
++			if (mayChangeCoordinates) {
+ 				this.pos = ch.pos;
+ 				this.LatLon = ch.LatLon;
+ 			}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002657.html">[Cachewolf-svn] r2679 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="002658.html">[Cachewolf-svn] [Bug #17270] Auswertung der gc.com Spracheinstellung
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2653">[ date ]</a>
+              <a href="thread.html#2653">[ thread ]</a>
+              <a href="subject.html#2653">[ subject ]</a>
+              <a href="author.html#2653">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

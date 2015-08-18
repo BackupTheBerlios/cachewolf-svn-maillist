@@ -1,0 +1,407 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1050 - in trunk: res_noewe src/CacheWolf/navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-November/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1050%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf/navi&In-Reply-To=%3C200711101207.lAAC78U2019040%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000942.html">
+   <LINK REL="Next"  HREF="000944.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1050 - in trunk: res_noewe src/CacheWolf/navi</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1050%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf/navi&In-Reply-To=%3C200711101207.lAAC78U2019040%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1050 - in trunk: res_noewe src/CacheWolf/navi">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Sat Nov 10 13:07:08 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000942.html">[Cachewolf-svn] r1049 - in trunk: res_noewe src/CacheWolf	src/CacheWolf/navi
+</A></li>
+        <LI>Next message: <A HREF="000944.html">[Cachewolf-svn] r1051 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#943">[ date ]</a>
+              <a href="thread.html#943">[ thread ]</a>
+              <a href="subject.html#943">[ subject ]</a>
+              <a href="author.html#943">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-11-10 13:06:58 +0100 (Sat, 10 Nov 2007)
+New Revision: 1050
+
+Modified:
+   trunk/res_noewe/luftbild-nrw.wms
+   trunk/src/CacheWolf/navi/MapLoader.java
+   trunk/src/CacheWolf/navi/MapLoaderGui.java
+Log:
+WMS: doesn't start download if scale is out of supported range
+WMS: Map Services, which cover the center point around which maps are to be downloaded appear first in the list
+WMS: recommendedScale in .wms is now used as default in the download maps dialog
+
+Modified: trunk/res_noewe/luftbild-nrw.wms
+===================================================================
+--- trunk/res_noewe/luftbild-nrw.wms	2007-11-09 02:44:28 UTC (rev 1049)
++++ trunk/res_noewe/luftbild-nrw.wms	2007-11-10 12:06:58 UTC (rev 1050)
+@@ -65,6 +65,11 @@
+ # taken from the getCapabilities request &quot;&lt;Layer&gt;&lt;ScaleHint min=&quot;
+ MinScale:	0.1795783591567183
+ MaxScale:	5.611823723647454
+-# set this according to ImageFormatUrlPart (must start with &quot;.&quot;
++# Plaes recommend a scale for this WMS. This scale will appear in the
++# map download dialog as default. Scale is measured in meters per pixel
++# vertical, so, multiply it by 1.41 (=sqrt(2)) to get the scale as measured
++# above in MinScale and MaxScale
++RecommendedScale:	0.5
++# set this according to ImageFormatUrlPart (must start with &quot;.&quot;)
+ ImageFileExtension: .png
+ 
+
+Modified: trunk/src/CacheWolf/navi/MapLoader.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MapLoader.java	2007-11-09 02:44:28 UTC (rev 1049)
++++ trunk/src/CacheWolf/navi/MapLoader.java	2007-11-10 12:06:58 UTC (rev 1050)
+@@ -52,8 +52,6 @@
+ 		FileBugfix files = new FileBugfix(&quot;.&quot;);
+ 		String FileName;
+ 		OnlineMapService tempOMS;
+-		tempOMS = new ExpediaMapService();
+-		onlineMapServices.add(tempOMS);
+ 		MessageBox f = null; 
+ 		dateien = files.list(&quot;*.wms&quot;, File.LIST_FILES_ONLY); //&quot;*.xyz&quot; doesn't work on some systems -&gt; use FileBugFix
+ 		for(int i = 0; i &lt; dateien.length;i++){
+@@ -65,7 +63,8 @@
+ 				if (f == null) (f=new MessageBox(&quot;Warning&quot;, &quot;Ignoring error while \n reading web map service definition file \n&quot;+ex.toString(), MessageBox.OKB)).exec();
+ 			}
+ 		}
+-
++		tempOMS = new ExpediaMapService();
++		onlineMapServices.add(tempOMS);
+ 	}
+ 
+ 	public String[] getAvailableOnlineMapServices(){
+@@ -171,7 +170,11 @@
+ 				if (progressInfobox != null)
+ 					progressInfobox.setInfo(&quot;Downloading calibrated (georeferenced) \n map image \n '&quot; + currentOnlineMapService.getName()+&quot;' \n Downloading tile \n row &quot;+row+&quot; / &quot;+numMapsY+&quot; column &quot;+ col + &quot; / &quot;+numMapsX);
+ 				center.set(lat, lon);
+-				downloadMap(center, tileScale, tilesSize, tilesPath);
++				try {
++					downloadMap(center, tileScale, tilesSize, tilesPath);
++				} catch (Exception e) {
++					this.progressInfobox.addWarning(&quot;Tile &quot; + row + &quot;/&quot; + col + &quot;: Ignoring error: &quot; + e.getMessage()+&quot;\n&quot;);
++				}
+ 				if (progressInfobox.isClosed) return;
+ 				lon += loninc;
+ 			}
+@@ -210,17 +213,13 @@
+ 		}
+ 	}
+ 
+-	public void downloadMap(CWPoint center, float scale, Point pixelsize, String path){
+-		try {
+-			MapInfoObject mio = currentOnlineMapService.getMapInfoObject(center, scale, pixelsize);
+-			String filename = createFilename(mio.getCenter(), mio.scale);
+-			String imagename = mio.setName(path, filename) + currentOnlineMapService.getImageFileExt();
+-			String url = currentOnlineMapService.getUrlForCenterScale(center, scale, pixelsize);
+-			downloadUrl(url, path+&quot;/&quot;+imagename);
+-			mio.saveWFL();
+-		} catch (Exception e) {
+-			this.progressInfobox.addWarning(&quot;Ignoring error during map download, saving or calibration:\n&quot; + e.getMessage()+&quot;\n&quot;);
+-		}
++	public void downloadMap(CWPoint center, float scale, Point pixelsize, String path) throws Exception {
++		MapInfoObject mio = currentOnlineMapService.getMapInfoObject(center, scale, pixelsize);
++		String filename = createFilename(mio.getCenter(), mio.scale);
++		String imagename = mio.setName(path, filename) + currentOnlineMapService.getImageFileExt();
++		String url = currentOnlineMapService.getUrlForCenterScale(center, scale, pixelsize);
++		downloadUrl(url, path+&quot;/&quot;+imagename);
++		mio.saveWFL();
+ 	}
+ 
+ 	public String createFilename(CWPoint center, float scale) {
+@@ -236,7 +235,7 @@
+ 	 * and sometimes doesn't send a redirect on the first try 
+ 	 * @param datei path and name of file to save to
+ 	 */
+-	public void downloadUrl(String url, String datei){
++	public void downloadUrl(String url, String datei) throws IOException {
+ 		HttpConnection connImg; // TODO move proxy-handling in a global http-class
+ 		Socket sockImg;
+ 		FileOutputStream fos;
+@@ -287,7 +286,7 @@
+ 			}
+ 			//Vm.debug(&quot;done&quot;);
+ 		}catch(IOException e){
+-			(new MessageBox(&quot;Error&quot;, &quot;Error while downloading or saving map:\n&quot;+e.getMessage(), MessageBox.OKB)).exec();
++			throw new IOException(&quot;Error while downloading or saving map:\n&quot; + e.getMessage());
+ 		}
+ //		(new MessageBox(&quot;Error&quot;, &quot;Error saving calibration file:\n&quot;+e.getMessage(), MessageBox.OKB)).exec();
+ 
+@@ -299,6 +298,10 @@
+ 	String MainUrl; //<A HREF="http://www.geoserver.nrw.de/GeoOgcWms1.3/servlet/TK25?SERVICE=WMS">http://www.geoserver.nrw.de/GeoOgcWms1.3/servlet/TK25?SERVICE=WMS</A>
+ 	/** including &quot;.&quot; */
+ 	String imageFileExt; // &quot;.gif&quot;, &quot;.jpg&quot;...
++	float recommendedScale;
++	double minscale;
++	double maxscale;
++	Area boundingBox;
+ 
+ 	/** 
+ 	 * This method is used in case the online map service provides only certain steps of 
+@@ -390,9 +393,8 @@
+ 	String requestUrlPart;
+ 	String imageFormatUrlPart; // FORMAT=image/png
+ 	String stylesUrlPart; // STYLES=
+-	Area boundingBox;
+-	double minscale;
+-	double maxscale;
++	double minscaleWMS;
++	double maxscaleWMS;
+ 
+ 	public String getName() {
+ 		if (layersName == null || layersName.length() == 0)	return name;
+@@ -445,10 +447,13 @@
+ 		if (!topleft.isValid()) topleft.set(90, -180);
+ 		if (!buttomright.isValid()) buttomright.set(-90, 180);
+ 		boundingBox = new Area (topleft, buttomright);
+-		minscale = Convert.toDouble(wms.getProperty(&quot;MinScale&quot;, &quot;0&quot;).trim());
+-		maxscale = Convert.toDouble(wms.getProperty(&quot;MaxScale&quot;, Convert.toString(java.lang.Double.MAX_VALUE)).trim());
++		minscaleWMS = Convert.toDouble(wms.getProperty(&quot;MinScale&quot;, &quot;0&quot;).trim());
++		maxscaleWMS = Convert.toDouble(wms.getProperty(&quot;MaxScale&quot;, Convert.toString(java.lang.Double.MAX_VALUE)).trim());
++		minscale = minscaleWMS / Math.sqrt(2); // in WMS scale is measured diagonal while in CacheWolf it is measured vertical
++		maxscale = maxscaleWMS / Math.sqrt(2);
+ 		imageFileExt = wms.getProperty(&quot;ImageFileExtension&quot;, &quot;&quot;).trim();
+ 		if (imageFileExt == &quot;&quot;) throw new IllegalArgumentException(&quot;WebMapService: property &gt;ImageFileExtension:&lt; missing in file:\n&quot; + filename);
++		recommendedScale = Convert.toFloat(wms.getProperty(&quot;RecommendedScale&quot;, &quot;5&quot;).trim());
+ 	}
+ 
+ 	public String getUrlForBoundingBox(Area maparea, Point pixelsize) {
+@@ -459,7 +464,7 @@
+ 		double scaleh = maparea.buttomright.getDistance(buttomleft) * 1000 / pixelsize.x; 
+ 		double scalev = maparea.topleft.getDistance(topright) * 1000 / pixelsize.y; 
+ 		double scale = Math.sqrt(scaleh * scaleh + scalev * scalev); // meters per pixel measured diagonal
+-		if ( scale &lt; minscale || scale &gt; maxscale) throw new IllegalArgumentException(&quot;scale not support by online map service: &quot; + scale + &quot;, supported scale range: &quot; + minscale + &quot; - &quot; + maxscale);
++		if ( scale &lt; minscaleWMS || scale &gt; maxscaleWMS) throw new IllegalArgumentException(&quot;scale &quot; + scale / Math.sqrt(2)+ &quot; not supported by online map service, supported scale range: &quot; + minscale + &quot; - &quot; + maxscale + &quot; (measured in meters per pixel vertically)&quot;);
+ 		int crs = 0;
+ 		String bbox = &quot;BBOX=&quot;;
+ 		if (TransformCoordinates.isGermanGk(coordinateReferenceSystem[0])) {
+@@ -556,6 +561,10 @@
+ 		name = &quot;Expedia&quot;;
+ 		MainUrl = &quot;<A HREF="Rhttp://www.expedia.de/pub/agent.dll?qscr=mrdt&amp;ID=3kQaz.">Rhttp://www.expedia.de/pub/agent.dll?qscr=mrdt&amp;ID=3kQaz.</A>&quot;; //&quot;<A HREF="Rhttp://">Rhttp://</A>&quot; forces doenloadUrl to retry the URL until it gets an http-redirect and then downloads from there 
+ 		imageFileExt = &quot;.gif&quot;;
++		recommendedScale = 5;
++		minscale = getMetersPerPixel(0.00000000000000000000001f);
++		maxscale = getMetersPerPixel((float)new CWPoint(0,0).getDistance(new CWPoint(0,180)) * 2 * 1000 / 1000); // whole world * 1000 because of km -&gt; m. /1000 because we have 1000x1000 Pixel usually
++		boundingBox = new Area(new CWPoint(90,-180), new CWPoint(-90,180));
+ 	}
+ 
+ 	public float getMetersPerPixel(float scale) {
+
+Modified: trunk/src/CacheWolf/navi/MapLoaderGui.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MapLoaderGui.java	2007-11-09 02:44:28 UTC (rev 1049)
++++ trunk/src/CacheWolf/navi/MapLoaderGui.java	2007-11-10 12:06:58 UTC (rev 1050)
+@@ -46,6 +46,10 @@
+ 	mCheckBox overviewChkBoxPerCache = new mCheckBox(&quot;download an overview map&quot;);
+ 
+ 	MapLoader mapLoader;
++	String[] unsortedMapServices;
++	String[] sortedmapServices;
++	int[] sortingMapServices;
++	boolean[] inbound;
+ 	CWPoint center;
+ 	Vector cacheDB;
+ 	boolean perCache;
+@@ -63,8 +67,11 @@
+ 		center = new CWPoint(pref.curCentrePt);
+ 		cacheDB = cacheDBi;
+ 		mapLoader = new MapLoader(Global.getPref().myproxy, Global.getPref().myproxyport);
+-		
+-		mapServiceChoice = new mChoice(mapLoader.getAvailableOnlineMapServices(), 0);
++
++		// sort the items in the list of services in a way that services which cover the current center point.
++		unsortedMapServices = mapLoader.getAvailableOnlineMapServices();
++		sortMapServices();
++		mapServiceChoice = new mChoice(sortedmapServices, 0);
+ 		MessageArea desc = new MessageArea(descString); 
+ 		desc.modifyAll(mTextPad.NotEditable | mTextPad.DisplayOnly | mTextPad.NoFocus, mTextPad.TakesKeyFocus);
+ 		desc.borderStyle = mTextPad.BDR_NOBORDER;
+@@ -83,7 +90,9 @@
+ 		pnlTiles.addNext(coosLbl = new mLabel(MyLocale.getMsg(1803, &quot;around the centre: &quot;)));
+ 		pnlTiles.addLast(coosBtn = new mButton(center.toString()));
+ 		pnlTiles.addNext(scaleLbl);
+-		scaleInput.setText(&quot;5&quot;);
++		mapLoader.setCurrentMapService(sortingMapServices[mapServiceChoice.selectedIndex]);
++		scaleInput.setText(Convert.toString(mapLoader.currentOnlineMapService.recommendedScale));
++		scaleInputPerCache.setText(Convert.toString(mapLoader.currentOnlineMapService.recommendedScale));
+ 		this.focusFirst();
+ 		pnlTiles.addLast(scaleInput);
+ 		//	pnlTiles.addLast(resolutionLbl);
+@@ -119,17 +128,53 @@
+ 		mTab.addCard(pnlPerCache, MyLocale.getMsg(1805, &quot;Per cache&quot;), MyLocale.getMsg(1805, &quot;Per Cache&quot;));
+ 		this.addLast(mTab);
+ 	}
++
++	/**
++	 * sort the map services in order to have the services, which cover
++	 * the current center first in the list 
++	 * this sets inbound[], sortedMapServices[] and sortingmapServices[]
++	 *
++	 */	
++	private void sortMapServices() {
++		sortingMapServices = new int[unsortedMapServices.length];
++		inbound = new boolean[unsortedMapServices.length];
++		int j=0;
++		for (int i=0; i &lt; sortingMapServices.length; i++) {
++			if( ((OnlineMapService)mapLoader.onlineMapServices.get(i)).boundingBox.isInBound(center)) {
++				sortingMapServices[j] = i;
++				j++;
++				inbound[i] = true;
++			} else inbound[i] = false;
++		}
++		sortedmapServices = new String[unsortedMapServices.length];
++		for (int i=0; i &lt; sortedmapServices.length; i++) {
++			if (!inbound[i]) { 
++				sortingMapServices[j] = i;
++				j++;
++			}
++			sortedmapServices[i] = ((OnlineMapService)mapLoader.onlineMapServices.get(sortingMapServices[i])).getName();
++		}
++	}
++	
++	private int getSortedMapServiceIndex(int originalindex) {
++		for (int i = 0; i &lt; sortingMapServices.length; i++) {
++			if (sortingMapServices[i] == originalindex) return i;
++		}
++		throw new IllegalStateException(&quot;getSortedMapServiceIndex: index &quot; + originalindex + &quot;not found&quot;);
++	}
++
+ 	public String getMapsDir() {
+ 		String ret = Global.getPref().getMapDownloadSavePath(mapLoader.currentOnlineMapService.getName());
+ 		Global.getPref().saveCustomMapsPath(ret);
+ 		return ret;
+ 	}
++
+ 	public void downloadTiles() {
+ 		String mapsDir = getMapsDir();
+ 		if (mapsDir == null) return;
+ 		InfoBox progressBox = new InfoBox(&quot;Downloading georeferenced maps&quot;, &quot;Downloading georeferenced maps\n \n \n \n \n&quot;, InfoBox.PROGRESS_WITH_WARNINGS);
+ 		progressBox.setPreferredSize(220, 300);
+-		progressBox.setInfoHeight(180);
++		progressBox.setInfoHeight(160);
+ 		progressBox.relayout(false);
+ 		progressBox.exec();
+ 		mapLoader.setProgressInfoBox(progressBox);
+@@ -151,7 +196,11 @@
+ 		if (overviewmap) {
+ 			progressBox.setInfo(&quot;downloading overview map&quot;); 
+ 			float scale = MapLoader.getScale(center, radius * 1000, size);
+-			mapLoader.downloadMap(center, scale, size, mapsDir);
++			try {
++				mapLoader.downloadMap(center, scale, size, mapsDir);
++			} catch (Exception e) {
++				progressBox.addWarning(&quot;Overview map: Ignoring error: &quot; + e.getMessage()+&quot;\n&quot;);
++			}
+ 		}
+ 		if (!perCache){  // download tiles
+ 			mapLoader.setProgressInfoBox(progressBox);
+@@ -172,7 +221,11 @@
+ 					if (ch.pos.isValid() &amp;&amp; ch.pos.latDec != 0 &amp;&amp; ch.pos.lonDec != 0) { // TODO != 0 sollte verschwinden, sobald das handling von nicht gesetzten Koos &#252;berall korrekt ist
+ 						numdownloaded++;
+ 						progressBox.setInfo(&quot;Downloading map '&quot;+mapLoader.currentOnlineMapService.getName()+&quot;'\n&quot;+numdownloaded+&quot; / &quot;+numCaches+&quot;\n for cache:\n&quot;+ch.CacheName);
+-						mapLoader.downloadMap(ch.pos, scale, size, mapsDir);
++						try {
++							mapLoader.downloadMap(ch.pos, scale, size, mapsDir);
++						} catch (Exception e) {
++							progressBox.addWarning(&quot;Cache: &quot; + ch.CacheName + &quot;(&quot; + ch.wayPoint + &quot;) Ignoring error: &quot; + e.getMessage()+&quot;\n&quot;);
++						}
+ 					}
+ 				}
+ 			}
+@@ -184,7 +237,7 @@
+ 		mapLoader.setProgressInfoBox(null);
+ 		//progressBox.close(0);
+ 		if(Global.mainTab.mm != null) Global.mainTab.mm.mapsloaded = false; 
+-	//	(new MessageBox(&quot;Download maps&quot;, &quot;Downloaded and calibrated the maps successfully&quot;, MessageBox.OKB)).execute();
++		//	(new MessageBox(&quot;Download maps&quot;, &quot;Downloaded and calibrated the maps successfully&quot;, MessageBox.OKB)).execute();
+ 	}
+ 
+ 
+@@ -216,7 +269,7 @@
+ 				this.close(Form.IDCANCEL);
+ 			}
+ 			if (ev.target == okBtiles || ev.target == okBPerCache){
+-				mapLoader.setCurrentMapService(mapServiceChoice.selectedIndex);
++				mapLoader.setCurrentMapService(sortingMapServices[mapServiceChoice.selectedIndex]);
+ 				if (ev.target == okBtiles) { // get tiles
+ 					perCache = false;
+ 					if (forSelectedChkBox.getSelectedItem().toString().equalsIgnoreCase(&quot;all&quot;)) onlySelected = false;
+@@ -246,10 +299,10 @@
+ 					overviewmap = overviewChkBoxPerCache.getState();
+ 					scale = Convert.toFloat(scaleInputPerCache.getText());
+ 				}
+-		/*		if (scale &lt; 1 || scale != java.lang.Math.floor(scale)) {
+-					(new MessageBox(&quot;Error&quot;, &quot;'Approx. meter pro pixel' must be greater than 0 and must not contain a point&quot;, MessageBox.OKB)).execute();
++				if (scale &lt; mapLoader.currentOnlineMapService.minscale || scale &gt; mapLoader.currentOnlineMapService.maxscale) {
++					(new MessageBox(&quot;Error&quot;, &quot;The selected online map service provides map in the scale from &quot; + mapLoader.currentOnlineMapService.minscale + &quot; to &quot;+ mapLoader.currentOnlineMapService.maxscale +&quot;\n please adjust 'Approx. meter pro pixel' accordingly&quot;, MessageBox.OKB)).execute();
+ 					return;
+-				} */
++				}
+ 				this.close(Form.IDOK); 
+ 				this.downloadTiles();
+ 			}
+@@ -259,12 +312,20 @@
+ 				if (cs.execute() != CoordsScreen.IDCANCEL) {
+ 					center = cs.getCoords();
+ 					coosBtn.setText(center.toString());
++					int tmp = sortingMapServices[mapServiceChoice.selectedIndex];
++					sortMapServices();
++					mapServiceChoice.set(sortedmapServices, (!inbound[tmp] ? 0 : getSortedMapServiceIndex((tmp))));
+ 				}
+ 			}
+ 			if (ev.target == forCachesChkBox) {
+ 				updateForCachesState();
+ 			}
+-		} // if controllEvent...
++		} // end of &quot;if controllEvent...&quot;
++		if (ev instanceof DataChangeEvent &amp;&amp; ev.target == mapServiceChoice) {
++			mapLoader.setCurrentMapService(sortingMapServices[mapServiceChoice.selectedIndex]);
++			scaleInput.setText(Convert.toString(mapLoader.currentOnlineMapService.recommendedScale));
++			scaleInputPerCache.setText(Convert.toString(mapLoader.currentOnlineMapService.recommendedScale));
++		}
+ 		super.onEvent(ev);
+ 	}
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000942.html">[Cachewolf-svn] r1049 - in trunk: res_noewe src/CacheWolf	src/CacheWolf/navi
+</A></li>
+	<LI>Next message: <A HREF="000944.html">[Cachewolf-svn] r1051 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#943">[ date ]</a>
+              <a href="thread.html#943">[ thread ]</a>
+              <a href="subject.html#943">[ subject ]</a>
+              <a href="author.html#943">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

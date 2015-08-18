@@ -1,0 +1,156 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r736 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-June/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r736%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200706062058.l56KwlVj001453%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000611.html">
+   <LINK REL="Next"  HREF="000613.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r736 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r736%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200706062058.l56KwlVj001453%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r736 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Wed Jun  6 22:58:47 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000611.html">[Cachewolf-svn] r735 - in trunk: resources src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000613.html">[Cachewolf-svn] r737 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#612">[ date ]</a>
+              <a href="thread.html#612">[ thread ]</a>
+              <a href="subject.html#612">[ subject ]</a>
+              <a href="author.html#612">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-06-06 22:58:44 +0200 (Wed, 06 Jun 2007)
+New Revision: 736
+
+Modified:
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/SolverPanel.java
+Log:
+Solver: Bei Addis werden die Befehle des zugeh?\195?\182rigen Hauptcaches angezeigt
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2007-06-06 19:50:46 UTC (rev 735)
++++ trunk/src/CacheWolf/MainTab.java	2007-06-06 20:58:44 UTC (rev 736)
+@@ -27,7 +27,7 @@
+ 	SolverPanel solverP;
+ 	String lastselected = new String();
+ 	CacheHolder ch=null;
+-	CacheHolderDetail chD =null;
++	CacheHolderDetail chD =null, chMain=null;
+ 	MainMenu mnuMain;
+ 	StatusBar statBar;
+ 	MovingMap mm;
+@@ -131,6 +131,7 @@
+ 			postEvent(new MultiPanelEvent(MultiPanelEvent.SELECTED,detP,0));
+ 		} else	
+ 			select(detP);
++		solverP.setInstructions(&quot;&quot;);
+ 		tbP.refreshTable();
+ 
+ 	}
+@@ -219,7 +220,17 @@
+ 				break;
+ 			case 7:  // Solver Panel
+ 				MyLocale.setSIPButton();
+-				solverP.setCh(chD);
++				if (chD.isAddiWpt()) { 
++					chMain=new CacheHolderDetail(chD.mainCache);
++					try {
++						chMain.readCache(profile.dataDir);
++					} catch(Exception e){pref.log(&quot;Error reading cache&quot;,e);}
++					//Vm.debug(&quot;mainT: AddiWaypoint:&quot;+chD.wayPoint+&quot;, MainWp:&quot;+chMain.wayPoint);
++					solverP.setInstructions(chMain.Solver);
++				} else {
++					//Vm.debug(&quot;mainT: Waypoint:&quot;+chD.wayPoint);
++					solverP.setInstructions(chD.Solver);
++				}
+ 				break;
+ 			case 8:  // Cache Radar Panel
+ 				MyLocale.setSIPOff();
+@@ -278,9 +289,15 @@
+ 		if(detP.isDirty()) {
+ 			detP.saveDirtyWaypoint();
+ 		}
+-		if (solverP.isDirty()) {
+-			chD.Solver=solverP.getInstructions();
+-			chD.saveCacheDetails(Global.getProfile().dataDir);
++		if (chD!=null &amp;&amp; solverP.isDirty()) {
++			if (chMain==null) {
++				chD.Solver=solverP.getInstructions();
++				chD.saveCacheDetails(Global.getProfile().dataDir);
++			} else {
++				chMain.Solver=solverP.getInstructions();
++				chMain.saveCacheDetails(Global.getProfile().dataDir);
++				chMain=null;
++			}
+ 		}
+ 	}
+ 
+
+Modified: trunk/src/CacheWolf/SolverPanel.java
+===================================================================
+--- trunk/src/CacheWolf/SolverPanel.java	2007-06-06 19:50:46 UTC (rev 735)
++++ trunk/src/CacheWolf/SolverPanel.java	2007-06-06 20:58:44 UTC (rev 736)
+@@ -22,7 +22,6 @@
+ 	Preferences pref;
+ 	Profile profile;
+ 	String currFile;
+-	CacheHolder currChD;
+ 	Tokenizer tokenizer = new Tokenizer();
+ 	Parser parser = new Parser();
+ 	Vector msgFIFO = new Vector();
+@@ -96,11 +95,6 @@
+ 		this.addLast(split);
+ 	}
+ 	
+-	public void setCh(CacheHolderDetail chD) {
+-		currChD=chD;
+-		setInstructions(chD.Solver);
+-	}
+-
+ 	private void execDirectCommand() {
+ 		InpScreen boxInp=new InpScreen(MyLocale.getMsg(1733,&quot;Input command&quot;));
+ 		boxInp.input(parent.getFrame(),&quot;&quot;,100); //,MyLocale.getScreenWidth()*4/5);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000611.html">[Cachewolf-svn] r735 - in trunk: resources src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000613.html">[Cachewolf-svn] r737 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#612">[ date ]</a>
+              <a href="thread.html#612">[ thread ]</a>
+              <a href="subject.html#612">[ subject ]</a>
+              <a href="author.html#612">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

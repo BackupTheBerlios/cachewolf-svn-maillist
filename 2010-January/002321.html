@@ -1,0 +1,1449 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2397 - in trunk: res_noewe src/CacheWolf/imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2397%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf/imp&In-Reply-To=%3C201001092019.o09KJRfn003882%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002320.html">
+   <LINK REL="Next"  HREF="002322.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2397 - in trunk: res_noewe src/CacheWolf/imp</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2397%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf/imp&In-Reply-To=%3C201001092019.o09KJRfn003882%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2397 - in trunk: res_noewe src/CacheWolf/imp">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Sat Jan  9 21:19:27 CET 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002320.html">[Cachewolf-svn] r2396 - in trunk: res_noewe/languages	src/CacheWolf/imp
+</A></li>
+        <LI>Next message: <A HREF="002322.html">[Cachewolf-svn] r2398 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2321">[ date ]</a>
+              <a href="thread.html#2321">[ thread ]</a>
+              <a href="subject.html#2321">[ subject ]</a>
+              <a href="author.html#2321">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2010-01-09 21:19:24 +0100 (Sat, 09 Jan 2010)
+New Revision: 2397
+
+Modified:
+   trunk/res_noewe/spider.def
+   trunk/src/CacheWolf/imp/OCXMLImporterScreen.java
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+new founds stop if all found. update checks for new logs.
+
+Modified: trunk/res_noewe/spider.def
+===================================================================
+--- trunk/res_noewe/spider.def	2010-01-09 19:52:58 UTC (rev 2396)
++++ trunk/res_noewe/spider.def	2010-01-09 20:19:24 UTC (rev 2397)
+@@ -56,8 +56,8 @@
+ # Regex to search for cachenames
+ listBlockRex       = &lt;table id=&quot;ctl00_ContentBody_dlResults&quot;((?s).*?)&lt;/table&gt;
+ lineRex            = &lt;tr\ bgcolor='#.{6}'&gt;(?:(?s).*?)&lt;td\ valign=&quot;top&quot;\ align=&quot;left&quot;&gt;((?s).*?)&lt;/tr&gt;
+-directionRex       = /compass/(.*?).gif&quot; alt=&quot;
+-distRex            = &lt;br\ /&gt;(.*?)(?:km|mi)(?:\\s*)&lt;/td&gt;
++directionRex       = /compass/(.*?).gif
++distRex            = &lt;br\ /&gt;(.*?)(?:km|mi)
+ waypointRex        = \\(GC(.*?)\\)&lt;br\ /&gt;
+ showOnlyFound      = &amp;f=1
+ maxDistance        = &amp;dist=
+
+Modified: trunk/src/CacheWolf/imp/OCXMLImporterScreen.java
+===================================================================
+--- trunk/src/CacheWolf/imp/OCXMLImporterScreen.java	2010-01-09 19:52:58 UTC (rev 2396)
++++ trunk/src/CacheWolf/imp/OCXMLImporterScreen.java	2010-01-09 20:19:24 UTC (rev 2397)
+@@ -26,6 +26,7 @@
+ 	mInput minDistanceInput;
+ 	mInput directionInput;
+ 	mInput maxNumberInput;
++	mInput maxNumberUpdates;
+ 	mInput maxLogsInput;
+ 	mCheckBox imagesCheckBox, /*mapsCheckBox, */ missingCheckBox, foundCheckBox, travelbugsCheckBox;
+ 	ewe.ui.mChoice domains;
+@@ -46,6 +47,7 @@
+ 	public static final int HOST = 512;
+ 	public static final int MINDIST = 1024;
+ 	public static final int DIRECTION = 2048;
++	public static final int MAXUPDATE = 4096;
+ 
+ 
+ 	public OCXMLImporterScreen(String title, int options) {
+@@ -128,6 +130,14 @@
+ 			this.addLast( new mLabel(MyLocale.getMsg(1624,&quot; caches&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		}
+ 
++		if ((options &amp; MAXUPDATE) &gt; 0) {
++			this.addNext(new mLabel(MyLocale.getMsg(1631,&quot;Max. Updates:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++			maxNumberUpdates = new mInput();
++			maxNumberUpdates.setText(&quot;&quot;);
++			this.addNext(maxNumberUpdates,CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++			this.addLast( new mLabel(MyLocale.getMsg(1624,&quot; caches&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		}
++
+ 		if ((options &amp; MAXLOGS) &gt; 0) {
+ 			this.addNext(new mLabel(MyLocale.getMsg(1626,&quot;Max. logs:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 			maxLogsInput = new mInput();
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2010-01-09 19:52:58 UTC (rev 2396)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2010-01-09 20:19:24 UTC (rev 2397)
+@@ -84,19 +84,40 @@
+ 	private static int ERR_LOGIN = -10;
+ 	private static Preferences pref;
+ 	private Profile profile;
+-	private static String viewstate = &quot;&quot;;
++
+ 	private static String cookieID = &quot;&quot;;
+ 	private static String cookieSession = &quot;&quot;;
+ 	private static double minDistance = 0;
+ 	private static double maxDistance = 0;
+ 	private static String direction = &quot;&quot;;
+ 	private static String[] directions;
+-	private Regex inRex = new Regex();
+ 	private CacheDB cacheDB;
+ 	private Vector cachesToLoad = new Vector();
+ 	private InfoBox infB;
+ 	private static SpiderProperties p=null;
++	// following filled at doit
++	private CWPoint origin;
++	private double saveDistanceInMiles;
++	private boolean doNotgetFound;
++	private String cacheTypeRestriction;
++	private boolean spiderAllFinds;
++	private int page_number;
++	private int found_on_page;
++	private String htmlListPage;
++	private int maxNew;
++	private int maxUpdate;
++	private boolean maxNumberAbort;
+ 
++	private static String propFirstPage;
++	private static String propFirstPage2;
++	private static String propFirstPageFinds;
++	private static String propFirstLine;
++	private static String propFirstLine2;
++	private static String propMaxDistance;
++	private static String propShowOnlyFound;
++	private static String propListBlockRex;
++	private static String propLineRex;
++
+ 	public SpiderGC(Preferences prf, Profile profile, boolean bypass){
+ 		this.profile=profile;
+ 		this.cacheDB = profile.cacheDB;
+@@ -108,238 +129,14 @@
+ 	}
+ 
+ 	/**
+-	 * Method to login the user to gc.com
+-	 * It will request a password and use the alias defined in preferences
+-	 * If the login page cannot be fetched, the password is cleared.
+-	 * If the login fails, an appropriate message is displayed.
+-	 */
+-	public int login(){
+-		loggedIn = false;
+-		String start,loginPage,loginSuccess,nextPage;
+-		try {
+-			loginPage=p.getProp(&quot;loginPage&quot;);
+-			loginSuccess=p.getProp(&quot;loginSuccess&quot;);
+-			nextPage=p.getProp(&quot;nextPage&quot;);
+-		} catch (Exception ex) { // Tag not found in spider.def
+-			return ERR_LOGIN;
+-		}
+-		//Get password
+-		InfoBox localInfB = new InfoBox(MyLocale.getMsg(5506,&quot;Password&quot;), MyLocale.getMsg(5505,&quot;Enter Password&quot;), InfoBox.INPUT);
+-		localInfB.feedback.setText(passwort); // Remember the PWD for next time
+-		localInfB.feedback.isPassword=true;
+-		int code=FormBase.IDOK;
+-		if (passwort.equals(&quot;&quot;)) {
+-			code = localInfB.execute();
+-			passwort = localInfB.getInput();
+-		}
+-		localInfB.close(0);
+-		if(code != FormBase.IDOK) return code;
+-		// Now start the login proper
+-		localInfB = new InfoBox(MyLocale.getMsg(5507,&quot;Status&quot;), MyLocale.getMsg(5508,&quot;Logging in...&quot;));
+-		localInfB.exec();
+-		try{
+-			pref.log(&quot;[login]:Fetching login page&quot;);
+-			//Access the page once to get a viewstate
+-			start = fetch(loginPage);   //<A HREF="http://www.geocaching.com/login/Default.aspx">http://www.geocaching.com/login/Default.aspx</A>
+-			if (start.equals(&quot;&quot;)) {
+-				localInfB.close(0);
+-				(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), MyLocale.getMsg(5499,&quot;Error loading login page.%0aPlease check your internet connection.&quot;), FormBase.OKB)).execute();
+-				pref.log(&quot;[login]:Could not fetch: gc.com login page&quot;);
+-				return ERR_LOGIN;
+-			}
+-		} catch(Exception ex){
+-			localInfB.close(0);
+-			(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), MyLocale.getMsg(5499,&quot;Error loading login page.%0aPlease check your internet connection.&quot;), FormBase.OKB)).execute();
+-			pref.log(&quot;[login]:Could not fetch: gc.com login page&quot;,ex);
+-			return ERR_LOGIN;
+-		}
+-		if (!localInfB.isClosed) { // If user has not aborted, we continue
+-			Regex rexCookieID = new Regex(&quot;(?i)Set-Cookie: userid=(.*?);.*&quot;);
+-			Regex rexViewstate = new Regex(&quot;id=\&quot;__VIEWSTATE\&quot; value=\&quot;(.*?)\&quot; /&gt;&quot;);
+-			// Regex rexViewstate1 = new Regex(&quot;id=\&quot;__VIEWSTATE1\&quot; value=\&quot;(.*?)\&quot; /&gt;&quot;);
+-			Regex rexEventvalidation = new Regex(&quot;id=\&quot;__EVENTVALIDATION\&quot; value=\&quot;(.*?)\&quot; /&gt;&quot;);
+-			Regex rexCookieSession = new Regex(&quot;(?i)Set-Cookie: ASP.NET_SessionId=(.*?);.*&quot;);
+-			rexViewstate.search(start);
+-			if(rexViewstate.didMatch()){
+-				viewstate = rexViewstate.stringMatched(1);
+-				//Vm.debug(&quot;ViewState: &quot; + viewstate);
+-			} else
+-				pref.log(&quot;[login]:Viewstate not found before login&quot;);
+-
+-			if(start.indexOf(loginSuccess) &gt; 0)
+-				pref.log(&quot;[login]:Already logged in&quot;);
+-			else {
+-				rexEventvalidation.search(start);
+-				if(rexEventvalidation.didMatch()){
+-					// eventvalidation = rexEventvalidation.stringMatched(1);
+-					//Vm.debug(&quot;EVENTVALIDATION: &quot; + eventvalidation);
+-				} else
+-					pref.log(&quot;[login]:Eventvalidation not found before login&quot;);
+-				//Ok now login!
+-				try{
+-					pref.log(&quot;[login]:Logging in as &quot;+pref.myAlias);
+-					StringBuffer sb=new StringBuffer(1000);
+-					sb.append(URL.encodeURL(&quot;__VIEWSTATE&quot;,false));	sb.append(&quot;=&quot;); sb.append(URL.encodeURL(viewstate,false));
+-					sb.append(&quot;&amp;ctl00%24ContentBody%24&quot;); sb.append(URL.encodeURL(&quot;myUsername&quot;,false));
+-					sb.append(&quot;=&quot;); sb.append(encodeUTF8URL(Utils.encodeJavaUtf8String(pref.myAlias)));
+-					sb.append(&quot;&amp;ctl00%24ContentBody%24&quot;); sb.append(URL.encodeURL(&quot;myPassword&quot;,false));
+-					sb.append(&quot;=&quot;); sb.append(encodeUTF8URL(Utils.encodeJavaUtf8String(passwort)));
+-					sb.append(&quot;&amp;ctl00%24ContentBody%24&quot;); sb.append(URL.encodeURL(&quot;cookie&quot;,false));
+-					sb.append(&quot;=&quot;); sb.append(URL.encodeURL(&quot;on&quot;,false));
+-					sb.append(&quot;&amp;ctl00%24ContentBody%24&quot;); sb.append(URL.encodeURL(&quot;Button1&quot;,false));
+-					sb.append(&quot;=&quot;); sb.append(URL.encodeURL(&quot;Login&quot;,false));
+-//					sb.append(&quot;&amp;&quot;); sb.append(URL.encodeURL(&quot;__EVENTVALIDATION&quot;,false));
+-//					sb.append(&quot;=&quot;); sb.append(URL.encodeURL(eventvalidation,false));
+-					start = fetch_post(loginPage, sb.toString(), nextPage);  // /login/default.aspx
+-					if(start.indexOf(loginSuccess) &gt; 0)
+-						pref.log(&quot;[login]:Login successful&quot;);
+-					else {
+-						pref.log(&quot;[login]:Login failed. Wrong Account or Password?&quot;);
+-						if (pref.debug) {
+-							pref.log(&quot;[login.LoginUrl]:&quot;+sb.toString());
+-							pref.log(&quot;[login.Answer]:&quot;+start);
+-						}
+-						localInfB.close(0);
+-						(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), MyLocale.getMsg(5501,&quot;Login failed! Wrong account or password?&quot;), FormBase.OKB)).execute();
+-						return ERR_LOGIN;
+-					}
+-				}catch(Exception ex){
+-					pref.log(&quot;[login]:Login failed with exception.&quot;, ex);
+-					localInfB.close(0);
+-					(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), MyLocale.getMsg(5501,&quot;Login failed. Error loading page after login.&quot;), FormBase.OKB)).execute();
+-					return ERR_LOGIN;
+-				}
+-			}
+-
+-			rexViewstate.search(start);
+-			if (!rexViewstate.didMatch()) {
+-				pref.log(&quot;[login]:Viewstate not found&quot;);
+-			}
+-			viewstate = rexViewstate.stringMatched(1);
+-
+-			/*
+-			rexViewstate1.search(start);
+-			if (!rexViewstate1.didMatch()) {
+-				pref.log(&quot;[login]:Viewstate1 not found&quot;);
+-			}
+-			*/
+-
+-			rexCookieID.search(start);
+-			if (!rexCookieID.didMatch()) {
+-				pref.log(&quot;[login]:CookieID not found. Using old one.&quot;);
+-			} else
+-				cookieID = rexCookieID.stringMatched(1);
+-			//Vm.debug(cookieID);
+-			rexCookieSession.search(start);
+-			if (!rexCookieSession.didMatch()) {
+-				pref.log(&quot;[login]:CookieSession not found. Using old one.&quot;);
+-				//cookieSession=&quot;&quot;;
+-			} else
+-				cookieSession = rexCookieSession.stringMatched(1);
+-			//Vm.debug(&quot;cookieSession = &quot; + cookieSession);
+-		}
+-		boolean loginAborted=localInfB.isClosed;
+-		localInfB.close(0);
+-		if (loginAborted)
+-			return FormBase.IDCANCEL;
+-		else {
+-			loggedIn = true;
+-			return FormBase.IDOK;
+-		}
+-	}
+-
+-	/**
+-	 * Method to spider a single cache.
+-	 * It assumes a login has already been performed!
+-	 * @return 1 if spider was successful, -1 if spider was cancelled by closing the infobox, 0 error, but continue with next cache
+-	 */
+-	public int spiderSingle(int number, InfoBox pInfB, boolean forceLogin, boolean loadAllLogs){
+-		int ret=-1;
+-		this.infB = pInfB;
+-		CacheHolder ch = new CacheHolder(); // cacheDB.get(number);
+-		ch.setWayPoint(cacheDB.get(number).getWayPoint());
+-		if (ch.isAddiWpt()) return -1;  // No point re-spidering an addi waypoint, comes with parent
+-
+-		// check if we need to login
+-		if (!loggedIn || forceLogin){
+-			if (this.login()!=FormBase.IDOK) return -1;
+-			// loggedIn is already set by this.login()
+-		}
+-		try{
+-			// Read the cache data from GC.COM and compare to old data
+-			ret=getCacheByWaypointName(ch,true,pref.downloadPics,pref.downloadTBs,false,loadAllLogs);
+-			// Save the spidered data
+-			if (ret == SPIDER_OK) {
+-				CacheHolder cacheInDB = cacheDB.get(number);
+-				cacheInDB.initStates(false);
+-				if (cacheInDB.is_found() &amp;&amp; !ch.is_found() &amp;&amp; ! loadAllLogs) {
+-					// If the number of logs to spider is 5 or less, then the &quot;not found&quot; information
+-					// of the spidered cache is not credible. In this case it should not overwrite
+-					// the &quot;found&quot; state of an existing cache.
+-					ch.setFound(true);
+-				}
+-				// preserve rating information
+-				ch.setNumRecommended(cacheInDB.getNumRecommended());
+-				if (pref.downloadPics) {
+-					// delete obsolete images when we have current set
+-					CacheImages.cleanupOldImages(cacheInDB.getExistingDetails().images, ch.getFreshDetails().images);
+-				} else {
+-					// preserve images if not downloaded
+-					ch.getFreshDetails().images = cacheInDB.getExistingDetails().images;
+-				}
+-				cacheInDB.update(ch);
+-				cacheInDB.save();
+-			}
+-		}catch(Exception ex){
+-			pref.log(&quot;Error spidering &quot; + ch.getWayPoint() + &quot; in spiderSingle&quot;);
+-		}
+-		return ret;
+-	} // spiderSingle
+-
+-	/**
+-	 * Fetch the coordinates of a waypoint from GC
+-	 * @param wayPoint the name of the waypoint
+-	 * @return the cache coordinates
+-	 */
+-	public String getCacheCoordinates(String wayPoint) {
+-		String completeWebPage;
+-		// Check whether spider definitions could be loaded, if not issue appropriate message and terminate
+-		// Try to login. If login fails, issue appropriate message and terminate
+-		if (!loggedIn || Global.getPref().forceLogin) {
+-			if (login()!=FormBase.IDOK) {
+-				return &quot;&quot;;
+-			}
+-		}
+-		InfoBox localInfB = new InfoBox(&quot;Info&quot;, &quot;Loading&quot;, InfoBox.PROGRESS_WITH_WARNINGS);
+-		localInfB.exec();
+-		try{
+-			String doc = p.getProp(&quot;waypoint&quot;) + wayPoint;
+-			pref.log(&quot;Fetching: &quot; + wayPoint);
+-			completeWebPage = fetch(doc);
+-		}catch(Exception ex){
+-			localInfB.close(0);
+-			pref.log(&quot;Could not fetch &quot; + wayPoint,ex);
+-			return &quot;&quot;;
+-		}
+-		localInfB.close(0);
+-		try {
+-			return getLatLon(completeWebPage);
+-		} catch (Exception ex) {
+-			return &quot;????&quot;;
+-		}
+-	}
+-
+-	/**
+ 	*	Method to start the spider for a search around the centre coordinates
+ 	*/
+ 	public void doIt(){
+ 		doIt(false);
+ 	}
+-	public void doIt(boolean spiderAllFinds){
+-		String postStr, dummy, ln, wpt;
+-		Regex lineRex;
+-		CacheHolder holder;
+-		CWPoint origin = pref.getCurCentrePt(); // No need to copy curCentrePt as it is only read and not written
++	public void doIt(boolean _spiderAllFinds){
++		spiderAllFinds=_spiderAllFinds;
++		origin = pref.getCurCentrePt(); // No need to copy curCentrePt as it is only read and not written
+ 		if ( !spiderAllFinds &amp;&amp; !origin.isValid()) {
+ 			(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), MyLocale.getMsg(5509,&quot;Coordinates for centre must be set&quot;), FormBase.OKB)).execute();
+ 			return;
+@@ -352,27 +149,44 @@
+ 			ch = cacheDB.get(i);
+ 			if (ch.mainCache==null) ch.initStates(false);
+ 		}
+-		String start = &quot;&quot;;
+-		Regex rexViewstate = new Regex(&quot;id=\&quot;__VIEWSTATE\&quot; value=\&quot;(.*)\&quot; /&gt;&quot;);
+-		// Regex rexViewstate1 = new Regex(&quot;id=\&quot;__VIEWSTATE1\&quot; value=\&quot;(.*)\&quot; /&gt;&quot;);
+-		Regex rexEventvalidation = new Regex(&quot;id=\&quot;__EVENTVALIDATION\&quot; value=\&quot;(.*)\&quot; /&gt;&quot;);
+-		String doc = &quot;&quot;;
+ 
+ 		if (!loggedIn || Global.getPref().forceLogin) {
+ 			if(login() != FormBase.IDOK) return;
+ 		}
+ 
+-		boolean doNotgetFound = false;
++		doNotgetFound = false;
+ 
+ 		OCXMLImporterScreen options;
+ 		if (spiderAllFinds) {
+-			options = new OCXMLImporterScreen(MyLocale.getMsg(5510,&quot;Spider Options&quot;), OCXMLImporterScreen.MAXNUMBER|OCXMLImporterScreen.IMAGES| OCXMLImporterScreen.ISGC| OCXMLImporterScreen.TRAVELBUGS| OCXMLImporterScreen.MAXLOGS| OCXMLImporterScreen.TYPE);
++			options = new OCXMLImporterScreen(MyLocale.getMsg(5510,&quot;Spider Options&quot;),
++					OCXMLImporterScreen.MAXNUMBER|
++					OCXMLImporterScreen.MAXUPDATE|
++					OCXMLImporterScreen.IMAGES|
++					OCXMLImporterScreen.ISGC|
++					OCXMLImporterScreen.TRAVELBUGS);
++
++			options.maxNumberUpdates.setText(&quot;0&quot;); // no updates for founds
++
+ 			if (options.execute() == FormBase.IDCANCEL) {return; }
+ 			maxDistance = 1;
+ 			minDistance = 0;
+ 			direction=&quot;&quot;;
+ 		} else {
+-			options = new OCXMLImporterScreen(MyLocale.getMsg(5510,&quot;Spider Options&quot;),	OCXMLImporterScreen.MAXNUMBER|OCXMLImporterScreen.INCLUDEFOUND | OCXMLImporterScreen.MINDIST| OCXMLImporterScreen.DIST| OCXMLImporterScreen.DIRECTION| OCXMLImporterScreen.IMAGES| OCXMLImporterScreen.ISGC| OCXMLImporterScreen.TRAVELBUGS| OCXMLImporterScreen.MAXLOGS| OCXMLImporterScreen.TYPE);
++			options = new OCXMLImporterScreen(MyLocale.getMsg(5510,&quot;Spider Options&quot;),
++					OCXMLImporterScreen.MAXNUMBER|
++					OCXMLImporterScreen.MAXUPDATE|
++					OCXMLImporterScreen.INCLUDEFOUND|
++					OCXMLImporterScreen.MINDIST|
++					OCXMLImporterScreen.DIST|
++					OCXMLImporterScreen.DIRECTION|
++					OCXMLImporterScreen.IMAGES|
++					OCXMLImporterScreen.ISGC|
++					OCXMLImporterScreen.TRAVELBUGS|
++					OCXMLImporterScreen.MAXLOGS|
++					OCXMLImporterScreen.TYPE);
++
++			if (pref.spiderUpdates == Preferences.NO) {options.maxNumberUpdates.setText(&quot;0&quot;);} // no updates else all
++
+ 			if (options.execute() == FormBase.IDCANCEL) {return; }
+ 
+ 			String minDist = options.minDistanceInput.getText();
+@@ -403,27 +217,36 @@
+ 		}
+ 		directions=mString.split(direction, ',');
+ 
+-		int maxNumber = -1;
++		maxNew = -1;
+ 		String maxNumberString = options.maxNumberInput.getText();
+ 		if (maxNumberString.length()!= 0) {
+-			maxNumber = Common.parseInt(maxNumberString);
++			maxNew = Common.parseInt(maxNumberString);
+ 		}
+-		if (maxNumber != pref.maxSpiderNumber) {
+-			pref.maxSpiderNumber = maxNumber;
++		if (maxNew != pref.maxSpiderNumber) {
++			pref.maxSpiderNumber = maxNew;
+ 			pref.savePreferences();
+ 		}
+-		if (maxNumber == 0) return;
+-		boolean maxNumberAbort = false;
+ 
++		maxUpdate = -1;
++		String maxUpdateString = options.maxNumberUpdates.getText();
++		if (maxUpdateString.length()!= 0) {
++			maxUpdate = Common.parseInt(maxUpdateString);
++		}
++		// TODO maxUpdate in preferences ?
++		
++		if (maxNew == 0) return;
++		if(maxNew==-1) maxNew=Integer.MAX_VALUE;
++		if(maxUpdate==-1) maxUpdate=Integer.MAX_VALUE;
++
+ 		boolean getImages = options.imagesCheckBox.getState();
+ 		boolean getTBs = options.travelbugsCheckBox.getState();
+ 
+-		String cacheTypeRestriction = options.getCacheTypeRestriction(p);
+-
++		cacheTypeRestriction = options.getCacheTypeRestriction(p);
++		byte restrictedCacheType = options.getRestrictedCacheType(p);
+ 		options.close(0);
+ 
+ 		//max distance in miles for URL, so we can get more than 80km
+-		double saveDistanceInMiles = maxDistance;
++		saveDistanceInMiles = maxDistance;
+ 		if ( Global.getPref().metricSystem != Metrics.IMPERIAL ) {
+ 			saveDistanceInMiles = Metrics.convertUnit(maxDistance, Metrics.KILOMETER, Metrics.MILES);
+ 		}
+@@ -431,29 +254,24 @@
+ 		saveDistanceInMiles = java.lang.Math.ceil(saveDistanceInMiles) + 1;
+ 
+ 		Hashtable cachesToUpdate = new Hashtable(cacheDB.size());
++		Hashtable cachesShouldUpdate = new Hashtable(cacheDB.size()); // for don't loose the already done work
+ 
+-		if (pref.spiderUpdates != Preferences.NO) {
++		if (maxUpdate==Integer.MAX_VALUE) {
+ 			double distanceInKm = maxDistance;
+ 			if ( Global.getPref().metricSystem == Metrics.IMPERIAL ) {
+ 				distanceInKm = Metrics.convertUnit(maxDistance, Metrics.MILES, Metrics.KILOMETER);
+ 			}
+-			double minDistanceInKm = minDistance;
+-			if ( Global.getPref().metricSystem == Metrics.IMPERIAL ) {
+-				minDistanceInKm = Metrics.convertUnit(minDistance, Metrics.MILES, Metrics.KILOMETER);
+-			}
+-
+-			byte restrictedCacheType = options.getRestrictedCacheType(p);
++			// to get in meantime possibly archived caches
+ 			for(int i = 0; i&lt;cacheDB.size();i++){
+ 				ch = cacheDB.get(i);
+ 				if (spiderAllFinds) {
+ 					if ( (ch.getWayPoint().substring(0,2).equalsIgnoreCase(&quot;GC&quot;))
+-					     &amp;&amp; ( (restrictedCacheType == CacheType.CW_TYPE_ERROR) || (ch.getType() == restrictedCacheType) )
+ 					     &amp;&amp; !ch.is_black() ) {
+ 						cachesToUpdate.put(ch.getWayPoint(), ch);
+ 					}
+ 				} else {
+ 					if ( (!ch.is_archived())
+-						 &amp;&amp; (ch.kilom &lt;= distanceInKm) /*&amp;&amp; (ch.kilom &gt;= minDistanceInKm)*/
++						 &amp;&amp; (ch.kilom &lt;= distanceInKm)
+ 						 &amp;&amp; !(doNotgetFound &amp;&amp; (ch.is_found() || ch.is_owned()))
+ 						 &amp;&amp; (ch.getWayPoint().substring(0,2).equalsIgnoreCase(&quot;GC&quot;))
+ 						 &amp;&amp; ( (restrictedCacheType == CacheType.CW_TYPE_ERROR) || (ch.getType() == restrictedCacheType) )
+@@ -467,178 +285,95 @@
+ 		//=======
+ 		// Prepare list of all caches that are to be spidered
+ 		//=======
+-		Vm.showWait(true);
+-		infB = new InfoBox(&quot;Status&quot;, MyLocale.getMsg(5502,&quot;Fetching first page...&quot;));
+-		infB.exec();
+-		//Get first page
+-		try{
+-			if (spiderAllFinds) {
+-				ln = p.getProp(&quot;firstPageFinds&quot;) + encodeUTF8URL(Utils.encodeJavaUtf8String(pref.myAlias));
+-			} else {
+-				ln = p.getProp(&quot;firstPage&quot;) + origin.getLatDeg(TransformCoordinates.DD) + p.getProp(&quot;firstPage2&quot;) + origin.getLonDeg(TransformCoordinates.DD)
+-			                              + p.getProp(&quot;maxDistance&quot;) + Integer.toString( (int)saveDistanceInMiles );
+-				if(doNotgetFound) ln = ln + p.getProp(&quot;showOnlyFound&quot;);
+-			}
+-			ln = ln + cacheTypeRestriction;
+-			pref.log(&quot;Getting first page: &quot;+ln);
+-			start = fetch(ln);
+-			pref.log(&quot;Got first page&quot;);
+-		}catch(Exception ex){
+-			pref.log(&quot;Error fetching first list page&quot;,ex,true);
+-			Vm.showWait(false);
+-			infB.close(0);
+-			(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), MyLocale.getMsg(5503,&quot;Error fetching first list page.&quot;), FormBase.OKB)).execute();
+-			return;
++		initialiseProperties();
++		getFirstListPage();
++
++		int numFinds=0; // spiderAllFinds : Number of GC-founds for this user
++		int numFoundInDB=0; // Number of GC-founds already in this profile
++		if (spiderAllFinds) {
++			numFoundInDB=getFoundInDB();
++			numFinds=getNumFound(htmlListPage);
++			maxNew=java.lang.Math.min(numFinds-numFoundInDB,maxNew);
++			if (maxUpdate==0 &amp;&amp; maxNew == 0) { Vm.showWait(false); infB.close(0); return; }
+ 		}
+-		dummy = &quot;&quot;;
+-		//String lineBlck = &quot;&quot;;
+-		int page_number = 1;
+-		try  {
+-			lineRex = new Regex(p.getProp(&quot;lineRex&quot;)); //&quot;&lt;tr bgcolor=((?s).*?)&lt;/tr&gt;&quot;
+-		} catch (Exception ex) {
+-			infB.close(0);
+-			Vm.showWait(false);
+-			return;
+-		}
+-		int page = 0;
+-		int found_on_page = 0;
++		
++		String[] cacheDescGC;
++		int anzLines=38;
++		int lineDistance=1;
++		int lineDirection=1;
++		int lineWaypoint=22;
++		int lineDescription=20;
++		int lineLastFound=27;
++		Regex lineRex = new Regex(propLineRex);
+ 		try {
+-			//Loop till maximum distance has been found or no more caches are in the list
++			//Loop pages till maximum distance has been found or no more caches are in the list
+ 			while(maxDistance &gt; 0){
+-				if (infB.isClosed){
+-					//don't update existing caches, because list is not correct when aborting
+-					cachesToUpdate.clear();
+-
+-					break;
+-				}
+-
+-				rexViewstate.search(start);
+-				if(rexViewstate.didMatch()){
+-					viewstate = rexViewstate.stringMatched(1);
+-					//Vm.debug(&quot;ViewState: &quot; + viewstate);
+-				} else {
+-					viewstate = &quot;&quot;;
+-					pref.log(&quot;Viewstate not found&quot;);
+-				}
+-
+-				rexEventvalidation.search(start);
+-				if(rexEventvalidation.didMatch()){
+-					// eventvalidation = rexEventvalidation.stringMatched(1);
+-					//Vm.debug(&quot;EVENTVALIDATION: &quot; + eventvalidation);
+-				} else {
+-					// eventvalidation = &quot;&quot;;
+-					// pref.log(&quot;Eventvalidation not found&quot;);
+-				}
+-
+-				//Vm.debug(&quot;In loop&quot;);
+-				Regex listBlockRex = new Regex(p.getProp(&quot;listBlockRex&quot;)); // &quot;&lt;table id=\&quot;dlResults\&quot;((?s).*?)&lt;/table&gt;&quot;
+-				listBlockRex.search(start);
+-				dummy = listBlockRex.stringMatched(1);
+-				try{
+-					lineRex.search(dummy);
+-				}catch(NullPointerException nex){
+-					Global.getPref().log(&quot;Ignored Exception&quot;, nex, true);
+-				}
+-				String oneCacheDesc=&quot;&quot;;
+-				while ( maxDistance&gt;0 &amp;&amp; lineRex.didMatch()){
+-					//Vm.debug(getDist(lineRex.stringMatched(1)) + &quot; / &quot; +getWP(lineRex.stringMatched(1)));
++				Regex listBlockRex = new Regex(propListBlockRex); // &quot;&lt;table id=\&quot;dlResults\&quot;((?s).*?)&lt;/table&gt;&quot;
++				listBlockRex.search(htmlListPage);
++				String tableOfHtmlListPage = listBlockRex.stringMatched(1);
++				lineRex.search(tableOfHtmlListPage);
++				while (maxDistance &gt; 0){
++					if (!lineRex.didMatch()) break;
+ 					found_on_page++;
+-					oneCacheDesc=lineRex.stringMatched(1);
+-					double gotDistance=getDist(oneCacheDesc);
++					cacheDescGC=mString.split(lineRex.stringMatched(1),'\n');
++					if(cacheDescGC.length!=anzLines) {
++						maxDistance = 0; //add no more caches
++						(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), &quot;GC changed table output \nCW must be changed too!&quot;, FormBase.OKB)).execute();
++						throw new Exception(&quot;GC changed table output&quot;);
++					}
++					double gotDistance=getDistGC(cacheDescGC[lineDistance]);
++					String chWaypoint=getWP(cacheDescGC[lineWaypoint]);
+ 					if(gotDistance &lt;= maxDistance){
+-					  String chWaypoint=getWP(oneCacheDesc);
+ 						ch=cacheDB.get(chWaypoint);
+-						if(ch == null){
+-						  if ( gotDistance &gt;= minDistance &amp;&amp; directionOK(directions,getDirection(oneCacheDesc)) ){
+-								pref.log(chWaypoint+&quot; added to load!&quot;);
++						if(ch == null){ // not in DB
++							if ( gotDistance &gt;= minDistance &amp;&amp;
++								 directionOK(directions,getDirection(cacheDescGC[lineDirection])) ){
+ 								cachesToLoad.add(chWaypoint);
+-								if ((maxNumber &gt; 0) &amp;&amp; (cachesToLoad.size() &gt;= maxNumber)) {
+-									maxNumberAbort = true;
+-									maxDistance = 0; //add no more caches
+-									cachesToUpdate.clear(); //don't update existing caches, because list is not correct when aborting
++								if(cachesToLoad.size()==maxNew) {
++									if(maxUpdate!=Integer.MAX_VALUE) maxDistance=0;
+ 								}
+ 							}
+-						} else {
+-							// if (pref.spiderUpdates != Preferences.NO) {
+-							pref.log(chWaypoint+&quot; already in DB&quot;);
+-						  // If the &lt;strike&gt; tag is used, the cache is marked as unavailable or archived
+-							boolean is_archived_GC=oneCacheDesc.indexOf(&quot;&lt;strike&gt;&lt;font color=\&quot;red\&quot;&gt;&quot;)!=-1;
+-							boolean is_available_GC=oneCacheDesc.indexOf(&quot;&lt;strike&gt;&quot;)==-1;
+-							// CacheHolderDetail det = ch.getCacheDetails(true);
+-							if (ch.is_archived()!=is_archived_GC) { // Update the database with the cache status
+-								pref.log(&quot;Updating status of &quot;+chWaypoint+&quot; to &quot;+(is_archived_GC?&quot;archived&quot;:&quot;not archived&quot;));
+-								if ( ch.is_archived() ) {
+-									// is not yet in updateList
+-									cachesToUpdate.put(chWaypoint, ch);
++						}
++						else {
++							if (maxUpdate&gt;0) {
++								boolean update=false;
++								if (spiderAllFinds) {
++									if(!ch.is_found()) { ch.setFound(true); update=true;}
++									boolean is_archived_GC=cacheDescGC[lineDescription].indexOf(&quot;&lt;font color=\&quot;red\&quot;&gt;&lt;strike&gt;&quot;)!=-1;
++									if (is_archived_GC!=ch.is_archived()) { ch.setArchived(is_archived_GC); update=true;}
+ 								}
+-								ch.setArchived(is_archived_GC);
+-							} else if (ch.is_available()!=is_available_GC) { // Update the database with the cache status
+-								pref.log(&quot;Updating status of &quot;+chWaypoint+&quot; to &quot;+(is_available_GC?&quot;available&quot;:&quot;not available&quot;));
+-								ch.setAvailable(is_available_GC);
+-							} else if (spiderAllFinds &amp;&amp; !ch.is_found()) { // Update the database with the cache status
+-								pref.log(&quot;Updating status of &quot;+chWaypoint+&quot; to found&quot;);
+-								ch.setFound(true);
+-							} else {
+-								cachesToUpdate.remove( chWaypoint );
++								boolean is_available_GC=cacheDescGC[lineDescription].indexOf(&quot;&lt;strike&gt;&quot;)==-1;
++								if (is_available_GC != ch.is_available()) { ch.setAvailable(is_available_GC); update=true;}
++								if (newLogExists(ch,cacheDescGC[lineLastFound])) {update=true;}
++								if (update) {
++									cachesShouldUpdate.put(chWaypoint, ch);
++									if(cachesShouldUpdate.size()==maxUpdate) maxDistance=0;
++								}
++								else
++									if (maxUpdate==Integer.MAX_VALUE) cachesToUpdate.remove( chWaypoint );
+ 							}
+-						// }
+-  					}
+-					} else maxDistance = 0;
+-					// next Cache Description of this page
+-					lineRex.searchFrom(dummy, lineRex.matchedTo());
+-				}
+-
+-				page++;
+-				infB.setInfo(MyLocale.getMsg(5521,&quot;Page &quot;) + page + &quot;\n&quot; + MyLocale.getMsg(5511,&quot;Found &quot;) + cachesToLoad.size() + MyLocale.getMsg(5512,&quot; caches&quot;));
+-
+-				if(found_on_page &lt; 20) maxDistance = 0;
+-				if (spiderAllFinds) {
+-					postStr = p.getProp(&quot;firstLine&quot;);
+-				} else {
+-					postStr = p.getProp(&quot;firstLine&quot;) + origin.getLatDeg(TransformCoordinates.DD) + p.getProp(&quot;firstLine2&quot;) + origin.getLonDeg(TransformCoordinates.DD)
+-							                             + p.getProp(&quot;maxDistance&quot;) + Integer.toString( (int)saveDistanceInMiles );
+-					if(doNotgetFound) postStr = postStr + p.getProp(&quot;showOnlyFound&quot;);
+-				}
+-				postStr = postStr + cacheTypeRestriction;
+-				if(maxDistance &gt; 0){
+-					page_number++;
+-					String strNextPage;
+-					/*
+-					if(page_number &gt;= 15) page_number = 5;
+-					if (page_number &lt; 10) {
+-						strNextPage = &quot;ctl00$ContentBody$pgrTop$ctl0&quot; + page_number;
+-					} else {
+-						strNextPage = &quot;ctl00$ContentBody$pgrTop$ctl&quot; + page_number;
+-					}
+-					*/
+-					strNextPage = &quot;ctl00$ContentBody$pgrTop$ctl08&quot;;
+-
+-					doc = URL.encodeURL(&quot;__EVENTTARGET&quot;,false) +&quot;=&quot;+ URL.encodeURL(strNextPage,false)
+-					    + &quot;&amp;&quot; + URL.encodeURL(&quot;__EVENTARGUMENT&quot;,false) +&quot;=&quot;+ URL.encodeURL(&quot;&quot;,false)
+-//					    + &quot;&amp;&quot; + URL.encodeURL(&quot;__VIEWSTATEFIELDCOUNT&quot;,false) +&quot;=2&quot;
+-					    + &quot;&amp;&quot; + URL.encodeURL(&quot;__VIEWSTATE&quot;,false) +&quot;=&quot;+ URL.encodeURL(viewstate,false);
+-//					    + &quot;&amp;&quot; + URL.encodeURL(&quot;__VIEWSTATE1&quot;,false) +&quot;=&quot;+ URL.encodeURL(viewstate1,false);
+-//					    + &quot;&amp;&quot; + URL.encodeURL(&quot;__EVENTVALIDATION&quot;,false) +&quot;=&quot;+ URL.encodeURL(eventvalidation,false);
+-					try{
+-						start = &quot;&quot;;
+-						pref.log(&quot;Fetching next list page:&quot; + doc);
+-						start = fetch_post(postStr, doc, p.getProp(&quot;nextListPage&quot;));
+-					}catch(Exception ex){
+-						//Vm.debug(&quot;Couldn't get the next page&quot;);
+-						pref.log(&quot;Error getting next page&quot;);
+-					}
+-				}
+-				//Vm.debug(&quot;Distance is now: &quot; + distance);
+-				found_on_page = 0;
+-			}
+-		} catch (Exception ex) { // Some tag missing from spider.def
++						}
++					} else maxDistance = 0; // finish listing
++					// get next row of table (next Cache Description) of this htmlListPage
++					lineRex.searchFrom(tableOfHtmlListPage, lineRex.matchedTo());
++					if (infB.isClosed) break;
++				} // next Cache
++				infB.setInfo(MyLocale.getMsg(5521,&quot;Page &quot;) + page_number + &quot;\n&quot; +
++							 MyLocale.getMsg(5511,&quot;Found &quot;) + cachesToLoad.size() + MyLocale.getMsg(5512,&quot; caches&quot;));
++				if(found_on_page &lt; 20) maxDistance = 0; // last page (has less than 20 entries!?) to check reached
++				if(maxDistance &gt; 0){getNextListPage();}
++			} // loop pages
++		} // try
++		catch (Exception ex) {
+ 			infB.close(0);
+ 			Vm.showWait(false);
+ 			return;
+ 		}
++
++		if (infB.isClosed) { Vm.showWait(false); return; }
++		infB.setInfo(MyLocale.getMsg(5511,&quot;Found &quot;) + cachesToLoad.size() + MyLocale.getMsg(5512,&quot; caches&quot;));
+ 		pref.log(&quot;Found &quot; + cachesToLoad.size() + &quot; new caches&quot;);
+ 		pref.log(&quot;Found &quot; + cachesToUpdate.size() + &quot; caches for update&quot;);
+-		if (!infB.isClosed) infB.setInfo(MyLocale.getMsg(5511,&quot;Found &quot;) + cachesToLoad.size() + MyLocale.getMsg(5512,&quot; caches&quot;));
+ 
+ 		//=======
+ 		// Now ready to spider each cache in the list
+@@ -646,6 +381,7 @@
+ 		boolean loadAllLogs = (pref.maxLogsToSpider &gt; 5) || spiderAllFinds;
+ 
+ 		int spiderErrors = 0;
++		if (cachesToUpdate.size()==0) cachesToUpdate=cachesShouldUpdate;
+ 
+ 		if ( cachesToUpdate.size() &gt; 0 ) {
+ 			switch (pref.spiderUpdates) {
+@@ -666,11 +402,11 @@
+ 		for(int i = 0; i&lt;cachesToLoad.size(); i++){
+ 			if (infB.isClosed) break;
+ 
+-			wpt = (String)cachesToLoad.get(i);
++			String wpt = (String)cachesToLoad.get(i);
+ 			// Get only caches not already available in the DB
+ 			if(cacheDB.getIndex(wpt) == -1){
+ 				infB.setInfo(MyLocale.getMsg(5513,&quot;Loading: &quot;) + wpt +&quot; (&quot; + (i+1) + &quot; / &quot; + totalCachesToLoad + &quot;)&quot;);
+-				holder = new CacheHolder();
++				CacheHolder holder = new CacheHolder();
+ 				holder.setWayPoint(wpt);
+ 				int test = getCacheByWaypointName(holder,false,getImages,getTBs,doNotgetFound,loadAllLogs);
+ 				if (test == SPIDER_CANCEL) {
+@@ -692,8 +428,6 @@
+ 			for (Enumeration e = cachesToUpdate.elements() ; e.hasMoreElements() ; j++) {
+ 				ch = (CacheHolder)e.nextElement();
+ 				infB.setInfo(MyLocale.getMsg(5513,&quot;Loading: &quot;) + ch.getWayPoint() +&quot; (&quot; + (cachesToLoad.size()+j) + &quot; / &quot; + totalCachesToLoad + &quot;)&quot;);
+-				infB.redisplay();
+-
+ 				int test = spiderSingle(cacheDB.getIndex(ch), infB,false,loadAllLogs);
+ 				if (test == SPIDER_CANCEL) {
+ 					break;
+@@ -716,8 +450,396 @@
+ 		}
+ 		Global.getProfile().restoreFilter();
+ 		Global.getProfile().saveIndex(Global.getPref(),true);
++	} // End of DoIt spider many / all finds
++
++	/**
++	 * Method to spider a single cache.
++	 * It assumes a login has already been performed!
++	 * @return 1 if spider was successful, -1 if spider was cancelled by closing the infobox, 0 error, but continue with next cache
++	 */
++	public int spiderSingle(int number, InfoBox pInfB, boolean forceLogin, boolean loadAllLogs){
++		int ret=-1;
++		this.infB = pInfB;
++		CacheHolder ch = new CacheHolder(); // cacheDB.get(number);
++		ch.setWayPoint(cacheDB.get(number).getWayPoint());
++		if (ch.isAddiWpt()) return -1;  // No point re-spidering an addi waypoint, comes with parent
++
++		// check if we need to login
++		if (!loggedIn || forceLogin){
++			if (this.login()!=FormBase.IDOK) return -1;
++			// loggedIn is already set by this.login()
++		}
++		try{
++			// Read the cache data from GC.COM and compare to old data
++			ret=getCacheByWaypointName(ch,true,pref.downloadPics,pref.downloadTBs,false,loadAllLogs);
++			// Save the spidered data
++			if (ret == SPIDER_OK) {
++				CacheHolder cacheInDB = cacheDB.get(number);
++				cacheInDB.initStates(false);
++				if (cacheInDB.is_found() &amp;&amp; !ch.is_found() &amp;&amp; ! loadAllLogs) {
++					// If the number of logs to spider is 5 or less, then the &quot;not found&quot; information
++					// of the spidered cache is not credible. In this case it should not overwrite
++					// the &quot;found&quot; state of an existing cache.
++					ch.setFound(true);
++				}
++				// preserve rating information
++				ch.setNumRecommended(cacheInDB.getNumRecommended());
++				if (pref.downloadPics) {
++					// delete obsolete images when we have current set
++					CacheImages.cleanupOldImages(cacheInDB.getExistingDetails().images, ch.getFreshDetails().images);
++				} else {
++					// preserve images if not downloaded
++					ch.getFreshDetails().images = cacheInDB.getExistingDetails().images;
++				}
++				cacheInDB.update(ch);
++				cacheInDB.save();
++			}
++		}catch(Exception ex){
++			pref.log(&quot;Error spidering &quot; + ch.getWayPoint() + &quot; in spiderSingle&quot;);
++		}
++		return ret;
++	} // spiderSingle
++
++	/**
++	 * Fetch the coordinates of a waypoint from GC
++	 * @param wayPoint the name of the waypoint
++	 * @return the cache coordinates
++	 */
++	public String getCacheCoordinates(String wayPoint) {
++		String completeWebPage;
++		// Check whether spider definitions could be loaded, if not issue appropriate message and terminate
++		// Try to login. If login fails, issue appropriate message and terminate
++		if (!loggedIn || Global.getPref().forceLogin) {
++			if (login()!=FormBase.IDOK) {
++				return &quot;&quot;;
++			}
++		}
++		InfoBox localInfB = new InfoBox(&quot;Info&quot;, &quot;Loading&quot;, InfoBox.PROGRESS_WITH_WARNINGS);
++		localInfB.exec();
++		try{
++			String doc = p.getProp(&quot;waypoint&quot;) + wayPoint;
++			pref.log(&quot;Fetching: &quot; + wayPoint);
++			completeWebPage = fetch(doc);
++		}catch(Exception ex){
++			localInfB.close(0);
++			pref.log(&quot;Could not fetch &quot; + wayPoint,ex);
++			return &quot;&quot;;
++		}
++		localInfB.close(0);
++		try {
++			return getLatLon(completeWebPage);
++		} catch (Exception ex) {
++			return &quot;????&quot;;
++		}
++	} // getCacheCoordinates
++
++	/**
++	 * Method to login the user to gc.com
++	 * It will request a password and use the alias defined in preferences
++	 * If the login page cannot be fetched, the password is cleared.
++	 * If the login fails, an appropriate message is displayed.
++	 */
++	private int login(){
++		loggedIn = false;
++		String loginPage,loginPageUrl,loginSuccess,nextPage;
++		try {
++			loginPageUrl=p.getProp(&quot;loginPage&quot;);
++			loginSuccess=p.getProp(&quot;loginSuccess&quot;);
++			nextPage=p.getProp(&quot;nextPage&quot;);
++		} catch (Exception ex) { // Tag not found in spider.def
++			return ERR_LOGIN;
++		}
++		//Get password
++		InfoBox localInfB = new InfoBox(MyLocale.getMsg(5506,&quot;Password&quot;), MyLocale.getMsg(5505,&quot;Enter Password&quot;), InfoBox.INPUT);
++		localInfB.feedback.setText(passwort); // Remember the PWD for next time
++		localInfB.feedback.isPassword=true;
++		int code=FormBase.IDOK;
++		if (passwort.equals(&quot;&quot;)) {
++			code = localInfB.execute();
++			passwort = localInfB.getInput();
++		}
++		localInfB.close(0);
++		if(code != FormBase.IDOK) return code;
++		// Now start the login proper
++		localInfB = new InfoBox(MyLocale.getMsg(5507,&quot;Status&quot;), MyLocale.getMsg(5508,&quot;Logging in...&quot;));
++		localInfB.exec();
++		try{
++			pref.log(&quot;[login]:Fetching login page&quot;);
++			//Access the page once to get a viewstate
++			loginPage = fetch(loginPageUrl);   //<A HREF="http://www.geocaching.com/login/Default.aspx">http://www.geocaching.com/login/Default.aspx</A>
++			if (loginPage.equals(&quot;&quot;)) {
++				localInfB.close(0);
++				(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), MyLocale.getMsg(5499,&quot;Error loading login page.%0aPlease check your internet connection.&quot;), FormBase.OKB)).execute();
++				pref.log(&quot;[login]:Could not fetch: gc.com login page&quot;);
++				return ERR_LOGIN;
++			}
++		} catch(Exception ex){
++			localInfB.close(0);
++			(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), MyLocale.getMsg(5499,&quot;Error loading login page.%0aPlease check your internet connection.&quot;), FormBase.OKB)).execute();
++			pref.log(&quot;[login]:Could not fetch: gc.com login page&quot;,ex);
++			return ERR_LOGIN;
++		}
++		if (!localInfB.isClosed) { // If user has not aborted, we continue
++			Regex rexCookieID = new Regex(&quot;(?i)Set-Cookie: userid=(.*?);.*&quot;);
++			Regex rexViewstate = new Regex(&quot;id=\&quot;__VIEWSTATE\&quot; value=\&quot;(.*?)\&quot; /&gt;&quot;);
++			// Regex rexViewstate1 = new Regex(&quot;id=\&quot;__VIEWSTATE1\&quot; value=\&quot;(.*?)\&quot; /&gt;&quot;);
++			Regex rexEventvalidation = new Regex(&quot;id=\&quot;__EVENTVALIDATION\&quot; value=\&quot;(.*?)\&quot; /&gt;&quot;);
++			Regex rexCookieSession = new Regex(&quot;(?i)Set-Cookie: ASP.NET_SessionId=(.*?);.*&quot;);
++			String viewstate=&quot;&quot;;
++			rexViewstate.search(loginPage);
++			if(rexViewstate.didMatch()){
++				viewstate = rexViewstate.stringMatched(1);
++				//Vm.debug(&quot;ViewState: &quot; + viewstate);
++			} else
++				pref.log(&quot;[login]:Viewstate not found before login&quot;);
++
++			if(loginPage.indexOf(loginSuccess) &gt; 0)
++				pref.log(&quot;[login]:Already logged in&quot;);
++			else {
++				rexEventvalidation.search(loginPage);
++				if(rexEventvalidation.didMatch()){
++					// eventvalidation = rexEventvalidation.stringMatched(1);
++					//Vm.debug(&quot;EVENTVALIDATION: &quot; + eventvalidation);
++				} else
++					pref.log(&quot;[login]:Eventvalidation not found before login&quot;);
++				//Ok now login!
++				try{
++					pref.log(&quot;[login]:Logging in as &quot;+pref.myAlias);
++					StringBuffer sb=new StringBuffer(1000);
++					sb.append(URL.encodeURL(&quot;__VIEWSTATE&quot;,false));	sb.append(&quot;=&quot;); sb.append(URL.encodeURL(viewstate,false));
++					sb.append(&quot;&amp;ctl00%24ContentBody%24&quot;); sb.append(URL.encodeURL(&quot;myUsername&quot;,false));
++					sb.append(&quot;=&quot;); sb.append(encodeUTF8URL(Utils.encodeJavaUtf8String(pref.myAlias)));
++					sb.append(&quot;&amp;ctl00%24ContentBody%24&quot;); sb.append(URL.encodeURL(&quot;myPassword&quot;,false));
++					sb.append(&quot;=&quot;); sb.append(encodeUTF8URL(Utils.encodeJavaUtf8String(passwort)));
++					sb.append(&quot;&amp;ctl00%24ContentBody%24&quot;); sb.append(URL.encodeURL(&quot;cookie&quot;,false));
++					sb.append(&quot;=&quot;); sb.append(URL.encodeURL(&quot;on&quot;,false));
++					sb.append(&quot;&amp;ctl00%24ContentBody%24&quot;); sb.append(URL.encodeURL(&quot;Button1&quot;,false));
++					sb.append(&quot;=&quot;); sb.append(URL.encodeURL(&quot;Login&quot;,false));
++//					sb.append(&quot;&amp;&quot;); sb.append(URL.encodeURL(&quot;__EVENTVALIDATION&quot;,false));
++//					sb.append(&quot;=&quot;); sb.append(URL.encodeURL(eventvalidation,false));
++					loginPage = fetch_post(loginPageUrl, sb.toString(), nextPage);  // /login/default.aspx
++					if(loginPage.indexOf(loginSuccess) &gt; 0)
++						pref.log(&quot;[login]:Login successful&quot;);
++					else {
++						pref.log(&quot;[login]:Login failed. Wrong Account or Password?&quot;);
++						if (pref.debug) {
++							pref.log(&quot;[login.LoginUrl]:&quot;+sb.toString());
++							pref.log(&quot;[login.Answer]:&quot;+loginPage);
++						}
++						localInfB.close(0);
++						(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), MyLocale.getMsg(5501,&quot;Login failed! Wrong account or password?&quot;), FormBase.OKB)).execute();
++						return ERR_LOGIN;
++					}
++				}catch(Exception ex){
++					pref.log(&quot;[login]:Login failed with exception.&quot;, ex);
++					localInfB.close(0);
++					(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), MyLocale.getMsg(5501,&quot;Login failed. Error loading page after login.&quot;), FormBase.OKB)).execute();
++					return ERR_LOGIN;
++				}
++			}
++
++			rexViewstate.search(loginPage);
++			if (!rexViewstate.didMatch()) {
++				pref.log(&quot;[login]:Viewstate not found&quot;);
++			}
++			viewstate = rexViewstate.stringMatched(1);
++
++			/*
++			rexViewstate1.search(start);
++			if (!rexViewstate1.didMatch()) {
++				pref.log(&quot;[login]:Viewstate1 not found&quot;);
++			}
++			*/
++
++			rexCookieID.search(loginPage);
++			if (!rexCookieID.didMatch()) {
++				pref.log(&quot;[login]:CookieID not found. Using old one.&quot;);
++			} else
++				cookieID = rexCookieID.stringMatched(1);
++			//Vm.debug(cookieID);
++			rexCookieSession.search(loginPage);
++			if (!rexCookieSession.didMatch()) {
++				pref.log(&quot;[login]:CookieSession not found. Using old one.&quot;);
++				//cookieSession=&quot;&quot;;
++			} else
++				cookieSession = rexCookieSession.stringMatched(1);
++			//Vm.debug(&quot;cookieSession = &quot; + cookieSession);
++		}
++		boolean loginAborted=localInfB.isClosed;
++		localInfB.close(0);
++		if (loginAborted)
++			return FormBase.IDCANCEL;
++		else {
++			loggedIn = true;
++			return FormBase.IDOK;
++		}
+ 	}
+-	
++	/*
++	 *
++	 */
++	private void initialiseProperties() {
++		try {
++			propFirstPage=p.getProp(&quot;firstPage&quot;);
++			propFirstPage2=p.getProp(&quot;firstPage2&quot;);
++			propFirstPageFinds=p.getProp(&quot;firstPageFinds&quot;);
++			propFirstLine=p.getProp(&quot;firstLine&quot;);
++			propFirstLine2=p.getProp(&quot;firstLine2&quot;);
++			propMaxDistance=p.getProp(&quot;maxDistance&quot;);
++			propShowOnlyFound=p.getProp(&quot;showOnlyFound&quot;);
++			propListBlockRex=p.getProp(&quot;listBlockRex&quot;);
++			propLineRex=p.getProp(&quot;lineRex&quot;);
++		}catch(Exception ex){
++		}
++	}
++
++	/*
++	 *
++	 */
++	private void getFirstListPage() {
++		Vm.showWait(true);
++		infB = new InfoBox(&quot;Status&quot;, MyLocale.getMsg(5502,&quot;Fetching first page...&quot;));
++		infB.exec();
++		//Get first page
++
++		String url;
++		if (spiderAllFinds) {
++			url = propFirstPageFinds + encodeUTF8URL(Utils.encodeJavaUtf8String(pref.myAlias));
++		} else {
++			url = propFirstPage + origin.getLatDeg(TransformCoordinates.DD) + propFirstPage2 + origin.getLonDeg(TransformCoordinates.DD)
++		                              + propMaxDistance + Integer.toString( (int)saveDistanceInMiles );
++			if(doNotgetFound) url = url + propShowOnlyFound;
++		}
++		url = url + cacheTypeRestriction;
++		pref.log(&quot;Getting first page: &quot;+url);
++		try{
++			htmlListPage = fetch(url);
++			pref.log(&quot;Got first page&quot;);
++		}catch(Exception ex){
++			pref.log(&quot;Error fetching first list page&quot;,ex,true);
++			Vm.showWait(false);
++			infB.close(0);
++			(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), MyLocale.getMsg(5503,&quot;Error fetching first list page.&quot;), FormBase.OKB)).execute();
++			return;
++		}
++		page_number = 1;
++		found_on_page = 0;
++	}
++
++	/**
++	 * in: ...
++	 * out: page_number,htmlPage
++	 */
++	private void getNextListPage() {
++		String postStr;
++		if (spiderAllFinds) {
++			postStr = propFirstLine;
++		} else {
++			postStr = propFirstLine + origin.getLatDeg(TransformCoordinates.DD) + propFirstLine2 + origin.getLonDeg(TransformCoordinates.DD)
++					                             + propMaxDistance + Integer.toString( (int)saveDistanceInMiles );
++			if(doNotgetFound) postStr = postStr + propShowOnlyFound;
++		}
++		postStr = postStr + cacheTypeRestriction;
++		Regex rexViewstate = new Regex(&quot;id=\&quot;__VIEWSTATE\&quot; value=\&quot;(.*?)\&quot; /&gt;&quot;);
++		String viewstate;
++		rexViewstate.search(htmlListPage);
++		if(rexViewstate.didMatch()){
++			viewstate = rexViewstate.stringMatched(1);
++		} else {
++			viewstate = &quot;&quot;;
++		}
++		/*
++		rexEventvalidation.search(htmlPage);
++		if(rexEventvalidation.didMatch()){
++			eventvalidation = rexEventvalidation.stringMatched(1);
++		} else {
++			eventvalidation = &quot;&quot;;
++		}
++		*/
++		String strNextPage = &quot;ctl00$ContentBody$pgrTop$ctl08&quot;;
++		String url = URL.encodeURL(&quot;__EVENTTARGET&quot;,false) +&quot;=&quot;+ URL.encodeURL(strNextPage,false)
++	    + &quot;&amp;&quot; + URL.encodeURL(&quot;__EVENTARGUMENT&quot;,false) +&quot;=&quot;+ URL.encodeURL(&quot;&quot;,false)
++//	    + &quot;&amp;&quot; + URL.encodeURL(&quot;__VIEWSTATEFIELDCOUNT&quot;,false) +&quot;=2&quot;
++	    + &quot;&amp;&quot; + URL.encodeURL(&quot;__VIEWSTATE&quot;,false) +&quot;=&quot;+ URL.encodeURL(viewstate,false);
++//	    + &quot;&amp;&quot; + URL.encodeURL(&quot;__VIEWSTATE1&quot;,false) +&quot;=&quot;+ URL.encodeURL(viewstate1,false);
++//	    + &quot;&amp;&quot; + URL.encodeURL(&quot;__EVENTVALIDATION&quot;,false) +&quot;=&quot;+ URL.encodeURL(eventvalidation,false);
++		try{
++			pref.log(&quot;Fetching next list page:&quot; + url);
++			htmlListPage = fetch_post(postStr, url, p.getProp(&quot;nextListPage&quot;));
++		}catch(Exception ex){
++			pref.log(&quot;Error getting next page&quot;);
++		}
++		page_number++;
++		found_on_page = 0;
++	}
++
++	/**
++	 * Get num found
++	 * @param doc A previously fetched cachepage
++	 * @return numFound
++	 */
++	private int getNumFound(String doc) {
++		Regex numFindsRex = new Regex(&quot;Total Records: &lt;b&gt;(.*?)&lt;/b&gt;&quot;);
++		numFindsRex.search(doc);
++		if (numFindsRex.didMatch()) {
++			 return Convert.toInt(numFindsRex.stringMatched(1));}
++		else return 0;
++	}
++
++	private int getFoundInDB() {
++		CacheHolder ch;
++		int counter = 0;
++		for(int i = 0; i&lt;cacheDB.size();i++){
++			ch = cacheDB.get(i);
++			if(ch.is_found() == true) {
++				if(ch.getWayPoint().startsWith(&quot;GC&quot;) ) counter++;
++			}
++		}
++		return counter;
++	}
++
++	/**
++	 * Get the Distance to the centre
++	 * @param doc A previously fetched cachepage
++	 * @return Distance
++	 */
++	private double getDistGC(String doc) throws Exception {
++		if(doc.indexOf(&quot;Here&quot;) &gt;= 0) {
++			return(0);
++		}
++		else {
++			//inRex = new Regex(p.getProp(&quot;distRex&quot;));
++			Regex inRex = new Regex(&quot;&lt;br /&gt;(.*?)(?:km|mi)&quot;);
++			inRex.search(doc);
++			if (!inRex.didMatch()) return 0;
++			if(MyLocale.getDigSeparator().equals(&quot;,&quot;)) return Convert.toDouble(inRex.stringMatched(1).replace('.',','));
++			return Convert.toDouble(inRex.stringMatched(1));
++		}
++	}
++
++	/**
++	 * Get the waypoint name
++	 * @param doc A previously fetched cachepage
++	 * @return Name of waypoint to add to list
++	 */
++	private String getWP(String doc) throws Exception {
++		Regex inRex = new Regex(p.getProp(&quot;waypointRex&quot;));
++		inRex.search(doc);
++		if (!inRex.didMatch()) return &quot;???&quot;;
++		return &quot;GC&quot;+inRex.stringMatched(1);
++	}
++
++	/**
++	 * Get the direction
++	 * @param doc A previously fetched cachepage
++	 * @return direction String
++	 */
++	private String getDirection(String doc) throws Exception {
++		Regex inRex = new Regex(p.getProp(&quot;directionRex&quot;));
++		inRex.search(doc);
++		if (!inRex.didMatch()) return &quot;&quot;;
++		return inRex.stringMatched(1);
++	}
++
+ 	private boolean directionOK(String[] directions, String gotDirection) {
+ 		if (directions.length==0) return true; // nothing means all
+ 		for (int i = 0; i &lt; directions.length; i++) {
+@@ -734,6 +856,50 @@
+ 		return false;
+ 	}
+ 
++	/*
++	 * in CacheHolder ch
++	 * in String cacheDescGC
++	 */
++	private boolean newLogExists(CacheHolder ch, String cacheDescGC) {
++		Time lastLogCW = new Time();
++		CacheHolderDetail chd = ch.getCacheDetails(true);
++		String slastLogCW=chd.CacheLogs.getLog(0).getDate();
++		if (slastLogCW.equals(&quot;&quot;)) return true; // or check cacheDescGC also no log?
++		lastLogCW.parse(slastLogCW,&quot;yyyy-MM-dd&quot;);
++
++		Time lastLogGC = new Time(); // is current time
++		lastLogGC.hour=0;
++		lastLogGC.minute=0;
++		lastLogGC.second=0;
++		lastLogGC.millis=0;
++		String[] SDate;
++		String stmp=cacheDescGC.trim();
++		if (stmp.indexOf(&quot;day&quot;)&gt;0) {
++			lastLogGC.day=java.lang.Math.max(1, lastLogGC.day-7); // simplyfied (update if not newer than last week)
++		}
++		else if (stmp.startsWith(&quot;&lt;br /&gt;&quot;)) {
++			Vm.debug(&quot;no log yet&quot;);
++			return false; // no log yet
++		}
++		else {
++			final String monthNames[] = { &quot;January&quot;, &quot;February&quot;, &quot;March&quot;, &quot;April&quot;, &quot;May&quot;,
++					&quot;June&quot;, &quot;July&quot;, &quot;August&quot;, &quot;September&quot;, &quot;October&quot;, &quot;November&quot;,
++					&quot;December&quot; };
++			SDate=mString.split(stmp,' ');
++			lastLogGC.day=Integer.parseInt(SDate[0]);
++			for (int m = 0; m &lt; 12; m++) {
++				if (monthNames[m].startsWith(SDate[1])) {
++					lastLogGC.month=m+1;
++					m=12;
++				}
++			}
++			lastLogGC.year=2000+Integer.parseInt(SDate[2].substring(0,2));
++		}
++		// compare
++		// Vm.debug(&quot;CW:&quot;+lastLogCW.toString()+&quot; GC:&quot;+lastLogGC.toString());
++		return lastLogCW.compareTo(lastLogGC) &lt; 0;
++	}
++
+ 	/**
+ 	 * Read a complete cachepage from geocaching.com including all logs. This is used both when
+ 	 * updating already existing caches (via spiderSingle) and when spidering around a centre. It
+@@ -802,8 +968,6 @@
+ 						}
+ 
+ 						ch.setHTML(true);
+-						ch.setAvailable(true);
+-						ch.setArchived(false);
+ 						ch.setIncomplete(true);
+ 						// Save size of logs to be able to check whether any new logs were added
+ 						//int logsz = chD.CacheLogs.size();
+@@ -811,8 +975,8 @@
+ 						ch.addiWpts.clear();
+ 						ch.getFreshDetails().images.clear();
+ 
+-						if(completeWebPage.indexOf(p.getProp(&quot;cacheUnavailable&quot;)) &gt;= 0) ch.setAvailable(false);
+-						if(completeWebPage.indexOf(p.getProp(&quot;cacheArchived&quot;)) &gt;= 0) ch.setArchived(true);
++						ch.setAvailable(!(completeWebPage.indexOf(p.getProp(&quot;cacheUnavailable&quot;)) &gt;= 0));
++						ch.setArchived(completeWebPage.indexOf(p.getProp(&quot;cacheArchived&quot;)) &gt;= 0);
+ 						//==========
+ 						// General Cache Data
+ 						//==========
+@@ -965,50 +1129,12 @@
+ 
+ 
+ 	/**
+-	 * Get the Distance to the centre
+-	 * @param doc A previously fetched cachepage
+-	 * @return Distance
+-	 */
+-	private double getDist(String doc) throws Exception {
+-		inRex = new Regex(p.getProp(&quot;distRex&quot;));
+-		inRex.search(doc);
+-		if(doc.indexOf(&quot;Here&quot;) &gt;= 0) return(0);
+-		if (!inRex.didMatch()) return 0;
+-		if(MyLocale.getDigSeparator().equals(&quot;,&quot;)) return Convert.toDouble(inRex.stringMatched(1).replace('.',','));
+-		return Convert.toDouble(inRex.stringMatched(1));
+-	}
+-
+-	/**
+-	 * Get the direction
+-	 * @param doc A previously fetched cachepage
+-	 * @return direction String
+-	 */
+-	private String getDirection(String doc) throws Exception {
+-		inRex = new Regex(p.getProp(&quot;directionRex&quot;));
+-		inRex.search(doc);
+-		if (!inRex.didMatch()) return &quot;&quot;;
+-		return inRex.stringMatched(1);
+-	}
+-
+-	/**
+-	 * Get the waypoint name
+-	 * @param doc A previously fetched cachepage
+-	 * @return Name of waypoint to add to list
+-	 */
+-	private String getWP(String doc) throws Exception {
+-		inRex = new Regex(p.getProp(&quot;waypointRex&quot;));
+-		inRex.search(doc);
+-		if (!inRex.didMatch()) return &quot;???&quot;;
+-		return &quot;GC&quot;+inRex.stringMatched(1);
+-	}
+-
+-	/**
+ 	 * Get the coordinates of the cache
+ 	 * @param doc A previously fetched cachepage
+ 	 * @return Cache coordinates
+ 	 */
+ 	private String getLatLon(String doc) throws Exception{
+-		inRex = new Regex(p.getProp(&quot;latLonRex&quot;));
++		Regex inRex = new Regex(p.getProp(&quot;latLonRex&quot;));
+ 		inRex.search(doc);
+ 		if (!inRex.didMatch()) return &quot;???&quot;;
+ 		return inRex.stringMatched(1);
+@@ -1021,7 +1147,7 @@
+ 	 */
+ 	private String getLongDesc(String doc) throws Exception{
+ 		String res = &quot;&quot;;
+-		inRex = new Regex(p.getProp(&quot;shortDescRex&quot;));
++		Regex inRex = new Regex(p.getProp(&quot;shortDescRex&quot;));
+ 		Regex rex2 = new Regex(p.getProp(&quot;longDescRex&quot;));
+ 		inRex.search(doc);
+ 		rex2.search(doc);
+@@ -1040,7 +1166,7 @@
+ 	 * @return the location (country and state) of the cache
+ 	 */
+ 	private String getLocation(String doc) throws Exception{
+-		inRex = new Regex(p.getProp(&quot;cacheLocationRex&quot;));
++		Regex inRex = new Regex(p.getProp(&quot;cacheLocationRex&quot;));
+ 		inRex.search(doc);
+ 		if (!inRex.didMatch()) return &quot;&quot;;
+ 
+@@ -1053,7 +1179,7 @@
+ 	 * @return the name of the cache
+ 	 */
+ 	private String getName(String doc) throws Exception{
+-		inRex = new Regex(p.getProp(&quot;cacheNameRex&quot;));
++		Regex inRex = new Regex(p.getProp(&quot;cacheNameRex&quot;));
+ 		inRex.search(doc);
+ 		if (!inRex.didMatch()) return &quot;???&quot;;
+ 		return inRex.stringMatched(1);
+@@ -1065,7 +1191,7 @@
+ 	 * @return the cache owner
+ 	 */
+ 	private String getOwner(String doc) throws Exception{
+-		inRex = new Regex(p.getProp(&quot;cacheOwnerRex&quot;));
++		Regex inRex = new Regex(p.getProp(&quot;cacheOwnerRex&quot;));
+ 		inRex.search(doc);
+ 		if (!inRex.didMatch()) return &quot;???&quot;;
+ 		return inRex.stringMatched(1);
+@@ -1077,7 +1203,7 @@
+ 	 * @return Hidden date
+ 	 */
+ 	private String getDateHidden(String doc) throws Exception{
+-		inRex = new Regex(p.getProp(&quot;dateHiddenRex&quot;));
++		Regex inRex = new Regex(p.getProp(&quot;dateHiddenRex&quot;));
+ 		inRex.search(doc);
+ 		if (!inRex.didMatch()) return &quot;???&quot;;
+ 		return inRex.stringMatched(1);
+@@ -1089,7 +1215,7 @@
+ 	 * @return Cachehints
+ 	 */
+ 	private String getHints(String doc) throws Exception{
+-		inRex = new Regex(p.getProp(&quot;hintsRex&quot;));
++		Regex inRex = new Regex(p.getProp(&quot;hintsRex&quot;));
+ 		inRex.search(doc);
+ 		if (!inRex.didMatch()) return &quot;&quot;;
+ 		return inRex.stringMatched(1);
+@@ -1101,7 +1227,7 @@
+ 	 * @return Cache size
+ 	 */
+ 	private String getSize(String doc) throws Exception{
+-		inRex = new Regex(p.getProp(&quot;sizeRex&quot;));
++		Regex inRex = new Regex(p.getProp(&quot;sizeRex&quot;));
+ 		inRex.search(doc);
+ 		if(inRex.didMatch()) return inRex.stringMatched(1);
+ 		else return &quot;None&quot;;
+@@ -1113,7 +1239,7 @@
+ 	 * @return The cache difficulty
+ 	 */
+ 	private String getDiff(String doc) throws Exception{
+-		inRex = new Regex(p.getProp(&quot;difficultyRex&quot;));
++		Regex inRex = new Regex(p.getProp(&quot;difficultyRex&quot;));
+ 		inRex.search(doc);
+ 		if(inRex.didMatch()) return inRex.stringMatched(1);
+ 		else return &quot;&quot;;
+@@ -1125,7 +1251,7 @@
+ 	 * @return Terrain rating
+ 	 */
+ 	private String getTerr(String doc) throws Exception{
+-		inRex = new Regex(p.getProp(&quot;terrainRex&quot;));
++		Regex inRex = new Regex(p.getProp(&quot;terrainRex&quot;));
+ 		inRex.search(doc);
+ 		if(inRex.didMatch()) return inRex.stringMatched(1);
+ 		else return &quot;&quot;;
+@@ -1137,7 +1263,7 @@
+ 	 * @return the waypoint type (Tradi, Multi, etc.)
+ 	 */
+ 	private byte getType(String doc) throws Exception {
+-		inRex = new Regex(p.getProp(&quot;cacheTypeRex&quot;));
++		Regex inRex = new Regex(p.getProp(&quot;cacheTypeRex&quot;));
+ 		inRex.search(doc);
+ 		if(inRex.didMatch()) return CacheType.gcSpider2CwType(inRex.stringMatched(1));
+ 		else return 0;
+@@ -1508,7 +1634,7 @@
+ 	 * @param wayPoint The name of the cache
+ 	 * @param is_found Found status of the cached (is inherited by the additional waypoints)
+ 	 */
+-	public void getAddWaypoints(String doc, String wayPoint, boolean is_found) throws Exception{
++	private void getAddWaypoints(String doc, String wayPoint, boolean is_found) throws Exception{
+ 		Extractor exWayBlock = new Extractor(doc,p.getProp(&quot;wayBlockExStart&quot;),p.getProp(&quot;wayBlockExEnd&quot;), 0, false);
+ 		String wayBlock = &quot;&quot;;
+ 		String rowBlock = &quot;&quot;;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002320.html">[Cachewolf-svn] r2396 - in trunk: res_noewe/languages	src/CacheWolf/imp
+</A></li>
+	<LI>Next message: <A HREF="002322.html">[Cachewolf-svn] r2398 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2321">[ date ]</a>
+              <a href="thread.html#2321">[ thread ]</a>
+              <a href="subject.html#2321">[ subject ]</a>
+              <a href="author.html#2321">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

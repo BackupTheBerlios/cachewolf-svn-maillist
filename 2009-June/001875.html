@@ -1,0 +1,177 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1956 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-June/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1956%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200906280948.n5S9mnqY011129%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001874.html">
+   <LINK REL="Next"  HREF="001876.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1956 - trunk/src/CacheWolf</H1>
+    <B>jennergruhle at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1956%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200906280948.n5S9mnqY011129%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1956 - trunk/src/CacheWolf">jennergruhle at mail.berlios.de
+       </A><BR>
+    <I>Sun Jun 28 11:48:49 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001874.html">[Cachewolf-svn] r1955 - trunk/res_noewe/languages
+</A></li>
+        <LI>Next message: <A HREF="001876.html">[Cachewolf-svn] r1957 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1875">[ date ]</a>
+              <a href="thread.html#1875">[ thread ]</a>
+              <a href="subject.html#1875">[ subject ]</a>
+              <a href="author.html#1875">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: jennergruhle
+Date: 2009-06-28 11:48:45 +0200 (Sun, 28 Jun 2009)
+New Revision: 1956
+
+Modified:
+   trunk/src/CacheWolf/Preferences.java
+   trunk/src/CacheWolf/PreferencesScreen.java
+Log:
+Added GPSD options.
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2009-06-28 09:47:26 UTC (rev 1955)
++++ trunk/src/CacheWolf/Preferences.java	2009-06-28 09:48:45 UTC (rev 1956)
+@@ -1,6 +1,5 @@
+ package CacheWolf;
+ 
+-import CacheWolf.imp.SpiderGC;
+ import CacheWolf.navi.Metrics;
+ import utils.FileBugfix;
+ import ewe.io.*;
+@@ -22,6 +21,7 @@
+ 	public final int DEFAULT_MAX_LOGS_TO_SPIDER=250;
+ 	public final int DEFAULT_LOGS_PER_PAGE=5;
+ 	public final int DEFAULT_INITIAL_HINT_HEIGHT=10;
++	public final int DEFAULT_GPSD_PORT=2947;
+ 	public static final int YES = 0;
+ 	public static final int NO = 1;
+ 	public static final int ASK = 2;
+@@ -134,6 +134,12 @@
+ 	public boolean forwardGPS = false;
+ 	/** IP address for forwarding GPS data */
+ 	public String forwardGpsHost = &quot;192.168.1.15&quot;;
++	/** True if the GPS data should be received from a GPSD on this or another host */
++	public boolean useGPSD = false;
++	/** IP address of GPSD host */
++	public String gpsdHost = &quot;127.0.0.1&quot;;
++	/** Port for forwarding GPS data */
++	public int gpsdPort = DEFAULT_GPSD_PORT;
+ 	/** True if the GPS data should be logged to a file */
+ 	public boolean logGPS = false;
+ 	/** Timer for logging GPS data */
+@@ -309,6 +315,11 @@
+ 			forwardGPS = Convert.toBoolean(atts.getValue(&quot;active&quot;));
+ 			forwardGpsHost = atts.getValue(&quot;destinationHost&quot;);
+ 		}
++		else if(name.equals(&quot;gpsd&quot;)) {
++			useGPSD = Convert.toBoolean(atts.getValue(&quot;active&quot;));
++			gpsdHost = atts.getValue(&quot;host&quot;);
++			gpsdPort = Convert.toInt(atts.getValue(&quot;port&quot;));
++		}
+ 		else if(name.equals(&quot;portlog&quot;)) {
+ 			logGPS = Convert.toBoolean(atts.getValue(&quot;active&quot;));
+ 			logGPSTimer = atts.getValue(&quot;logTimer&quot;);
+@@ -501,6 +512,7 @@
+ 			outp.print(&quot;    &lt;proxy prx = \&quot;&quot; + SafeXML.strxmlencode(myproxy) + &quot;\&quot; prt = \&quot;&quot; + SafeXML.strxmlencode(myproxyport) + &quot;\&quot; active = \&quot;&quot; + SafeXML.strxmlencode(proxyActive) + &quot;\&quot; /&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;port portname = \&quot;&quot; + SafeXML.strxmlencode(mySPO.portName) + &quot;\&quot; baud = \&quot;&quot; + SafeXML.strxmlencode(mySPO.baudRate) + &quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;portforward active= \&quot;&quot; + SafeXML.strxmlencode(Convert.toString(forwardGPS)) + &quot;\&quot; destinationHost = \&quot;&quot; + SafeXML.strxmlencode(forwardGpsHost) + &quot;\&quot;/&gt;\n&quot;);
++			outp.print(&quot;    &lt;gpsd active= \&quot;&quot; + SafeXML.strxmlencode(Convert.toString(useGPSD)) + &quot;\&quot; host = \&quot;&quot; + SafeXML.strxmlencode(gpsdHost) + &quot;\&quot; port = \&quot;&quot; + SafeXML.strxmlencode(gpsdPort) + &quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;portlog active= \&quot;&quot; + SafeXML.strxmlencode(Convert.toString(logGPS)) + &quot;\&quot; logTimer = \&quot;&quot; + SafeXML.strxmlencode(logGPSTimer) + &quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;font size =\&quot;&quot; + SafeXML.strxmlencode(fontSize) + &quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;screen menuattop=\&quot;&quot;+menuAtTop+&quot;\&quot; tabsattop=\&quot;&quot;+tabsAtTop+&quot;\&quot; showstatus=\&quot;&quot;+showStatus+&quot;\&quot; hasclosebutton=\&quot;&quot;+hasCloseButton+
+
+Modified: trunk/src/CacheWolf/PreferencesScreen.java
+===================================================================
+--- trunk/src/CacheWolf/PreferencesScreen.java	2009-06-28 09:47:26 UTC (rev 1955)
++++ trunk/src/CacheWolf/PreferencesScreen.java	2009-06-28 09:48:45 UTC (rev 1956)
+@@ -1,6 +1,5 @@
+ package CacheWolf;
+ 
+-import CacheWolf.imp.SpiderGC;
+ import CacheWolf.navi.Metrics;
+ import utils.FileBugfix;
+ import ewe.ui.*;
+@@ -105,7 +104,9 @@
+ 		inpPassword.isPassword=true;
+ 		pnlGeneral.addLast(pnlBrowser,HSTRETCH,HFILL);
+ 		
+-		pnlGeneral.addLast(gpsB = new mButton(&quot;GPS: &quot; + pref.mySPO.portName+&quot;/&quot;+pref.mySPO.baudRate),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
++		pnlGeneral.addLast(gpsB = new mButton(&quot;GPS: &quot; + 
++			(pref.useGPSD ? &quot;gpsd &quot; + pref.gpsdHost : pref.mySPO.portName+&quot;/&quot;+pref.mySPO.baudRate) ),
++			CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 
+ 		// Garmin and GPSBabel
+ 		pnlGeneral.addNext(lblGarmin=new mLabel(MyLocale.getMsg(173,&quot;Garmin:  PC Port:&quot;)),DONTSTRETCH,LEFT);
+@@ -341,6 +342,12 @@
+ 				Editor s = gpo.getEditor();
+ 				gpo.forwardGpsChkB.setState(pref.forwardGPS);
+ 				gpo.inputBoxForwardHost.setText(pref.forwardGpsHost);
++				gpo.gpsdChkB.setState(pref.useGPSD);
++				if(pref.gpsdPort!=pref.DEFAULT_GPSD_PORT){
++					gpo.inputBoxGpsdHost.setText(pref.gpsdHost + &quot;:&quot; + Convert.toString(pref.gpsdPort));
++				}else{
++					gpo.inputBoxGpsdHost.setText(pref.gpsdHost);
++				}
+ 				gpo.logGpsChkB.setState(pref.logGPS);
+ 				gpo.inputBoxLogTimer.setText(pref.logGPSTimer);
+ 				Gui.setOKCancel(s);
+@@ -349,6 +356,16 @@
+ 					pref.mySPO.baudRate = gpo.baudRate;
+ 					pref.forwardGPS = gpo.forwardGpsChkB.getState();
+ 					pref.forwardGpsHost = gpo.inputBoxForwardHost.getText();
++					pref.useGPSD = gpo.gpsdChkB.getState();
++					String gpsdHostString = gpo.inputBoxGpsdHost.getText();	// hostname[:port]
++					int posColon = gpsdHostString.indexOf(':');
++					if(posColon&gt;=0){
++						pref.gpsdHost=gpsdHostString.substring(0,posColon);
++						pref.gpsdPort=Convert.toInt(gpsdHostString.substring(posColon+1));
++					}else{
++						pref.gpsdHost=gpsdHostString;
++						pref.gpsdPort=pref.DEFAULT_GPSD_PORT;
++					}
+ 					pref.logGPS = gpo.logGpsChkB.getState();
+ 					pref.logGPSTimer = gpo.inputBoxLogTimer.getText();
+ 					gpsB.setText(&quot;GPS: &quot; + pref.mySPO.portName+&quot;/&quot;+pref.mySPO.baudRate);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001874.html">[Cachewolf-svn] r1955 - trunk/res_noewe/languages
+</A></li>
+	<LI>Next message: <A HREF="001876.html">[Cachewolf-svn] r1957 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1875">[ date ]</a>
+              <a href="thread.html#1875">[ thread ]</a>
+              <a href="subject.html#1875">[ subject ]</a>
+              <a href="author.html#1875">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

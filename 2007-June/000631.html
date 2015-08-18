@@ -1,0 +1,140 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r749 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-June/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r749%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200706151929.l5FJT8TM031826%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000630.html">
+   <LINK REL="Next"  HREF="000632.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r749 - trunk/src/CacheWolf</H1>
+    <B>kalli at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r749%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200706151929.l5FJT8TM031826%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r749 - trunk/src/CacheWolf">kalli at mail.berlios.de
+       </A><BR>
+    <I>Fri Jun 15 21:29:08 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000630.html">[Cachewolf-svn] r748 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000632.html">[Cachewolf-svn] r750 - trunk/resources/attributes
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#631">[ date ]</a>
+              <a href="thread.html#631">[ thread ]</a>
+              <a href="subject.html#631">[ subject ]</a>
+              <a href="author.html#631">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: kalli
+Date: 2007-06-15 21:29:05 +0200 (Fri, 15 Jun 2007)
+New Revision: 749
+
+Modified:
+   trunk/src/CacheWolf/myTableControl.java
+Log:
+FR #3495: Einzelne OC-Caches syncen. Die Anzeigen in der InfoBox k?\195?\182nnten noch verbessert werden.
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2007-06-15 18:53:15 UTC (rev 748)
++++ trunk/src/CacheWolf/myTableControl.java	2007-06-15 19:29:05 UTC (rev 749)
+@@ -125,32 +125,32 @@
+ 			for(int i = 0; i &lt;	cacheDB.size(); i++){
+ 				ch = (CacheHolder)cacheDB.get(i);
+ 				if(ch.is_Checked == true) {
+-					if ( ch.wayPoint.length()&gt;1)
+-
++					if ( ch.wayPoint.length()&gt;1 &amp;&amp; (ch.wayPoint.substring(0,2).equalsIgnoreCase(&quot;GC&quot;) 
++							 					 || ch.wayPoint.substring(0,2).equalsIgnoreCase(&quot;OC&quot;)))
+ //						if ( (ch.wayPoint.length() &gt; 1 &amp;&amp; ch.wayPoint.substring(0,2).equalsIgnoreCase(&quot;GC&quot;)))
+ //						Notiz: Wenn es ein addi Wpt ist, sollte eigentlich der Maincache gespidert werden
+ //						Alter code pr&#252;ft aber nur ob ein Maincache von GC existiert und versucht dann den addi direkt zu spidern, was nicht funktioniert
+ //						TODO: Diese Meldungen vor dem Einloggen darstellen						
+ 					{
+-				    infB.setInfo(&quot;Loading: &quot; + ch.wayPoint);
+-				    if (ch.wayPoint.substring(0,2).equalsIgnoreCase(&quot;GC&quot;))
+-				    	test = spider.spiderSingle(i, infB);
+-				    else if ((ch.wayPoint.substring(0,2).equalsIgnoreCase(&quot;OC&quot;))) 
+-				    		test = ocSync.syncSingle(i, infB);
+-				    	else {
++					    infB.setInfo(&quot;Loading: &quot; + ch.wayPoint);
++					    if (ch.wayPoint.substring(0,2).equalsIgnoreCase(&quot;GC&quot;))   
++					    	test = spider.spiderSingle(i, infB);
++					    else  
++					    	test = ocSync.syncSingle(i, infB);
++						if (!test) {
++							infB.close(0);
++							break;
++						}
++					} else { 
++						if (ch.isAddiWpt() &amp;&amp; !ch.mainCache.is_Checked &amp;&amp; !alreadySaid2) { // Is the father ticked?
++							alreadySaid2=true;
++							(new MessageBox(&quot;Information&quot;,&quot;Hilfswegpunkte k&#246;nnnen nicht direkt gespidert werden\nBitte zus&#228;tzlich den Vater anhaken&quot;, MessageBox.OKB)).exec();
++						}
++						if (!ch.isAddiWpt() &amp;&amp; !alreadySaid) {
+ 							alreadySaid = true;
+ 							(new MessageBox(&quot;Information&quot;,ch.wayPoint+ &quot;: Diese Funktion steht gegenw&#228;rtig nur f&#252;r Geocaching.com und Opencaching.de zur Verf&#252;gung&quot;, MessageBox.OKB)).exec();
+-				    	}
+-					if (!test) {
+-						infB.close(0);
+-						break;
++			    		}
+ 					}
+-					} else if (ch.isAddiWpt() &amp;&amp; !ch.mainCache.is_Checked) { // Is the father ticked?
+-						if (!alreadySaid2) {
+-							alreadySaid2=true;
+-							(new MessageBox(&quot;Information&quot;,&quot;Hilfswegpunkte k&#246;nnnen nicht direkt gespidert werden\nBitte zus&#228;tzlich den Vater anhaken&quot;, MessageBox.OKB)).exec();
+-						}
+-					} 
+ 				}
+ 
+ 				infB.close(0);
+@@ -158,10 +158,10 @@
+ 				profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
+ //				cacheDB.clear();
+ //				profile.readIndex();
+-				profile.restoreFilter();
+-				profile.updateBearingDistance();
+-				tbp.refreshTable();
+ 			}
++			profile.restoreFilter();
++			profile.updateBearingDistance();
++			tbp.refreshTable();
+ 			Vm.showWait(false);
+ 		}
+ 		if (selectedItem.toString().equals(MyLocale.getMsg(1019,&quot;Center&quot;))){
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000630.html">[Cachewolf-svn] r748 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000632.html">[Cachewolf-svn] r750 - trunk/resources/attributes
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#631">[ date ]</a>
+              <a href="thread.html#631">[ thread ]</a>
+              <a href="subject.html#631">[ subject ]</a>
+              <a href="author.html#631">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

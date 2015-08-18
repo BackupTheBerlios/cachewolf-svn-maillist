@@ -1,0 +1,200 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r918 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-September/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r918%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200709092116.l89LGVB3001168%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000810.html">
+   <LINK REL="Next"  HREF="000812.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r918 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r918%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200709092116.l89LGVB3001168%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r918 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sun Sep  9 23:16:31 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000810.html">[Cachewolf-svn] r917 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000812.html">[Cachewolf-svn] r919 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#811">[ date ]</a>
+              <a href="thread.html#811">[ thread ]</a>
+              <a href="subject.html#811">[ subject ]</a>
+              <a href="author.html#811">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-09-09 23:16:26 +0200 (Sun, 09 Sep 2007)
+New Revision: 918
+
+Modified:
+   trunk/src/CacheWolf/TablePanel.java
+   trunk/src/CacheWolf/myTableControl.java
+Log:
+Listenansicht: Verbesserung der Darstellung bei Navigation mittels Tastatur.
+Wenn eine Spalte angeklickt wurde bleibt sie dann beim Scrollen mittels Tastatur auch weiterhin sichtbar.
+Fix: Die letzte Spalte wurde manchmal nicht grau dargestellt
+
+Modified: trunk/src/CacheWolf/TablePanel.java
+===================================================================
+--- trunk/src/CacheWolf/TablePanel.java	2007-09-09 21:05:21 UTC (rev 917)
++++ trunk/src/CacheWolf/TablePanel.java	2007-09-09 21:16:26 UTC (rev 918)
+@@ -41,46 +41,18 @@
+ 		tc.setTableModel(myMod);
+ 	}
+ 	
+-	public void setSelectedCache(int row){ 
+-	/*	selectedCh=null;
+-		selectedIdx=-1;
+-		if (row&gt;=0 &amp;&amp; row&lt;cacheDB.size())  {
+-			selectedCh=(CacheHolder) cacheDB.get(row);
+-			selectedIdx=row;
+-		} 		
+-	*/
+-	}
+-	
+ 	/** Mark the row as selected so that myTableModel can color it grey */
+ 	public void selectRow(int row) {
+-		setSelectedCache(row);
+-//		tc.addToSelection(row,0); 
+-//		tc.addToSelection(row,myMod.MAXCOLUMNS-1);
+ 		// Ensure that the highlighted row is visible (e.g. when coming from radar panel)
+-		tc.scrollToVisible(row,0);
+ 		// Next line needed for key scrolling 
+-		tc.cursorTo(row, tc.cursor.x+tc.listMode, true);
+-// &lt;&lt;&lt;&lt;&lt;&lt;&lt; .mine
+-		//tc.scrollToVisible(row,0);
+-		//tc.clearSelection(null);
+-		//tc.addToSelection(row,0); 
+-		//tc.addToSelection(row,myMod.MAXCOLUMNS-1); 
+-		//tc.scrollToVisible(row,0);
+-		/*tc.clearSelection(null);
+-		tc.addToSelection(row,0); 
+-		tc.addToSelection(row,myMod.MAXCOLUMNS-1);*/ 
+-		//tc.paintSelectedCells();
+-//=======
+-//&gt;&gt;&gt;&gt;&gt;&gt;&gt; .r820
++		tc.cursorTo(row, tc.cursor.x+tc.listMode, true); 
+ 	}
+ 	
+ 	/** Highlight the first row in grey. It can be unhighlighted by clicking */
+ 	public void selectFirstRow() {
+ 		myMod.cursorSize=new Dimension(-1,1);
+ 		if (cacheDB.size()&gt;0) {
+-			tc.cursorTo(0, -1, true);
+-//			tc.addToSelection(0,0); 
+-//			tc.addToSelection(0,myMod.MAXCOLUMNS-1);
++			tc.cursorTo(0, 0, true);
+ 		}
+ 	}
+ 	
+@@ -90,20 +62,6 @@
+ 	 */
+ 	public int getSelectedCache(){
+ 		return tc.cursor.y;
+-		/*
+-		// If cacheDB is empty return -1, cannot select a cache
+-		if (cacheDB.size()==0) return -1;
+-		// If cacheDB has entries, but all are filtered, return -1
+-		if (((CacheHolder)cacheDB.get(0)).is_filtered) return -1;
+-		// Now we have at least one visible cache
+-		// Check whether selected cache was deleted or filtered 
+-		if (selectedIdx&gt;=Global.mainTab.tbP.myMod.numRows) return Global.mainTab.tbP.myMod.numRows-1;
+-		// We had a previously selected cache, check whether it is now filtered
+-		if (selectedCh==null || selectedCh.is_filtered) return 0; // Return first visible cache
+-		// Check whether the order of the list has changed because of sort/filter/search operations
+-		if (cacheDB.get(selectedIdx)==selectedCh) return selectedIdx;
+-		// The position has changed, return the new position
+-		return cacheDB.find(selectedCh); */
+ 	}
+ 	
+ 	public void saveColWidth(Preferences pref){
+@@ -114,15 +72,7 @@
+ 		}
+ 	}
+ 	
+-	/*
+-	public void selectAndActive(int rownum){
+-		//		tc.scrollToVisible(rownum, 0);
+-		selectRow(rownum);  // color it in grey
+-	}
+-	*/
+-	
+ 	public void resetModel() {
+-		setSelectedCache(0);
+ 		myMod.numRows = cacheDB.size();
+ 		Global.getProfile().updateBearingDistance();
+ 		Filter flt = new Filter();
+@@ -140,7 +90,7 @@
+ 		tc.update(true);
+ 	}
+ 	
+-	/** Move all filtered caches to the end of the table and redesplay table */
++	/** Move all filtered caches to the end of the table and redisplay table */
+ 	//TODO Add a sort here to restore the sort after a filter
+ 	public void refreshTable(){
+ 		myMod.updateRows();
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2007-09-09 21:05:21 UTC (rev 917)
++++ trunk/src/CacheWolf/myTableControl.java	2007-09-09 21:16:26 UTC (rev 918)
+@@ -309,4 +309,21 @@
+ 	 	else
+ 	 		super.dragged(dc);
+ 	 }
++
++	 public void cursorTo(int row,int col,boolean selectNew) {
++		if (row != -2 &amp;&amp; col != -2 &amp;&amp; !canSelect(row,col)) return;
++		cursor.set(col,row);
++		if (selectNew){
++			clearSelectedCells(oldExtendedSelection);
++			paintCells(null,oldExtendedSelection);
++			if (row != -2 &amp;&amp; col != -2){
++				if (scrollToVisible(row,col)) repaintNow();
++				addToSelection(Rect.buff.set(0,row,model.numCols,1),true);
++				fireSelectionEvent(TableEvent.FLAG_SELECTED_BY_ARROWKEY);
++				clickedFlags = TableEvent.FLAG_SELECTED_BY_ARROWKEY;
++				if (clickMode) clicked(row,col);
++				clickedFlags = 0;
++			}
++		}
++	 }
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000810.html">[Cachewolf-svn] r917 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000812.html">[Cachewolf-svn] r919 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#811">[ date ]</a>
+              <a href="thread.html#811">[ thread ]</a>
+              <a href="subject.html#811">[ subject ]</a>
+              <a href="author.html#811">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

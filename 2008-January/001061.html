@@ -1,0 +1,283 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1168 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1168%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200801051253.m05Crkol001858%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001060.html">
+   <LINK REL="Next"  HREF="001062.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1168 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1168%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200801051253.m05Crkol001858%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1168 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sat Jan  5 13:53:46 CET 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001060.html">[Cachewolf-svn] r1167 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001062.html">[Cachewolf-svn] r1169 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1061">[ date ]</a>
+              <a href="thread.html#1061">[ thread ]</a>
+              <a href="subject.html#1061">[ subject ]</a>
+              <a href="author.html#1061">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2008-01-05 13:53:38 +0100 (Sat, 05 Jan 2008)
+New Revision: 1168
+
+Modified:
+   trunk/src/CacheWolf/Parser.java
+   trunk/src/CacheWolf/Preferences.java
+   trunk/src/CacheWolf/SolverPanel.java
+Log:
+Solver: Added a &quot;DEG&quot; &lt;-&gt; &quot;RAD&quot; switch in the SolverPanel. By clicking on this switch the mode for degrees can be changed between degrees and radiants. This mode applies to the following functions:
+  sin/cos/tan/asin/acos/atan and bearing/project.
+  The mode is stored in the preferences.
+Fix: With sk(number) command, addis are now numbered starting with 00.
+Bugfix: When a new addi was created without a corresponding cache.xml file, the skeleton command crashed and failed to create a skeleton.
+
+
+Modified: trunk/src/CacheWolf/Parser.java
+===================================================================
+--- trunk/src/CacheWolf/Parser.java	2008-01-05 11:02:02 UTC (rev 1167)
++++ trunk/src/CacheWolf/Parser.java	2008-01-05 12:53:38 UTC (rev 1168)
+@@ -74,7 +74,7 @@
+ *     1) Add its name and alias and allowed number of args to array functions
+ *     2) Add a new private method in the &quot;functions&quot; section
+ *     3) Add call to private method in executeFunction 
+-*   @author salzkammergut January 2007
++*   @author salzkammergut Januay 2007
+ */ 
+ public class Parser{
+ 
+@@ -193,6 +193,9 @@
+     		if (!((String)sym.getKey()).startsWith(&quot;$&quot;)) 
+     			symbolTable.remove(sym.getKey());
+     	}
++    	Double pi=new Double(java.lang.Math.PI);
++    	symbolTable.put(&quot;PI&quot;,pi);
++    	symbolTable.put(&quot;pi&quot;,pi); // To make it easier for the user we also add a lowercase version of pi
+     }
+     
+ 	private boolean isVariable(String varName) {
+@@ -341,6 +344,22 @@
+ ///////////////////////////////////////////
+ //  FUNCTIONS
+ ///////////////////////////////////////////
++	
++	/** If we are in DEGree mode, convert the argument to RADiants, if not leave it unchanged */
++	private double convertInput(double arg) {
++		if (Global.getPref().solverDegMode)
++			return arg*java.lang.Math.PI/180.0;
++		else
++			return arg;
++	}
++	
++	/** If we are in DEGree mode, convert the argument to degrees */
++	private double convertOutput(double arg) {
++		if (Global.getPref().solverDegMode)
++			return arg/java.lang.Math.PI*180.0;
++		else
++			return arg;
++	}
+     
+ 	/** Get or set the current centre */
+ 	private void funcCenter(int nargs) throws Exception {
+@@ -427,7 +446,7 @@
+  		if (!isValidCoord(coordA)) err(MyLocale.getMsg(1712,&quot;Invalid coordinate: &quot;)+coordA);
+ 		if (!isValidCoord(coordB)) err(MyLocale.getMsg(1712,&quot;Invalid coordinate: &quot;)+coordB);
+ 	   	cwPt.set(coordA);
+-	   	return cwPt.getBearing(new CWPoint(coordB));
++	   	return convertOutput(cwPt.getBearing(new CWPoint(coordB))*java.lang.Math.PI/180.0);
+     }
+     /**
+      * Encode a string by replacing all characters in a string with their corresponding characters in
+@@ -553,8 +572,8 @@
+     private String funcProject() throws Exception {
+     	double distance=popCalcStackAsNumber(0);
+     	if (distance&lt;0) err(MyLocale.getMsg(1718,&quot;Cannot project a negative distance&quot;));
+-    	double degrees=popCalcStackAsNumber(0);
+-    	if (degrees&lt;0 || degrees&gt;360) err(MyLocale.getMsg(1719,&quot;Projection degrees must be in interval [0;360]&quot;));
++    	double degrees=convertInput(popCalcStackAsNumber(0));
++    	if (degrees&lt;0 || degrees&gt;2*java.lang.Math.PI) err(MyLocale.getMsg(1719,&quot;Projection degrees must be in interval [0;360]&quot;));
+     	String coord=popCalcStackAsString();
+ 		if (!isValidCoord(coord)) err(MyLocale.getMsg(1712,&quot;Invalid coordinate: &quot;)+coord);
+     	cwPt.set(coord);
+@@ -605,7 +624,7 @@
+ 			   goto($01xxxx); STOP
+ 			ENDIF*/
+ 			for (int i=0; i&lt;nStages; i++) {
+-				String stage=MyLocale.formatLong(i+1,&quot;00&quot;);
++				String stage=MyLocale.formatLong(i,&quot;00&quot;);
+ 				String stageWpt=&quot;$&quot;+stage+waypointName.substring(2);
+ 				op.append(&quot;IF &quot;+stageWpt+&quot;=\&quot;\&quot; THEN\n&quot;);
+ 				op.append(&quot;  &quot;+stageWpt+&quot; = \&quot;\&quot;\n&quot;);
+@@ -636,7 +655,9 @@
+ 					op.append(&quot;] = \&quot; $&quot;);
+ 					op.append(addiWpt.wayPoint);
+ 					CacheHolderDetail chD=new CacheHolderDetail(addiWpt);
+-					chD.readCache(Global.getProfile().dataDir);
++					try {
++						chD.readCache(Global.getProfile().dataDir);
++					} catch( Exception ex) {};
+ 					if (chD.LongDescription.trim().length()&gt;0)
+ 						op.append(&quot;\n   \&quot;&quot;+STRreplace.replace(chD.LongDescription,&quot;\&quot;&quot;,&quot;\&quot;\&quot;&quot;)+&quot;\&quot;&quot;);
+ 					op.append(&quot;\n   goto($&quot;);
+@@ -941,14 +962,14 @@
+ 	
+ 	private void executeFunction(String funcName, int nargs, fnType funcDef) throws Exception {
+ 		if (!funcDef.nargsValid(nargs)) err(MyLocale.getMsg(1727,&quot;Invalid number of arguments&quot;));
+-	         if (funcDef.alias.equals(&quot;asin&quot;)) calcStack.add(new java.lang.Double(java.lang.Math.asin(popCalcStackAsNumber(0))));
++	         if (funcDef.alias.equals(&quot;asin&quot;)) calcStack.add(new java.lang.Double(convertOutput(java.lang.Math.asin(popCalcStackAsNumber(0)))));
+ 	 	else if (funcDef.alias.equals(&quot;abs&quot;)) calcStack.add(new java.lang.Double(java.lang.Math.abs(popCalcStackAsNumber(0))));
+-	    else if (funcDef.alias.equals(&quot;acos&quot;)) calcStack.add(new java.lang.Double(java.lang.Math.acos(popCalcStackAsNumber(0))));
+-	    else if (funcDef.alias.equals(&quot;atan&quot;)) calcStack.add(new java.lang.Double(java.lang.Math.atan(popCalcStackAsNumber(0))));
++	    else if (funcDef.alias.equals(&quot;acos&quot;)) calcStack.add(new java.lang.Double(convertOutput(java.lang.Math.acos(popCalcStackAsNumber(0)))));
++	    else if (funcDef.alias.equals(&quot;atan&quot;)) calcStack.add(new java.lang.Double(convertOutput(java.lang.Math.atan(popCalcStackAsNumber(0)))));
+ 	    else if (funcDef.alias.equals(&quot;bearing&quot;)) calcStack.add(new java.lang.Double(funcBearing()));
+ 	    else if (funcDef.alias.equals(&quot;center&quot;)) funcCenter(nargs);
+ 	    else if (funcDef.alias.equals(&quot;cls&quot;)) funcCls();
+-	    else if (funcDef.alias.equals(&quot;cos&quot;)) calcStack.add(new java.lang.Double(java.lang.Math.cos(popCalcStackAsNumber(0))));
++	    else if (funcDef.alias.equals(&quot;cos&quot;)) calcStack.add(new java.lang.Double(java.lang.Math.cos(convertInput(popCalcStackAsNumber(0)))));
+ 	    else if (funcDef.alias.equals(&quot;count&quot;)) funcCount();
+ 	    else if (funcDef.alias.equals(&quot;cp&quot;)) calcStack.add(funcCp());     
+ 	    else if (funcDef.alias.equals(&quot;ct&quot;)) calcStack.add(new java.lang.Double(funcCrossTotal(nargs)));
+@@ -968,11 +989,11 @@
+ 	    else if (funcDef.alias.equals(&quot;rot13&quot;)) calcStack.add(Common.rot13(popCalcStackAsString()));
+ //	    else if (funcDef.alias.equals(&quot;rs&quot;)) funcRequireSemicolon(nargs);
+ 	    else if (funcDef.alias.equals(&quot;show&quot;));
+-	    else if (funcDef.alias.equals(&quot;sin&quot;)) calcStack.add(new java.lang.Double(java.lang.Math.sin(popCalcStackAsNumber(0))));
++	    else if (funcDef.alias.equals(&quot;sin&quot;)) calcStack.add(new java.lang.Double(java.lang.Math.sin(convertInput(popCalcStackAsNumber(0)))));
+ 	    else if (funcDef.alias.equals(&quot;skeleton&quot;)) funcSkeleton(nargs);
+ 	    else if (funcDef.alias.equals(&quot;sqrt&quot;)) calcStack.add(new java.lang.Double(funcSqrt())); 
+ 	    else if (funcDef.alias.equals(&quot;sval&quot;)) calcStack.add(funcSval(popCalcStackAsString()));
+-	    else if (funcDef.alias.equals(&quot;tan&quot;)) calcStack.add(new java.lang.Double(java.lang.Math.tan(popCalcStackAsNumber(0))));
++	    else if (funcDef.alias.equals(&quot;tan&quot;)) calcStack.add(new java.lang.Double(java.lang.Math.tan(convertInput(popCalcStackAsNumber(0)))));
+ 	    else if (funcDef.alias.equals(&quot;uc&quot;)) calcStack.add(popCalcStackAsString().toUpperCase());
+ 	    else if (funcDef.alias.equals(&quot;val&quot;)) calcStack.add(new java.lang.Double(funcVal(popCalcStackAsString())));
+ 	    else err(MyLocale.getMsg(1728,&quot;Function not yet implemented: &quot;)+funcName);
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2008-01-05 11:02:02 UTC (rev 1167)
++++ trunk/src/CacheWolf/Preferences.java	2008-01-05 12:53:38 UTC (rev 1168)
+@@ -122,6 +122,8 @@
+ 	public int maxLogsToSpider = DEFAULT_MAX_LOGS_TO_SPIDER;
+ 	/** True if the Solver should ignore the case of variables */
+ 	public boolean solverIgnoreCase=true;
++	/** True if the solver expects arguments for trigonometric functions in degrees */
++	public boolean solverDegMode=true;
+ 	/** The type of connection which GPSBABEL uses: com1 OR usb. */
+ 	public String garminConn=&quot;com1&quot;;  
+ 	/** Additional options for GPSBabel, i.e. -s to synthethise short names */
+@@ -276,6 +278,8 @@
+ 		}
+ 		else if (name.equals(&quot;solver&quot;)) {
+ 			solverIgnoreCase=Boolean.valueOf(atts.getValue(&quot;ignorevariablecase&quot;)).booleanValue();
++			tmp = atts.getValue(&quot;degMode&quot;);
++			if (tmp != null) solverDegMode=Boolean.valueOf(tmp).booleanValue();
+ 		}
+ 		else if (name.equals(&quot;mapspath&quot;)) {
+ 			customMapsPath=atts.getValue(&quot;dir&quot;);
+@@ -351,7 +355,7 @@
+ 			outp.print(&quot;    &lt;travelbugs colmap=\&quot;&quot;+travelbugColMap+&quot;\&quot; colwidths=\&quot;&quot;+travelbugColWidth+&quot;\&quot; shownonlogged=\&quot;&quot;+travelbugShowOnlyNonLogged+&quot;\&quot; /&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;imagepanel showdeletedimages=\&quot;&quot;+showDeletedImages+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;hintlogpanel logsperpage=\&quot;&quot;+logsPerPage+&quot;\&quot; initialhintheight=\&quot;&quot;+initialHintHeight+&quot;\&quot;  maxspiderlogs=\&quot;&quot;+maxLogsToSpider+&quot;\&quot; /&gt;\n&quot;);
+-			outp.print(&quot;    &lt;solver ignorevariablecase=\&quot;&quot;+solverIgnoreCase+&quot;\&quot;/&gt;\n&quot;);
++			outp.print(&quot;    &lt;solver ignorevariablecase=\&quot;&quot;+solverIgnoreCase+&quot;\&quot; degMode=\&quot;&quot;+solverDegMode+&quot;\&quot; /&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;garmin connection = \&quot;&quot;+garminConn+&quot;\&quot; GPSBabelOptions = \&quot;&quot;+garminGPSBabelOptions+&quot;\&quot; /&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;opencaching downloadPicsOC=\&quot;&quot;+downloadPicsOC+&quot;\&quot; downloadMaps=\&quot;&quot;+downloadMapsOC+&quot;\&quot; downloadMissing=\&quot;&quot;+downloadmissingOC+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;	&lt;location lat = \&quot;&quot;+curCentrePt.getLatDeg(CWPoint.DD)+&quot;\&quot; long = \&quot;&quot;+curCentrePt.getLonDeg(CWPoint.DD)+&quot;\&quot;/&gt;\n&quot;);
+
+Modified: trunk/src/CacheWolf/SolverPanel.java
+===================================================================
+--- trunk/src/CacheWolf/SolverPanel.java	2008-01-05 11:02:02 UTC (rev 1167)
++++ trunk/src/CacheWolf/SolverPanel.java	2008-01-05 12:53:38 UTC (rev 1168)
+@@ -27,6 +27,7 @@
+ 	Vector msgFIFO = new Vector();
+ 	Menu mnuContext;
+ 	private String originalInstructions=&quot;&quot;;
++	mButton btnDegRad; 
+ 	
+ 	public boolean isDirty() {
+ 		return !originalInstructions.equals(getInstructions());
+@@ -76,6 +77,10 @@
+ 	}
+ 	CellPanel programPanel, outputPanel;
+ 	
++	private String getSolverDegMode() {
++		return Global.getPref().solverDegMode ? &quot;DEG&quot; : &quot;RAD&quot;;
++	}
++	
+ 	public SolverPanel (Preferences p, Profile prof){
+ 		pref = p;
+ 		profile = prof;
+@@ -86,8 +91,16 @@
+ 		split.setSplitter(PanelSplitter.AFTER|PanelSplitter.HIDDEN,PanelSplitter.BEFORE|PanelSplitter.HIDDEN,0);
+ 
+ 		programPanel.addLast(new ScrollBarPanel(mText = new InputPanel())).setTag(SPAN, new Dimension(2,1));
+-		programPanel.addNext(mBtSolve= new mButton(MyLocale.getMsg(1735,&quot;Solve!&quot;)),CellConstants.HSTRETCH, CellConstants.HFILL);
+-		programPanel.addLast(btnWolfLang= new mButton(MyLocale.getMsg(118,&quot;WolfLanguage&quot;)),CellConstants.HSTRETCH, CellConstants.HFILL);
++		CellPanel pnlStatButtons=new CellPanel();
++		pnlStatButtons.addNext(btnDegRad=new mButton(getSolverDegMode()),CellConstants.DONTSTRETCH,CellConstants.DONTFILL);
++		btnDegRad.backGround=Color.Sand;
++		btnDegRad.borderStyle=btnDegRad.borderWidth=0;
++		CellPanel pnlButtons=new CellPanel();
++		pnlButtons.addNext(mBtSolve= new mButton(MyLocale.getMsg(1735,&quot;Solve!&quot;)),CellConstants.HSTRETCH, CellConstants.HFILL);
++		pnlButtons.addLast(btnWolfLang= new mButton(MyLocale.getMsg(118,&quot;WolfLanguage&quot;)),CellConstants.HSTRETCH, CellConstants.HFILL);
++		pnlButtons.equalWidths=true;
++		pnlStatButtons.addLast(pnlButtons,CellConstants.HSTRETCH,CellConstants.HFILL);
++		programPanel.addLast(pnlStatButtons,HSTRETCH,HFILL);
+ 		/*programPanel.addNext(btnLoad= new mButton(MyLocale.getMsg(1736,&quot;Load&quot;)),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 		programPanel.addNext(btnSave= new mButton(MyLocale.getMsg(1737,&quot;Save&quot;)),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 		programPanel.addLast(btnSaveAs= new mButton(MyLocale.getMsg(1738,&quot;SaveAs&quot;)),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+@@ -125,6 +138,10 @@
+ 				InfoScreen is = new InfoScreen(File.getProgramDirectory() + &quot;/&quot; + &quot;wolflang.html&quot;, MyLocale.getMsg(118,&quot;WolfLanguage&quot;), true, pref);
+ 				is.execute(parent.getFrame(), Gui.CENTER_FRAME);
+ 			}
++			if (ev.target==btnDegRad) {
++				Global.getPref().solverDegMode=!Global.getPref().solverDegMode;
++				btnDegRad.setText(getSolverDegMode());
++			}
+ /*			if(ev.target == btnLoad){
+ 				FileChooser fc = new FileChooser(FileChooser.OPEN, profile.dataDir);
+ 				
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001060.html">[Cachewolf-svn] r1167 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001062.html">[Cachewolf-svn] r1169 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1061">[ date ]</a>
+              <a href="thread.html#1061">[ thread ]</a>
+              <a href="subject.html#1061">[ subject ]</a>
+              <a href="author.html#1061">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

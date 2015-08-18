@@ -1,0 +1,261 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1822 - in trunk: res_noewe src/CacheWolf src/exp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-May/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1822%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf%20src/exp&In-Reply-To=%3C200905181814.n4IIEF2V023355%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001739.html">
+   <LINK REL="Next"  HREF="001741.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1822 - in trunk: res_noewe src/CacheWolf src/exp</H1>
+    <B>greiol at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1822%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf%20src/exp&In-Reply-To=%3C200905181814.n4IIEF2V023355%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1822 - in trunk: res_noewe src/CacheWolf src/exp">greiol at mail.berlios.de
+       </A><BR>
+    <I>Mon May 18 20:14:15 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001739.html">[Cachewolf-svn] r1821 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001741.html">[Cachewolf-svn] r1823 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1740">[ date ]</a>
+              <a href="thread.html#1740">[ thread ]</a>
+              <a href="subject.html#1740">[ subject ]</a>
+              <a href="author.html#1740">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: greiol
+Date: 2009-05-18 20:14:12 +0200 (Mon, 18 May 2009)
+New Revision: 1822
+
+Modified:
+   trunk/res_noewe/POIIcons.zip
+   trunk/src/CacheWolf/CacheType.java
+   trunk/src/CacheWolf/GuiImageBroker.java
+   trunk/src/exp/TomTomExporter.java
+Log:
+fixed TomtomExporter (hopefully)
+removed &quot;Dokumenmte und Einstellungen&quot; from POIIcons.zip
+added second mapping for whereigo to v2 cachetype converter
+fixed some typos
+
+
+Modified: trunk/res_noewe/POIIcons.zip
+===================================================================
+(Binary files differ)
+
+Modified: trunk/src/CacheWolf/CacheType.java
+===================================================================
+--- trunk/src/CacheWolf/CacheType.java	2009-05-18 17:17:46 UTC (rev 1821)
++++ trunk/src/CacheWolf/CacheType.java	2009-05-18 18:14:12 UTC (rev 1822)
+@@ -291,6 +291,7 @@
+ 		case -73: return CW_TYPE_REFERENCE;
+ 		case 101: return CW_TYPE_MEGA_EVENT;
+ 		case -62: return CW_TYPE_WHEREIGO;
++		case 100: return CW_TYPE_WHEREIGO; // yes, it can be either of those
+ 		case 9: return CW_TYPE_EARTH;
+ 		default: throw new IllegalArgumentException(&quot;unmatched argument &quot;+type+&quot; in CacheSizeNew v2Converter()&quot;);
+ 		}
+@@ -569,8 +570,8 @@
+ 			// check for | in additional waypoints and only use the string after |
+ 			int pipePosistion = ret.indexOf(&quot;|&quot;);
+ 			if (pipePosistion &gt; -1) {
+-				ret = ret.substring(pipePosistion);
+-			}
++				ret = ret.substring(pipePosistion+1);
++			} //TODO: check for exceeding max length
+ 		} catch (IllegalArgumentException ex) {
+ 			ret = &quot;&quot;;
+ 		}
+
+Modified: trunk/src/CacheWolf/GuiImageBroker.java
+===================================================================
+--- trunk/src/CacheWolf/GuiImageBroker.java	2009-05-18 17:17:46 UTC (rev 1821)
++++ trunk/src/CacheWolf/GuiImageBroker.java	2009-05-18 18:14:12 UTC (rev 1822)
+@@ -10,7 +10,7 @@
+ 
+ public final class GuiImageBroker {
+ 	
+-	// TODO: check with Image an mImage
++	// TODO: check with Image and mImage
+ 	
+ 	/**
+ 	 * images to be displayed for cache types in GUI
+
+Modified: trunk/src/exp/TomTomExporter.java
+===================================================================
+--- trunk/src/exp/TomTomExporter.java	2009-05-18 17:17:46 UTC (rev 1821)
++++ trunk/src/exp/TomTomExporter.java	2009-05-18 18:14:12 UTC (rev 1822)
+@@ -1,6 +1,5 @@
+ package exp;
+ 
+-
+ import CacheWolf.*;
+ import ewe.ui.*;
+ import ewe.util.*;
+@@ -20,10 +19,7 @@
+ 	CacheDB cacheDB;
+ 	Preferences pref;
+ 	Profile profile;
+-
+ 	
+-
+-	
+ 	public TomTomExporter() {
+ 		profile = Global.getProfile();
+ 		pref = Global.getPref();
+@@ -68,13 +64,13 @@
+ 		String ext, fileName = null;
+ 
+ 		CacheHolder holder;
+-		ProgressBarForm pbf = new ProgressBarForm();
++		ProgressBarForm progressForm = new ProgressBarForm();
+ 		Handle h = new Handle();
+ 		int currExp, counter;
+ 		
+-		pbf.showMainTask = false;
+-		pbf.setTask(h,&quot;Exporting ...&quot;);
+-		pbf.exec();
++		progressForm.showMainTask = false;
++		progressForm.setTask(h,&quot;Exporting ...&quot;);
++		progressForm.exec();
+ 		
+ 		currExp = 0;
+ 		counter = 0;
+@@ -83,16 +79,23 @@
+ 		}
+ 		
+ 		ext = format==TT_ASC?&quot;.asc&quot;:&quot;.ov2&quot;;
++
+ 		try{
+ 			//loop through type
+ 			for(int j = 0; j &lt; CacheType.guiTypeStrings().length; j++){
+-				fileName = dirName + &quot;/&quot; + prefix + CacheType.guiTypeStrings()[j]+ ext;
++				String typeName = CacheType.guiTypeStrings()[j];
++				if (typeName.startsWith(&quot;Addi: &quot;)) {
++					typeName = typeName.substring(6);
++				}
++				
++				fileName = dirName + &quot;/&quot; + prefix + typeName + ext;
+ 				dfile = new File(fileName);
+ 				dfile.delete();
+ 				out =  new RandomAccessFile(fileName,&quot;rw&quot;);
+ 				for(int i = 0; i&lt;cacheDB.size(); i++){
+ 					holder=cacheDB.get(i);
+-					if(holder.getType() == new Integer(CacheType.guiSelect2Cw(j)).intValue() &amp;&amp; holder.isVisible() == false){
++
++					if(holder.getType() == CacheType.guiSelect2Cw(j) &amp;&amp; holder.isVisible() == true){
+ 						currExp++;
+ 						h.progress = (float)currExp/(float)counter;
+ 						h.changed();
+@@ -110,15 +113,14 @@
+ 				if (dfile.length()==0) {
+ 					dfile.delete();
+ 				} else {
+-					copyIcon(j, dirName + &quot;/&quot; + prefix + CacheType.guiTypeStrings()[j]); 
++					copyIcon(j, dirName + &quot;/&quot; + prefix,typeName); 
+ 				}
+ 			}//for wayType
+-			pbf.exit(0);
++			progressForm.exit(0);
+ 		} catch (IOException e){
+ 			Vm.debug(&quot;Problem creating file! &quot; + fileName);
+ 			e.printStackTrace();
+ 		}//try
+-		
+ 	}
+ 	
+ 	public void writeSingleFile(int format, String fileName){
+@@ -158,7 +160,7 @@
+ 				}//if
+ 			}//for
+ 			out.close();
+-			copyIcon(0, fileName.substring(0,fileName.indexOf(&quot;.&quot;)));
++			copyIcon(0, fileName.substring(0,fileName.indexOf(&quot;.&quot;)),&quot;&quot;);
+ 			pbf.exit(0);
+ 		}catch (Exception e){
+ 			Vm.debug(&quot;Problem writing to file! &quot; + fileName);
+@@ -194,7 +196,6 @@
+ 		return;
+ 	}
+ 
+-	
+ 	public void writeRecordBinary(RandomAccessFile outp, CacheHolder ch, String lat, String lon){
+ 		int d,data;
+ 		double latlon;
+@@ -252,34 +253,32 @@
+ 		return;
+ 	}
+ 	
+-	public void copyIcon(int intWayType, String filename){
++	public void copyIcon(int intWayType, String prefix, String typeName){
+ 		try {
+ 			ZipFile zif = new ZipFile (FileBase.getProgramDirectory() + &quot;/POIIcons.zip&quot;);
+ 			ZipEntry zipEnt;
+ 			int len;
+ 			String entName; 
+ 			
+-			entName = &quot;TomTomIcons/&quot;+ &quot;GC-&quot; + CacheType.guiTypeStrings()[intWayType] + &quot;.bmp&quot;;
++			entName = &quot;TomTomIcons/&quot;+ &quot;GC-&quot; + typeName + &quot;.bmp&quot;;
+ 			zipEnt = zif.getEntry(entName);
+ 			if (zipEnt == null) return;
+ 			
+ 		    byte[] buff = new byte[ zipEnt.getSize() ];
+ 		    InputStream  fis = zif.getInputStream(zipEnt);
+-		    FileOutputStream fos = new FileOutputStream( filename + &quot;.bmp&quot;);
++		    FileOutputStream fos = new FileOutputStream( prefix + typeName + &quot;.bmp&quot;);
+ 		    while( 0 &lt; (len = fis.read( buff )) )
+ 		      fos.write( buff, 0, len );
+ 		    fos.flush();
+ 		    fos.close();
+ 		    fis.close();
+ 		} catch (ZipException e) {
+-			Vm.debug(&quot;Problem copying Icon&quot; + &quot;GC-&quot; + CacheType.guiTypeStrings()[intWayType] + &quot;.bmp&quot; );
++			Vm.debug(&quot;Problem copying Icon&quot; + &quot;GC-&quot; + typeName + &quot;.bmp&quot; );
+ 			e.printStackTrace();
+ 		} catch (IOException e) {
+-			Vm.debug(&quot;Problem copying Icon&quot; + &quot;GC-&quot; + CacheType.guiTypeStrings()[intWayType] + &quot;.bmp&quot; );
++			Vm.debug(&quot;Problem copying Icon&quot; + &quot;GC-&quot; + typeName + &quot;.bmp&quot; );
+ 			e.printStackTrace();
+ 		}
+-
+-		
+ 	}
+ 	
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001739.html">[Cachewolf-svn] r1821 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001741.html">[Cachewolf-svn] r1823 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1740">[ date ]</a>
+              <a href="thread.html#1740">[ thread ]</a>
+              <a href="subject.html#1740">[ subject ]</a>
+              <a href="author.html#1740">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

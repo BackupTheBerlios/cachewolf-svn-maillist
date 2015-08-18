@@ -1,0 +1,817 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2533 - in trunk/src/CacheWolf: . navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-April/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2533%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C201004010931.o319VGjJ012575%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   
+   <LINK REL="Next"  HREF="002459.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2533 - in trunk/src/CacheWolf: . navi</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2533%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C201004010931.o319VGjJ012575%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2533 - in trunk/src/CacheWolf: . navi">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Thu Apr  1 11:31:16 CEST 2010</I>
+    <P><UL>
+        
+        <LI>Next message: <A HREF="002459.html">[Cachewolf-svn] r2534 - trunk/res_noewe
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2458">[ date ]</a>
+              <a href="thread.html#2458">[ thread ]</a>
+              <a href="subject.html#2458">[ subject ]</a>
+              <a href="author.html#2458">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2010-04-01 11:31:12 +0200 (Thu, 01 Apr 2010)
+New Revision: 2533
+
+Modified:
+   trunk/src/CacheWolf/CalcPanel.java
+   trunk/src/CacheWolf/DetailsPanel.java
+   trunk/src/CacheWolf/InputScreen.java
+   trunk/src/CacheWolf/navi/GotoPanel.java
+Log:
+Update for Coordinate Input Screen with fingertips on mobile devices (author ggcode, <A HREF="http://www.geoclub.de/viewtopic.php?f=40&amp;t=33866&amp;start=80">http://www.geoclub.de/viewtopic.php?f=40&amp;t=33866&amp;start=80</A>)
+
+Modified: trunk/src/CacheWolf/CalcPanel.java
+===================================================================
+--- trunk/src/CacheWolf/CalcPanel.java	2010-03-31 20:24:53 UTC (rev 2532)
++++ trunk/src/CacheWolf/CalcPanel.java	2010-04-01 09:31:12 UTC (rev 2533)
+@@ -2,6 +2,7 @@
+ 
+ import CacheWolf.navi.Metrics;
+ import CacheWolf.navi.TransformCoordinates;
++import CacheWolf.InputScreen;
+ import ewe.sys.Vm;
+ import ewe.ui.*;
+ import ewe.ui.formatted.TextDisplay;
+@@ -20,12 +21,12 @@
+ class BearingDistance {
+ 	public double degrees;
+ 	public double distance;
+-	
++
+ 	public BearingDistance(){
+ 		this.degrees = 0;
+ 		this.distance = 0;
+ 	}
+-	
++
+ 	public BearingDistance(double degrees, double distance) {
+ 		this.degrees = degrees;
+ 		this.distance = distance;
+@@ -52,20 +53,20 @@
+ 	// different panels to avoid spanning
+ 	CellPanel TopP = new CellPanel();
+ 	CellPanel BottomP = new CellPanel();
+-	
++
+ 	String lastWaypoint = &quot;&quot;;
+ 	boolean bBearing, bDistance;
+-	
++
+ 	int currFormat;
+ 	mButton btnChangeLatLon;
+-	
++
+ 	public CalcPanel()	{
+ 		pref = Global.getPref();
+ 		profile=Global.getProfile();
+ 		mainT = Global.mainTab;
+ 		cacheDB = profile.cacheDB;
+-		
+-		
++
++
+ 		TopP.addNext(chkDD =new mCheckBox(&quot;d.d&#176;&quot;),CellConstants.DONTSTRETCH, CellConstants.WEST);
+ 		TopP.addNext(chkDMM =new mCheckBox(&quot;d&#176;m.m\'&quot;),CellConstants.DONTSTRETCH, CellConstants.WEST);
+ 		TopP.addNext(chkDMS =new mCheckBox(&quot;d&#176;m\'s\&quot;&quot;),CellConstants.DONTSTRETCH,CellConstants.WEST);
+@@ -101,33 +102,33 @@
+ 		} else {
+ 			chcDistUnit.setInt(3); // Feet
+ 		}
+-		
++
+ 		// Buttons for calc and save
+ 		BottomP.addNext(btnCalc = new mButton(&quot;Calc&quot;),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		BottomP.addNext(btnClear = new mButton(&quot;Clear&quot;),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		BottomP.addNext(btnGoto = new mButton(&quot;Goto&quot;),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		BottomP.addLast(btnSave = new mButton(MyLocale.getMsg(311,&quot;Create Waypoint&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		
+-		// Output 
++
++		// Output
+ 		txtOutput = new TextDisplay(3,1); // Need to limit size for small screens
+ 		ScrollBarPanel sbp = new MyScrollBarPanel(txtOutput);
+ 		BottomP.addLast(sbp.setTag(CellConstants.SPAN, new Dimension(4,1)),CellConstants.STRETCH, (CellConstants.FILL|CellConstants.WEST));
+-		
++
+ 		//add Panels
+ 		this.addLast(TopP,CellConstants.HSTRETCH, CellConstants.WEST);//.setTag(SPAN,new Dimension(4,1));
+ 		this.addLast(BottomP,CellConstants.VSTRETCH, CellConstants.VFILL|CellConstants.WEST); //.setTag(SPAN,new Dimension(4,1));
+-		
++
+ 	}
+-	
++
+ 	private final int getLocalCooSystem() {
+ 		return CoordsScreen.getLocalSystem(currFormat);
+ 	}
+-	
++
+ 	public final void readFields(CWPoint coords, BearingDistance degKm){
+ 		// coords.set(btnChangeLatLon.getText());
+ 		currFormat = CoordsScreen.combineToFormatSel(chkFormat.getSelectedIndex(), localCooSystem.getInt());
+ 		degKm.degrees = Common.parseDouble(inpBearing.getText());
+-		
++
+ 		double rawDistance = Common.parseDouble(inpDistance.getText());
+ 		switch ( chcDistUnit.getInt() ) {
+ 		case 0:
+@@ -161,7 +162,7 @@
+ 		}
+ 		return;
+ 	}
+-	
++
+ 	// ch must not be null
+ 	public void setFields(CacheHolder ch){
+ 		if ( !ch.getWayPoint().equalsIgnoreCase(lastWaypoint) ) {
+@@ -173,12 +174,12 @@
+ 				//currFormat = 1;
+ 				if (ch.getLatLon().length()== 0) coordInp.set(0,0);
+ 				else coordInp.set(ch.getLatLon(), TransformCoordinates.CW);
+-				setFields();				
++				setFields();
+ 			}
+ 		}
+ 	}
+-	
+-	
++
++
+ 	public void setFields() {
+ 		btnChangeLatLon.setText(coordInp.toString(getLocalCooSystem()));
+ 		//chkFormat.selectIndex(currFormat);
+@@ -187,8 +188,10 @@
+ 
+ 	public void onEvent(Event ev){
+ 
++
++
+ 		if(ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.PRESSED){
+-			if (ev.target == chkFormat 
++			if (ev.target == chkFormat
+ 					|| ((ev.type == ControlEvent.PRESSED) &amp;&amp; (ev.target == localCooSystem )) ) {
+ 				if (ev.target == localCooSystem) chkFormat.selectIndex(3);
+ 				readFields(coordInp, bd);
+@@ -213,13 +216,25 @@
+ 				ch.setType(CacheType.CW_TYPE_STAGE); // TODO unfertig
+ 				mainT.newWaypoint(ch);
+ 			}
+-			
++
+ 			if (ev.target == btnGoto){
+ 				readFields(coordInp, bd);
+ 				coordOut = coordInp.project(bd.degrees, bd.distance);
+-				mainT.gotoP.setDestinationAndSwitch(coordOut); 
++				mainT.gotoP.setDestinationAndSwitch(coordOut);
+ 			}
++			
+ 			if (ev.target == btnChangeLatLon){
++				if(Vm.isMobile()){
++					readFields(coordInp, bd);
++					InputScreen InScr = new InputScreen(getLocalCooSystem());
++					if (coordInp.isValid())	InScr.setCcords(coordInp);
++						else InScr.setCcords(new CWPoint(0,0));
++				if (InScr.execute(null, CellConstants.TOP) == FormBase.IDOK)
++				{
++					btnChangeLatLon.setText(InScr.getCoords().toString(getLocalCooSystem()));
++					coordInp.set(InScr.getCoords());
++				}
++			}else{
+ 				CoordsScreen cs = new CoordsScreen();
+ 				readFields(coordInp, bd);
+ 				cs.setFields(coordInp, getLocalCooSystem());
+@@ -228,8 +243,9 @@
+ 					coordInp.set(cs.getCoords());
+ 				}
+ 			}
+-			
++
+ 		}
+ 		super.onEvent(ev);
+ 	}
+-}
++	}
++}
+\ No newline at end of file
+
+Modified: trunk/src/CacheWolf/DetailsPanel.java
+===================================================================
+--- trunk/src/CacheWolf/DetailsPanel.java	2010-03-31 20:24:53 UTC (rev 2532)
++++ trunk/src/CacheWolf/DetailsPanel.java	2010-04-01 09:31:12 UTC (rev 2533)
+@@ -1,6 +1,7 @@
+ package CacheWolf;
+ 
+ import CacheWolf.navi.TransformCoordinates;
++import CacheWolf.InputScreen;
+ import ewe.fx.Color;
+ import ewe.fx.Dimension;
+ import ewe.fx.Point;
+@@ -589,20 +590,40 @@
+ 				Global.mainTab.gotoP.setDestinationAndSwitch(cache);
+ 			} else if (ev.target == btnCoordinates) {
+ 				CWPoint coords = new CWPoint(btnCoordinates.getText(), TransformCoordinates.CW);
+-				final CoordsScreen cs = new CoordsScreen(true);
+-				cs.setFields(coords, TransformCoordinates.CW);
+-				if (cs.execute() == FormBase.IDOK) {
+-					dirtyDetails = true;
+-					coords = cs.getCoords();
+-					Global.getProfile().notifyUnsavedChanges(!cache.pos.toString().equals(coords.toString()));
+-					cache.pos.set(coords);
+-					btnCoordinates.setText(coords.toString());
+-					cache.setLatLon(coords.toString());
+-					// If the current centre is valid, calculate the distance and bearing to it
+-					final CWPoint centre = Global.getPref().getCurCentrePt();
+-					if (centre.isValid()) {
+-						cache.calcDistance(centre); // todo perhaps sortTable
++				if(Vm.isMobile()){
++					InputScreen InScr = new InputScreen(TransformCoordinates.CW);
++					if (coords.isValid())	InScr.setCcords(coords);
++						else InScr.setCcords(new CWPoint(0,0));
++					if (InScr.execute(null, CellConstants.TOP) == FormBase.IDOK)
++					{
++						dirtyDetails = true;
++						coords = InScr.getCoords();
++						Global.getProfile().notifyUnsavedChanges(!cache.pos.toString().equals(coords.toString()));
++						cache.pos.set(coords);
++						btnCoordinates.setText(coords.toString());
++						cache.setLatLon(coords.toString());
++						// If the current centre is valid, calculate the distance and bearing to it
++						final CWPoint centre = Global.getPref().getCurCentrePt();
++						if (centre.isValid()) {
++							cache.calcDistance(centre); // todo perhaps sortTable
++						}
+ 					}
++				}else{
++					final CoordsScreen cs = new CoordsScreen(true);
++					cs.setFields(coords, TransformCoordinates.CW);
++					if (cs.execute() == FormBase.IDOK) {
++						dirtyDetails = true;
++						coords = cs.getCoords();
++						Global.getProfile().notifyUnsavedChanges(!cache.pos.toString().equals(coords.toString()));
++						cache.pos.set(coords);
++						btnCoordinates.setText(coords.toString());
++						cache.setLatLon(coords.toString());
++						// If the current centre is valid, calculate the distance and bearing to it
++						final CWPoint centre = Global.getPref().getCurCentrePt();
++						if (centre.isValid()) {
++							cache.calcDistance(centre); // todo perhaps sortTable
++						}
++					}
+ 				}
+ 			} else if (ev.target == btnFoundDate) {
+ 				// DateChooser.dayFirst=true;
+
+Modified: trunk/src/CacheWolf/InputScreen.java
+===================================================================
+--- trunk/src/CacheWolf/InputScreen.java	2010-03-31 20:24:53 UTC (rev 2532)
++++ trunk/src/CacheWolf/InputScreen.java	2010-04-01 09:31:12 UTC (rev 2533)
+@@ -3,8 +3,7 @@
+ 
+ import CacheWolf.navi.Navigate;
+ import CacheWolf.navi.TransformCoordinates;
+-import ewe.fx.Font;
+-import ewe.fx.Color;
++import ewe.fx.*;
+ import ewe.ui.*;
+ 
+ 
+@@ -21,16 +20,17 @@
+ 	private static StringBuffer strBufBear = new StringBuffer(3);
+ 
+ 
+-	private int iPosition;
+ 	private static final int POS_NDD=2, LEN_NDD=3;
+ 	private static final int POS_NMM=6, LEN_NMM=3;
+ 	private static final int POS_NSSS=9, LEN_NSSS=3;
+ 	private static final int POS_EDDD=15, LEN_EDDD=4;
+ 	private static final int POS_EMM=20, LEN_EMM=3;
+ 	private static final int POS_ESSS=23, LEN_ESSS=3;
++	private int iPosition = POS_NDD;
++	private int iPosBear=0,iPosDist=0;
+ 
+-	public Navigate myNavigation;
+ 	int currFormatSel;
++	CWPoint CoordsInput = new CWPoint();
+ 	CWPoint CoordsBack = new CWPoint();
+ 	CWPoint CoordsBear = new CWPoint();
+ 
+@@ -38,6 +38,7 @@
+ 	private boolean bBearingPanelOnTop = false;
+ 
+ 	static Color ColorEdit = new Color(0,255,0);// green
++	static Color ColorPos = new Color(255,0,0);// red
+ 	static Color ColorNormal = new Color(192,192,192);// grey
+ 	// different panels to avoid spanning
+ 	private CellPanel MainP = new CellPanel();
+@@ -48,21 +49,77 @@
+ 	private CellPanel BearP = new CellPanel();
+ 	// all Buttons
+ 	private mButton btnNorth, btnWest;
+-	private mButton btnNorthDD, btnEastDDD;
+-	private mButton btnNorthMM, btnEastMM;
+-	private mButton btnNorthSSS, btnEastSSS;
++	private mButtonPos btnNorthDD, btnEastDDD;
++	private mButtonPos btnNorthMM, btnEastMM;
++	private mButtonPos btnNorthSSS, btnEastSSS;
+ 	private mButton btn9, btn8, btn7, btn6, btn5, btn4, btn3, btn2, btn1, btn0, btnOk, btnEsc;
+ 	private mButton btnBear, btnGPS , btnExpert;
+ 	private mLabel lblDistanc = new mLabel(MyLocale.getMsg(1404,&quot;Distance&quot;));
+ 	private mLabel lblBearing = new mLabel(MyLocale.getMsg(1403,&quot;Bearing&quot;));
+-	private mButton btnBearing, btnDistanc;
++	private mButtonPos btnBearing, btnDistanc;
+ 	private mLabel lblDist = new mLabel(&quot;m&quot;);
+ 	private mLabel lblBear = new mLabel(&quot;&#176;&quot;);
++	private int[] iPointPos = {0,0,0,0,0,0};
+ 
++	public class mButtonPos  extends mButton {
++		private int iPosition, iPosY = 5 , iGap =1;
++		private FontMetrics tempFm;
++		private int stringHeight;
++		private int sWidth1,sWidth2,sWidth3,stringWidth;
++		private int TextStart;
+ 
+-	public InputScreen(Navigate nav, int FormSelect)
++
++		mButtonPos(String sValue){
++			this.setText(sValue);
++		}
++
++		public void setText(String sValue, int iPos){
++			this.setText(sValue);
++			tempFm = this.getFontMetrics(font);
++			stringHeight = tempFm.getHeight();
++			if(sValue.length() &gt;= 3){
++				sWidth1 = tempFm.getTextWidth(sValue.substring(0, 1));
++				sWidth2 = tempFm.getTextWidth(sValue.substring(1, 2));
++				sWidth3 = tempFm.getTextWidth(sValue.substring(2, 3));
++				stringWidth = tempFm.getTextWidth(sValue);
++				TextStart = (this.width - stringWidth)/2;
++			}
++			iPosition= iPos;
++		}
++
++		public void doPaint(Graphics g, Rect area){
++			//if(iPosition &gt; 0) g.setColor(ColorEdit); else  g.setColor(ColorNormal);
++			super.doPaint(g, area);
++			g.setPen(new Pen(ColorPos, Pen.SOLID, 2));
++			//g.fillRect(area.x, area.y, area.height, area.width);
++			//g.draw3DRect(area, 1, false, ColorEdit, ColorEdit);
++
++			switch(iPosition)
++			{
++				case 0: g.setPen(new Pen(ColorNormal, Pen.SOLID, 2));
++						g.drawRect(0, 0, 0 ,0);
++						g.draw3DRect(area,	ButtonObject.buttonEdge,true,null,ColorNormal);
++						break;
++				case 1: g.draw3DRect(area,	ButtonObject.buttonEdge,true,null,ColorEdit);
++						g.drawRect(TextStart, iPosY, sWidth1+1 ,stringHeight);
++						break;
++				case 2: g.draw3DRect(area,	ButtonObject.buttonEdge,true,null,ColorEdit);
++						g.drawRect(TextStart + sWidth2 + iGap, iPosY, sWidth2+1 ,stringHeight);
++						break;
++				case 3: g.draw3DRect(area,	ButtonObject.buttonEdge,true,null,ColorEdit);
++						g.drawRect(TextStart + sWidth2 + sWidth3, iPosY, sWidth3+1 ,stringHeight);
++						break;
++				default: g.draw3DRect(area,	ButtonObject.buttonEdge,true,null,ColorEdit);
++						 break;
++			}
++
++		}
++
++
++	}
++
++	public InputScreen( int FormSelect)
+ 	{
+-		myNavigation = nav;
+ 		currFormatSel = FormSelect;
+ 		InitInputScreen();
+ 	//	setTextButton(sCoords);
+@@ -107,26 +164,26 @@
+ 		btnNorth = new mButton(&quot;N&quot;);
+ 		btnNorth.borderStyle = BDR_NOBORDER;
+ 		TopP.addNext(btnNorth,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
+-		btnNorthDD = new mButton(&quot;DD&#176;&quot;);
++		btnNorthDD = new mButtonPos(&quot;DD&#176;&quot;);
+ 		btnNorthDD.borderStyle = BDR_NOBORDER;
+ 		TopP.addNext(btnNorthDD,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
+-		btnNorthMM = new mButton(&quot;MM.&quot;);
++		btnNorthMM = new mButtonPos(&quot;MM.&quot;);
+ 		btnNorthMM.borderStyle = BDR_NOBORDER;
+ 		TopP.addNext(btnNorthMM,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
+-		btnNorthSSS = new mButton(&quot;SSS&quot;);
++		btnNorthSSS = new mButtonPos(&quot;SSS&quot;);
+ 		btnNorthSSS.borderStyle = BDR_NOBORDER;
+ 		TopP.addLast(btnNorthSSS,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
+ 
+ 		btnWest = new mButton(&quot;E&quot;);
+ 		btnWest.borderStyle = BDR_NOBORDER;
+ 		TopP.addNext(btnWest,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
+-		btnEastDDD = new mButton(&quot;DDD&#176;&quot;);
++		btnEastDDD = new mButtonPos(&quot;DDD&#176;&quot;);
+ 		btnEastDDD.borderStyle = BDR_NOBORDER;
+ 		TopP.addNext(btnEastDDD,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
+-		btnEastMM = new mButton(&quot;MM.&quot;);
++		btnEastMM = new mButtonPos(&quot;MM.&quot;);
+ 		btnEastMM.borderStyle = BDR_NOBORDER;
+ 		TopP.addNext(btnEastMM,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
+-		btnEastSSS = new mButton(&quot;SSS&quot;);
++		btnEastSSS = new mButtonPos(&quot;SSS&quot;);
+ 		btnEastSSS.borderStyle = BDR_NOBORDER;
+ 		TopP.addLast(btnEastSSS,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
+ 		TopSP.setControl(TopP);
+@@ -149,28 +206,28 @@
+ 		BottomP.addNext(btn2,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
+ 		btn3 = new mButton(&quot; 3 &quot;);
+ 		BottomP.addLast(btn3,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
+-		btn0 = new mButton(&quot;  0  &quot;);
++		btn0 = new mButton(&quot;     0     &quot;);
+ 		BottomP.addNext(btn0,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
+-		btnEsc = new mButton(&quot;ESC&quot;);
+-		BottomP.addNext(btnEsc,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
+-		btnOk = new mButton(&quot;OK &quot;);
+-		BottomP.addLast(btnOk,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
++		btnGPS = new mButton(&quot;   GPS   &quot;);
++		BottomP.addNext(btnGPS,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
+ 		btnBear = new mButton(MyLocale.getMsg(1415,&quot;bearing&quot;));
+-		ExpertP.addNext(btnBear,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
+-		btnGPS = new mButton(&quot; GPS &quot;);
+-		ExpertP.addNext(btnGPS,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
++		BottomP.addLast(btnBear,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
+ 		btnExpert = new mButton(&quot;Expert&quot;);
+-		ExpertP.addLast(btnExpert,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
++		ExpertP.addNext(btnExpert,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
++		btnEsc = new mButton(&quot;  Abbr  &quot;);
++		ExpertP.addNext(btnEsc,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
++		btnOk = new mButton(&quot;    OK   &quot;);
++		ExpertP.addLast(btnOk,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
+ 		//this.addLast(mainPanel,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
+ 
+ 		//bearing Pannel
+ 		BearP.addNext(lblDistanc,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
+-		btnDistanc = new mButton(&quot;        0&quot;);
++		btnDistanc = new mButtonPos(&quot;        0&quot;);
+ 		btnDistanc.borderStyle = BDR_NOBORDER;
+ 		BearP.addNext(btnDistanc,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
+ 		BearP.addLast(lblDist,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
+ 		BearP.addNext(lblBearing,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
+-		btnBearing = new mButton(&quot;        0&quot;);
++		btnBearing = new mButtonPos(&quot;        0&quot;);
+ 		btnBearing.borderStyle = BDR_NOBORDER;
+ 		BearP.addNext(btnBearing,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
+ 		BearP.addLast(lblBear,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
+@@ -184,39 +241,48 @@
+ 		btnNorthMM.setFont(inpNewFont);    btnEastMM.setFont(inpNewFont);
+ 		btnNorthSSS.setFont(inpNewFont);   btnEastSSS.setFont(inpNewFont);
+ 		lblBear.setFont(inpNewFont);	   lblDist.setFont(inpNewFont);
+-		btnBear.setFont(inpNewFont);       btnExpert.setFont(inpNewFont);
+-		btnGPS.setFont(inpNewFont);
+ 
+ 
++
+ 		int btnFontSize = ( 3 * pref.fontSize ) / 2;
+ 		Font btnNewFont = new Font(&quot;Helvetica&quot;, Font.PLAIN, btnFontSize );
+ 		btn9.setFont(btnNewFont); btn8.setFont(btnNewFont);   btn7.setFont(btnNewFont);
+ 		btn6.setFont(btnNewFont); btn5.setFont(btnNewFont);   btn4.setFont(btnNewFont);
+ 		btn3.setFont(btnNewFont); btn2.setFont(btnNewFont);   btn1.setFont(btnNewFont);
+ 		btn0.setFont(btnNewFont); btnEsc.setFont(btnNewFont); btnOk.setFont(btnNewFont);
++		btnExpert.setFont(btnNewFont); btnBear.setFont(btnNewFont);btnGPS.setFont(btnNewFont);
+ 
+-		btnOk.takeFocus(ControlConstants.ByKeyboard);
+ 
+-
+ 	}
+ 
+ 	private void disable(Control c) {c.modify(ControlConstants.Disabled,ControlConstants.TakesKeyFocus); }
++	private void enable(Control c) {c.modify(ControlConstants.TakesKeyFocus,ControlConstants.Disabled); }
+ 
++
++	private void setFocusCoords()
++	{
++		iPosition=POS_NSSS;
++		checkPosition();
++	}
++
++
+ 	private void changeTextButton()
+ 	{
+-		btnNorthDD.setText(strBufCoords.substring(POS_NDD, LEN_NDD+POS_NDD));
+-		btnNorthMM.setText(strBufCoords.substring(POS_NMM, LEN_NMM+POS_NMM));
+-		btnNorthSSS.setText(strBufCoords.substring(POS_NSSS, LEN_NSSS+POS_NSSS));
+-		btnEastDDD.setText(strBufCoords.substring(POS_EDDD, LEN_EDDD+POS_EDDD));
+-		btnEastMM.setText(strBufCoords.substring(POS_EMM, LEN_EMM+POS_EMM));
+-		btnEastSSS.setText(strBufCoords.substring(POS_ESSS, LEN_ESSS+POS_ESSS));
+-		disable(btnBear);
++		btnNorthDD.setText(strBufCoords.substring(POS_NDD, LEN_NDD+POS_NDD),iPointPos[0]);
++		btnNorthMM.setText(strBufCoords.substring(POS_NMM, LEN_NMM+POS_NMM),iPointPos[1]);
++		btnNorthSSS.setText(strBufCoords.substring(POS_NSSS, LEN_NSSS+POS_NSSS),iPointPos[2]);
++		btnEastDDD.setText(strBufCoords.substring(POS_EDDD, LEN_EDDD+POS_EDDD),iPointPos[3]);
++		btnEastMM.setText(strBufCoords.substring(POS_EMM, LEN_EMM+POS_EMM),iPointPos[4]);
++		btnEastSSS.setText(strBufCoords.substring(POS_ESSS, LEN_ESSS+POS_ESSS),iPointPos[5]);
++		this.repaint();
++		//disable(btnBear);
+ 	}
+ 
+ 	private void changeTextButtonBearing()
+ 	{
+-		btnDistanc.setText(strBufDistanc.toString());
+-		btnBearing.setText(strBufBear.toString());
++		btnDistanc.setText(strBufDistanc.toString(),iPosDist);
++		btnBearing.setText(strBufBear.toString(),iPosBear);
++		this.repaint();
+ 	}
+ 
+ 
+@@ -226,26 +292,17 @@
+ 		strBufCoords.delete(0, strBufCoords.length());
+ 
+ 		if (coords.isValid()){
+-
+ 				strBufTemp.append(coords.toString(TransformCoordinates.CW));
+-
+ 				strBufCoords.append(strBufTemp.toString());
+-				btnNorth.setText(strBufTemp.substring(0, 1));
+-				btnNorthDD.setText(strBufTemp.substring(2, 5));
+-				btnNorthMM.setText(strBufTemp.substring(6,9));
+-				btnNorthSSS.setText(strBufTemp.substring(9,12));
+-
+-				btnWest.setText(strBufTemp.substring(13,14));
+-				btnEastDDD.setText(strBufTemp.substring(15,19));
+-				btnEastMM.setText(strBufTemp.substring(20,23));
+-				btnEastSSS.setText(strBufTemp.substring(23,26));
++				CoordsInput = coords;
++				setFocusCoords();
+ 		}
+ 	}
+ 
+ 	private void setTextBuffer(char cValue)
+ 	{
+ 		if(bBearingPanelOnTop){
+-			if(btnBearing.backGround  == ColorEdit){
++			if(iPosBear == 4){
+ 				if(strBufBear.length()  &lt; 3) strBufBear.insert(strBufBear.length(), cValue);
+ 			    changeTextButtonBearing();
+ 			}else{
+@@ -269,28 +326,54 @@
+ 			if(iPosition == POS_EDDD-1)	iPosition++;
+ 
+ 			if(iPosition &gt;= strBufCoords.length()){
+-				iPosition = strBufCoords.length();
+-				return;
++				//iPosition = strBufCoords.length();
++				iPosition =POS_NDD;
++				//return;
+ 			}
+ 				strBufCoords.setCharAt(iPosition, cValue);
+ 			    iPosition++;
+-			    changeTextButton();
+ 			    checkPosition();
+-
+ 		}
+ 	}
+ 
+ 	private void checkPosition()
+ 	{
+-		btnNorthDD.backGround  = btnNorthMM.backGround = btnNorthSSS.backGround = ColorNormal;
+-		btnEastDDD.backGround  = btnEastSSS.backGround = btnEastMM.backGround = ColorNormal;
+-		if(iPosition &gt;= POS_NDD &amp;&amp; iPosition &lt; POS_NMM -2) btnNorthDD.backGround = ColorEdit;
+-		if(iPosition &gt;= POS_NMM-2 &amp;&amp; iPosition &lt; POS_NSSS -1) btnNorthMM.backGround = ColorEdit;
+-		if(iPosition &gt;= POS_NSSS-1 &amp;&amp; iPosition &lt; POS_EDDD-3) btnNorthSSS.backGround = ColorEdit;
+-		if(iPosition &gt;= POS_EDDD-3 &amp;&amp; iPosition &lt; POS_EMM -2) btnEastDDD.backGround  = ColorEdit;
+-		if(iPosition &gt;= POS_EMM-2 &amp;&amp; iPosition &lt; POS_ESSS -1) btnEastMM.backGround  = ColorEdit;
+-		if(iPosition &gt;= POS_ESSS-1) btnEastSSS.backGround  = ColorEdit;
+-		this.repaint();
++		iPointPos[0]=0;iPointPos[1]=0;iPointPos[2]=0;iPointPos[3]=0;iPointPos[4]=0;iPointPos[5]=0;
++		switch(iPosition){
++			//NorthDD
++		    case 26:
++			case 2: iPointPos[0] = 1; break;
++			case 3: iPointPos[0] = 2; break;
++			//NorthMM
++			case 4:
++			case 5:
++			case 6: iPointPos[1] = 1; break;
++			case 7: iPointPos[1] = 2; break;
++			//NorthSSS
++			case 8:
++			case 9:  iPointPos[2] = 1; break;
++			case 10: iPointPos[2] = 2; break;
++			case 11: iPointPos[2] = 3; break;
++
++			//EastDDD
++			case 12:
++			case 13:
++			case 14:
++			case 15: iPointPos[3] = 1; break;
++			case 16: iPointPos[3] = 2; break;
++			case 17: iPointPos[3] = 3; break;
++			//EastMM
++			case 18:
++			case 19:
++			case 20: iPointPos[4] = 1; break;
++			case 21: iPointPos[4] = 2; break;
++			//EastSSS
++			case 22:
++			case 23: iPointPos[5] = 1; break;
++			case 24: iPointPos[5] = 2; break;
++			case 25: iPointPos[5] = 3; break;
++		}
++		changeTextButton();
+ 	}
+ 
+ 	/*
+@@ -311,14 +394,15 @@
+ 		if(ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.PRESSED){
+ 			// Button &quot;E&quot;
+ 			if (ev.target == btnWest){
+-				if(btnWest.getText() == &quot;E&quot;)
++				if(btnWest.getText().startsWith(&quot;E&quot;))
+ 					btnWest.setText(&quot;W&quot;);
+ 				else
+ 					btnWest.setText(&quot;E&quot;);
+ 			}
++
+ 			// Button &quot;N&quot;
+ 			if (ev.target == btnNorth){
+-				if(btnNorth.getText() == &quot;N&quot;)
++				if(btnNorth.getText().startsWith(&quot;N&quot;))
+ 					btnNorth.setText(&quot;S&quot;);
+ 				else
+ 					btnNorth.setText(&quot;N&quot;);
+@@ -327,20 +411,16 @@
+ 
+ 			// Button &quot;Bearing&quot;
+ 			if (ev.target == btnBearing){
+-				btnBearing.backGround  = ColorEdit;
+-				btnDistanc.backGround = ColorNormal;
++				iPosDist = 0; iPosBear = 4;
+ 				strBufBear.delete(0, strBufBear.length());
+ 				changeTextButtonBearing();
+-				this.repaint();
+ 			}
+ 
+ 			// Button &quot;Distanc&quot;
+ 			if (ev.target == btnDistanc){
+-				btnBearing.backGround  = ColorNormal;
+-				btnDistanc.backGround = ColorEdit;
++				iPosDist = 4; iPosBear = 0;
+ 				strBufDistanc.delete(0, strBufDistanc.length());
+ 				changeTextButtonBearing();
+-				this.repaint();
+ 			}
+ 
+ 
+@@ -436,14 +516,26 @@
+ 			}
+ 			// Button &quot;ESC&quot;
+ 			if (ev.target == btnEsc ){
+-				iPosition = 0;
+-				this.close(0);
++				if(bBearingPanelOnTop){
++					enable(btnExpert);
++				    enable(btnGPS);
++				    TopSP.setControl(TopP);
++				    bBearingPanelOnTop = false;
++				    this.repaint();
++				}
++				else
++				{
++					iPosition = 0;
++					this.close(0);
++				}
+ 			}
+ 
+ 			// Button &quot;Bearing&quot;
+ 			if (ev.target == btnBear ){
+ 				    disable(btnExpert);
+ 				    disable(btnGPS);
++					strBufBear.delete(0, strBufBear.length());
++					strBufDistanc.delete(0, strBufDistanc.length());
+ 				    TopSP.setControl(BearP,true);
+ 				    bBearingPanelOnTop = true;
+ 
+@@ -461,7 +553,8 @@
+ 			// Button &quot;Expert&quot;
+ 			if (ev.target == btnExpert ){
+ 				CoordsScreen cs = new CoordsScreen();
+-				if (myNavigation.destination.isValid())	cs.setFields(myNavigation.destination, CoordsScreen.getLocalSystem(currFormatSel));
++				//if (CoordsInput.isValid())	cs.setFields(CoordsInput, CoordsScreen.getLocalSystem(currFormatSel));
++				if (CoordsInput.isValid())	cs.setFields(CoordsInput, currFormatSel);
+ 				else cs.setFields(new CWPoint(0,0), CoordsScreen.getLocalSystem(currFormatSel));
+ 				if (cs.execute(null, CellConstants.TOP) == FormBase.IDOK){
+ 					setCcords(cs.getCoords());
+@@ -471,6 +564,7 @@
+ 			}
+ 
+ 		}
++		super.onEvent(ev);
+ 	}
+ 
+ }
+
+Modified: trunk/src/CacheWolf/navi/GotoPanel.java
+===================================================================
+--- trunk/src/CacheWolf/navi/GotoPanel.java	2010-03-31 20:24:53 UTC (rev 2532)
++++ trunk/src/CacheWolf/navi/GotoPanel.java	2010-04-01 09:31:12 UTC (rev 2533)
+@@ -383,19 +383,20 @@
+ 			// change destination waypoint
+ 			if (ev.target == btnGoto){
+ 				if(Vm.isMobile()){
+-					InputScreen InScr = new InputScreen(myNavigation , currFormatSel);
++					InputScreen InScr = new InputScreen(CoordsScreen.getLocalSystem(currFormatSel));
+ 					if (myNavigation.destination.isValid())	InScr.setCcords(myNavigation.destination);
+ 					else InScr.setCcords(new CWPoint(0,0));
+ 					if (InScr.execute(null, CellConstants.TOP) == FormBase.IDOK)
+ 						setDestination(InScr.getCoords());
+ 				}else
+ 				{
+-				        CoordsScreen cs = new CoordsScreen();
+-				        if (myNavigation.destination.isValid())	cs.setFields(myNavigation.destination, CoordsScreen.getLocalSystem(currFormatSel));
+-				        else cs.setFields(new CWPoint(0,0), CoordsScreen.getLocalSystem(currFormatSel));
+-				        if (cs.execute(null, CellConstants.TOP) == FormBase.IDOK)
+-					        setDestination(cs.getCoords());
+-                                }
++					CoordsScreen cs = new CoordsScreen();
++					if (myNavigation.destination.isValid())	cs.setFields(myNavigation.destination, CoordsScreen.getLocalSystem(currFormatSel));
++					else cs.setFields(new CWPoint(0,0), CoordsScreen.getLocalSystem(currFormatSel));
++					if (cs.execute(null, CellConstants.TOP) == FormBase.IDOK)
++						setDestination(cs.getCoords());
++				}
++
+ 			}
+ 		}
+ 		super.onEvent(ev);
+@@ -876,12 +877,12 @@
+ 	public boolean isNorthCentered() {
+ 		return northCentered;
+ 	}
+-	
++
+ 	public static Font GetCorrectedFont(Graphics g, String name, int style, int size) {
+ 		Font newFont = new Font(name, style, size);
+ 		FontMetrics metrics = g.getFontMetrics(newFont);
+ 		int fontHeight = metrics.getHeight();
+-		
++
+ 		float ratio = (float)fontHeight / (float)size;
+ 		if(ratio &lt; 0.9 || ratio &gt; 1.1){
+ 			size = (int) (size / ratio + 0.5);
+@@ -889,7 +890,7 @@
+ 				size=5;
+ 			newFont = new Font(name, style, size);
+ 		}
+-		
++
+ 		return newFont;
+ 	}
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	
+	<LI>Next message: <A HREF="002459.html">[Cachewolf-svn] r2534 - trunk/res_noewe
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2458">[ date ]</a>
+              <a href="thread.html#2458">[ thread ]</a>
+              <a href="subject.html#2458">[ subject ]</a>
+              <a href="author.html#2458">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

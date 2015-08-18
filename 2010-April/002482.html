@@ -1,0 +1,172 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2555 - in trunk/src/CacheWolf: . navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-April/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2555%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C201004291036.o3TAafpi027029%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002481.html">
+   <LINK REL="Next"  HREF="002483.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2555 - in trunk/src/CacheWolf: . navi</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2555%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C201004291036.o3TAafpi027029%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2555 - in trunk/src/CacheWolf: . navi">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Thu Apr 29 12:36:41 CEST 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002481.html">[Cachewolf-svn] r2554 - in trunk/src/CacheWolf: . navi
+</A></li>
+        <LI>Next message: <A HREF="002483.html">[Cachewolf-svn] r2556 - trunk
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2482">[ date ]</a>
+              <a href="thread.html#2482">[ thread ]</a>
+              <a href="subject.html#2482">[ subject ]</a>
+              <a href="author.html#2482">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2010-04-29 12:36:37 +0200 (Thu, 29 Apr 2010)
+New Revision: 2555
+
+Modified:
+   trunk/src/CacheWolf/DetailsPanel.java
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/navi/MovingMap.java
+Log:
+eliminated double loading/showing of map file
+
+Modified: trunk/src/CacheWolf/DetailsPanel.java
+===================================================================
+--- trunk/src/CacheWolf/DetailsPanel.java	2010-04-28 19:24:09 UTC (rev 2554)
++++ trunk/src/CacheWolf/DetailsPanel.java	2010-04-29 10:36:37 UTC (rev 2555)
+@@ -514,14 +514,6 @@
+                 }
+             } else if (ev.target == btnShowMap) {
+                 Global.mainTab.SwitchToMovingMap(cache.pos, true);
+-                /*
+-                 * try { MapDetailForm mdf = new
+-                 * MapDetailForm(thisCache.wayPoint, pref, profile);
+-                 * mdf.execute(); } catch (IllegalArgumentException e) {
+-                 * MessageBox tmp = new MessageBox(MyLocale.getMsg(321,&quot;Error&quot;),
+-                 * MyLocale.getMsg(322,&quot;Kann Bild/Karte nicht finden&quot;)+&quot;:
+-                 * &quot;+e.getMessage(), MessageBox.OKB); tmp.exec(); }
+-                 */
+             } else if (ev.target == btnShowBug) {
+                 // InfoScreen is = new InfoScreen(thisCache.Travelbugs.toHtml(),
+                 // &quot;Travelbugs&quot;,
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2010-04-28 19:24:09 UTC (rev 2554)
++++ trunk/src/CacheWolf/MainTab.java	2010-04-29 10:36:37 UTC (rev 2555)
+@@ -346,24 +346,16 @@
+ 				mm = new MovingMap(nav, profile.cacheDB);
+ 				nav.setMovingMap(mm);
+ 			}
+-			if (forceCenter) mm.setGpsStatus(MovingMap.noGPS); // disconnect movingMap from GPS TODO only if GPS-pos is not on the screen
+-			mm.myExec(centerTo);
++			
++			mm.myExec(centerTo, forceCenter);
++			
+ 			if (forceCenter) {
+ 				try {
+ 					int i = 0;
+ 					while (MapImage.screenDim.width == 0 &amp;&amp; i &lt; 10*60) { i++; ewe.sys.mThread.sleep(100);} // wait until the window size of the moving map is known note: ewe.sys.sleep() will pause the whole vm - no other thread will run
+ 					if (i &gt;= 10*60) {(new MessageBox(&quot;Error&quot;, &quot;MovingMap cannot be displayed - this is most likely a bug - plaese report it on www.geoclub.de&quot;, FormBase.OKB)).execute(); return;}
+-					mm.setCenterOfScreen(centerTo, false); // this can only be executed if mm knows its window size that's why myExec must be executed before
+-					mm.updatePosition(centerTo);
+ 					//If white Areas are filled there is a problem with painting the image. We force painting here.
+ 					mm.repaint ();
+-					/*			if(!mm.posCircle.isOnScreen()) { // TODO this doesn't work because lat lon is set to the wished pos and not to gps anymore
+-				mm.setGpsStatus(MovingMap.noGPS); // disconnect movingMap from GPS if GPS-pos is not on the screen
+-				mm.setResModus(MovingMap.HIGHEST_RESOLUTION);
+-				mm.updatePosition(centerTo.latDec, centerTo.lonDec);
+-				mm.setCenterOfScreen(centerTo, true);
+-			}
+-					 */			//TODO what to do, if there is a map at centerTo, but it is not loaded because of mapSwitchMode == dest &amp; cuurpos und daf&#252;r gibt es keine Karte
+ 				}catch (InterruptedException e) {
+ 					e.printStackTrace();
+ 					Global.getPref().log(&quot;Error starting mavoing map (1): &quot; + e.getMessage(), e, true);
+
+Modified: trunk/src/CacheWolf/navi/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MovingMap.java	2010-04-28 19:24:09 UTC (rev 2554)
++++ trunk/src/CacheWolf/navi/MovingMap.java	2010-04-29 10:36:37 UTC (rev 2555)
+@@ -384,13 +384,17 @@
+ 		updatePosition(posCircle.where); // this sets forceMapLoad to false after loading a map
+ 	}
+ 
+-	public final FormFrame myExec(CWPoint centerTo) {
++	public final FormFrame myExec(CWPoint centerTo, boolean forceCenter) {
+ 		FormFrame ret = exec();
+ 		running = true;
+-
++		// disconnect movingMap from GPS TODO only if GPS-pos is not on the screen
++		if (forceCenter) setGpsStatus(noGPS);
+ 		// to load maplist + place a map on screen otherwise no symbol can be placed
+ 		ignoreGps=true; // else overlay symbols are removed on started gps
+-		loadBestMap(centerTo);
++		
++		updatePosition(centerTo);
++		setCenterOfScreen(centerTo, false);
++		
+ 		if (getControlsLayer()!=null) {
+ 			getControlsLayer().changeRoleState(MovingMapControls.ROLE_MENU, false);
+ 		}
+@@ -415,6 +419,7 @@
+ 
+ 		repaint();
+ 		ignoreGps=false;
++		
+ 		return ret;
+ 	}
+ 
+@@ -1034,12 +1039,6 @@
+ 	private void showCachesOnMap() {
+ 		// if (width == 0 || height == 0) return;
+ 		CacheHolder ch;
+-		/*
+-		 * Symbols not on screen move invisible topleft but on top , so no menu for yellow triangle
+-		int twidth = width/10;
+-		int theight = height/10;
+-		Area screenArea = new Area(ScreenXY2LatLon(-twidth,-theight), ScreenXY2LatLon(width+twidth,height+theight));
+-		 */
+ 		Area screenArea = new Area(ScreenXY2LatLon(0,0), ScreenXY2LatLon(width,height));
+ 		for (int i = cacheDB.size() - 1; i &gt;= 0; i--) {
+ 			ch = cacheDB.get(i);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002481.html">[Cachewolf-svn] r2554 - in trunk/src/CacheWolf: . navi
+</A></li>
+	<LI>Next message: <A HREF="002483.html">[Cachewolf-svn] r2556 - trunk
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2482">[ date ]</a>
+              <a href="thread.html#2482">[ thread ]</a>
+              <a href="subject.html#2482">[ subject ]</a>
+              <a href="author.html#2482">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

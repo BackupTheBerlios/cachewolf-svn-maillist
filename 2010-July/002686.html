@@ -1,0 +1,146 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2700 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-July/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2700%20-%20trunk/src/CacheWolf&In-Reply-To=%3C20100724193153.25479480E63%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002685.html">
+   <LINK REL="Next"  HREF="002687.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2700 - trunk/src/CacheWolf</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2700%20-%20trunk/src/CacheWolf&In-Reply-To=%3C20100724193153.25479480E63%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2700 - trunk/src/CacheWolf">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Sat Jul 24 09:31:53 CEST 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002685.html">[Cachewolf-svn] r2699 - trunk/src/CacheWolf/exp
+</A></li>
+        <LI>Next message: <A HREF="002687.html">[Cachewolf-svn] r2701 - in trunk: res_noewe res_noewe/templates	src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2686">[ date ]</a>
+              <a href="thread.html#2686">[ thread ]</a>
+              <a href="subject.html#2686">[ subject ]</a>
+              <a href="author.html#2686">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2010-07-24 21:31:52 +0200 (Sat, 24 Jul 2010)
+New Revision: 2700
+
+Modified:
+   trunk/src/CacheWolf/Attribute.java
+   trunk/src/CacheWolf/Attributes.java
+Log:
+doing attribut operations more robust
+
+Modified: trunk/src/CacheWolf/Attribute.java
+===================================================================
+--- trunk/src/CacheWolf/Attribute.java	2010-07-22 19:08:04 UTC (rev 2699)
++++ trunk/src/CacheWolf/Attribute.java	2010-07-24 19:31:52 UTC (rev 2700)
+@@ -62,11 +62,19 @@
+     private void setIdBit() {
+     	_bit=getIdBit(_Id);
+     }
+-
++    // checking for array limits (caus -1 is possible value)
++    private static String attRef(int row, int column ) {
++    	if (row &gt; -1 &amp;&amp; row &lt; maxAttRef) {
++    		return attRef[row][column];
++    	}
++    	else {
++    		return &quot;&quot;;
++    	}
++    }
+     // *** public part
+     public static long[] getIdBit(int id) {
+     	long [] bit = new long[2];
+-    	if (id&gt;-1) {
++    	if (id&gt;-1 &amp;&amp; id&lt;maxAttRef) {
+         	int b = Integer.parseInt(attRef[id][BIT_NR]);
+     		bit[0] = b&gt;63 ? 0l : (1L &lt;&lt; b);
+     		bit[1] = b&gt;63 ? (1L &lt;&lt; b-64) : 0;
+@@ -80,11 +88,11 @@
+     /**
+      * get GC_TEXT string
+ 	 */
+-    public String getGCText () { return attRef[_Id][GC_TEXT]; }
++    public String getGCText () { return attRef(_Id,GC_TEXT); }
+     /**
+      * get GC_ID string
+ 	 */
+-    public String getGCId () { return attRef[_Id][GC_ID]; }
++    public String getGCId () { return attRef(_Id,GC_ID); }
+     /**
+      * getting attribute given=1,negative=0,not specified=2  
+      */
+@@ -94,10 +102,15 @@
+      */
+     public void setInc(int inc) {
+     	_Inc=inc;
+-		_ImageName=attRef[_Id][PIC_NAME];
+-		if (inc==0) _ImageName+=&quot;-no.gif&quot;;
+-		else if (inc==1) _ImageName+=&quot;-yes.gif&quot;;
+-		else _ImageName+=&quot;-non.gif&quot;;
++    	if (_Id&lt;0 || _Id&gt;=maxAttRef) {
++    		_ImageName=&quot;error.gif&quot;;
++    	}
++    	else {
++    		_ImageName=attRef(_Id,PIC_NAME);
++    		if (inc==0) _ImageName+=&quot;-no.gif&quot;;
++    		else if (inc==1) _ImageName+=&quot;-yes.gif&quot;;
++    		else _ImageName+=&quot;-non.gif&quot;;
++    	}
+     }
+     /**
+      * getting name of corresponding image stored in attributes subdirectory 
+
+Modified: trunk/src/CacheWolf/Attributes.java
+===================================================================
+--- trunk/src/CacheWolf/Attributes.java	2010-07-22 19:08:04 UTC (rev 2699)
++++ trunk/src/CacheWolf/Attributes.java	2010-07-24 19:31:52 UTC (rev 2700)
+@@ -83,7 +83,7 @@
+ 			boolean doAdd = true;
+ 			int replace=0;
+ 			for (int i = 0; i &lt; _count; i++) {
+-				if (attribs[i].getGCId() == attr.getGCId()){
++				if (attribs[i].getGCId().equals(attr.getGCId())){
+ 					doAdd=false;
+ 					replace=i;
+ 					break;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002685.html">[Cachewolf-svn] r2699 - trunk/src/CacheWolf/exp
+</A></li>
+	<LI>Next message: <A HREF="002687.html">[Cachewolf-svn] r2701 - in trunk: res_noewe res_noewe/templates	src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2686">[ date ]</a>
+              <a href="thread.html#2686">[ thread ]</a>
+              <a href="subject.html#2686">[ subject ]</a>
+              <a href="author.html#2686">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

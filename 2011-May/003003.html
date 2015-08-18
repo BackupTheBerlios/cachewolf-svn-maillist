@@ -1,0 +1,875 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r3012 - in trunk/src/CacheWolf: . model view	view/ewe view/pda
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2011-May/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r3012%20-%20in%20trunk/src/CacheWolf%3A%20.%20model%20view%0A%09view/ewe%20view/pda&In-Reply-To=%3C20110521144305.E15484813F8%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003002.html">
+   <LINK REL="Next"  HREF="003004.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r3012 - in trunk/src/CacheWolf: . model view	view/ewe view/pda</H1>
+    <B>apreisser at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r3012%20-%20in%20trunk/src/CacheWolf%3A%20.%20model%20view%0A%09view/ewe%20view/pda&In-Reply-To=%3C20110521144305.E15484813F8%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r3012 - in trunk/src/CacheWolf: . model view	view/ewe view/pda">apreisser at mail.berlios.de
+       </A><BR>
+    <I>Sat May 21 04:43:05 CEST 2011</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003002.html">[Cachewolf-svn] r3011 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="003004.html">[Cachewolf-svn] r3013 - in trunk/src/CacheWolf: model view/ewe	view/pda
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3003">[ date ]</a>
+              <a href="thread.html#3003">[ thread ]</a>
+              <a href="subject.html#3003">[ subject ]</a>
+              <a href="author.html#3003">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: apreisser
+Date: 2011-05-21 16:43:05 +0200 (Sat, 21 May 2011)
+New Revision: 3012
+
+Added:
+   trunk/src/CacheWolf/model/AbstractListModel.java
+   trunk/src/CacheWolf/model/TravelBugJourneyScreenModel.java
+   trunk/src/CacheWolf/model/TravelbugScreenModel.java
+   trunk/src/CacheWolf/view/ITravelbugScreen.java
+   trunk/src/CacheWolf/view/TravelBugScreenFactory.java
+   trunk/src/CacheWolf/view/pda/PDAList.java
+   trunk/src/CacheWolf/view/pda/PDATravelbugScreen.java
+Removed:
+   trunk/src/CacheWolf/model/TravelBugScreenModel.java
+Modified:
+   trunk/src/CacheWolf/DetailsPanel.java
+   trunk/src/CacheWolf/TravelbugPickup.java
+   trunk/src/CacheWolf/TravelbugScreen.java
+   trunk/src/CacheWolf/view/TravelbugJourneyScreenFactory.java
+   trunk/src/CacheWolf/view/ewe/TravelbugJourneyScreen.java
+   trunk/src/CacheWolf/view/ewe/TravelbugMenu.java
+   trunk/src/CacheWolf/view/pda/PDAListButton.java
+   trunk/src/CacheWolf/view/pda/PDATravelbugDetailPanel.java
+Log:
+Picking up TBs becomes more finger-friendly when called from the TravelBugJourneyScreen.
+
+Modified: trunk/src/CacheWolf/DetailsPanel.java
+===================================================================
+--- trunk/src/CacheWolf/DetailsPanel.java	2011-05-21 14:37:59 UTC (rev 3011)
++++ trunk/src/CacheWolf/DetailsPanel.java	2011-05-21 14:43:05 UTC (rev 3012)
+@@ -958,14 +958,12 @@
+ 					tbjList = new TravelbugJourneyList();
+ 					tbjList.readTravelbugsFile();
+ 					TravelbugList tbl = tbjList.getMyTravelbugs();
+-					TravelbugScreen tbs = new TravelbugScreen(tbl, MyLocale
+-							.getMsg(6017, &quot;Drop a travelbug&quot;), false);
++					TravelbugScreen tbs = new TravelbugScreen(tbl, MyLocale.getMsg(6017, &quot;Drop a travelbug&quot;), false);
+ 					tbs.execute();
+ 					if (tbs.selectedItem &gt;= 0) {
+ 						Travelbug tb = tbl.getTB(tbs.selectedItem);
+ 						cache.getCacheDetails(true).Travelbugs.add(tb);
+-						tbjList.addTbDrop(tb, Global.getProfile().name,
+-								cache.getWayPoint());
++						tbjList.addTbDrop(tb, Global.getProfile().name, cache.getWayPoint());
+ 					}
+ 					tbjList.saveTravelbugsFile();
+ 					cache.setHas_bugs(cache.getCacheDetails(true).Travelbugs.size() &gt; 0);
+
+Modified: trunk/src/CacheWolf/TravelbugPickup.java
+===================================================================
+--- trunk/src/CacheWolf/TravelbugPickup.java	2011-05-21 14:37:59 UTC (rev 3011)
++++ trunk/src/CacheWolf/TravelbugPickup.java	2011-05-21 14:43:05 UTC (rev 3012)
+@@ -1,59 +1,66 @@
+-    /*
+-    GNU General Public License
+-    CacheWolf is a software for PocketPC, Win and Linux that
+-    enables paperless caching.
+-    It supports the sites geocaching.com and opencaching.de
++/*
++GNU General Public License
++CacheWolf is a software for PocketPC, Win and Linux that
++enables paperless caching.
++It supports the sites geocaching.com and opencaching.de
+ 
+-    Copyright (C) 2006  CacheWolf development team
+-    See <A HREF="http://developer.berlios.de/projects/cachewolf/">http://developer.berlios.de/projects/cachewolf/</A>
+-    for more information.
+-    Contact: 	<A HREF="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">bilbowolf at users.berlios.de</A>
+-    			<A HREF="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">kalli at users.berlios.de</A>
++Copyright (C) 2006  CacheWolf development team
++See <A HREF="http://developer.berlios.de/projects/cachewolf/">http://developer.berlios.de/projects/cachewolf/</A>
++for more information.
++Contact: 	<A HREF="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">bilbowolf at users.berlios.de</A>
++			<A HREF="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">kalli at users.berlios.de</A>
+ 
+-    This program is free software; you can redistribute it and/or modify
+-    it under the terms of the GNU General Public License as published by
+-    the Free Software Foundation; version 2 of the License.
++This program is free software; you can redistribute it and/or modify
++it under the terms of the GNU General Public License as published by
++the Free Software Foundation; version 2 of the License.
+ 
+-    This program is distributed in the hope that it will be useful,
+-    but WITHOUT ANY WARRANTY; without even the implied warranty of
+-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-    GNU General Public License for more details.
++This program is distributed in the hope that it will be useful,
++but WITHOUT ANY WARRANTY; without even the implied warranty of
++MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++GNU General Public License for more details.
+ 
+-    You should have received a copy of the GNU General Public License
+-    along with this program; if not, write to the Free Software
+-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+-    */
++You should have received a copy of the GNU General Public License
++along with this program; if not, write to the Free Software
++Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ */
+ package CacheWolf;
+ 
++import CacheWolf.view.ITravelbugScreen;
++import CacheWolf.view.TravelBugScreenFactory;
+ import ewe.ui.InputBox;
+ 
+ public class TravelbugPickup {
+ 
+ 	/**
+-	 * Choose a travelbug from those listed in the travelbug list and delete it, if
+-	 * the operation was not cancelled.
+-	 * @param tbl List of travelbugs from where a bug is picked up
++	 * Choose a travelbug from those listed in the travelbug list and delete it,
++	 * if the operation was not cancelled.
++	 * 
++	 * @param tbl
++	 *            List of travelbugs from where a bug is picked up
+ 	 */
+ 	public static Travelbug pickupTravelbug(TravelbugList tbl) {
+-		Travelbug tb=null;
+-		TravelbugScreen tbs=new TravelbugScreen(tbl,MyLocale.getMsg(6016,&quot;Pick up travelbug&quot;),true);
++		Travelbug tb = null;
++		// TravelbugScreen tbs=new TravelbugScreen(tbl,MyLocale.getMsg(6016,&quot;Pick up travelbug&quot;),true);
++		ITravelbugScreen tbs = TravelBugScreenFactory.createTravelbugScreen(tbl, MyLocale.getMsg(6016, &quot;Pick up travelbug&quot;), true);
+ 		tbs.execute(); // Select TB to pick up
+-		if (tbs.selectedItem&gt;=0) { // Was a TB selected ?
++		if (tbs.getSelectedItem() &gt;= 0) { // Was a TB selected ?
+ 			// If the returned item is bigger than number of bugs in cache
+-			// we have found a new unlisted bug. 
+-			if (tbs.selectedItem==tbl.size()) {
+-				InputBox ibox=new InputBox(MyLocale.getMsg(6018,&quot;Travelbug name&quot;));
+-				String name=ibox.input(&quot;&quot;,240);
+-				if (name==null) return null; // No name given
+-				tb=new Travelbug(name);
++			// we have found a new unlisted bug.
++			if (tbs.getSelectedItem() == tbl.size()) {
++				InputBox ibox = new InputBox(MyLocale.getMsg(6018, &quot;Travelbug name&quot;));
++				String name = ibox.input(&quot;&quot;, 240);
++				if (name == null)
++					return null; // No name given
++				tb = new Travelbug(name);
+ 			} else { // A bug in the list was chosen
+-				tb=tbl.getTB(tbs.selectedItem);
++				tb = tbl.getTB(tbs.getSelectedItem());
+ 				// Remove the tb from the list
+-				tbl.remove(tbs.selectedItem);
++				tbl.remove(tbs.getSelectedItem());
+ 			}
+-			InputBox ibox=new InputBox(MyLocale.getMsg(6019,&quot;Tracking number&quot;));
+-			String trackingNo=ibox.input(&quot;&quot;,240);
+-			if (trackingNo==null) trackingNo=&quot;&quot;;
++			InputBox ibox = new InputBox(MyLocale.getMsg(6019, &quot;Tracking number&quot;));
++			String trackingNo = ibox.input(&quot;&quot;, 240);
++			if (trackingNo == null)
++				trackingNo = &quot;&quot;;
+ 			tb.setTrackingNo(trackingNo);
+ 		}
+ 		return tb;
+
+Modified: trunk/src/CacheWolf/TravelbugScreen.java
+===================================================================
+--- trunk/src/CacheWolf/TravelbugScreen.java	2011-05-21 14:37:59 UTC (rev 3011)
++++ trunk/src/CacheWolf/TravelbugScreen.java	2011-05-21 14:43:05 UTC (rev 3012)
+@@ -25,6 +25,7 @@
+     */
+ package CacheWolf;
+ 
++import CacheWolf.view.ITravelbugScreen;
+ import ewe.ui.CellConstants;
+ import ewe.ui.ControlEvent;
+ import ewe.ui.Event;
+@@ -40,19 +41,23 @@
+  * Choose a travelbug to pick up or drop
+  * @author salzkammergut
+  */ 
+-public class TravelbugScreen extends Form {
++public class TravelbugScreen extends Form implements ITravelbugScreen {
+ 	private myList disp;
+ 	private mButton btCancel,btAccept;
+ 	/** The index into the list of travelbugs indicating the selected bug */
+ 	public int selectedItem=-1;
+ 	
++	public int getSelectedItem() {
++		return selectedItem;
++	}
++
+ 	/**
+ 	 * A screen to choose a travelbug from a list of bugs
+ 	 * @param tbl The list of travelbugs from which to choose
+ 	 * @param title The title of the screen
+ 	 * @param allowNew True if a travelbug not on the list can be selected
+ 	 */
+-	TravelbugScreen(TravelbugList tbl, String title,boolean allowNew) {
++	public TravelbugScreen(TravelbugList tbl, String title,boolean allowNew) {
+ 		this.setTitle(title);
+ 		this.setPreferredSize(240, -1);
+ 		disp=new myList(tbl,allowNew);
+@@ -104,7 +109,4 @@
+ 				return SafeXML.cleanback(tbl.getTB(idx).getName());
+ 		}
+ 	}
+-
+-
+-
+ }
+
+Added: trunk/src/CacheWolf/model/AbstractListModel.java
+===================================================================
+--- trunk/src/CacheWolf/model/AbstractListModel.java	                        (rev 0)
++++ trunk/src/CacheWolf/model/AbstractListModel.java	2011-05-21 14:43:05 UTC (rev 3012)
+@@ -0,0 +1,47 @@
++package CacheWolf.model;
++
++import ewe.util.Vector;
++
++public abstract class AbstractListModel {
++
++	public Vector allItems;
++
++	public Vector shownItems = new Vector ();
++	public int sortCriteria;
++
++	public AbstractListModel() {
++		super();
++	}
++
++	/**
++	 * Creates the list of objects to be shown in the List. With this methode You can hide some objects.
++	 * Standardimplementation is to show all objects anytime. 
++	 *  
++	 */
++	public void createShowSet(){
++		shownItems.clear();
++		shownItems.addAll(allItems);
++	}
++	
++	/**
++	 * Adds an Object to this model to last position.
++	 * @param o
++	 */
++	public void add (Object o){
++		allItems.add(o);
++	}
++	
++	/**
++	 * Returns the number of elements in the showset of this model
++	 */
++	public int size(){
++		return shownItems.size();
++	}
++	
++	/**
++	 * Returns the Nth item in the showset of this model
++	 */
++	public Object get(int n){
++		return shownItems.get(n);
++	}
++}
+\ No newline at end of file
+
+
+Property changes on: trunk/src/CacheWolf/model/AbstractListModel.java
+___________________________________________________________________
+Added: svn:mime-type
+   + text/plain
+
+Copied: trunk/src/CacheWolf/model/TravelBugJourneyScreenModel.java (from rev 2988, trunk/src/CacheWolf/model/TravelBugScreenModel.java)
+===================================================================
+--- trunk/src/CacheWolf/model/TravelBugJourneyScreenModel.java	                        (rev 0)
++++ trunk/src/CacheWolf/model/TravelBugJourneyScreenModel.java	2011-05-21 14:43:05 UTC (rev 3012)
+@@ -0,0 +1,33 @@
++package CacheWolf.model;
++
++import CacheWolf.CacheHolder;
++import CacheWolf.Global;
++import CacheWolf.TravelbugJourney;
++import CacheWolf.TravelbugJourneyList;
++import ewe.util.Vector;
++
++public class TravelBugJourneyScreenModel {
++
++	public CacheHolder actualCache;
++	public TravelbugJourneyList allTravelbugJourneys;
++	public Vector shownTravelbugJourneys = new Vector ();
++	public boolean onlyLogged;
++	public int sortCriteria;
++
++	public void toggleOnlyLogged() {
++		onlyLogged = !onlyLogged;
++		createShowSet();
++		Global.getPref().travelbugShowOnlyNonLogged = onlyLogged;
++		Global.getPref().savePreferences();
++	}
++
++	public void createShowSet() {
++		shownTravelbugJourneys.clear();
++		for (int i = 0; i &lt; allTravelbugJourneys.size(); i++) {
++			TravelbugJourney tbJourney = allTravelbugJourneys.getTBJourney(i);
++			if (!onlyLogged || (onlyLogged &amp;&amp; (!tbJourney.getFromLogged() || !tbJourney.getToLogged()))) {
++				shownTravelbugJourneys.add(tbJourney);
++			}
++		}
++	}
++}
+
+
+Property changes on: trunk/src/CacheWolf/model/TravelBugJourneyScreenModel.java
+___________________________________________________________________
+Added: svn:mime-type
+   + text/plain
+
+Deleted: trunk/src/CacheWolf/model/TravelBugScreenModel.java
+===================================================================
+--- trunk/src/CacheWolf/model/TravelBugScreenModel.java	2011-05-21 14:37:59 UTC (rev 3011)
++++ trunk/src/CacheWolf/model/TravelBugScreenModel.java	2011-05-21 14:43:05 UTC (rev 3012)
+@@ -1,33 +0,0 @@
+-package CacheWolf.model;
+-
+-import CacheWolf.CacheHolder;
+-import CacheWolf.Global;
+-import CacheWolf.TravelbugJourney;
+-import CacheWolf.TravelbugJourneyList;
+-import ewe.util.Vector;
+-
+-public class TravelBugScreenModel {
+-
+-	public CacheHolder actualCache;
+-	public TravelbugJourneyList allTravelbugJourneys;
+-	public Vector shownTravelbugJourneys = new Vector ();
+-	public boolean onlyLogged;
+-	public int sortCriteria;
+-
+-	public void toggleOnlyLogged() {
+-		onlyLogged = !onlyLogged;
+-		createShowSet();
+-		Global.getPref().travelbugShowOnlyNonLogged = onlyLogged;
+-		Global.getPref().savePreferences();
+-	}
+-
+-	public void createShowSet() {
+-		shownTravelbugJourneys.clear();
+-		for (int i = 0; i &lt; allTravelbugJourneys.size(); i++) {
+-			TravelbugJourney tbJourney = allTravelbugJourneys.getTBJourney(i);
+-			if (!onlyLogged || (onlyLogged &amp;&amp; (!tbJourney.getFromLogged() || !tbJourney.getToLogged()))) {
+-				shownTravelbugJourneys.add(tbJourney);
+-			}
+-		}
+-	}
+-}
+
+Added: trunk/src/CacheWolf/model/TravelbugScreenModel.java
+===================================================================
+--- trunk/src/CacheWolf/model/TravelbugScreenModel.java	                        (rev 0)
++++ trunk/src/CacheWolf/model/TravelbugScreenModel.java	2011-05-21 14:43:05 UTC (rev 3012)
+@@ -0,0 +1,8 @@
++package CacheWolf.model;
++
++public class TravelbugScreenModel extends AbstractListModel {
++
++	public void createShowSet() {
++	}
++
++}
+
+
+Property changes on: trunk/src/CacheWolf/model/TravelbugScreenModel.java
+___________________________________________________________________
+Added: svn:mime-type
+   + text/plain
+
+Added: trunk/src/CacheWolf/view/ITravelbugScreen.java
+===================================================================
+--- trunk/src/CacheWolf/view/ITravelbugScreen.java	                        (rev 0)
++++ trunk/src/CacheWolf/view/ITravelbugScreen.java	2011-05-21 14:43:05 UTC (rev 3012)
+@@ -0,0 +1,17 @@
++package CacheWolf.view;
++
++public interface ITravelbugScreen {
++
++	/**
++	 * Shows the form
++	 * @return
++	 */
++	int execute();
++
++	/**
++	 * Returns the selected entry if any else &lt;code&gt;null&lt;/code&gt;
++	 * @return
++	 */
++	int getSelectedItem();
++
++}
+\ No newline at end of file
+
+
+Property changes on: trunk/src/CacheWolf/view/ITravelbugScreen.java
+___________________________________________________________________
+Added: svn:mime-type
+   + text/plain
+
+Added: trunk/src/CacheWolf/view/TravelBugScreenFactory.java
+===================================================================
+--- trunk/src/CacheWolf/view/TravelBugScreenFactory.java	                        (rev 0)
++++ trunk/src/CacheWolf/view/TravelBugScreenFactory.java	2011-05-21 14:43:05 UTC (rev 3012)
+@@ -0,0 +1,65 @@
++package CacheWolf.view;
++
++import java.lang.reflect.Constructor;
++
++import CacheWolf.Global;
++import CacheWolf.TravelbugList;
++import CacheWolf.TravelbugScreen;
++import CacheWolf.view.ewe.TravelbugJourneyScreen;
++import CacheWolf.view.pda.PDATravelbugScreen;
++import ewe.reflect.Reflect;
++import ewe.sys.Vm;
++
++public class TravelBugScreenFactory {
++
++	/**
++	 * Variante fuer Desktop unter Java???
++	 */
++	private static boolean isSwing;
++	static {
++		Global.getPref().log(&quot;Static initializer start &quot;);
++		Class swingClass = null;
++		try {
++			swingClass = TravelbugJourneyScreen.class.getClassLoader().loadClass(&quot;javax.swing.JTable&quot;);
++		} catch (Exception e) {
++			Global.getPref().log(&quot;Swing not found&quot;);
++			Global.getPref().log(e.toString());
++			// ignore!
++		}
++		isSwing = swingClass != null &amp;&amp; false;
++	}
++
++	/**
++	 * Variante fuer Android-PDA
++	 */
++	private static final boolean isAndroid = false;
++
++	public static ITravelbugScreen createTravelbugScreen(TravelbugList tbl, String title, boolean allowNew) {
++		Global.getPref().log(&quot;Mobile-Device: &quot; + Vm.isMobile());
++		Global.getPref().log(&quot;Preference for Mobile-Device: &quot; + Global.getPref().mobileGUI);
++		if (Vm.isMobile() &amp;&amp; Global.getPref().mobileGUI) {
++			try {
++				Class loadClass = Reflect.getForName(&quot;CacheWolf.view.pda.PDATravelbugScreen&quot;).getReflectedClass();
++				Constructor constructor = loadClass.getConstructor(new Class[] { TravelbugList.class, String.class, boolean.class });
++				ITravelbugScreen result = (ITravelbugScreen) constructor.newInstance(new Object[] { tbl, title, allowNew });
++				Global.getPref().log(&quot;TBScreen successfully instantiated&quot;);
++				return result;
++			} catch (Throwable e) {
++				Global.getPref().log(&quot;CacheWolf.view.pda.PDATravelbugScreen not found&quot;);
++				Global.getPref().log(&quot;Error in instantiating TravelBugScreen&quot;, e, true);
++				e.printStackTrace();
++				// ignore?? VM on WinPC seems to have no classloader
++				return new PDATravelbugScreen(tbl, title, allowNew);
++			}
++		} else if (isSwing) {
++			throw new InstantiationError(&quot;No Swing GUI available&quot;);
++			// return new TravelbugJourneyScreen(model);
++		} else if (isAndroid) {
++			throw new InstantiationError(&quot;No Android GUI available&quot;);
++			// return new TravelbugJourneyScreen(model);
++		} else {
++			return new TravelbugScreen(tbl, title, allowNew);
++		}
++	}
++
++}
+
+
+Property changes on: trunk/src/CacheWolf/view/TravelBugScreenFactory.java
+___________________________________________________________________
+Added: svn:mime-type
+   + text/plain
+
+Modified: trunk/src/CacheWolf/view/TravelbugJourneyScreenFactory.java
+===================================================================
+--- trunk/src/CacheWolf/view/TravelbugJourneyScreenFactory.java	2011-05-21 14:37:59 UTC (rev 3011)
++++ trunk/src/CacheWolf/view/TravelbugJourneyScreenFactory.java	2011-05-21 14:43:05 UTC (rev 3012)
+@@ -6,7 +6,7 @@
+ import CacheWolf.CacheHolder;
+ import CacheWolf.Global;
+ import CacheWolf.TravelbugJourneyList;
+-import CacheWolf.model.TravelBugScreenModel;
++import CacheWolf.model.TravelBugJourneyScreenModel;
+ import CacheWolf.view.ewe.TravelbugJourneyScreen;
+ import CacheWolf.view.pda.PDATravelbugJourneyScreen;
+ import ewe.reflect.Reflect;
+@@ -30,6 +30,7 @@
+ 			//ignore!
+ 		}
+ 		isSwing = swingClass!=null;
++		isSwing = false;
+ 	}
+ 
+ 	/**
+@@ -38,7 +39,7 @@
+ 	private static final boolean isAndroid = false;
+ 
+ 	public static Form createTravelbugJourneyScreen() {
+-		TravelBugScreenModel model = new TravelBugScreenModel();
++		TravelBugJourneyScreenModel model = new TravelBugJourneyScreenModel();
+ 		model.onlyLogged = Global.getPref().travelbugShowOnlyNonLogged;
+ 		int curCacheNo = Global.mainTab.tbP.getSelectedCache();
+ 		CacheDB cacheDB = Global.getProfile().cacheDB;
+@@ -65,7 +66,7 @@
+ 				//ignore?? VM on WinPC seems to have no classloader
+ 				return new PDATravelbugJourneyScreen(model);
+ 			}
+-		} else if (isSwing) {
++		} else if ( isSwing) {
+ 			throw new InstantiationError (&quot;No Swing GUI available&quot;);
+ 		} else if (isAndroid) {
+ 			throw new InstantiationError (&quot;No Android GUI available&quot;);
+
+Modified: trunk/src/CacheWolf/view/ewe/TravelbugJourneyScreen.java
+===================================================================
+--- trunk/src/CacheWolf/view/ewe/TravelbugJourneyScreen.java	2011-05-21 14:37:59 UTC (rev 3011)
++++ trunk/src/CacheWolf/view/ewe/TravelbugJourneyScreen.java	2011-05-21 14:43:05 UTC (rev 3012)
+@@ -49,7 +49,7 @@
+ import CacheWolf.TravelbugList;
+ import CacheWolf.TravelbugPickup;
+ import CacheWolf.imp.SpiderGC;
+-import CacheWolf.model.TravelBugScreenModel;
++import CacheWolf.model.TravelBugJourneyScreenModel;
+ import CacheWolf.utils.CWWrapper;
+ import ewe.fx.Color;
+ import ewe.fx.Dimension;
+@@ -123,7 +123,7 @@
+ 	// =========== CONTROLLER
+ 	public TravelbugMenu mnuTBMenu;
+ 	// ========== MODEL
+-	public TravelBugScreenModel model;
++	public TravelBugJourneyScreenModel model;
+ 
+ 	/**
+ 	 * A flag to track whether the current cache has to be saved because a
+@@ -148,7 +148,7 @@
+ 	// Set to Public to implement MVC-Pattern [AP]
+ 	public String waypoint = &quot;&quot;;
+ 
+-	public TravelbugJourneyScreen(TravelBugScreenModel newModel) {
++	public TravelbugJourneyScreen(TravelBugJourneyScreenModel newModel) {
+ 		model = newModel;
+ 		CacheDB cacheDB = Global.getProfile().cacheDB;
+ 		SplittablePanel split = new SplittablePanel(PanelSplitter.VERTICAL);
+@@ -555,9 +555,9 @@
+ 		private MenuItem mnuNewTB, mnuDeleteTB, mnuGetMission, mnuOpenOnline, mnuDropTB, mnuPickupTB, mnuDeleteTBs;
+ 		public MenuItem mnuToggleList;
+ 		private Menu mnuFullMenu, mnuDeleteMenu;
+-		private TravelBugScreenModel tbModel;
++		private TravelBugJourneyScreenModel tbModel;
+ 
+-		tbListControl(TravelBugScreenModel tbModel) {
++		tbListControl(TravelBugJourneyScreenModel tbModel) {
+ 			this.tbModel = tbModel;
+ 			MenuItem[] TBMenuItems = new MenuItem[10];
+ 			TBMenuItems[0] = mnuPickupTB = new MenuItem(MyLocale.getMsg(6040, &quot;Pick up TB from current cache&quot;));
+
+Modified: trunk/src/CacheWolf/view/ewe/TravelbugMenu.java
+===================================================================
+--- trunk/src/CacheWolf/view/ewe/TravelbugMenu.java	2011-05-21 14:37:59 UTC (rev 3011)
++++ trunk/src/CacheWolf/view/ewe/TravelbugMenu.java	2011-05-21 14:43:05 UTC (rev 3012)
+@@ -7,7 +7,8 @@
+ import CacheWolf.TravelbugList;
+ import CacheWolf.TravelbugPickup;
+ import CacheWolf.imp.SpiderGC;
+-import CacheWolf.model.TravelBugScreenModel;
++import CacheWolf.model.AbstractListModel;
++import CacheWolf.model.TravelBugJourneyScreenModel;
+ import CacheWolf.utils.CWWrapper;
+ import ewe.fx.Rect;
+ import ewe.sys.Vm;
+@@ -40,9 +41,9 @@
+ 	 * The View displaying the model for this
+ 	 */
+ 	public TravelbugJourneyScreen view;
+-	private TravelBugScreenModel model;
++	private TravelBugJourneyScreenModel model;
+ 
+-	public TravelbugMenu(TravelBugScreenModel model) {
++	public TravelbugMenu(TravelBugJourneyScreenModel model) {
+ 		this.model = model;
+ 		MenuItem[] TBMenuItems = new MenuItem[9];
+ 		TBMenuItems[0] = mnuPickupTB = new MenuItem(MyLocale.getMsg(6040, &quot;Pick up TB from current cache&quot;));
+
+Added: trunk/src/CacheWolf/view/pda/PDAList.java
+===================================================================
+--- trunk/src/CacheWolf/view/pda/PDAList.java	                        (rev 0)
++++ trunk/src/CacheWolf/view/pda/PDAList.java	2011-05-21 14:43:05 UTC (rev 3012)
+@@ -0,0 +1,87 @@
++package CacheWolf.view.pda;
++
++import CacheWolf.MyLocale;
++import ewe.sys.Vm;
++import ewe.ui.CellConstants;
++import ewe.ui.ControlEvent;
++import ewe.ui.Form;
++import ewe.util.Vector;
++
++public abstract class PDAList extends Form {
++	protected static final String LINE = &quot;Line&quot;;
++
++	protected static final String NEXT_PAGE = &quot;NextPage&quot;;
++
++	protected static final String PREV_PAGE = &quot;PrevPage&quot;;
++
++	protected static final String MENUE = &quot;Menue&quot;;
++
++	public Vector model;
++	private int linesOnScreen=7;
++	PDAListButton[] listButtons;
++	protected int firstLine;
++
++	public PDAList() {
++		listButtons = new PDAListButton[linesOnScreen];
++		//Show Full Screen
++		setPreferredSize(MyLocale.getScreenWidth(), MyLocale.getScreenHeight());
++		addListener(this);
++		setTitle(&quot;Liste&quot;);
++
++		firstLine = 0;
++		for (int i = 0; i &lt; linesOnScreen; i++) {
++			listButtons[i] = new PDAListButton(&quot;&quot;, LINE + i);
++			addLast(listButtons[i], CellConstants.STRETCH, CellConstants.FILL);
++		}
++		model = new Vector();
++		setupTBButtons();
++		PDAMenuButton b1 = new PDAMenuButton(&quot;&lt;&lt;&lt;&quot;, PREV_PAGE);
++		addNext(b1, CellConstants.HSTRETCH, CellConstants.HFILL);
++		b1 = new PDAMenuButton(MyLocale.getMsg(6052, &quot;MENU&quot;), MENUE);
++		b1.anchor = 0;
++		addNext(b1, CellConstants.HSTRETCH, CellConstants.HFILL);
++		b1 = new PDAMenuButton(&quot;&gt;&gt;&gt;&quot;, NEXT_PAGE);
++		b1.anchor = CellConstants.EAST;
++		addLast(b1, CellConstants.HSTRETCH, CellConstants.HFILL);
++	}
++
++	public void onControlEvent(ControlEvent ev) {
++		if (ev instanceof ControlEvent) {
++			switch (ev.type) {
++			case ControlEvent.PRESSED:
++				if (ev.action.equals(NEXT_PAGE) &amp;&amp; model.size() &gt; firstLine + linesOnScreen) {
++					firstLine += linesOnScreen;
++					setupTBButtons();
++				} else if (ev.action.equals(PREV_PAGE) &amp;&amp; firstLine &gt; 0) {
++					firstLine -= linesOnScreen;
++					if (firstLine &lt; 0) {
++						firstLine = 0;
++					}
++					setupTBButtons();
++				} else if (ev.action.startsWith(LINE)) {
++					int line = ev.action.charAt(LINE.length()) - '0';
++					Object clickedItem =  model.get(line + firstLine);
++					Vm.debug(&quot;List clicked: &quot; + clickedItem);
++				} else if (ev.action.equals(MENUE)) {
++					setupTBButtons();
++				}
++				break;
++			default:
++				super.onControlEvent(ev);
++			}
++		}
++	}
++
++	public void setupTBButtons() {
++		for (int i = 0; i &lt; linesOnScreen; i++) {
++			if (i + firstLine &lt; model.size()) {
++				Object modelElement = model.get(i + firstLine);
++				listButtons[i].text = modelElement.toString();
++			} else {
++				listButtons[i].text = listButtons[i].fromText = listButtons[i].toText = &quot;&quot;;
++			}
++			listButtons[i].repaint();
++		}
++	}
++
++}
+
+
+Property changes on: trunk/src/CacheWolf/view/pda/PDAList.java
+___________________________________________________________________
+Added: svn:mime-type
+   + text/plain
+
+Modified: trunk/src/CacheWolf/view/pda/PDAListButton.java
+===================================================================
+--- trunk/src/CacheWolf/view/pda/PDAListButton.java	2011-05-21 14:37:59 UTC (rev 3011)
++++ trunk/src/CacheWolf/view/pda/PDAListButton.java	2011-05-21 14:43:05 UTC (rev 3012)
+@@ -31,12 +31,4 @@
+ 		this.buttonObject = new PDAListButtonObject(this);
+ 	}
+ 	
+-//	public Dimension getPreferredSize(Dimension paramDimension) {
+-//		Dimension size = super.getPreferredSize(paramDimension);
+-//		FontMetrics fm = new FontMetrics(font, getWindow());
+-//		size.height = (int)(fm.getHeight()*2.5);
+-//		size.width=fm.getTextWidth(text);
+-//		return size;
+-//	}
+-
+ }
+
+Modified: trunk/src/CacheWolf/view/pda/PDATravelbugDetailPanel.java
+===================================================================
+--- trunk/src/CacheWolf/view/pda/PDATravelbugDetailPanel.java	2011-05-21 14:37:59 UTC (rev 3011)
++++ trunk/src/CacheWolf/view/pda/PDATravelbugDetailPanel.java	2011-05-21 14:43:05 UTC (rev 3012)
+@@ -27,6 +27,8 @@
+ 
+ public class PDATravelbugDetailPanel extends Form {
+ 
++	private static final int BOXWIDTH = 40;
++
+ 	private static final String MENUE = &quot;MENUE&quot;;
+ 
+ 	private static final String BACK = &quot;back&quot;;
+@@ -169,6 +171,8 @@
+ 
+ 		panel.addNext(new mLabel(MyLocale.getMsg(6031, &quot;Logged:&quot;)), DONTSTRETCH, DONTFILL | WEST);
+ 		chkFromLogged = new mCheckBox(&quot;&quot;);
++		chkFromLogged.boxWidth = BOXWIDTH;
++		chkFromLogged.font = tmpFont;
+ 		chkFromLogged.setState(tbJourney.getFromLogged());
+ 		panel.addLast(chkFromLogged, DONTSTRETCH, DONTFILL | WEST);
+ 		chkFromLogged.exitKeys = exitKeys;
+@@ -192,6 +196,7 @@
+ 
+ 		panel.addNext(new mLabel(MyLocale.getMsg(6031, &quot;Logged:&quot;)), DONTSTRETCH, DONTFILL | WEST);
+ 		chkToLogged = new mCheckBox(&quot;&quot;);
++		chkToLogged.boxWidth = BOXWIDTH;
+ 		chkToLogged.setState(tbJourney.getToLogged());
+ 		panel.addLast(chkToLogged, DONTSTRETCH, DONTFILL | WEST);
+ 		chkToLogged.exitKeys = exitKeys;
+
+Added: trunk/src/CacheWolf/view/pda/PDATravelbugScreen.java
+===================================================================
+--- trunk/src/CacheWolf/view/pda/PDATravelbugScreen.java	                        (rev 0)
++++ trunk/src/CacheWolf/view/pda/PDATravelbugScreen.java	2011-05-21 14:43:05 UTC (rev 3012)
+@@ -0,0 +1,67 @@
++package CacheWolf.view.pda;
++
++import CacheWolf.MyLocale;
++import CacheWolf.Travelbug;
++import CacheWolf.TravelbugList;
++import CacheWolf.view.ITravelbugScreen;
++import ewe.ui.ControlEvent;
++import ewe.util.Vector;
++
++public class PDATravelbugScreen extends PDAList implements ITravelbugScreen{
++
++	/** The index into the list of travelbugs indicating the selected bug */
++	public int selectedItem=-1;
++	
++	/**
++	 * A screen to choose a travelbug from a list of bugs
++	 * @param tbl The list of travelbugs from which to choose
++	 * @param title The title of the screen
++	 * @param allowNew True if a travelbug not on the list can be selected
++	 */
++	public PDATravelbugScreen(TravelbugList tbl, String title, boolean allowNew) {
++		super();
++		model = new Vector();
++		for (int i=0;i &lt; tbl.size();i++){
++			Travelbug tb = tbl.getTB(i);
++			model.add(tb.getName());
++		}
++		if (allowNew){
++			model.add(MyLocale.getMsg(6015,&quot;*** OTHER ***&quot;));
++		}
++		setupTBButtons();
++}
++
++	public void onControlEvent(ControlEvent ev) {
++		if (ev instanceof ControlEvent) {
++			switch (ev.type) {
++			case ControlEvent.PRESSED:
++				if (ev.action.equals(NEXT_PAGE) ||(ev.action.equals(PREV_PAGE))) {
++					super.onControlEvent(ev);	
++				} else if (ev.action.startsWith(LINE)) {
++					selectedItem = ev.action.charAt(LINE.length()) - '0';
++//					Object clickedItem =  model.get(line + firstLine);
++//					Form form = new PDATravelbugDetailPanel(tbJourney, this);
++//					form.setPreferredSize(800, 600);
++//					form.execute();
++//					setupTBButtons();
++					exit(0);
++				} else if (ev.action.equals(MENUE)) {
++//					Form form = new PDATravelbugMenuPanel(this);
++//					form.setPreferredSize(800, 600);
++//					int execute = form.execute();
++//					if (execute == 1){
++//						exit(0);
++//					}
++					setupTBButtons();
++				}
++				break;
++			default:
++				super.onControlEvent(ev);
++			}
++		}
++	}
++
++	public int getSelectedItem() {
++		return selectedItem;
++	}
++}
+
+
+Property changes on: trunk/src/CacheWolf/view/pda/PDATravelbugScreen.java
+___________________________________________________________________
+Added: svn:mime-type
+   + text/plain
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003002.html">[Cachewolf-svn] r3011 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="003004.html">[Cachewolf-svn] r3013 - in trunk/src/CacheWolf: model view/ewe	view/pda
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3003">[ date ]</a>
+              <a href="thread.html#3003">[ thread ]</a>
+              <a href="subject.html#3003">[ subject ]</a>
+              <a href="author.html#3003">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,195 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2223 - in trunk/src/CacheWolf: . navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-September/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2223%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C200909301205.n8UC59QU030640%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002146.html">
+   <LINK REL="Next"  HREF="002148.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2223 - in trunk/src/CacheWolf: . navi</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2223%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C200909301205.n8UC59QU030640%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2223 - in trunk/src/CacheWolf: . navi">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Wed Sep 30 14:05:10 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002146.html">[Cachewolf-svn] r2222 - trunk/src/CacheWolf/navi
+</A></li>
+        <LI>Next message: <A HREF="002148.html">[Cachewolf-svn] r2224 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2147">[ date ]</a>
+              <a href="thread.html#2147">[ thread ]</a>
+              <a href="subject.html#2147">[ subject ]</a>
+              <a href="author.html#2147">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2009-09-30 14:05:08 +0200 (Wed, 30 Sep 2009)
+New Revision: 2223
+
+Modified:
+   trunk/src/CacheWolf/Common.java
+   trunk/src/CacheWolf/navi/MapsList.java
+Log:
+MapsList: use new/faster algorithm in getMapForArea too
+
+Modified: trunk/src/CacheWolf/Common.java
+===================================================================
+--- trunk/src/CacheWolf/Common.java	2009-09-30 12:03:57 UTC (rev 2222)
++++ trunk/src/CacheWolf/Common.java	2009-09-30 12:05:08 UTC (rev 2223)
+@@ -149,6 +149,17 @@
+ 		}
+ 		return sb.toString();
+ 	}
++	
++	/**
++	 * right pad with spaces
++	 * @param s
++	 * @param length
++	 * @return
++	 */
++	public static String rightPad(String s, int length) {
++		String p = &quot;                                                          &quot;;
++		return s + p.substring(s.length()+(p.length()-length));
++	}
+ 
+ 
+ }
+
+Modified: trunk/src/CacheWolf/navi/MapsList.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MapsList.java	2009-09-30 12:03:57 UTC (rev 2222)
++++ trunk/src/CacheWolf/navi/MapsList.java	2009-09-30 12:05:08 UTC (rev 2223)
+@@ -285,55 +285,61 @@
+ 	 * if topleft is really topleft or if it is buttomright is not relevant.
+ 	 */
+ 
+-	public MapInfoObject getMapForArea(CWPoint topleft, CWPoint bottomright){
++	public final MapInfoObject getMapForArea(CWPoint topleft, CWPoint bottomright){
+ 		long start = new Time().getTime();
+ 		InfoBox progressBox = null;
+ 		boolean showprogress = false;
+ 		MapListEntry ml;
+ 		MapInfoObject mi;
+ 		String cmp = &quot;FF1&quot;+(new Area(topleft, bottomright)).getEasyFindString();
++		String cmppadded = Common.rightPad(cmp, 30);
+ 		MapInfoObject fittingmap = null;
++		int guess;
+ 		boolean latNearer, lonNearer;
+ 		boolean better;
+ 		double minDistLat = 10000000000000000000000.0;
+ 		double minDistLon = 10000000000000000000000.0;
+-		for (int i=size() -1; i&gt;=0 ;i--) {
+-			if (!showprogress &amp;&amp; ((i &amp; 31) == 0) &amp;&amp; (new Time().getTime()-start  &gt; 100) ) { // reason for (i &amp; 7 == 0): test time only after i is incremented 15 times
+-				showprogress = true;
+-				progressBox = new InfoBox(MyLocale.getMsg(327,&quot;Info&quot;), MyLocale.getMsg(4701,&quot;Searching for best map&quot;));
+-				progressBox.exec();
+-				progressBox.waitUntilPainted(100);
+-				ewe.sys.Vm.showWait(true);
+-			}
+-			ml = (MapListEntry)get(i);
+-			try {
+-				if (!Area.containsRoughly(ml.sortEntryBBox, cmp)) continue; // TODO if no map available
+-				else { mi = ml.getMap();}
+-			} catch (IOException ex) {continue; } // could not read .wfl-file
+-			better = false;
+-			if (mi.isInBound(topleft) &amp;&amp; mi.isInBound(bottomright)) { // both points are inside the map
+-				if (fittingmap == null || fittingmap.scale &gt; mi.scale * scaleTolerance) {
+-					better = true; // mi map has a better (lower) scale than the last knwon good map
+-				} else {
+-					if (scaleEquals(mi, fittingmap)) { // same scale as bestmap till now -&gt; test if its center is nearer to the gps-point = topleft
+-						latNearer = java.lang.Math.abs(topleft.latDec- mi.center.latDec)/mi.sizeKm &lt; minDistLat ;
+-						lonNearer = java.lang.Math.abs(topleft.lonDec - mi.center.lonDec)/mi.sizeKm &lt; minDistLon;
+-						if ( latNearer &amp;&amp; lonNearer) better = true; // for faster processing: if lat and lon are nearer then the distancance doesn't need to be calculated
+-						else {
+-							if ( (latNearer || lonNearer )) {
+-								if (mi.center.getDistanceRad(topleft) &lt; fittingmap.center.getDistanceRad(topleft) ) better = true;
++		for (int digitlength = 0; digitlength &lt; maxDigits; digitlength++) {
++			guess = quickfind(cmppadded, this.numDigitsStartIndex[digitlength], this.numDigitsStartIndex[digitlength+1]-1);
++			if ( ((MapListEntry)get(guess)).sortEntryBBox.length() &gt; cmp.length() ) break; // if the sortEntryBBox indicates that it cannot contain both points, stop searching
++			for (int i=guess; i &gt;= numDigitsStartIndex[digitlength] ;i--) {
++				if (!showprogress &amp;&amp; ((i &amp; 31) == 0) &amp;&amp; (new Time().getTime()-start  &gt; 100) ) { // reason for (i &amp; 7 == 0): test time only after i is incremented 15 times
++					showprogress = true;
++					progressBox = new InfoBox(MyLocale.getMsg(327,&quot;Info&quot;), MyLocale.getMsg(4701,&quot;Searching for best map&quot;));
++					progressBox.exec();
++					progressBox.waitUntilPainted(100);
++					ewe.sys.Vm.showWait(true);
++				}
++				ml = (MapListEntry)get(i);
++				try {
++					if (!Area.containsRoughly(ml.sortEntryBBox, cmp)) continue; // TODO if no map available
++					else { mi = ml.getMap();}
++				} catch (IOException ex) {continue; } // could not read .wfl-file
++				better = false;
++				if (mi.isInBound(topleft) &amp;&amp; mi.isInBound(bottomright)) { // both points are inside the map
++					if (fittingmap == null || fittingmap.scale &gt; mi.scale * scaleTolerance) {
++						better = true; // mi map has a better (lower) scale than the last knwon good map
++					} else {
++						if (scaleEquals(mi, fittingmap)) { // same scale as bestmap till now -&gt; test if its center is nearer to the gps-point = topleft
++							latNearer = java.lang.Math.abs(topleft.latDec- mi.center.latDec)/mi.sizeKm &lt; minDistLat ;
++							lonNearer = java.lang.Math.abs(topleft.lonDec - mi.center.lonDec)/mi.sizeKm &lt; minDistLon;
++							if ( latNearer &amp;&amp; lonNearer) better = true; // for faster processing: if lat and lon are nearer then the distancance doesn't need to be calculated
++							else {
++								if ( (latNearer || lonNearer )) {
++									if (mi.center.getDistanceRad(topleft) &lt; fittingmap.center.getDistanceRad(topleft) ) better = true;
++								}
+ 							}
++
+ 						}
+-
+ 					}
++					if (better) {
++						fittingmap = mi;
++						minDistLat = java.lang.Math.abs(topleft.latDec - mi.center.latDec);
++						minDistLon = java.lang.Math.abs(topleft.lonDec - mi.center.lonDec);
++					}
+ 				}
+-				if (better) {
+-					fittingmap = mi;
+-					minDistLat = java.lang.Math.abs(topleft.latDec - mi.center.latDec);
+-					minDistLon = java.lang.Math.abs(topleft.lonDec - mi.center.lonDec);
+-				}
+-			}
+-		} // for
++			} // for i
++		} // for digitlength
+ 		if (progressBox != null) {
+ 			progressBox.close(0);
+ 			ewe.sys.Vm.showWait(false);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002146.html">[Cachewolf-svn] r2222 - trunk/src/CacheWolf/navi
+</A></li>
+	<LI>Next message: <A HREF="002148.html">[Cachewolf-svn] r2224 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2147">[ date ]</a>
+              <a href="thread.html#2147">[ thread ]</a>
+              <a href="subject.html#2147">[ subject ]</a>
+              <a href="author.html#2147">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

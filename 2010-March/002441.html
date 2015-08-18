@@ -1,0 +1,253 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2516 - in trunk/src/CacheWolf: . navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-March/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2516%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C201003102116.o2ALGmnf020182%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002440.html">
+   <LINK REL="Next"  HREF="002442.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2516 - in trunk/src/CacheWolf: . navi</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2516%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C201003102116.o2ALGmnf020182%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2516 - in trunk/src/CacheWolf: . navi">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Wed Mar 10 22:16:48 CET 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002440.html">[Cachewolf-svn] r2515 - trunk/res_noewe/webmapservices
+</A></li>
+        <LI>Next message: <A HREF="002442.html">[Cachewolf-svn] r2517 - in trunk/src/CacheWolf: . exp imp navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2441">[ date ]</a>
+              <a href="thread.html#2441">[ thread ]</a>
+              <a href="subject.html#2441">[ subject ]</a>
+              <a href="author.html#2441">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2010-03-10 22:16:45 +0100 (Wed, 10 Mar 2010)
+New Revision: 2516
+
+Modified:
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/navi/MovingMap.java
+Log:
+1. map cache context with switch to detail
+2. removing context from SkyOrientation
+3. unwanted dragging of map after contextmenu on PDA eliminated
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2010-03-09 23:42:05 UTC (rev 2515)
++++ trunk/src/CacheWolf/MainTab.java	2010-03-10 21:16:45 UTC (rev 2516)
+@@ -256,18 +256,26 @@
+ 			break;
+ 		}
+ 	}
+-
+-	public void openDescriptionPanel(CacheHolder chi) {
++	/**
++	 * this is called from MovingMap Cache context menu
++	 * @param chi , the CacheHolder for the Cache to switch to
++	 * @param panelNo 1=DetailsPanel 2=Description Panel
++	 */
++	public void openPanel(CacheHolder chi, int panelNo) {
+ 		MyLocale.setSIPOff();
+ 		// To change cache we need to be in panel 0
+ 		onLeavingPanel(oldCard);
+ 		onEnteringPanel(0); oldCard=0;
+ 		int row = profile.getCacheIndex(chi.getWayPoint());
+ 		tbP.selectRow(row);
+-		//tbP.tc.scrollToVisible(row, 0);
+-		//tbP.selectRow(row);
+-		select(descP);
+-		//descP.setText(chi);
++		switch (panelNo) {// Switch by panel number
++		case 1:  // DetailsPanel
++			select(detP);
++			break;
++		case 2: // Description Panel
++			select(descP);
++			break;
++		}		
+ 	}
+ 
+ 
+
+Modified: trunk/src/CacheWolf/navi/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MovingMap.java	2010-03-09 23:42:05 UTC (rev 2515)
++++ trunk/src/CacheWolf/navi/MovingMap.java	2010-03-10 21:16:45 UTC (rev 2516)
+@@ -2069,7 +2069,7 @@
+ 	Menu kontextMenu;
+ 	MenuItem gotoMenuItem = new MenuItem(MyLocale.getMsg(4230, &quot;Goto here$g&quot;), 0, null);
+ 	MenuItem newWayPointMenuItem = new MenuItem(MyLocale.getMsg(4232, &quot;Create new Waypoint here$n&quot;), 0, null);;
+-	MenuItem openCacheDescMenuItem,addCachetoListMenuItem,gotoCacheMenuItem;
++	MenuItem openCacheDescMenuItem,openCacheDetailMenuItem,addCachetoListMenuItem,gotoCacheMenuItem;
+ 
+ 	MenuItem miLuminary[];
+ 
+@@ -2082,7 +2082,9 @@
+ 	
+ 	ImageList saveImageList = null;
+ 	int lastZoomWidth , lastZoomHeight;
+-
++	
++	boolean ignoreNextDrag=false;
++	
+ 	public MovingMapPanel(MovingMap f){
+ 		this.mm = f;
+ 		miLuminary = new MenuItem[SkyOrientation.LUMINARY_NAMES.length];
+@@ -2132,10 +2134,11 @@
+ 			saveMapLoc = new Point (ev.x, ev.y);
+ 			paintingZoomArea = true;
+ 			mm.zoomingMode = true;
+-		}
++		}		
+ 		if (!mm.zoomingMode &amp;&amp; ev.type == PenEvent.PEN_DOWN &amp;&amp; ev.modifiers == PenEvent.RIGHT_BUTTON) {
++			// context penHeld is fired on PDA but not on PC (Java)
+ 			penHeld(new Point (ev.x, ev.y));
+-		}
++		}		
+ 		if (mm.zoomingMode &amp;&amp; ev.type == PenEvent.PEN_UP ) {
+ 			paintingZoomArea = false;
+ 			mm.zoomingMode = false;
+@@ -2169,6 +2172,11 @@
+ 			dr.setPen(new Pen(new Color(255,0,0),Pen.SOLID,3));
+ 			dr.drawRect(left, top, java.lang.Math.abs(lastZoomWidth), java.lang.Math.abs(lastZoomHeight), 0); // bug in ewe: thickness parameter is ignored
+ 		}
++		if (ignoreNextDrag) {
++			// On PDA next event after a Kontext ist a drag, that will move the map unwanted
++			ignoreNextDrag=false;
++			if (ev.type == PenEvent.PEN_DRAG) return; // ignoring now
++		}
+ 		super.onPenEvent(ev);
+ 	}
+ 
+@@ -2253,31 +2261,34 @@
+ 	}
+ 
+ 	public void penHeld(Point p){
+-		//	if (!menuIsActive()) doMenu(p);
++		ignoreNextDrag=true;
+ 		if (!mm.zoomingMode) {
+-			//( (ev.type == PenEvent.PEN_DOWN) &amp;&amp; ((PenEvent)ev).modifiers == PenEvent.RIGHT_BUTTON)
+-			//|| ((ev.type == PenEvent.RIGHT_BUTTON) ) )) ---&gt; these events are not posted --&gt; this overridering is the only solution
+ 			kontextMenu = new Menu();
+-			if ( !(mm.directionArrows.onHotArea(p.x, p.y)) ) {
+-				kontextMenu.addItem(gotoMenuItem);
+-				kontextMenu.addItem(newWayPointMenuItem);
+-				AniImage clickedOnImage = images.findHotImage(p);
+-				if (clickedOnImage != null &amp;&amp; clickedOnImage instanceof MapSymbol) {
+-					if ( ((MapSymbol)clickedOnImage).mapObject instanceof CacheHolder) {
+-						clickedCache = (CacheHolder)( ((MapSymbol)clickedOnImage).mapObject);
+-						if (clickedCache != null) {
+-							openCacheDescMenuItem = new MenuItem(MyLocale.getMsg(4270, &quot;Open&quot;)+&quot; '&quot;+(clickedCache.getCacheName().length()&gt;0 ? clickedCache.getCacheName() : clickedCache.getWayPoint())+&quot;'$o&quot;); // clickedCache == null can happen if clicked on the goto-symbol
+-							kontextMenu.addItem(openCacheDescMenuItem);
+-							gotoCacheMenuItem = new MenuItem(MyLocale.getMsg(4279, &quot;Goto&quot;)+ &quot; '&quot;+(clickedCache.getCacheName().length()&gt;0 ? clickedCache.getCacheName() : clickedCache.getWayPoint())+&quot;'$g&quot;); // clickedCache == null can happen if clicked on the goto-symbol
+-							kontextMenu.addItem(gotoCacheMenuItem);
+-							if (Global.mainForm.cacheListVisible) {
+-								addCachetoListMenuItem = new MenuItem(MyLocale.getMsg(199,&quot;Add to cachetour&quot;));
+-								kontextMenu.addItem(addCachetoListMenuItem);
+-							}
++			kontextMenu.addItem(gotoMenuItem);
++			kontextMenu.addItem(newWayPointMenuItem);
++			AniImage clickedOnImage = images.findHotImage(p);
++			if (clickedOnImage != null &amp;&amp; clickedOnImage instanceof MapSymbol) {
++				if ( ((MapSymbol)clickedOnImage).mapObject instanceof CacheHolder) {
++					clickedCache = (CacheHolder)( ((MapSymbol)clickedOnImage).mapObject);
++					if (clickedCache != null) {
++						openCacheDescMenuItem = new MenuItem(MyLocale.getMsg(201, &quot;Open Desctiption&quot;)+&quot; '&quot;+(clickedCache.getCacheName().length()&gt;0 ? clickedCache.getCacheName() : clickedCache.getWayPoint())+&quot;'$o&quot;); // clickedCache == null can happen if clicked on the goto-symbol
++						kontextMenu.addItem(openCacheDescMenuItem);
++						openCacheDetailMenuItem = new MenuItem(MyLocale.getMsg(200, &quot;Open Details&quot;)+&quot; '&quot;+(clickedCache.getCacheName().length()&gt;0 ? clickedCache.getCacheName() : clickedCache.getWayPoint())+&quot;'$o&quot;); // clickedCache == null can happen if clicked on the goto-symbol
++						kontextMenu.addItem(openCacheDetailMenuItem);
++						gotoCacheMenuItem = new MenuItem(MyLocale.getMsg(4279, &quot;Goto&quot;)+ &quot; '&quot;+(clickedCache.getCacheName().length()&gt;0 ? clickedCache.getCacheName() : clickedCache.getWayPoint())+&quot;'$g&quot;); // clickedCache == null can happen if clicked on the goto-symbol
++						kontextMenu.addItem(gotoCacheMenuItem);
++						if (Global.mainForm.cacheListVisible) {
++							addCachetoListMenuItem = new MenuItem(MyLocale.getMsg(199,&quot;Add to cachetour&quot;));
++							kontextMenu.addItem(addCachetoListMenuItem);
+ 						}
+ 					}
+ 				}
+ 			}
++			/*
++			 *  this kontext will be replaced by the settings of the rose in the goto panel
++			 *    
++			if ( !(mm.directionArrows.onHotArea(p.x, p.y)) ) {
++			}
+ 			else {
+ 				for (int i=0; i&lt;SkyOrientation.LUMINARY_NAMES.length; i++) {
+ 					kontextMenu.addItem(miLuminary[i]);
+@@ -2285,13 +2296,14 @@
+ 					else miLuminary[i].modifiers &amp;= MenuItem.Checked;
+ 				}
+ 			}
++			*/
+ 			kontextMenu.exec(this, new Point(p.x, p.y), this);
+ 		}
+ 	}
+ 
+ 	public void onEvent(Event ev){
+ 		if (kontextMenu != null &amp;&amp; ev instanceof PenEvent &amp;&amp; ev.type == PenEvent.PEN_DOWN &amp;&amp; ev.target == this)
+-			{kontextMenu.close(); kontextMenu = null; }
++			{kontextMenu.close(); kontextMenu = null; return;}
+ 
+ 		if (ev instanceof MenuEvent) {
+ 			if (ev.target == kontextMenu) {
+@@ -2301,15 +2313,17 @@
+ 						kontextMenu.close();
+ 						mm.myNavigation.setDestination(mm.ScreenXY2LatLon(saveMapLoc.x, saveMapLoc.y));
+ 					}
+-					if (action == openCacheDescMenuItem) {
+-						//mm.onEvent(new FormEvent(FormEvent.CLOSED, mm));
++					if (action == openCacheDescMenuItem || action == openCacheDetailMenuItem) {
+ 						kontextMenu.close();
+ 						WindowEvent close = new WindowEvent();
+ 						close.target = mm;
+ 						close.type = WindowEvent.CLOSE;
+ 						mm.postEvent(close);
+ 						MainTab mainT = Global.mainTab;
+-						mainT.openDescriptionPanel(clickedCache);
++						if (action == openCacheDescMenuItem) 
++							mainT.openPanel(clickedCache,2);
++						else
++							mainT.openPanel(clickedCache,1);
+ 					}
+ 					if (action == gotoCacheMenuItem) {
+ 						kontextMenu.close();
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002440.html">[Cachewolf-svn] r2515 - trunk/res_noewe/webmapservices
+</A></li>
+	<LI>Next message: <A HREF="002442.html">[Cachewolf-svn] r2517 - in trunk/src/CacheWolf: . exp imp navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2441">[ date ]</a>
+              <a href="thread.html#2441">[ thread ]</a>
+              <a href="subject.html#2441">[ subject ]</a>
+              <a href="author.html#2441">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

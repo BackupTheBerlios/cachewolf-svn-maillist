@@ -1,0 +1,126 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r814 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-August/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r814%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200708140119.l7E1JYAX006187%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000703.html">
+   <LINK REL="Next"  HREF="000705.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r814 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r814%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200708140119.l7E1JYAX006187%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r814 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Tue Aug 14 03:19:34 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000703.html">[Cachewolf-svn] r813 - trunk/src/utils
+</A></li>
+        <LI>Next message: <A HREF="000705.html">[Cachewolf-svn] r815 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#704">[ date ]</a>
+              <a href="thread.html#704">[ thread ]</a>
+              <a href="subject.html#704">[ subject ]</a>
+              <a href="author.html#704">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-08-14 03:19:33 +0200 (Tue, 14 Aug 2007)
+New Revision: 814
+
+Modified:
+   trunk/src/CacheWolf/DetailsPanel.java
+   trunk/src/CacheWolf/Profile.java
+Log:
+addi-Wpts can be manually created also for Caches from Opencaching
+
+Modified: trunk/src/CacheWolf/DetailsPanel.java
+===================================================================
+--- trunk/src/CacheWolf/DetailsPanel.java	2007-08-14 01:13:30 UTC (rev 813)
++++ trunk/src/CacheWolf/DetailsPanel.java	2007-08-14 01:19:33 UTC (rev 814)
+@@ -467,13 +467,15 @@
+ 				  int idx;
+ 				  if (ch.wayPoint.length()&lt;5)
+ 					  idx=-1;
+-				  else
++				  else {
+ 					  idx=profile.getCacheIndex(&quot;GC&quot;+ ch.wayPoint.substring(ch.wayPoint.length() == 5?1:2));
+-				  if (idx&lt;0) (new MessageBox(MyLocale.getMsg(144,&quot;Warning&quot;),
+-						  MyLocale.getMsg(734,&quot;No main cache found for addi waypoint &quot;)+&quot; &quot;+ch.wayPoint+
+-						  &quot;\n&quot;+MyLocale.getMsg(735,&quot;Addi Waypoints must have the format xxYYYY, where xx are any 2 chars and YYYY are the main cache's chars after the GC&quot;),FormBase.OKB)).execute();
++					  if (idx&lt;0) idx=profile.getCacheIndex(&quot;OC&quot;+ ch.wayPoint.substring(ch.wayPoint.length() == 5?1:2));
++					  if (idx&lt;0) (new MessageBox(MyLocale.getMsg(144,&quot;Warning&quot;),
++							  MyLocale.getMsg(734,&quot;No main cache found for addi waypoint &quot;)+&quot; &quot;+ch.wayPoint+
++							  &quot;\n&quot;+MyLocale.getMsg(735,&quot;Addi Waypoints must have the format xxYYYY, where xx are any 2 chars and YYYY are the main cache's chars after the GC&quot;),FormBase.OKB)).execute();
++				  }
++				  profile.buildReferences();
+ 			  }
+-			  profile.buildReferences();
+ 		  }
+ 		  // set status also on addi wpts
+ 		  ch.setAttributesToAddiWpts();
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2007-08-14 01:13:30 UTC (rev 813)
++++ trunk/src/CacheWolf/Profile.java	2007-08-14 01:19:33 UTC (rev 814)
+@@ -426,7 +426,7 @@
+ 			ch = (CacheHolder)cacheDB.get(i);
+ 			ch.addiWpts.clear();
+ 			ch.mainCache = null;
+-			if (ch.wayPoint.startsWith(&quot;GC&quot;)) // Only put potential master caches into the index
++			// if (ch.wayPoint.startsWith(&quot;GC&quot;)) // Only put potential master caches into the index
+ 				dbIndex.put((String)ch.wayPoint, new Integer(i));
+ 		}
+ 		// Build references
+@@ -441,6 +441,14 @@
+ 				else {
+ 					index = (Integer) dbIndex.get(&quot;GC&quot;+ ch.wayPoint.substring(2));
+ 				}
++				if (index == null) { // TODO save the source (GC or OC or Custom) of the maincache somewhere else to avoid ambiguity of addi-wpt-names
++					if (ch.wayPoint.length() == 5){
++						index = (Integer) dbIndex.get(&quot;OC&quot;+ ch.wayPoint.substring(1));
++					} 
++					else {
++						index = (Integer) dbIndex.get(&quot;OC&quot;+ ch.wayPoint.substring(2));
++					}
++				}
+ 				if (index != null) {
+ 					mainCh = (CacheHolder) cacheDB.get(index.intValue());
+ 					mainCh.addiWpts.add(ch);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000703.html">[Cachewolf-svn] r813 - trunk/src/utils
+</A></li>
+	<LI>Next message: <A HREF="000705.html">[Cachewolf-svn] r815 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#704">[ date ]</a>
+              <a href="thread.html#704">[ thread ]</a>
+              <a href="subject.html#704">[ subject ]</a>
+              <a href="author.html#704">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,394 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1717 - trunk/src/build
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-March/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1717%20-%20trunk/src/build&In-Reply-To=%3C200903182152.n2ILqTb3025815%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001632.html">
+   <LINK REL="Next"  HREF="001634.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1717 - trunk/src/build</H1>
+    <B>greiol at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1717%20-%20trunk/src/build&In-Reply-To=%3C200903182152.n2ILqTb3025815%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1717 - trunk/src/build">greiol at mail.berlios.de
+       </A><BR>
+    <I>Wed Mar 18 22:52:29 CET 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001632.html">[Cachewolf-svn] r1716 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001634.html">[Cachewolf-svn] r1718 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1633">[ date ]</a>
+              <a href="thread.html#1633">[ thread ]</a>
+              <a href="subject.html#1633">[ subject ]</a>
+              <a href="author.html#1633">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: greiol
+Date: 2009-03-18 22:52:28 +0100 (Wed, 18 Mar 2009)
+New Revision: 1717
+
+Modified:
+   trunk/src/build/CabHelper.java
+Log:
+code cleanup step 1/x
+added shortcut to start menu
+
+Modified: trunk/src/build/CabHelper.java
+===================================================================
+--- trunk/src/build/CabHelper.java	2009-03-18 20:32:30 UTC (rev 1716)
++++ trunk/src/build/CabHelper.java	2009-03-18 21:52:28 UTC (rev 1717)
+@@ -7,43 +7,60 @@
+ import java.util.zip.*;
+ 
+ public class CabHelper {
+-	
++
++	private static final Boolean DEBUG = true;
++	private static final String PROJECT_NAME = &quot;CW-Test&quot;;
++	private static final String DOSNL = &quot;\r\n&quot;;
++
+ 	public static void main(String[] args) {
+ 		File zipFile;
+ 		File outDir;
+ 		String outDirName;
+ 		Integer numDirectories = 0;
+ 		Integer numFiles = 0;
+-		HashMap&lt;String,HashMap&lt;String,String&gt;&gt; cabMapping = new HashMap&lt;String, HashMap&lt;String, String&gt;&gt; ();
++		HashMap&lt;String, HashMap&lt;String, String&gt;&gt; cabMapping = new HashMap&lt;String, HashMap&lt;String, String&gt;&gt;();
++		StringBuffer outBuffer = new StringBuffer();
+ 		
++		//
++		// check arguments and environment
++		//
++		
+ 		if (args.length != 2) {
+-			throw new IllegalArgumentException(&quot;please specify zipfile and output directory&quot;);
++			throw new IllegalArgumentException(
++					&quot;please specify zipfile and output directory&quot;);
+ 		}
+-		
++
+ 		zipFile = new File(args[0]);
+ 		outDirName = args[1];
+ 		outDir = new File(outDirName);
+-		
+-		if (! zipFile.exists() || ! zipFile.canRead() || ! zipFile.isFile()) {
++
++		if (!zipFile.exists() || !zipFile.canRead() || !zipFile.isFile()) {
+ 			throw new IllegalArgumentException(&quot;zip file not readable&quot;);
+ 		}
+-		
++
+ 		if (outDir.exists()) {
+ 			if (outDir.isDirectory()) {
+ 				String[] files = outDir.list();
+ 				if (files.length &gt; 0) {
+-					throw new IllegalArgumentException(&quot;out directory not empty&quot;);
++					throw new IllegalArgumentException(
++							&quot;out directory not empty&quot;);
+ 				}
+ 			} else {
+-				throw new IllegalArgumentException(&quot;output directory exists, but is not a directory&quot;);
++				throw new IllegalArgumentException(
++						&quot;output directory exists, but is not a directory&quot;);
+ 			}
+ 		} else {
+ 			boolean success = outDir.mkdir();
+ 			if (!success) {
+-				throw new IllegalArgumentException(&quot;unable to create output directory&quot;);
++				throw new IllegalArgumentException(
++						&quot;unable to create output directory&quot;);
+ 			}
+ 		}
+ 		
++		//
++		// input parsing
++		//
++
+ 		try {
+ 			ZipFile zip = new ZipFile(zipFile);
+ 			Enumeration&lt;? extends ZipEntry&gt; zipList;
+@@ -52,33 +69,33 @@
+ 			while (zipList.hasMoreElements()) {
+ 				ZipEntry zipEntry = (ZipEntry) zipList.nextElement();
+ 				if (zipEntry.isDirectory()) {
+-					String dirName = zipEntry.getName();
+-					dirName = dirName.replace(File.separatorChar, '\\');
+-					if (dirName.endsWith(&quot;\\&quot;)) {
+-						dirName = dirName.substring(0, dirName.length()-1);
+-					}
++					String dirName = winifyPath(zipEntry.getName());
+ 					if (cabMapping.get(dirName) == null) {
+-						cabMapping.put(dirName, new HashMap &lt;String, String&gt;());
++						cabMapping.put(dirName, new HashMap&lt;String, String&gt;());
+ 						numDirectories++;
+ 					}
+ 				} else {
+-					String inFileName = zipEntry.getName().replace(File.separatorChar, '\\');
+-					String outFileName = String.format(&quot;CW%06d.DMY&quot;, numFiles);
++					String inFileName = zipEntry.getName().replace(
++							File.separatorChar, '\\');
++					String outFileName = String.format(&quot;%08d.DMY&quot;, numFiles);
+ 					String inDirName = &quot;&quot;;
+-					copyInputStream(zip.getInputStream(zipEntry), new BufferedOutputStream(new FileOutputStream(outDirName+File.separator+outFileName)));
++					copyInputStream(zip.getInputStream(zipEntry),
++							new BufferedOutputStream(new FileOutputStream(
++									outDirName + File.separator + outFileName)));
+ 					Integer lastSlash = inFileName.lastIndexOf('\\');
+ 					if (lastSlash == -1) {
+ 						inDirName = &quot;&quot;;
+ 					} else {
+-						inDirName = inFileName.substring(0,lastSlash);
+-						inFileName = inFileName.substring(lastSlash+1);
++						inDirName = inFileName.substring(0, lastSlash);
++						inFileName = inFileName.substring(lastSlash + 1);
+ 					}
+ 					if (cabMapping.get(inDirName) == null) {
+-						cabMapping.put(inDirName, new HashMap &lt;String, String&gt;());
++						cabMapping
++								.put(inDirName, new HashMap&lt;String, String&gt;());
+ 						numDirectories++;
+ 					}
+ 					cabMapping.get(inDirName).put(outFileName, inFileName);
+-										
++
+ 					numFiles++;
+ 				}
+ 			}
+@@ -87,55 +104,168 @@
+ 			System.exit(1);
+ 		}
+ 		
+-		StringBuffer outBuffer = new StringBuffer();
+-		String dosNL = &quot;\r\n&quot;;
+-		outBuffer.append(&quot;&lt;wap-provisioningdoc&gt;&quot;).append(dosNL);
+-		outBuffer.append(&quot;\t&lt;characteristic type=\&quot;Install\&quot;&gt;&quot;).append(dosNL);
+-		outBuffer.append(&quot;\t\t&lt;parm name=\&quot;InstallPhase\&quot; value=\&quot;install\&quot; /&gt;&quot;).append(dosNL);
+-		outBuffer.append(&quot;\t\t&lt;parm name=\&quot;AppName\&quot; value=\&quot;CW-test\&quot; /&gt;&quot;).append(dosNL);
+-		outBuffer.append(&quot;\t\t&lt;parm name=\&quot;InstallDir\&quot; value=\&quot;%CE1%\\CW-test\&quot; translation=\&quot;install\&quot; /&gt;&quot;).append(dosNL);
+-		outBuffer.append(String.format(&quot;\t\t&lt;parm name=\&quot;NumDirs\&quot; value=\&quot;%d\&quot; /&gt;&quot;,numDirectories)).append(dosNL);
+-		outBuffer.append(String.format(&quot;\t\t&lt;parm name=\&quot;NumFiles\&quot; value=\&quot;%d\&quot; /&gt;&quot;,numFiles)).append(dosNL);
+-		outBuffer.append(&quot;\t\t&lt;parm name=\&quot;NumRegKeys\&quot; value=\&quot;0\&quot; /&gt;&quot;).append(dosNL);
+-		outBuffer.append(&quot;\t\t&lt;parm name=\&quot;NumRegVals\&quot; value=\&quot;0\&quot; /&gt;&quot;).append(dosNL);
+-		outBuffer.append(&quot;\t\t&lt;parm name=\&quot;NumShortcuts\&quot; value=\&quot;0\&quot; /&gt;&quot;).append(dosNL);
+-		outBuffer.append(&quot;\t&lt;/characteristic&gt;&quot;).append(dosNL);
+-		outBuffer.append(&quot;\t&lt;characteristic type=\&quot;FileOperation\&quot;&gt;&quot;).append(dosNL);
+-		for ( String outKey : cabMapping.keySet() ) {
+-			outBuffer.append(String.format(&quot;\t\t&lt;characteristic type=\&quot;%%InstallDir%%\\%s\&quot; translation=\&quot;install\&quot;&gt;&quot;,outKey)).append(dosNL);
+-			outBuffer.append(&quot;\t\t\t&lt;characteristic type=\&quot;MakeDir\&quot; /&gt;&quot;).append(dosNL);
++		//
++		// output generation
++		//
++
++		// header of the xml file, mandatory
++		outBuffer.append(&quot;&lt;wap-provisioningdoc&gt;&quot;).append(DOSNL);
++		
++		// header section with summary
++		outBuffer.append(&quot;\t&lt;characteristic type=\&quot;Install\&quot;&gt;&quot;).append(DOSNL);
++		outBuffer.append(&quot;\t\t&lt;parm name=\&quot;InstallPhase\&quot; value=\&quot;install\&quot; /&gt;&quot;).append(DOSNL);
++		outBuffer.append(String.format(&quot;\t\t&lt;parm name=\&quot;AppName\&quot; value=\&quot;%s\&quot; /&gt;&quot;,PROJECT_NAME)).append(DOSNL);
++		outBuffer.append(String.format(&quot;\t\t&lt;parm name=\&quot;InstallDir\&quot; value=\&quot;%%CE1%%\\%s\&quot; translation=\&quot;install\&quot; /&gt;&quot;,PROJECT_NAME)).append(DOSNL);
++		outBuffer.append(String.format(&quot;\t\t&lt;parm name=\&quot;NumDirs\&quot; value=\&quot;%d\&quot; /&gt;&quot;,numDirectories)).append(DOSNL);
++		outBuffer.append(String.format(&quot;\t\t&lt;parm name=\&quot;NumFiles\&quot; value=\&quot;%d\&quot; /&gt;&quot;,numFiles)).append(DOSNL);
++		outBuffer.append(&quot;\t\t&lt;parm name=\&quot;NumRegKeys\&quot; value=\&quot;0\&quot; /&gt;&quot;).append(DOSNL);
++		outBuffer.append(&quot;\t\t&lt;parm name=\&quot;NumRegVals\&quot; value=\&quot;0\&quot; /&gt;&quot;).append(DOSNL);
++		outBuffer.append(&quot;\t\t&lt;parm name=\&quot;NumShortcuts\&quot; value=\&quot;1\&quot; /&gt;&quot;).append(DOSNL);
++		outBuffer.append(&quot;\t&lt;/characteristic&gt;&quot;).append(DOSNL);
++		
++		// start of fileoperation section
++		outBuffer.append(&quot;\t&lt;characteristic type=\&quot;FileOperation\&quot;&gt;&quot;).append(DOSNL);
++		
++		for (String outKey : cabMapping.keySet()) {
+ 			
+-			for (String inKey: cabMapping.get(outKey).keySet()) {
+-				outBuffer.append(String.format(&quot;\t\t\t&lt;characteristic type=\&quot;%s\&quot; translation=\&quot;install\&quot;&gt;&quot;,cabMapping.get(outKey).get(inKey))).append(dosNL);
+-				outBuffer.append(&quot;\t\t\t\t&lt;characteristic type=\&quot;Extract\&quot;&gt;&quot;).append(dosNL);
+-				outBuffer.append(String.format(&quot;\t\t\t\t\t&lt;parm name=\&quot;Source\&quot; value=\&quot;%s\&quot;/&gt;&quot;,inKey)).append(dosNL);
+-				outBuffer.append(&quot;\t\t\t\t&lt;/characteristic&gt;&quot;).append(dosNL);
+-				outBuffer.append(&quot;\t\t\t&lt;/characteristic&gt;&quot;).append(dosNL);
++			// begin of directory structure
++			outBuffer.append(
++					String.format(&quot;\t\t&lt;characteristic type=\&quot;%s\&quot; translation=\&quot;install\&quot;&gt;&quot;,winifyPath(&quot;%InstallDir%\\&quot; + outKey))
++				).append(DOSNL);
++			outBuffer.append(&quot;\t\t\t&lt;characteristic type=\&quot;MakeDir\&quot; /&gt;&quot;).append(DOSNL);
++
++			// iterate through the file entries. file entries must follow the the directory definition 
++			for (String inKey : cabMapping.get(outKey).keySet()) {
++				outBuffer.append(
++						generateCabFileEntry(
++								cabMapping.get(outKey).get(inKey), 
++								inKey
++						)
++				);
+ 			}
+-			outBuffer.append(&quot;\t\t&lt;/characteristic&gt;&quot;).append(dosNL);
++			
++			// end of directory structur
++			outBuffer.append(&quot;\t\t&lt;/characteristic&gt;&quot;).append(DOSNL);
+ 		}
+-		outBuffer.append(&quot;\t&lt;/characteristic&gt;&quot;).append(dosNL);
+-		outBuffer.append(&quot;&lt;/wap-provisioningdoc&gt;&quot;).append(dosNL);
++		
++		// add shortcut to start menu
++
++		outBuffer.append(&quot;\t\t&lt;characteristic type=\&quot;%CE11%\&quot; translation=\&quot;install\&quot;&gt;&quot;).append(DOSNL);
++		outBuffer.append(&quot;\t\t\t&lt;characteristic type=\&quot;MakeDir\&quot; /&gt;&quot;).append(DOSNL);
++		outBuffer.append(String.format(&quot;\t\t\t&lt;characteristic type=\&quot;%s.lnk\&quot; translation=\&quot;install\&quot;&gt;&quot;, PROJECT_NAME)).append(DOSNL);
++		outBuffer.append(&quot;\t\t\t\t&lt;characteristic type=\&quot;Shortcut\&quot;&gt;&quot;).append(DOSNL);
++		outBuffer.append(&quot;\t\t\t\t\t&lt;parm name=\&quot;Source\&quot; value=\&quot;%InstallDir%\\CacheWolf.exe\&quot; translation=\&quot;install\&quot; /&gt;&quot;).append(DOSNL);
++		outBuffer.append(&quot;\t\t\t\t&lt;/characteristic&gt;&quot;).append(DOSNL);
++		outBuffer.append(&quot;\t\t\t&lt;/characteristic&gt;&quot;).append(DOSNL);
++		outBuffer.append(&quot;\t\t&lt;/characteristic&gt;&quot;).append(DOSNL);
++
++		// end of fileoperation section
++		outBuffer.append(&quot;\t&lt;/characteristic&gt;&quot;).append(DOSNL);
++
++		// add favorite to internet explorer
++/*
++		// does not work yet, since %InstallDir% is not expanded correctly :-(
++		outBuffer.append(&quot;\t&lt;characteristic type=\&quot;BrowserFavorite\&quot;&gt;&quot;).append(DOSNL);
++		outBuffer.append(String.format(&quot;\t\t&lt;characteristic type=\&quot;%s local\&quot;&gt;&quot;, PROJECT_NAME)).append(DOSNL);
++		outBuffer.append(&quot;\t\t\t&lt;parm name=\&quot;URL\&quot; value=\&quot;<A HREF="file://%InstallDir%\\temp.html\">file://%InstallDir%\\temp.html\</A>&quot;/&gt;&quot;).append(DOSNL);
++		outBuffer.append(&quot;\t\t&lt;/characteristic&gt;&quot;).append(DOSNL);
++		outBuffer.append(&quot;\t&lt;/characteristic&gt;&quot;).append(DOSNL);
++*/
++
++		// footer of the xml file, mandatory
++		outBuffer.append(&quot;&lt;/wap-provisioningdoc&gt;&quot;).append(DOSNL);
++
++		//
++		// store output to file
++		//
++
+ 		try {
+-			BufferedOutputStream outStream = new BufferedOutputStream(new FileOutputStream(outDirName+File.separator+&quot;_setup.xml&quot;));
++			
++			BufferedOutputStream outStream = new BufferedOutputStream(
++					new FileOutputStream(
++							outDirName + File.separator + &quot;_setup.xml&quot;
++					)
++			);
+ 			outStream.write(outBuffer.toString().getBytes());
+ 			outStream.flush();
+ 			outStream.close();
++			
+ 		} catch (Exception e) {
++			
+ 			e.printStackTrace();
+ 			System.exit(1);
++			
+ 		}
+ 	}
+-	
+-	public static final void copyInputStream(InputStream in, OutputStream out) throws IOException {
++
++	/**
++	 * copies content of a given input stream to a given output stream
++	 * 
++	 * @param in input stream
++	 * @param out output stream
++	 * @throws IOException
++	 */
++	private static final void copyInputStream(InputStream in, OutputStream out)	throws IOException {
+ 		byte[] buffer = new byte[1024];
+ 		int len;
+ 
+-		while((len = in.read(buffer)) &gt;= 0) {
++		while ((len = in.read(buffer)) &gt;= 0) {
+ 			out.write(buffer, 0, len);
+ 		}
+-		
++
+ 		in.close();
+ 		out.close();
+ 	}
++	
++	/**
++	 * generate the XML snippet that represents a file for the CAB
++	 * 
++	 * @param original filename that will later be seen in the PocktPC file system
++	 * @param translated safe 8.3 noted filename stored inside the CAB
++	 * @return characteristic structure for including a file in an installable PocketPC CAB
++	 */
++	private static final String generateCabFileEntry(String original, String translated) {
++		StringBuffer retBuffer = new StringBuffer();
++		
++		retBuffer.append(String.format(&quot;\t\t\t&lt;characteristic type=\&quot;%s\&quot; translation=\&quot;install\&quot;&gt;&quot;,original)).append(DOSNL);
++		retBuffer.append(&quot;\t\t\t\t&lt;characteristic type=\&quot;Extract\&quot;&gt;&quot;).append(DOSNL);
++		retBuffer.append(String.format(&quot;\t\t\t\t\t&lt;parm name=\&quot;Source\&quot; value=\&quot;%s\&quot;/&gt;&quot;,translated)).append(DOSNL);
++		retBuffer.append(&quot;\t\t\t\t&lt;/characteristic&gt;&quot;).append(DOSNL);
++		retBuffer.append(&quot;\t\t\t&lt;/characteristic&gt;&quot;).append(DOSNL);
++
++		return retBuffer.toString();
++	}
++	
++	/**
++	 * generate a path information from the given paramter suitable for usage in
++	 * a cab file this includes converting all separators from the current os (/
++	 * or \)to the format later used by the PocketPC (\) and cutting of any
++	 * leading or trainling \
++	 * 
++	 * @param path
++	 *            path to normalize for use in cab
++	 * @return normalized path
++	 */
++	private static final String winifyPath(String path) {
++			path = path.replace(File.separatorChar, '\\');
++		if (path.indexOf('\\') == 0) {
++			path = path.substring(1);
++		}
++		if (path.lastIndexOf('\\') == path.length() - 1) {
++			path = path.substring(0, path.length() - 1);
++		}
++		return path;
++	}
++	
++	/**
++	 * mostly for my convenience so I won't have to search for all the System.out.println
++	 * to disable debug output
++	 * 
++	 * @param str string to log
++	 */
++	private static final void log(String str) {
++		if (DEBUG) {
++			System.out.println(str);
++		}
++	}
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001632.html">[Cachewolf-svn] r1716 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001634.html">[Cachewolf-svn] r1718 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1633">[ date ]</a>
+              <a href="thread.html#1633">[ thread ]</a>
+              <a href="subject.html#1633">[ subject ]</a>
+              <a href="author.html#1633">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,514 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r744 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-June/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r744%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200706102112.l5ALCqQ4016312%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000622.html">
+   <LINK REL="Next"  HREF="000624.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r744 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r744%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200706102112.l5ALCqQ4016312%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r744 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sun Jun 10 23:12:52 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000622.html">[Cachewolf-svn] r743 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000624.html">[Cachewolf-svn] [Feature #3495] Einzelne OC-Caches syncen
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#623">[ date ]</a>
+              <a href="thread.html#623">[ thread ]</a>
+              <a href="subject.html#623">[ subject ]</a>
+              <a href="author.html#623">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-06-10 23:12:49 +0200 (Sun, 10 Jun 2007)
+New Revision: 744
+
+Modified:
+   trunk/src/CacheWolf/OCXMLImporter.java
+Log:
+OCXMLImporter: Anpassung an Umstellung auf CacheHolder/CacheHolderDetail.
+  (Weitere Tests notwendig)
+
+Modified: trunk/src/CacheWolf/OCXMLImporter.java
+===================================================================
+--- trunk/src/CacheWolf/OCXMLImporter.java	2007-06-10 09:17:58 UTC (rev 743)
++++ trunk/src/CacheWolf/OCXMLImporter.java	2007-06-10 21:12:49 UTC (rev 744)
+@@ -32,7 +32,8 @@
+ 	boolean debugGPX = false;
+ 	Vector cacheDB;
+ 	InfoBox inf;
+-	CacheHolderDetail holder;
++	CacheHolder ch;
++	CacheHolderDetail chD;
+ 	Preferences pref;
+ 	Profile profile;
+ 	Time dateOfthisSync;
+@@ -65,11 +66,11 @@
+ 			incUpdate = false;
+ 		}
+ 		user = p.myAlias.toLowerCase();
+-		CacheHolder ch;
+ 		for(int i = 0; i&lt;cacheDB.size();i++){
+ 			ch = (CacheHolder)cacheDB.get(i);
+ 			DBindexWpt.put((String)ch.wayPoint, new Integer(i));
+-			DBindexID.put((String)ch.ocCacheID, new Integer(i));
++			if (!ch.ocCacheID.equals(&quot;&quot;))
++				DBindexID.put((String)ch.ocCacheID, new Integer(i));
+ 		}//for
+ 
+ 	}
+@@ -102,7 +103,6 @@
+ 			}
+ 			profile.distOC = dist;
+ 			// Clear status of caches in db
+-			CacheHolder ch;
+ 			for(int i = 0; i&lt;cacheDB.size();i++){
+ 				ch = (CacheHolder)cacheDB.get(i);
+ 				ch.is_update = false;
+@@ -111,19 +111,19 @@
+ 			}	
+ 			picCnt = 0;
+ 			//Build url
+-			url =&quot;<A HREF="http://">http://</A>&quot; + OPENCACHING_HOST + &quot;/xml/ocxml11.php?&quot;;
+-			url += &quot;modifiedsince=&quot; + lastS;
+-			url +=&quot;&amp;cache=1&quot;;
+-			url +=&quot;&amp;cachedesc=1&quot;;
+-			url +=&quot;&amp;picture=1&quot;;
+-			url +=&quot;&amp;cachelog=1&quot;;
+-			url +=&quot;&amp;removedobject=0&quot;;
+-			url +=&quot;&amp;lat=&quot; + center.getLatDeg(CWPoint.DD);
+-			url +=&quot;&amp;lon=&quot; + center.getLonDeg(CWPoint.DD);
+-			url +=&quot;&amp;distance=&quot; + dist;
+-			url +=&quot;&amp;charset=utf-8&quot;;
+-			url +=&quot;&amp;cdata=0&quot;;
+-			url +=&quot;&amp;session=0&quot;;
++			url =&quot;<A HREF="http://">http://</A>&quot; + OPENCACHING_HOST + &quot;/xml/ocxml11.php?&quot;
++				+ &quot;modifiedsince=&quot; + lastS
++				+ &quot;&amp;cache=1&quot;
++				+ &quot;&amp;cachedesc=1&quot;
++				+ &quot;&amp;picture=1&quot;
++				+ &quot;&amp;cachelog=1&quot;
++				+ &quot;&amp;removedobject=0&quot;
++				+ &quot;&amp;lat=&quot; + center.getLatDeg(CWPoint.DD)
++				+ &quot;&amp;lon=&quot; + center.getLonDeg(CWPoint.DD)
++				+ &quot;&amp;distance=&quot; + dist
++				+ &quot;&amp;charset=utf-8&quot;
++				+ &quot;&amp;cdata=0&quot;
++				+ &quot;&amp;session=0&quot;;
+ 			inf = new InfoBox(&quot;Opencaching download&quot;, MyLocale.getMsg(1608,&quot;downloading data\n from opencaching&quot;), InfoBox.PROGRESS_WITH_WARNINGS, false);
+ 			inf.setPreferredSize(220, 300);
+ 			inf.relayout(false);
+@@ -166,15 +166,15 @@
+ 				success = false;
+ 			}
+ 		}catch (IllegalArgumentException e) {
+-			finalMessage = MyLocale.getMsg(1621,&quot;Error parsing update file\n this is likely a bug in opencaching.de\nplease try again later\n, state:&quot;)+&quot; &quot;+state+&quot;, waypoint: &quot;+ holder.wayPoint;
++			finalMessage = MyLocale.getMsg(1621,&quot;Error parsing update file\n this is likely a bug in opencaching.de\nplease try again later\n, state:&quot;)+&quot; &quot;+state+&quot;, waypoint: &quot;+ chD.wayPoint;
+ 			success = false;
+-			Vm.debug(&quot;Parse error: &quot; + state + &quot; &quot; + holder.wayPoint);
++			Vm.debug(&quot;Parse error: &quot; + state + &quot; &quot; + chD.wayPoint);
+ 			e.printStackTrace();
+ 		}catch (Exception e){ // here schould be used the correct exepion
+-			if (holder != null)	finalMessage = MyLocale.getMsg(1615,&quot;Error parsing update file, state:&quot;)+&quot; &quot;+state+&quot;, waypoint: &quot;+ holder.wayPoint;
++			if (chD != null)	finalMessage = MyLocale.getMsg(1615,&quot;Error parsing update file, state:&quot;)+&quot; &quot;+state+&quot;, waypoint: &quot;+ chD.wayPoint;
+ 			else finalMessage = MyLocale.getMsg(1615,&quot;Error parsing update file, state:&quot;)+&quot; &quot;+state+&quot;, waypoint: &lt;unkown&gt;&quot;;
+ 			success = false;
+-			Vm.debug(&quot;Parse error: &quot; + state + &quot; &quot; + holder.wayPoint);
++			Vm.debug(&quot;Parse error: &quot; + state + &quot; Exception:&quot; + e.toString()+&quot;   &quot;+chD.ocCacheID);
+ 			e.printStackTrace();
+ 		}
+ 		Vm.showWait(false);
+@@ -257,27 +257,27 @@
+ 			cacheID = atts.getValue(&quot;id&quot;);
+ 		}
+ 		if(name.equals(&quot;type&quot;)){
+-			holder.type = CacheType.transOCType(atts.getValue(&quot;id&quot;));
++			chD.type = CacheType.transOCType(atts.getValue(&quot;id&quot;));
+ 			return;
+ 		}
+ 		if(name.equals(&quot;status&quot;)){
+-			if(atts.getValue(&quot;id&quot;).equals(&quot;1&quot;)) holder.is_available = true;
+-			if(atts.getValue(&quot;id&quot;).equals(&quot;2&quot;)) holder.is_available = false;
++			if(atts.getValue(&quot;id&quot;).equals(&quot;1&quot;)) chD.is_available = true;
++			if(atts.getValue(&quot;id&quot;).equals(&quot;2&quot;)) chD.is_available = false;
+ 			if(atts.getValue(&quot;id&quot;).equals(&quot;3&quot;)) {
+-				holder.is_archived = true;
+-				holder.is_available = false;
++				chD.is_archived = true;
++				chD.is_available = false;
+ 			}
+-			if(atts.getValue(&quot;id&quot;).equals(&quot;4&quot;)) holder.is_available = false;
++			if(atts.getValue(&quot;id&quot;).equals(&quot;4&quot;)) chD.is_available = false;
+ 			return;
+ 		}
+ 		if(name.equals(&quot;size&quot;)){
+-			holder.CacheSize = transSize(atts.getValue(&quot;id&quot;));
++			chD.CacheSize = transSize(atts.getValue(&quot;id&quot;));
+ 			return;
+ 		}
+ 
+ 		if(name.equals(&quot;waypoints&quot;)){
+-			holder.wayPoint = atts.getValue(&quot;oc&quot;);
+-			if (holder.wayPoint.length()==0) throw new IllegalArgumentException(&quot;empty waypointname&quot;); // this should not happen - it is likey a bug in opencaching.de / it happens on 27-12-2006 on cache OC143E
++			chD.wayPoint = atts.getValue(&quot;oc&quot;);
++			if (chD.wayPoint.length()==0) throw new IllegalArgumentException(&quot;empty waypointname&quot;); // this should not happen - it is likey a bug in opencaching.de / it happens on 27-12-2006 on cache OC143E
+ 			return;
+ 		}
+ 
+@@ -289,11 +289,11 @@
+ 		}
+ 
+ 		if (name.equals(&quot;desc&quot;)){
+-			holder.is_HTML = atts.getValue(&quot;html&quot;).equals(&quot;1&quot;)?true:false;
++			chD.is_HTML = atts.getValue(&quot;html&quot;).equals(&quot;1&quot;)?true:false;
+ 		}
+ 
+ 		if (name.equals(&quot;language&quot;) &amp;&amp; !atts.getValue(&quot;id&quot;).equals(&quot;DE&quot;)){
+-			if (holder.LongDescription.length()&gt; 0) ignoreDesc = true; // TODO &quot;DE&quot; in preferences adjustable
++			if (chD.LongDescription.length()&gt; 0) ignoreDesc = true; // TODO &quot;DE&quot; in preferences adjustable
+ 			else ignoreDesc = false;
+ 		}
+ 	}
+@@ -312,12 +312,12 @@
+ 			case 1: 
+ 				logIcon = GPXImporter.typeText2Image(&quot;Found&quot;); 
+ 				if (logFinder.equalsIgnoreCase(user) || logFinder.equalsIgnoreCase(pref.myAlias2)) { // see also endCacheLog
+-					holder.is_found = true; 
+-					holder.CacheStatus = MyLocale.getMsg(318,&quot;Found&quot;);
++					chD.is_found = true; 
++					chD.CacheStatus = MyLocale.getMsg(318,&quot;Found&quot;);
+ 				}
+ 				break;
+ 			case 2:	logIcon = GPXImporter.typeText2Image(&quot;Not Found&quot;); 
+-			holder.noFindLogs += 1;
++			chD.noFindLogs += 1;
+ 			break;
+ 			case 3: logIcon = GPXImporter.typeText2Image(&quot;Note&quot;);
+ 			}
+@@ -333,25 +333,25 @@
+ 	private void endCache(String name){
+ 		if (name.equals(&quot;cache&quot;)){
+ 			int index;
+-			index = searchWpt(holder.wayPoint);
++			index = searchWpt(chD.wayPoint);
+ 			if (index == -1){
+-				holder.is_new = true;
+-				cacheDB.add(holder);
+-				DBindexWpt.put((String)holder.wayPoint, new Integer(cacheDB.size()-1));
+-				DBindexID.put((String)holder.ocCacheID, new Integer(cacheDB.size()-1));
++				chD.is_new = true;
++				cacheDB.add(new CacheHolder(chD));
++				DBindexWpt.put((String)chD.wayPoint, new Integer(cacheDB.size()-1));
++				DBindexID.put((String)chD.ocCacheID, new Integer(cacheDB.size()-1));
+ 			}
+ 			// update (overwrite) data
+ 			else {
+-				holder.is_new = false;
+-				cacheDB.set(index, holder);
++				chD.is_new = false;
++				cacheDB.set(index, new CacheHolder(chD));
+ 				// save ocCacheID, in case, the previous data is from GPX
+-				DBindexID.put((String)holder.ocCacheID, new Integer(index));
++				DBindexID.put((String)chD.ocCacheID, new Integer(index));
+ 			}
+ 			// clear data (picture, logs) if we do a complete Update
+ 			if (incUpdate == false){
+-				holder.CacheLogs.clear();
+-				holder.Images.clear();
+-				holder.ImagesText.clear();
++				chD.CacheLogs.clear();
++				chD.Images.clear();
++				chD.ImagesText.clear();
+ 			}
+ 			/*			if(holder.LatLon.length() &gt; 1 &amp;&amp; holder.is_archived == false &amp;&amp;
+ 					pref.downloadMapsOC){
+@@ -381,49 +381,46 @@
+ 			} */
+ 
+ 			// save all
+-			holder.saveCacheDetails(profile.dataDir); 
++			chD.saveCacheDetails(profile.dataDir); 
+ 			// profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR); // this is done after .xml is completly processed
+ 			return;
+ 		}
+-		if(name.equals(&quot;id&quot;)){
+-			holder = getHolder(strData);
+-			holder.URL = ocSeekUrl + cacheID;
++		if(name.equals(&quot;id&quot;)){ // &lt;/id&gt;
++			chD = getHolder(strData); // Allocate a new CacheHolder object
++			chD.ocCacheID=strData;
++			chD.URL = ocSeekUrl + cacheID;
+ 			return;
+ 		}
+ 
+ 		if(name.equals(&quot;name&quot;)){
+-			holder.CacheName = strData;
++			chD.CacheName = strData;
+ 			return;
+ 		}
+ 		if(name.equals(&quot;userid&quot;)) {
+-			holder.CacheOwner = strData;
+-			if(holder.CacheOwner.equalsIgnoreCase(pref.myAlias) || (pref.myAlias2.length()&gt;0 &amp;&amp; holder.CacheOwner.equalsIgnoreCase(pref.myAlias2))) holder.is_owned = true;
++			chD.CacheOwner = strData;
++			if(chD.CacheOwner.equalsIgnoreCase(pref.myAlias) || (pref.myAlias2.length()&gt;0 &amp;&amp; chD.CacheOwner.equalsIgnoreCase(pref.myAlias2))) chD.is_owned = true;
+ 			return;
+ 		}
+ 
+ 		if(name.equals(&quot;longitude&quot;)){
+-			holder.LatLon = GPXImporter.londeg2min(strData);
++			chD.LatLon = GPXImporter.londeg2min(strData);
+ 			return;
+ 		}
+ 		if(name.equals(&quot;latitude&quot;)) {
+-			holder.LatLon = GPXImporter.latdeg2min(strData) + &quot; &quot; + holder.LatLon;
+-			holder.pos.set(holder.LatLon);
++			chD.LatLon = GPXImporter.latdeg2min(strData) + &quot; &quot; + chD.LatLon;
++			chD.pos.set(chD.LatLon);
+ 			return;
+ 		}
+ 		if(name.equals(&quot;difficulty&quot;)) {
+-			holder.hard = strData;
++			chD.hard = strData;
+ 			return;
+ 		}
+ 		if(name.equals(&quot;terrain&quot;)) {
+-			holder.terrain = strData;
++			chD.terrain = strData;
+ 			return;
+ 		}
+ 		if(name.equals(&quot;datehidden&quot;)) {
+-			//String Date = new String();
+-			//Date = strData.substring(5,7); // month
+-			//Date += &quot;/&quot; + strData.substring(8,10); // day
+-			//Date += &quot;/&quot; + strData.substring(0,4); // year
+-			holder.DateHidden = strData.substring(0,10); //Date;
++			chD.DateHidden = strData.substring(0,10); //Date;
+ 			return;
+ 		}
+ 	}
+@@ -432,7 +429,7 @@
+ 
+ 		if (!ignoreDesc){
+ 			if (name.equals(&quot;cachedesc&quot;)){
+-				if (pref.downloadPicsOC &amp;&amp; holder.is_HTML) {
++				if (pref.downloadPicsOC &amp;&amp; chD.is_HTML) {
+ 					String fetchUrl, imgTag, imgAltText;
+ 					Regex imgRegexUrl = new Regex(&quot;(&lt;img[^&gt;]*src=[\&quot;\']([^&gt;^\&quot;^\']*)[^&gt;]*&gt;|&lt;img[^&gt;]*src=([^&gt;^\&quot;^\'^ ]*)[^&gt;]*&gt;)&quot;); //  Ergebnis enth&#228;lt keine Anf&#252;hrungszeichen
+ 					Regex imgRegexAlt = new Regex(&quot;(?:alt=[\&quot;\']([^&gt;^\&quot;^\']*)|alt=([^&gt;^\&quot;^\'^ ]*))&quot;); // get alternative text for Pic
+@@ -440,12 +437,12 @@
+ 					imgRegexUrl.setIgnoreCase(true);
+ 					int descIndex=0;
+ 					int numDownloaded=1;
+-					while (imgRegexUrl.searchFrom(holder.LongDescription, descIndex)) { // &quot;img&quot; found
++					while (imgRegexUrl.searchFrom(chD.LongDescription, descIndex)) { // &quot;img&quot; found
+ 						imgTag=imgRegexUrl.stringMatched(1); // (1) enth&#228;lt das gesamte &lt;img ...&gt;-tag
+ 						fetchUrl=imgRegexUrl.stringMatched(2); // URL in Anf&#252;hrungszeichen in (2) falls ohne in (3) Ergebnis ist auf jeden Fall ohne Anf&#252;hrungszeichen 
+ 						if (fetchUrl==null) { fetchUrl=imgRegexUrl.stringMatched(3); }
+ 						if (fetchUrl==null) { // TODO Fehler ausgeben: nicht abgedeckt ist der Fall, dass in einem Cache Links auf Bilder mit unterschiedlichen URL, aber gleichem Dateinamen sind.
+-							inf.addWarning(MyLocale.getMsg(1617, &quot;Ignoriere Fehler in html-Cache-Description: \&quot;&lt;img\&quot; without \&quot;src=\&quot; in cache &quot;+holder.wayPoint));
++							inf.addWarning(MyLocale.getMsg(1617, &quot;Ignoriere Fehler in html-Cache-Description: \&quot;&lt;img\&quot; without \&quot;src=\&quot; in cache &quot;+chD.wayPoint));
+ 							continue;
+ 						}
+ 						inf.setInfo(MyLocale.getMsg(1611,&quot;Importing cache description:&quot;)+&quot; &quot; + numDescImported + &quot;\n&quot;+MyLocale.getMsg(1620, &quot;downloading embedded images: &quot;) + numDownloaded++);
+@@ -462,30 +459,30 @@
+ 						getPic(fetchUrl, imgAltText);
+ 					}
+ 				}
+-				holder.saveCacheDetails(profile.dataDir);
++				chD.saveCacheDetails(profile.dataDir);
+ 				return;
+ 			}
+ 
+ 
+ 			if (name.equals(&quot;cacheid&quot;)){
+ 				// load cachedata
+-				holder = getHolder(strData);
+-				holder.is_update = true;
++				chD = getHolder(strData);
++				chD.is_update = true;
+ 				return;
+ 			}
+ 
+ 			if (name.equals(&quot;shortdesc&quot;)){
+-				holder.LongDescription = strData;
++				chD.LongDescription = strData;
+ 				return;
+ 			}
+ 
+-			if (name.equals(&quot;desc&quot;)){
+-				if (holder.is_HTML)	holder.LongDescription +=SafeXML.cleanback(strData);
+-				else holder.LongDescription +=strData;
++			if (name.equals(&quot;desc&quot;)){ // &lt;/desc&gt;
++				if (chD.is_HTML)	chD.LongDescription +=SafeXML.cleanback(strData);
++				else chD.LongDescription +=strData;
+ 				return;
+ 			}
+ 			if (name.equals(&quot;hint&quot;)){
+-				holder.Hints = Common.rot13(strData);
++				chD.Hints = Common.rot13(strData);
+ 				return;
+ 			}
+ 		}
+@@ -493,25 +490,25 @@
+ 
+ 	private void getPic(String fetchURL, String picDesc){ // TODO handling of relativ URLs
+ 		if (!fetchURL.startsWith(&quot;<A HREF="http://">http://</A>&quot;)) fetchURL = &quot;<A HREF="http://">http://</A>&quot; + OPENCACHING_HOST + &quot;/&quot;+fetchURL; // TODO this is not quite correct: actually the &quot;base&quot; URL must be known... but anyway a different baseURL should not happen very often  - it doesn't in my area
+-		String fileName = holder.wayPoint + &quot;_&quot; + fetchURL.substring(fetchURL.lastIndexOf(&quot;/&quot;)+1);
++		String fileName = chD.wayPoint + &quot;_&quot; + fetchURL.substring(fetchURL.lastIndexOf(&quot;/&quot;)+1);
+ 		fileName = Common.ClearForFileName(fileName);
+ 		// add title
+-		holder.ImagesText.add(picDesc);
++		chD.ImagesText.add(picDesc);
+ 		try {
+ 			File ftest = new File(profile.dataDir + fileName);
+ 			if (ftest.exists()){
+-				holder.Images.add(fileName);
++				chD.Images.add(fileName);
+ 			}
+ 			else {
+ 				if (pref.downloadPicsOC) {
+-					holder.Images.add(fetch(fetchURL, fileName));
++					chD.Images.add(fetch(fetchURL, fileName));
+ 				}
+ 			}
+ 		} catch (IOException e) {
+-			String ErrMessage = new String (MyLocale.getMsg(1618,&quot;Ignoring error in cache: &quot;) + holder.wayPoint + &quot;: ignoring IOException: &quot;+e.getMessage()+ &quot; while downloading picture:&quot;+fileName+&quot; from URL:&quot;+fetchURL); 
++			String ErrMessage = new String (MyLocale.getMsg(1618,&quot;Ignoring error in cache: &quot;) + chD.wayPoint + &quot;: ignoring IOException: &quot;+e.getMessage()+ &quot; while downloading picture:&quot;+fileName+&quot; from URL:&quot;+fetchURL); 
+ 			if (e.getMessage().toLowerCase().equalsIgnoreCase(&quot;could not connect&quot;) ||
+ 					e.getMessage().equalsIgnoreCase(&quot;unkown host&quot;)) { // is there a better way to find out what happened?
+-				ErrMessage = MyLocale.getMsg(1618,&quot;Ignoring error in cache: &quot;)+holder.CacheName + &quot; (&quot;+holder.wayPoint+&quot;)&quot;+MyLocale.getMsg(1619,&quot;: could not download image from URL: &quot;)+fetchURL;
++				ErrMessage = MyLocale.getMsg(1618,&quot;Ignoring error in cache: &quot;)+chD.CacheName + &quot; (&quot;+chD.wayPoint+&quot;)&quot;+MyLocale.getMsg(1619,&quot;: could not download image from URL: &quot;)+fetchURL;
+ 			} 
+ 			inf.addWarning(&quot;\n&quot;+ErrMessage);
+ 			//(new MessageBox(MyLocale.getMsg(144, &quot;Warning&quot;), ErrMessage, MessageBox.OKB)).exec();
+@@ -539,42 +536,42 @@
+ 		}
+ 		if(name.equals(&quot;object&quot;)){
+ 			// get cachedata
+-			holder = getHolder(strData);
++			chD = getHolder(strData);
+ 			return;
+ 		}
+ 		if(name.equals(&quot;picture&quot;)){ 
+ 			//String fileName = holder.wayPoint + &quot;_&quot; + picUrl.substring(picUrl.lastIndexOf(&quot;/&quot;)+1);
+ 			getPic(picUrl,picTitle);
+-			holder.saveCacheDetails(profile.dataDir);
++			chD.saveCacheDetails(profile.dataDir);
+ 			return;
+ 		}
+ 	}
+ 
+ 	private void endCacheLog(String name){
+-		if (name.equals(&quot;cachelog&quot;)){
+-			holder.addLog(logIcon + logDate + &quot; by &quot; + logFinder + &quot;&lt;/strong&gt;&lt;br&gt;&quot; + logData + &quot;&lt;br&gt;&quot;);
+-			holder.saveCacheDetails(profile.dataDir);
++		if (name.equals(&quot;cachelog&quot;)){ // &lt;/cachelog&gt;
++			chD.addLog(logIcon + logDate + &quot; by &quot; + logFinder + &quot;&lt;/strong&gt;&lt;br&gt;&quot; + logData + &quot;&lt;br&gt;&quot;);
++			chD.saveCacheDetails(profile.dataDir);
+ 			return;
+ 		}
+ 
+-		if (name.equals(&quot;cacheid&quot;)){
++		if (name.equals(&quot;cacheid&quot;)){ // &lt;/cacheid&gt;
+ 			// load cachedata
+-			holder = getHolder(strData);
++			chD = getHolder(strData);
+ 			return;
+ 		}
+ 
+ 		if (name.equals(&quot;date&quot;))  {
+ 			logDate = new String(strData);
+-			if (holder.is_found) {
+-				holder.CacheStatus=strData.substring(0,10);
++			if (chD.is_found) {
++				chD.CacheStatus=strData.substring(0,10);
+ 			}
+ 			return;
+ 		}
+ 		if (name.equals(&quot;userid&quot;)){
+ 			logFinder = new String(strData);
+ 			if((logFinder.toLowerCase().compareTo(user) == 0 || logFinder.equalsIgnoreCase(pref.myAlias2)) &amp;&amp; logtype == 1){
+-				holder.is_found = true; // see startCacheLog - in the current .xml this is set by startCacheLog but we sequence in the xml from opencaching might change, so I leave this also here
+-				holder.CacheStatus = MyLocale.getMsg(318,&quot;Found&quot;);
++				chD.is_found = true; // see startCacheLog - in the current .xml this is set by startCacheLog but we sequence in the xml from opencaching might change, so I leave this also here
++				chD.CacheStatus = MyLocale.getMsg(318,&quot;Found&quot;);
+ 			}
+ 			return;
+ 		}
+@@ -607,7 +604,7 @@
+ 			sock = conn.connect();
+ 			address = conn.getRedirectTo();
+ 			if (address != null){
+-				if (holder != null) fileName = holder.wayPoint + &quot;_&quot; + Common.ClearForFileName(address.substring(address.lastIndexOf(&quot;/&quot;)+1));
++				if (chD != null) fileName = chD.wayPoint + &quot;_&quot; + Common.ClearForFileName(address.substring(address.lastIndexOf(&quot;/&quot;)+1));
+ 				else fileName = Common.ClearForFileName(address.substring(address.lastIndexOf(&quot;/&quot;)+1));
+ 			}
+ 		}
+@@ -674,19 +671,19 @@
+ 
+ 	private CacheHolderDetail getHolder(String wpt){// See also LOCXMLImporter
+ 		int index;
+-		CacheHolderDetail ch;
+ 		
+ 		index = searchWpt(wpt);
++		if (index==-1) index = searchID(wpt);
+ 		if (index == -1){
+-			ch = new CacheHolderDetail();
+-			ch.wayPoint = wpt;
+-			return ch;
++			chD = new CacheHolderDetail();
++			//chD.wayPoint = wpt;
++			return chD;
+ 		}
+-		ch = new CacheHolderDetail((CacheHolder) cacheDB.get(index));
++		chD = new CacheHolderDetail((CacheHolder) cacheDB.get(index));
+ 		try {
+-			ch.readCache(profile.dataDir);
++			chD.readCache(profile.dataDir);
+ 		} catch (Exception e) {Vm.debug(&quot;Could not open file: &quot; + e.toString());};
+-		return ch;
++		return chD;
+ 	}
+ 
+ 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000622.html">[Cachewolf-svn] r743 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000624.html">[Cachewolf-svn] [Feature #3495] Einzelne OC-Caches syncen
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#623">[ date ]</a>
+              <a href="thread.html#623">[ thread ]</a>
+              <a href="subject.html#623">[ subject ]</a>
+              <a href="author.html#623">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

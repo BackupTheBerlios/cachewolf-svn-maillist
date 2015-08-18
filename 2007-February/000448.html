@@ -1,0 +1,216 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r630 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r630%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702251611.l1PGBYIq003372%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000447.html">
+   <LINK REL="Next"  HREF="000449.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r630 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r630%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702251611.l1PGBYIq003372%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r630 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Sun Feb 25 17:11:34 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000447.html">[Cachewolf-svn] r629 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000449.html">[Cachewolf-svn] r631 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#448">[ date ]</a>
+              <a href="thread.html#448">[ thread ]</a>
+              <a href="subject.html#448">[ subject ]</a>
+              <a href="author.html#448">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-02-25 17:11:28 +0100 (Sun, 25 Feb 2007)
+New Revision: 630
+
+Modified:
+   trunk/src/CacheWolf/MapsList.java
+   trunk/src/CacheWolf/MovingMap.java
+Log:
+MovingMap: Umstellung der Fehlertoleranz beim Ma?\195?\159stab der Karten von absolute 0,01 Meter pro Pixel auf 15%. D.h. Maps mit weniger als 15% Abweichung des Ma?\195?\159stabes werden so behandelt als h?\195?\164tten sie den gleichen Ma?\195?\159stab. Dies ist notwendig geworden, weil GlopusMapManager  erstaunlich gro?\195?\159e Unterschiede in den Ma?\195?\159st?\195?\164ben prduziert (1,5% Abweichung, bei NH-TOP-Trans waren es weniger als 1 Promille). Tolerant auf 15% erh?\195?\182ht, damit auch manuell kalibriete Karten, die den gleichen Ma?\195?\159stab haben wegen leichter Abweichungen bei der Kalibrierung dennoch als Karten gleichen Ma?\195?\159stabs angesehen werden
+
+Modified: trunk/src/CacheWolf/MapsList.java
+===================================================================
+--- trunk/src/CacheWolf/MapsList.java	2007-02-25 13:13:58 UTC (rev 629)
++++ trunk/src/CacheWolf/MapsList.java	2007-02-25 16:11:28 UTC (rev 630)
+@@ -15,7 +15,7 @@
+  *
+  */
+ public class MapsList extends Vector {
+-	public static float scaleTolerance = 0.01f; // absolute deviations from this factor are seen to have the same scale
++	public static float scaleTolerance = 1.15f; // absolute deviations from this factor are seen to have the same scale
+ 	public Hashtable scales2Area;
+ 
+ 	/**
+@@ -94,16 +94,16 @@
+ 		for (int i=size()-1; i &gt;= 0 ;i--) { 
+ 			better = false;
+ 			mi = (MapInfoObject)get(i);
+-			if (screenArea == null || java.lang.Math.abs(mi.scale - lastscale) &gt; scaleTolerance) {
++			if (screenArea == null || !scaleEquals(lastscale, mi) ) {
+ 				screenArea = getAreaForScreen(screen, lat, lon, mi.scale, mi);
+ 				lastscale = mi.scale;
+ 			}
+ 			if (screenArea.isOverlapping(mi.getArea()) ) { // is on screen
+-				if (!forceScale || (forceScale &amp;&amp; java.lang.Math.abs(mi.scale - scale) &gt; scaleTolerance)) { // different scale?
+-					if (!forceScale &amp;&amp; (mi.inBound(lat, lon) &amp;&amp; (bestMap == null || (java.lang.Math.abs(mi.scale-scale) + scaleTolerance &lt; java.lang.Math.abs(bestMap.scale-scale)) || !bestMap.inBound(lat, lon)))) 
++				if (!forceScale || (forceScale &amp;&amp; !scaleEquals(scale, mi))) { // different scale?
++					if (!forceScale &amp;&amp; (mi.inBound(lat, lon) &amp;&amp; (bestMap == null || scaleNearer(mi.scale, bestMap.scale, scale) || !bestMap.inBound(lat, lon)))) 
+ 						better = true; // inbound and resolution nearer at wanted resolution or old one is on screen but lat/long not inbound-&gt; better
+ 					else {
+-						if ( bestMap == null || (java.lang.Math.abs(mi.scale - scale) &lt; java.lang.Math.abs(bestMap.scale - scale) + scaleTolerance)) {
++						if ( bestMap == null || scaleNearerOrEuqal(mi.scale, bestMap.scale, scale)) {
+ 							latNearer = java.lang.Math.abs(lat - mi.center.latDec)/mi.sizeKm &lt; minDistLat ;
+ 							lonNearer = java.lang.Math.abs(lon - mi.center.lonDec)/mi.sizeKm &lt; minDistLon;
+ 							if ( latNearer &amp;&amp; lonNearer) better = true; // for faster processing: if lat and lon are nearer then the distancance doesn't need to be calculated
+@@ -153,10 +153,10 @@
+ 			better = false;
+ 			mi = (MapInfoObject)get(i);
+ 			if (mi.inBound(topleft) &amp;&amp; mi.inBound(bottomright)) { // both points are inside the map
+-				if (fittingmap == null || fittingmap.scale &gt; mi.scale + scaleTolerance) {
++				if (fittingmap == null || fittingmap.scale &gt; mi.scale * scaleTolerance) {
+ 					better = true; // mi map has a better (lower) scale than the last knwon good map
+ 				} else {
+-					if (fittingmap != null &amp;&amp; java.lang.Math.abs(mi.scale - fittingmap.scale) &lt; scaleTolerance) { // same scale as bestmap till now -&gt; test if its center is nearer to the gps-point = topleft
++					if (fittingmap != null &amp;&amp; scaleEquals(mi, fittingmap)) { // same scale as bestmap till now -&gt; test if its center is nearer to the gps-point = topleft
+ 						latNearer = java.lang.Math.abs(topleft.latDec- mi.center.latDec)/mi.sizeKm &lt; minDistLat ;
+ 						lonNearer = java.lang.Math.abs(topleft.lonDec - mi.center.lonDec)/mi.sizeKm &lt; minDistLon;
+ 						if ( latNearer &amp;&amp; lonNearer) better = true; // for faster processing: if lat and lon are nearer then the distancance doesn't need to be calculated
+@@ -203,15 +203,15 @@
+ 			better = false;
+ 			mi = (MapInfoObject)get(i);
+ 			if (mi.fileNameWFL == &quot;&quot;) continue; // exclude &quot;maps&quot; without image // TODO make this a boolean in MapInfoObject
+-			if (screenArea == null || java.lang.Math.abs(mi.scale - lastscale) &gt; scaleTolerance) {
++			if (screenArea == null || !scaleEquals(lastscale, mi)) {
+ 				screenArea = getAreaForScreen(screen, lat, lon, mi.scale, mi);
+ 				lastscale = mi.scale;
+ 			}
+ 			if (screenArea.isOverlapping(mi.getArea())) { // is on screen
+-				if (bestMap == null || java.lang.Math.abs(mi.scale - bestMap.scale) &gt; scaleTolerance) { // different scale then known bestMap?
+-					if (mi.inBound(lat, lon) &amp;&amp; (      // more details                                 // less details than bestmap
+-							(moreDetails &amp;&amp; (curScale &gt; mi.scale + scaleTolerance) &amp;&amp; (bestMap == null || mi.scale-scaleTolerance &gt; bestMap.scale) ) // higher resolution wanted and mi has higher res and a lower res than bestmap, because we dont want to overjump one resolution step
+-							|| (!moreDetails &amp;&amp; (curScale &lt; mi.scale - scaleTolerance) &amp;&amp; (bestMap == null || mi.scale + scaleTolerance &lt; bestMap.scale) ) // lower resolution wanted and mi has lower res and a higher res than bestmap, because we dont want to overjump one resolution step
++				if (bestMap == null || !scaleEquals(mi, bestMap)) { // different scale than known bestMap?
++					if (mi.inBound(lat, lon) &amp;&amp; (      // more details wanted and this map has more details?                                // less details than bestmap
++							(moreDetails &amp;&amp; (curScale &gt; mi.scale * scaleTolerance) &amp;&amp; (bestMap == null || mi.scale &gt; bestMap.scale * scaleTolerance ) ) // higher resolution wanted and mi has higher res and a lower res than bestmap, because we dont want to overjump one resolution step
++							|| (!moreDetails &amp;&amp; (curScale *  scaleTolerance &lt; mi.scale) &amp;&amp; (bestMap == null || mi.scale * scaleTolerance &lt; bestMap.scale) ) // lower resolution wanted and mi has lower res and a higher res than bestmap, because we dont want to overjump one resolution step
+ 					) )	better = true;	// inbound and higher resolution if higher res wanted -&gt; better
+ 				} else { // same scale as bestmap -&gt; look if naerer 
+ 					latNearer = java.lang.Math.abs(lat - mi.center.latDec)/mi.sizeKm &lt; minDistLat ;
+@@ -256,12 +256,59 @@
+ 		return ret; 
+ 	}
+ 	public static boolean scaleEquals(MapInfoObject a, MapInfoObject b) {
+-		return java.lang.Math.abs(a.scale - b.scale) &lt; scaleTolerance; 
++		//return java.lang.Math.abs(a.scale - b.scale) &lt; scaleTolerance;
++		return a.scale/b.scale &lt; scaleTolerance || b.scale/a.scale &lt; scaleTolerance;
+ 	}
+ 	public static boolean scaleEquals(float s, MapInfoObject b) {
+-		return java.lang.Math.abs(s - b.scale) &lt; scaleTolerance; 
++		//return java.lang.Math.abs(s - b.scale) &lt; scaleTolerance;
++		return s/b.scale &lt; scaleTolerance || b.scale/s &lt; scaleTolerance;
+ 	}
++	
++	/**
++	 * 
++	 * @param test
++	 * @param old
++	 * @param wanted
++	 * @return true if test is nearer to wanted than old, false if the change in the scale is lower than scaleTolerance
++	 */
++	public static boolean scaleNearer(float test, float old, float wanted) {
++		float testa, wanta, wantb, olda;
++		if (test &gt; wanted) { // ensure that first term is greater than 1
++			testa = test;
++			wanta = wanted;
++		} else {
++			testa = wanted;
++			wanta = test;
++		}
++		if (old &gt; wanted) { // ensure that second term is greater than 1 
++			olda = old;
++			wantb = wanted;
++		} else {
++			olda = wanted;
++			wantb = old;
++		}
++		return testa/wanta * scaleTolerance &lt; olda/wantb; 
++	}
+ 
++	public static boolean scaleNearerOrEuqal(float test, float old, float wanted) {
++		float testa, wanta, wantb, olda;
++		if (test &gt; wanted) { // ensure that first term is greater than 1
++			testa = test;
++			wanta = wanted;
++		} else {
++			testa = wanted;
++			wanta = test;
++		}
++		if (old &gt; wanted) { // ensure that second term is greater than 1 
++			olda = old;
++			wantb = wanted;
++		} else {
++			olda = wanted;
++			wantb = old;
++		}
++		return testa/wanta &lt; olda/wantb * scaleTolerance ; 
++	}
++
+ 	/** for determining if a new map should be downloaded
+ 	public boolean isInAmap(CWPoint topleft, CWPoint buttomright) {
+ 		if (!latRangeList.isInRange(topleft.latDec) || !latRangeList.isInRange(buttomright.latDec)) ||
+
+Modified: trunk/src/CacheWolf/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/MovingMap.java	2007-02-25 13:13:58 UTC (rev 629)
++++ trunk/src/CacheWolf/MovingMap.java	2007-02-25 16:11:28 UTC (rev 630)
+@@ -907,7 +907,7 @@
+ 		case NORMAL_KEEP_RESOLUTION: 
+ 			newmap = maps.getBestMap(cll.latDec, cll.lonDec, screen, scaleWanted, false);
+ 			if (newmap == null) newmap = currentMap;
+-			if (java.lang.Math.abs(newmap.scale - scaleWanted) &lt; maps.scaleTolerance) wantMapTest = false;
++			if (MapsList.scaleEquals(scaleWanted, newmap)) wantMapTest = false;
+ 			break;
+ 		case HIGHEST_RESOLUTION: newmap = maps.getBestMap(cll.latDec, cll.lonDec, screen, 0.000001f, false); break;
+ 		case HIGHEST_RESOLUTION_GPS_DEST: 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000447.html">[Cachewolf-svn] r629 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000449.html">[Cachewolf-svn] r631 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#448">[ date ]</a>
+              <a href="thread.html#448">[ thread ]</a>
+              <a href="subject.html#448">[ subject ]</a>
+              <a href="author.html#448">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

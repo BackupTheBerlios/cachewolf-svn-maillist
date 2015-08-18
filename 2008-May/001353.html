@@ -1,0 +1,421 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1459 - in trunk: res_noewe/languages src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-May/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1459%20-%20in%20trunk%3A%20res_noewe/languages%20src/CacheWolf&In-Reply-To=%3C200805142100.m4EL0P0S025427%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001352.html">
+   <LINK REL="Next"  HREF="001354.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1459 - in trunk: res_noewe/languages src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1459%20-%20in%20trunk%3A%20res_noewe/languages%20src/CacheWolf&In-Reply-To=%3C200805142100.m4EL0P0S025427%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1459 - in trunk: res_noewe/languages src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Wed May 14 23:00:25 CEST 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001352.html">[Cachewolf-svn] r1458 - trunk/src/CacheWolf/navi
+</A></li>
+        <LI>Next message: <A HREF="001354.html">[Cachewolf-svn] r1460 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1353">[ date ]</a>
+              <a href="thread.html#1353">[ thread ]</a>
+              <a href="subject.html#1353">[ subject ]</a>
+              <a href="author.html#1353">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2008-05-14 23:00:21 +0200 (Wed, 14 May 2008)
+New Revision: 1459
+
+Modified:
+   trunk/res_noewe/languages/DE.cfg
+   trunk/res_noewe/languages/EN.cfg
+   trunk/src/CacheWolf/GPSPortOptions.java
+   trunk/src/CacheWolf/PreferencesScreen.java
+Log:
+GPS-Port-Options dialog: scan should work now and is interruptable (thanx to MiK for testing and comments)
+preferences dialog: fixed: GPSBabel port selector behaved in a nearly unsusable way
+
+Modified: trunk/res_noewe/languages/DE.cfg
+===================================================================
+--- trunk/res_noewe/languages/DE.cfg	2008-05-14 20:54:15 UTC (rev 1458)
++++ trunk/res_noewe/languages/DE.cfg	2008-05-14 21:00:21 UTC (rev 1459)
+@@ -808,6 +808,9 @@
+ 		7115= - nicht als GPS-Daten erkannt%0a
+ 		7116= - keine Daten empfangen%0a
+ 		7117=Anzeige der Daten direkt vom seriellen Port:
++		7118=Stop
++		7119=Stop
++		7120=Abgebrochen
+ 		
+ 		{..}
+ 	{..}
+
+Modified: trunk/res_noewe/languages/EN.cfg
+===================================================================
+--- trunk/res_noewe/languages/EN.cfg	2008-05-14 20:54:15 UTC (rev 1458)
++++ trunk/res_noewe/languages/EN.cfg	2008-05-14 21:00:21 UTC (rev 1459)
+@@ -790,6 +790,9 @@
+ 		7115= - No GPS data tag found%0a
+ 		7116= - no data received%0a
+ 		7117=Displaying data from serial port directly:%0a
++		7118=Stop
++		7119=Stop
++		7120=Canceled
+ 		{..}
+ 	{..}
+ {..}
+
+Modified: trunk/src/CacheWolf/GPSPortOptions.java
+===================================================================
+--- trunk/src/CacheWolf/GPSPortOptions.java	2008-05-14 20:54:15 UTC (rev 1458)
++++ trunk/src/CacheWolf/GPSPortOptions.java	2008-05-14 21:00:21 UTC (rev 1459)
+@@ -44,37 +44,55 @@
+ 	int comLength = 0;
+ 	TextDisplay out;
+ 	boolean run;
++	public String lastgot;
+ 	
+ 	public mySerialThread(SerialPortOptions spo, TextDisplay td) throws IOException {
+ 		comSp = new SerialPort(spo);
++		//comSp.setFlowControl(SerialPort.SOFTWARE_FLOW_CONTROL);
+ 		out = td;
++		lastgot = null;
+ 	}
+ 	
+ 	public void run() {
+ 		run = true;
+ 		while (run){
+ 			try {
+-				sleep(1000);
++				sleep(200);
+ 			} catch (InterruptedException e) {}
+ 			if (comSp != null)	{  
+ 				comLength = comSp.nonBlockingRead(comBuff, 0 ,comBuff.length);
+ 				if (comLength &gt; 0)	{
+ 					String str = mString.fromAscii(comBuff, 0, comLength).toUpperCase();
+-					out.appendText(str,true);
++					lastgot = str;
++					if (out != null) out.appendText(str,true);
+ 				}
+ 			}
+ 		}
+ 	}
++	
++	public String nonBlockingRead() {
++		String ret = new String(lastgot); //mString.fromAscii(gpsBuff,0,gpsLen);
++		lastgot = null;
++		return ret;
+ 
+-	public void stop() {
++	}
++
++	public boolean stop() {
+ 		run = false;
+-		if (comSp != null) comSp.close(); //compSp == null can happen if a exception occured
++		boolean ret;
++		if (comSp != null) {
++			ret = comSp.close(); //compSp == null can happen if a exception occured 
++			try { ewe.sys.mThread.sleep(500); // wait in order to give the system time to close the serial port
++			} catch (InterruptedException e) {}
++		}
++		else ret = true;
++		return ret;
+ 	}
+ }
+ 
+ public class GPSPortOptions extends SerialPortOptions {
+ 	TextDisplay txtOutput;
+-	mButton btnTest, btnUpdatePortList;
++	mButton btnTest, btnUpdatePortList, btnScan;
+ 	public mInput inputBoxForwardHost;
+ 	mLabel  labelForwardHost;
+ 	public mCheckBox forwardGpsChkB;
+@@ -110,7 +128,9 @@
+ 		// End of copy from SerialPortOptions.
+ 		//
+ 		ed.buttonConstraints = CellConstants.HFILL;
+-		ed.addField(ed.addNext(new mButton(MyLocale.getMsg(7103,&quot;Scan$u&quot;))).setCell(CellConstants.DONTSTRETCH),&quot;scan&quot;);
++		btnScan = new mButton(MyLocale.getMsg(7103,&quot;Scan$u&quot;));
++		btnScan.setCell(CellConstants.DONTSTRETCH);
++		ed.addField(ed.addNext(btnScan),&quot;scan&quot;);
+ 		btnTest = new mButton(MyLocale.getMsg(7104,&quot;Test$t&quot;));
+ 		ed.addField(ed.addLast(btnTest.setCell(CellConstants.DONTSTRETCH)),&quot;test&quot;);
+ 		txtOutput = new TextDisplay();
+@@ -136,50 +156,87 @@
+ 		gpsRunning = false;
+ 		return ed;
+ 	}
+-	
+-	public void action(String field,Editor ed){
+-		if (field.equals(&quot;scan&quot;)){
+-			String[] ports = SerialPort.enumerateAvailablePorts();
+-			txtOutput.setText(&quot;&quot;);
+-			if (ports == null) {
+-				txtOutput.appendText(MyLocale.getMsg(7109, &quot;Could not get list of available serial ports\n&quot;), true);
+-			} else {
+-				int i;
+-				for (i=0; i&lt;ports.length; i++){
+-					// try open with default GPS baudrate
+-					if (!testPort(ports[i], baudRate)) 	continue;
+-					else {
+-						this.portName = ports[i];
+-						ed.toControls(&quot;portName&quot;);
+-						break;
++	boolean interruptScan = false;
++	boolean scanRunning = false;
++	public void action(String field,Editor ed_){
++		if (field.equals(&quot;scan&quot;)) {
++			if (scanRunning == false) {
++				txtOutput.setText(&quot;&quot;);
++				new mThread() {
++					public void run() {
++						btnTest.set(mButton.Disabled, true);
++						btnTest.repaintNow();
++						btnScan.setText(Gui.getTextFrom(MyLocale.getMsg(7119,&quot;Stop&quot;)));
++						btnScan.repaintNow();
++						String[] ports = SerialPort.enumerateAvailablePorts(); // in case of bluethooth this can take several seconds
++						if (ports == null) {
++							txtOutput.appendText(MyLocale.getMsg(7109, &quot;Could not get list of available serial ports\n&quot;), true);
++						} else {
++							scanRunning = true;
++							interruptScan = false;
++							int i;
++							for (i=0; i&lt;ports.length; i++){
++								if (interruptScan) { 
++									txtOutput.appendText(MyLocale.getMsg(7120, &quot;Canceled&quot;), true); // MyLocale.getMsg(7109, &quot;Could not get list of available serial ports\n&quot;), true);
++									fin();
++									return; 
++								}
++								if (!testPort(ports[i], baudRate)) 	continue;
++								else {
++									portName = ports[i];
++									if (ed != null) ed.toControls(&quot;portName&quot;);
++									break;
++								}
++							}
++							if (i &gt;= ports.length) txtOutput.appendText(MyLocale.getMsg(7110, &quot;GPS not found\n&quot;), true);
++						}
++						fin();
+ 					}
+-				}
+-				if (i &gt;= ports.length) txtOutput.appendText(MyLocale.getMsg(7110, &quot;GPS not found\n&quot;), true);
++					private void fin() {
++						scanRunning = false;
++						if (btnTest != null) {
++							btnTest.set(mButton.Disabled, false);
++							btnTest.repaintNow();
++						}
++						if (btnScan != null) {
++							btnScan.setText(Gui.getTextFrom(MyLocale.getMsg(7103,&quot;Scan$u&quot;)));
++							btnScan.repaintNow();
++						}
++					}
++				}.start();
++			} else { // port scan running -&gt; stop it.
++				interruptScan = true;
+ 			}
+ 		}
+ 		if (field.equals(&quot;test&quot;)){
+ 			if (!gpsRunning){
+-				ed.fromControls();
++				ed_.fromControls();
+ 				txtOutput.setText(MyLocale.getMsg(7117, &quot;Displaying data from serial port directly:\n&quot;));
+ 				try {
++					btnScan.set(mButton.Disabled, true);
++					btnScan.repaintNow();
+ 					this.portName = Common.fixSerialPortName(portName);
+ 					serThread = new mySerialThread(this, txtOutput);
+ 					serThread.start();
+-					btnTest.setText(&quot;Stop&quot;);
++					btnTest.setText(Gui.getTextFrom(MyLocale.getMsg(7118, &quot;Stop&quot;)));
+ 					gpsRunning = true;
+ 				} catch (IOException e) {
++					btnScan.set(mButton.Disabled, false);
++					btnScan.repaintNow();
+ 					txtOutput.appendText(MyLocale.getMsg(7108, &quot;Failed to open serial port: &quot;) + this.portName + &quot;, IOException: &quot; + e.getMessage() + &quot;\n&quot;, true);
+ 				}
+ 			}
+ 			else {
+ 				serThread.stop();
+-				btnTest.setText(&quot;Test&quot;);
++				btnTest.setText(Gui.getTextFrom(MyLocale.getMsg(7104,&quot;Test$t&quot;)));
+ 				gpsRunning = false;
++				btnScan.set(mButton.Disabled, false);
++				btnScan.repaintNow();
+ 			}
+ 
+ 		}
+ 
+-		super.action(field, ed);
++		super.action(field, ed_);
+ 	}
+ 	
+ 	public void fieldEvent(FieldTransfer xfer, Editor editor, Object event){
+@@ -195,39 +252,48 @@
+ 	}
+ 	
+ 	private boolean testPort(String port, int baud){
+-		SerialPort gpsPort; 
+-		byte[] gpsBuff = new byte[1024];
++		mySerialThread gpsPort; 
+ 		int gpsLen;
+ 		long now;
+ 		
+-		gpsPort = new SerialPort(Common.fixSerialPortName(port), baud);
+-		if(gpsPort == null) {
+-			txtOutput.appendText(MyLocale.getMsg(7108, &quot;Failed to open serial port: &quot;) + this.portName + &quot;\n&quot;, true);
++		SerialPortOptions testspo= new SerialPortOptions();
++		testspo.baudRate = baud;
++		testspo.portName = Common.fixSerialPortName(port);
++		try {
++			gpsPort = new mySerialThread(testspo, null);
++		} catch (IOException e) {
++			txtOutput.appendText(MyLocale.getMsg(7108, &quot;Failed to open serial port: &quot;) + testspo.portName + &quot;\n&quot;, true);
+ 			return false;
+ 		}
+-		
++		//if (!gpsPort.isOpen()) txtOutput.appendText(MyLocale.getMsg(7108, &quot;Failed (2) to open serial port: &quot;) + this.portName + &quot;\n&quot;, true);
++ 
+ 		//try to read some data
+ 		now = new Time().getTime();
+ 		txtOutput.appendText(MyLocale.getMsg(7111, &quot;Trying &quot;) + port + MyLocale.getMsg(7112, &quot; at &quot;) + baud + &quot; Baud\n&quot;, true);
++		gpsPort.start();
++		boolean gpsfound = false;
+ 		boolean gotdata = false;
+-		while ( (new Time().getTime() - now) &lt; 3000){
+-			gpsLen = gpsPort.nonBlockingRead(gpsBuff,0, gpsBuff.length);
+-			if (gpsLen &gt; 0){
+-				if (!gotdata) txtOutput.appendText(MyLocale.getMsg(7113, &quot; - got some data\n&quot;), true);
+-				gotdata = true;
+-				String tmp = mString.fromAscii(gpsBuff,0,gpsLen);
+-				if (tmp.indexOf(&quot;$GP&quot;, 0) &gt;= 0){
+-					txtOutput.appendText(MyLocale.getMsg(7114, &quot;GPS Port found\n&quot;), true);
+-					gpsPort.close();
+-					return true;
++		while ( (new Time().getTime() - now) &lt; 3000 &amp;&amp; !gpsfound){
++//			gpsLen = gpsPort.lastgot.length(); // nonBlockingRead(gpsBuff,0, gpsBuff.length);
++			//txtOutput.appendText(&quot;gpsLen: &quot; + gpsLen, true);
++			if (gpsPort.lastgot != null) {
++				if (!gotdata) {
++					gotdata = true;
++					txtOutput.appendText(MyLocale.getMsg(7113, &quot; - got some data\n&quot;), true);
++					now = new Time().getTime(); // if receiced some data, give the GPS some extra time to send NMEA data (e.g. Sirf initially sends some non-NMEA text info about it self) 
+ 				}
++				if (gpsPort.nonBlockingRead().indexOf(&quot;$GP&quot;, 0) &gt;= 0) gpsfound = true;
+ 			}
+-			Vm.sleep(200);
++			try {ewe.sys.mThread.sleep(200); } catch (InterruptedException e) {}
+ 		}
+-		if (gotdata) txtOutput.appendText(MyLocale.getMsg(7115, &quot; - No GPS data tag found\n&quot;), true);
+-		else         txtOutput.appendText(MyLocale.getMsg(7116, &quot; - no data received\n&quot;), true);
+-		gpsPort.close();
+-		return false;
++		gpsPort.stop();
++		if (gpsfound)	 txtOutput.appendText(MyLocale.getMsg(7114, &quot; - GPS Port found\n&quot;), true);
++		else {
++			if (gotdata) txtOutput.appendText(MyLocale.getMsg(7115, &quot; - No GPS data tag found\n&quot;), true);
++			else         txtOutput.appendText(MyLocale.getMsg(7116, &quot; - No data received\n&quot;), true);
++		}
++		//catch (IOException io) { txtOutput.appendText(&quot;error closing serial port&quot;, true); }
++		return gpsfound;
+ 	}
+ 	
+ }
+
+Modified: trunk/src/CacheWolf/PreferencesScreen.java
+===================================================================
+--- trunk/src/CacheWolf/PreferencesScreen.java	2008-05-14 20:54:15 UTC (rev 1458)
++++ trunk/src/CacheWolf/PreferencesScreen.java	2008-05-14 21:00:21 UTC (rev 1459)
+@@ -31,7 +31,7 @@
+ 	CellPanel pnlDisplay = new CellPanel();
+ 	CellPanel pnlMore = new CellPanel();
+ 	CellPanel pnlTB = new CellPanel();
+-	Frame frmGarmin = new Frame();
++	//Frame frmGarmin = new Frame();
+ 	ScrollBarPanel scp; // TODO not neede any more?
+ 	String [] garminPorts= new String[]{&quot;com1&quot;,&quot;com2&quot;,&quot;com3&quot;,&quot;com4&quot;,&quot;com5&quot;,&quot;com6&quot;,&quot;com7&quot;,&quot;usb&quot;};
+ 	
+@@ -103,24 +103,24 @@
+ 		inpPassword.isPassword=true;
+ 		pnlGeneral.addLast(pnlBrowser,HSTRETCH,HFILL);
+ 		
+-		pnlGeneral.addNext(gpsB = new mButton(&quot;GPS&quot;),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
++		pnlGeneral.addLast(gpsB = new mButton(&quot;GPS: &quot; + pref.mySPO.portName+&quot;/&quot;+pref.mySPO.baudRate),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 		//content.addNext(Alias.setTag(Control.SPAN, new Dimension(3,1)),content.DONTSTRETCH, (content.HFILL|content.WEST));
+-		pnlGeneral.addLast(inpGPS=new mInput(&quot;&quot;));
++/*		pnlGeneral.addLast(inpGPS=new mInput(&quot;&quot;));
+ 		inpGPS.modify(ControlConstants.Disabled|ControlConstants.NoFocus,0);
+ 		inpGPS.setText(pref.mySPO.portName+&quot;/&quot;+pref.mySPO.baudRate);
+-		
++	*/	
+ 		// Garmin and GPSBabel
+-		frmGarmin.addNext(lblGarmin=new mLabel(MyLocale.getMsg(173,&quot;Garmin:  PC Port:&quot;)),DONTSTRETCH,LEFT);
+-		lblGarmin.setTag(INSETS,new Insets(4,0,0,0));
+-		frmGarmin.addNext(chcGarminPort=new mChoice(garminPorts,0),DONTSTRETCH,LEFT);
+-		chcGarminPort.setTag(INSETS,new Insets(4,0,0,0));
++		pnlGeneral.addNext(lblGarmin=new mLabel(MyLocale.getMsg(173,&quot;Garmin:  PC Port:&quot;)),DONTSTRETCH,LEFT);
++//		lblGarmin.setTag(INSETS,new Insets(4,0,0,0));
++		pnlGeneral.addNext(chcGarminPort=new mChoice(garminPorts,0),DONTSTRETCH,RIGHT);
++		//chcGarminPort.setTag(INSETS,new Insets(4,0,0,0));
+ 		chcGarminPort.selectItem(pref.garminConn);
+-		frmGarmin.addLast(chkSynthShort=new mCheckBox(MyLocale.getMsg(174,&quot;Short Names&quot;)),STRETCH,RIGHT);
+-		chkSynthShort.setTag(INSETS,new Insets(4,0,0,0));
++		pnlGeneral.addLast(chkSynthShort=new mCheckBox(MyLocale.getMsg(174,&quot;Short Names&quot;)),STRETCH,LEFT);
++		//chkSynthShort.setTag(INSETS,new Insets(4,0,0,0));
+ 		chkSynthShort.setState(!pref.garminGPSBabelOptions.equals(&quot;&quot;));
+-		frmGarmin.borderStyle=UIConstants.BDR_RAISEDOUTER|UIConstants.BDR_SUNKENINNER|UIConstants.BF_TOP;
+-		frmGarmin.setTag(INSETS,new Insets(4,0,0,0));
+-		pnlGeneral.addLast(frmGarmin);
++		//frmGarmin.borderStyle=UIConstants.BDR_RAISEDOUTER|UIConstants.BDR_SUNKENINNER|UIConstants.BF_TOP;
++		//frmGarmin.setTag(INSETS,new Insets(4,0,0,0));
++		//pnlGeneral.addLast(frmGarmin);
+ 		pnlGeneral.addLast(new mLabel(&quot;&quot;));
+ 		
+ 		/////////////////////////////////////////////////////////
+@@ -328,7 +328,7 @@
+ 					pref.forwardGpsHost = gpo.inputBoxForwardHost.getText();
+ 					pref.logGPS = gpo.logGpsChkB.getState();
+ 					pref.logGPSTimer = gpo.inputBoxLogTimer.getText();
+-					inpGPS.setText(pref.mySPO.portName+&quot;/&quot;+pref.mySPO.baudRate);
++					gpsB.setText(&quot;GPS: &quot; + pref.mySPO.portName+&quot;/&quot;+pref.mySPO.baudRate);
+ 				}
+ 			}
+ 		}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001352.html">[Cachewolf-svn] r1458 - trunk/src/CacheWolf/navi
+</A></li>
+	<LI>Next message: <A HREF="001354.html">[Cachewolf-svn] r1460 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1353">[ date ]</a>
+              <a href="thread.html#1353">[ thread ]</a>
+              <a href="subject.html#1353">[ subject ]</a>
+              <a href="author.html#1353">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

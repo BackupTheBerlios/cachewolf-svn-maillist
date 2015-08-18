@@ -1,0 +1,121 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2842 - trunk/src/CacheWolf/imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-October/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2842%20-%20trunk/src/CacheWolf/imp&In-Reply-To=%3C20101028153324.002D5480A29%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002829.html">
+   <LINK REL="Next"  HREF="002831.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2842 - trunk/src/CacheWolf/imp</H1>
+    <B>mik77 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2842%20-%20trunk/src/CacheWolf/imp&In-Reply-To=%3C20101028153324.002D5480A29%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2842 - trunk/src/CacheWolf/imp">mik77 at mail.berlios.de
+       </A><BR>
+    <I>Thu Oct 28 05:33:23 CEST 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002829.html">[Cachewolf-svn] r2841 - in trunk/src/CacheWolf: . imp
+</A></li>
+        <LI>Next message: <A HREF="002831.html">[Cachewolf-svn] r2843 - trunk/src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2830">[ date ]</a>
+              <a href="thread.html#2830">[ thread ]</a>
+              <a href="subject.html#2830">[ subject ]</a>
+              <a href="author.html#2830">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mik77
+Date: 2010-10-28 17:33:23 +0200 (Thu, 28 Oct 2010)
+New Revision: 2842
+
+Modified:
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+Avoid some problems when parsing QuickFillFromMapList.
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2010-10-28 12:14:18 UTC (rev 2841)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2010-10-28 15:33:23 UTC (rev 2842)
+@@ -613,19 +613,24 @@
+ 	private void addCaches(String listPage, boolean setCachesToLoad) {
+ 		String[] caches = mString.split(listPage, '{');
+ 		//int posId=0;        //id egal
+-		int posName=1;      //nn
+-		int posWP=2;        //gc 
+-		int posLat=3;       //lat
+-		int posLon=4;       //lon
+-		int posType=5;      //ctid
+-		int posFound=6;     //f
+-		int posOwn=7;       //o
+-		int posAvailable=8; //ia
++		//int posName=1;      //nn
++		
++		//positions decreased by 2, because we cut away the name to prevent parsing errors
++		int posWP=0;        //gc 
++		int posLat=1;       //lat
++		int posLon=2;       //lon
++		int posType=3;      //ctid
++		int posFound=4;     //f
++		int posOwn=5;       //o
++		int posAvailable=6; //ia
+ 		// ignoring first 3 lines
+ 		for (int i = 3; i &lt; caches.length; i++) {
+ 			if (infB.isClosed) return;
+-			String elements[] = mString.split(caches[i], ',');
+ 			
++			//cut away name to prevent parsing errors			
++			int WpIndex = caches[i].indexOf(&quot;\&quot;gc\&quot;&quot;);
++			String elements[] = mString.split(caches[i].substring(WpIndex), ',');
++			
+ 			boolean found = (elements[posFound].indexOf(&quot;true&quot;) &gt; -1 ? true : false);
+ 			if (found &amp;&amp; doNotgetFound)	continue;
+ 			
+@@ -642,7 +647,10 @@
+ 				String lon = mString.split(elements[posLon], ':')[1];
+ 				String own = mString.split(elements[posOwn], ':')[1];
+ 				boolean available = (elements[posAvailable].indexOf(&quot;true&quot;) &gt; -1 ? true : false);
+-				String cacheName = mString.split(elements[posName], '\&quot;')[3];
++				
++				int NameIndex = caches[i].indexOf(&quot;\&quot;nn\&quot;&quot;);
++				String cacheName = caches[i].substring (NameIndex + 6, WpIndex - 2 );
++				cacheName = cacheName.replaceAll( &quot;\\\\\&quot;&quot;, &quot;\&quot;&quot; );
+ 
+ 				ch = new CacheHolder();
+ 				ch.setWayPoint(wp);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002829.html">[Cachewolf-svn] r2841 - in trunk/src/CacheWolf: . imp
+</A></li>
+	<LI>Next message: <A HREF="002831.html">[Cachewolf-svn] r2843 - trunk/src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2830">[ date ]</a>
+              <a href="thread.html#2830">[ thread ]</a>
+              <a href="subject.html#2830">[ subject ]</a>
+              <a href="author.html#2830">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,847 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r851 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-August/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r851%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200708281917.l7SJHfGT002476%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000742.html">
+   <LINK REL="Next"  HREF="000744.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r851 - trunk/src/CacheWolf</H1>
+    <B>mirabilos at BerliOS</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r851%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200708281917.l7SJHfGT002476%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r851 - trunk/src/CacheWolf">mirabilos at mail.berlios.de
+       </A><BR>
+    <I>Tue Aug 28 21:17:41 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000742.html">[Cachewolf-svn] r850 - in trunk: resources src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000744.html">[Cachewolf-svn] r852 - trunk/resources
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#743">[ date ]</a>
+              <a href="thread.html#743">[ thread ]</a>
+              <a href="subject.html#743">[ subject ]</a>
+              <a href="author.html#743">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mirabilos
+Date: 2007-08-28 21:17:40 +0200 (Tue, 28 Aug 2007)
+New Revision: 851
+
+Modified:
+   trunk/src/CacheWolf/SpiderGC.java
+Log:
+quick hack to unbreak spidering for lunix ewe:
+prepend the HTTP reply headers to the received data,
+so that the regexen can find it
+
+found by pfeffer and myself; fix (workaround) by myself
+
+someone (maybe I) should create a real fix later: the
+regexen that look for the Set-Cookie: header should
+directly use the conn.documentProperties instead
+
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2007-08-28 18:56:58 UTC (rev 850)
++++ trunk/src/CacheWolf/SpiderGC.java	2007-08-28 19:17:40 UTC (rev 851)
+@@ -1,8 +1,8 @@
+ /*
+-    CacheWolf is a software for PocketPC, Win and Linux that 
+-    enables paperless caching. 
++    CacheWolf is a software for PocketPC, Win and Linux that
++    enables paperless caching.
+     It supports the sites geocaching.com and opencaching.de
+-    
++
+     Copyright (C) 2006  CacheWolf development team
+     See <A HREF="http://developer.berlios.de/projects/cachewolf/">http://developer.berlios.de/projects/cachewolf/</A>
+     for more information.
+@@ -30,17 +30,19 @@
+ import ewe.util.*;
+ import com.stevesoft.ewe_pat.*;
+ import ewe.ui.*;
++import ewe.data.Property;
++import ewe.data.PropertyList;
+ 
+ /**
+ *	Class to spider caches from gc.com
+ */
+ public class SpiderGC{
+-	
++
+ 	/**
+ 	 * The maximum number of logs that will be stored
+ 	 */
+ 	public static int MAXLOGS=250;
+-	
++
+ 	private static int ERR_LOGIN = -10;
+ 	private static Preferences pref;
+ 	private Profile profile;
+@@ -55,8 +57,8 @@
+ 	Hashtable indexDB;
+ 	InfoBox infB;
+ 	private boolean loggedIn = false;
+-	private static Properties p=null; 
+-	
++	private static Properties p=null;
++
+ 	public SpiderGC(Preferences prf, Profile profile, boolean bypass){
+ 		this.profile=profile;
+ 		this.cacheDB = profile.cacheDB;
+@@ -69,12 +71,12 @@
+ 		} catch (Exception ex) {
+ 			p=null;
+ 			pref.log(&quot;Failed to load spider.def&quot;,ex);
+-			// We don't display an error message box here, as the call to 
++			// We don't display an error message box here, as the call to
+ 			// spiderSingle or doIt will do this
+ 		}
+ 		MAXLOGS=pref.maxLogsToSpider;
+ 	}
+-	
++
+ 	private boolean existsSpiderDef() {
+ 		if (p==null) {
+ 			(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), MyLocale.getMsg(5504,&quot;Could not load 'spider.def'&quot;), MessageBox.OKB)).execute();
+@@ -100,7 +102,7 @@
+ 		passwort = infB.getInput();
+ 		infB.close(0);
+ 		if(code != Form.IDOK) return code;
+-		
++
+ 		// Now start the login proper
+ 		infB = new InfoBox(MyLocale.getMsg(5507,&quot;Status&quot;), MyLocale.getMsg(5508,&quot;Logging in...&quot;));
+ 		infB.exec();
+@@ -154,7 +156,7 @@
+ 			    (new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), MyLocale.getMsg(5501,&quot;Login failed. Error loading page after login.&quot;), MessageBox.OKB)).execute();
+ 				return ERR_LOGIN;
+ 			}
+-			
++
+ 			rex.search(start);
+ 			if (!rex.didMatch()) {
+ 				pref.log(&quot;Viewstate not found&quot;);
+@@ -163,7 +165,7 @@
+ 			rexCookieID.search(start);
+ 			if (!rexCookieID.didMatch()) {
+ 				pref.log(&quot;CookieID not found&quot;);
+-			} 
++			}
+ 			cookieID = rexCookieID.stringMatched(1);
+ 			//Vm.debug(cookieID);
+ 			rexCookieSession.search(start);
+@@ -183,7 +185,7 @@
+ 			return Form.IDOK;
+ 		}
+ 	}
+-	
++
+ 	/**
+ 	 * Method to spider a single cache.
+ 	 * It assumes a login has already been performed!
+@@ -211,7 +213,7 @@
+ 			};
+ 			// Read the cache data from GC.COM and compare to old data
+ 			ret=getCacheByWaypointName(chD,true,true,false,true);
+-			// Save the spidered data 
++			// Save the spidered data
+ 			if (ret) {
+ 				pref.log(&quot;Saving to:&quot; + profile.dataDir);
+ 				chD.saveCacheDetails(profile.dataDir);
+@@ -222,7 +224,7 @@
+ 		}
+ 		return ret;
+ 	} // spiderSingle
+-	
++
+ 	/**
+ 	 * Fetch the coordinates of a waypoint from GC
+ 	 * @param wayPoint the name of the waypoint
+@@ -246,9 +248,9 @@
+ 			return &quot;&quot;;
+ 		}
+ 		infB.close(0);
+-		return getLatLon(completeWebPage);	
++		return getLatLon(completeWebPage);
+ 	}
+-	
++
+ 	/**
+ 	*	Method to start the spider for a search around the center coordinates
+ 	*/
+@@ -274,9 +276,9 @@
+ 		String start = &quot;&quot;;
+ 		Regex rex = new Regex(&quot;name=\&quot;__VIEWSTATE\&quot; value=\&quot;(.*)\&quot; /&gt;&quot;);
+ 		String doc = &quot;&quot;;
+-		
++
+ 		if(login() != Form.IDOK) return;
+-	
++
+ 		OCXMLImporterScreen options = new OCXMLImporterScreen(MyLocale.getMsg(5510,&quot;Spider Options&quot;),	OCXMLImporterScreen.INCLUDEFOUND | OCXMLImporterScreen.DIST| OCXMLImporterScreen.IMAGES);
+ 		options.distanceInput.setText(&quot;&quot;);
+ 		if (options.execute() == OCXMLImporterScreen.IDCANCEL) {return; }
+@@ -286,7 +288,7 @@
+ 		boolean doNotgetFound = options.foundCheckBox.getState();
+ 		boolean getImages = options.imagesCheckBox.getState();
+ 		options.close(0);
+-		
++
+ 		//=======
+ 		// Prepare list of all caches that are to be spidered
+ 		//=======
+@@ -309,7 +311,7 @@
+ 		}
+ 		dummy = &quot;&quot;;
+ 		//String lineBlck = &quot;&quot;;
+-		int page_number = 4;		
++		int page_number = 4;
+ 		lineRex = new Regex(p.getProperty(&quot;lineRex&quot;)); //&quot;&lt;tr bgcolor=((?s).*?)&lt;/tr&gt;&quot;
+ 		int found_on_page = 0;
+ 		//Loop till maximum distance has been found or no more caches are in the list
+@@ -358,7 +360,7 @@
+ 			//Vm.debug(&quot;Distance is now: &quot; + distance);
+ 			found_on_page = 0;
+ 		}
+-		
++
+ 		pref.log(&quot;Found &quot; + cachesToLoad.size() + &quot; caches&quot;);
+ 		if (!infB.isClosed) infB.setInfo(MyLocale.getMsg(5511,&quot;Found &quot;) + cachesToLoad.size() + MyLocale.getMsg(5512,&quot; caches&quot;));
+ 
+@@ -367,18 +369,18 @@
+ 		//=======
+ 		for(int i = 0; i&lt;cachesToLoad.size(); i++){
+ 			if (infB.isClosed) break;
+-			
++
+ 			wpt = (String)cachesToLoad.get(i);
+ 			// Get only caches not already available in the DB
+ 			if(searchWpt(wpt) == -1){
+-				infB.setInfo(MyLocale.getMsg(5513,&quot;Loading: &quot;) + wpt +&quot;(&quot; + (i+1) + &quot; / &quot; + cachesToLoad.size() + &quot;)&quot;);
++				infB.setInfo(MyLocale.getMsg(5513,&quot;Loading: &quot;) + wpt +&quot; (&quot; + (i+1) + &quot; / &quot; + cachesToLoad.size() + &quot;)&quot;);
+ 				chD = new CacheHolderDetail();
+ 				chD.wayPoint=wpt;
+ 				if (!getCacheByWaypointName(chD,false,getImages,doNotgetFound,true)) break;
+ 				if (!chD.is_found || !doNotgetFound ) {
+ 					chD.saveCacheDetails(profile.dataDir);
+ 					cacheDB.add(new CacheHolder(chD)); // TODO Could copy into existing object
+-				}					
++				}
+ 			}
+ 		}
+ 		infB.close(0);
+@@ -390,9 +392,9 @@
+ 	 * Read a complete cachepage from geocaching.com including all logs. This is used both when
+ 	 * updating already existing caches (via spiderSingle) and when spidering around a centre. It
+ 	 * is also used when reading a GPX file and fetching the images.
+-	 * 
++	 *
+ 	 * This is the workhorse function of the spider.
+-	 * 
++	 *
+ 	 * @param CacheHolderDetail chD The element wayPoint must be set to the name of a waypoint
+ 	 * @param boolean isUpdate True if an existing cache is being updated, false if it is a new cache
+ 	 * @param boolean fetchImages True if the pictures are to be fetched
+@@ -413,7 +415,7 @@
+ 			return !infB.isClosed; // Only return false (which terminates the loop over all caches) if infB is closed
+ 		}
+ 		// Only analyse the cache data and fetch pictures if user has not closed the progress window
+-		if (!infB.isClosed) { 
++		if (!infB.isClosed) {
+ 			try{
+ 				chD.is_new = !isUpdate;
+ 				chD.is_update = false;
+@@ -427,7 +429,7 @@
+ 				chD.addiWpts.clear();
+ 				chD.Images.clear();
+ 				chD.ImagesText.clear();
+-				
++
+ 				if(completeWebPage.indexOf(p.getProperty(&quot;cacheUnavailable&quot;)) &gt;= 0) chD.is_available = false;
+ 				if(completeWebPage.indexOf(p.getProperty(&quot;cacheArchived&quot;)) &gt;= 0) chD.is_archived = true;
+ 				//==========
+@@ -436,13 +438,13 @@
+ 				chD.LatLon = getLatLon(completeWebPage);
+ 				chD.pos.set(chD.LatLon);
+ 				if (pref.debug) pref.log(&quot;LatLon: &quot; + chD.LatLon);
+-				
++
+ 				pref.log(&quot;Trying description&quot;);
+ 				origLongDesc = chD.LongDescription;
+ 				chD.LongDescription = getLongDesc(completeWebPage);
+ 				if(isUpdate &amp;&amp; !chD.LongDescription.equals(origLongDesc)) chD.is_update = true;
+ 				pref.log(&quot;Got description&quot;);
+-				
++
+ 				pref.log(&quot;Getting cache name&quot;);
+ 				chD.CacheName = SafeXML.cleanback(getName(completeWebPage));
+ 				pref.log(&quot;Got cache name&quot;);
+@@ -453,12 +455,12 @@
+ 				if(chD.CacheOwner.equals(pref.myAlias) || (pref.myAlias2.length()&gt;0 &amp;&amp; chD.CacheOwner.equals(pref.myAlias2))) chD.is_owned = true;
+ 				pref.log(&quot;Got owner&quot;);
+ 				if (pref.debug) pref.log(&quot;Owner: &quot; + chD.CacheOwner +&quot;; is_owned = &quot;+chD.is_owned+&quot;;  alias1,2 = [&quot;+pref.myAlias+&quot;|&quot;+pref.myAlias2+&quot;]&quot;);
+-				
++
+ 				pref.log(&quot;Trying date hidden&quot;);
+ 				chD.DateHidden = DateFormat.MDY2YMD(getDateHidden(completeWebPage));
+ 				pref.log(&quot;Got date hidden&quot;);
+ 				if (pref.debug) pref.log(&quot;Hidden: &quot; + chD.DateHidden);
+-				
++
+ 				pref.log(&quot;Trying hints&quot;);
+ 				chD.Hints = getHints(completeWebPage);
+ 				pref.log(&quot;Got hints&quot;);
+@@ -468,12 +470,12 @@
+ 				chD.CacheSize = getSize(completeWebPage);
+ 				pref.log(&quot;Got size&quot;);
+ 				if (pref.debug) pref.log(&quot;Size: &quot; + chD.CacheSize);
+-				
++
+ 				pref.log(&quot;Trying difficulty&quot;);
+ 				chD.hard = getDiff(completeWebPage);
+ 				pref.log(&quot;Got difficulty&quot;);
+ 				if (pref.debug) pref.log(&quot;Hard: &quot; + chD.hard);
+-				
++
+ 				pref.log(&quot;Trying terrain&quot;);
+ 				chD.terrain = getTerr(completeWebPage);
+ 				pref.log(&quot;Got terrain&quot;);
+@@ -483,7 +485,7 @@
+ 				chD.type = getType(completeWebPage);
+ 				pref.log(&quot;Got cache type&quot;);
+ 				if (pref.debug) pref.log(&quot;Type: &quot; + chD.type);
+-				
++
+ 				//==========
+ 				// Logs
+ 				//==========
+@@ -503,15 +505,15 @@
+ 				if(isUpdate &amp;&amp; chD.CacheLogs.size()&gt;logsz) chD.is_log_update = true;
+ 				pref.log(&quot;Found logs&quot;);
+ 				// If the switch is set to not store found caches and we found the cache =&gt; return
+-				if (chD.is_found &amp;&amp; doNotGetFound) return !infB.isClosed; 
+-				
++				if (chD.is_found &amp;&amp; doNotGetFound) return !infB.isClosed;
++
+ 				//==========
+ 				// Bugs
+ 				//==========
+ 				// As there may be several bugs, we check whether the user has aborted
+ 				if (!infB.isClosed) getBugs(chD,completeWebPage);
+ 				chD.has_bug = chD.Travelbugs.size()&gt;0;
+-				
++
+ 				//==========
+ 				// Images
+ 				//==========
+@@ -523,7 +525,7 @@
+ 				//==========
+ 				// Addi waypoints
+ 				//==========
+-				
++
+ 				pref.log(&quot;Getting additional waypoints&quot;);
+ 				getAddWaypoints(completeWebPage, chD.wayPoint, chD.is_found);
+ 				pref.log(&quot;Got additional waypoints&quot;);
+@@ -546,7 +548,7 @@
+ 		boolean ret=!infB.isClosed; // If the infoBox was closed before getting here, we return false
+ 		return ret;
+ 	} // getCacheByWaypointName
+-	
++
+ 	/**
+ 	 * Check whether a waypoint is in the database
+ 	 * @param wpt Name of waypoint to check
+@@ -558,7 +560,7 @@
+ 			return INTR.intValue();
+ 		} else return -1;
+ 	}
+-	
++
+ 	/**
+ 	 * Get the Distance to the centre
+ 	 * @param doc A previously fetched cachepage
+@@ -576,7 +578,7 @@
+ 	/**
+ 	 * Get the waypoint name
+ 	 * @param doc A previously fetched cachepage
+-	 * @return Name of waypoint to add to list 
++	 * @return Name of waypoint to add to list
+ 	 */
+ 	private String getWP(String doc){
+ 		inRex = new Regex(p.getProperty(&quot;waypointRex&quot;));
+@@ -584,7 +586,7 @@
+ 		if (!inRex.didMatch()) return &quot;???&quot;;
+ 		return inRex.stringMatched(1);
+ 	}
+-	
++
+ 	/**
+ 	 * Get the coordinates of the cache
+ 	 * @param doc A previously fetched cachepage
+@@ -596,7 +598,7 @@
+ 		if (!inRex.didMatch()) return &quot;???&quot;;
+ 		return inRex.stringMatched(1);
+ 	}
+-	
++
+ 	/**
+ 	 * Get the long description
+ 	 * @param doc A previously fetched cachepage
+@@ -609,10 +611,10 @@
+ 		inRex.search(doc);
+ 		rex2.search(doc);
+ 		res = ((inRex.stringMatched(1)==null)?&quot;&quot;:inRex.stringMatched(1)) + &quot;&lt;br&gt;&quot;;
+-		res += rex2.stringMatched(1); 
++		res += rex2.stringMatched(1);
+ 		return res; // SafeXML.cleanback(res);
+ 	}
+-	
++
+ 	/**
+ 	 * Get the cache name
+ 	 * @param doc A previously fetched cachepage
+@@ -624,7 +626,7 @@
+ 		if (!inRex.didMatch()) return &quot;???&quot;;
+ 		return inRex.stringMatched(1);
+ 	}
+-	
++
+ 	/**
+ 	 * Get the cache owner
+ 	 * @param doc A previously fetched cachepage
+@@ -636,7 +638,7 @@
+ 		if (!inRex.didMatch()) return &quot;???&quot;;
+ 		return inRex.stringMatched(1);
+ 	}
+-	
++
+ 	/**
+ 	 * Get the date when the cache was hidden
+ 	 * @param doc A previously fetched cachepage
+@@ -648,7 +650,7 @@
+ 		if (!inRex.didMatch()) return &quot;???&quot;;
+ 		return inRex.stringMatched(1);
+ 	}
+-	
++
+ 	/**
+ 	 * Get the hints
+ 	 * @param doc A previously fetched cachepage
+@@ -660,7 +662,7 @@
+ 		if (!inRex.didMatch()) return &quot;&quot;;
+ 		return inRex.stringMatched(1);
+ 	}
+-	
++
+ 	/**
+ 	 * Get the cache size
+ 	 * @param doc A previously fetched cachepage
+@@ -672,11 +674,11 @@
+ 		if(inRex.didMatch()) return inRex.stringMatched(1);
+ 		else return &quot;None&quot;;
+ 	}
+-	
++
+ 	/**
+ 	 * Get the Difficulty
+ 	 * @param doc A previously fetched cachepage
+-	 * @return The cache difficulty 
++	 * @return The cache difficulty
+ 	 */
+ 	private String getDiff(String doc){
+ 		inRex = new Regex(p.getProperty(&quot;difficultyRex&quot;));
+@@ -684,7 +686,7 @@
+ 		if(inRex.didMatch()) return inRex.stringMatched(1);
+ 		else return &quot;&quot;;
+ 	}
+-	
++
+ 	/**
+ 	 * Get the terrain rating
+ 	 * @param doc A previously fetched cachepage
+@@ -710,7 +712,7 @@
+ 	}
+ 
+ 	/**
+-	 * Get the logs 
++	 * Get the logs
+ 	 * @param doc A previously fetched cachepage
+ 	 * @param chD Cache Details
+ 	 * @return A HTML string containing the logs
+@@ -737,7 +739,7 @@
+ 		}
+ 		*/
+ 		String singleLog = &quot;&quot;;
+-		Extractor exSingleLog = new Extractor(doc,p.getProperty(&quot;singleLogExStart&quot;), p.getProperty(&quot;singleLogExEnd&quot;), 0, false); // maybe here is some change neccessary because findnext now gives the whole endstring back??? 
++		Extractor exSingleLog = new Extractor(doc,p.getProperty(&quot;singleLogExStart&quot;), p.getProperty(&quot;singleLogExEnd&quot;), 0, false); // maybe here is some change neccessary because findnext now gives the whole endstring back???
+ 		singleLog = exSingleLog.findNext();
+ 		Extractor exIcon = new Extractor(singleLog,p.getProperty(&quot;iconExStart&quot;), p.getProperty(&quot;iconExEnd&quot;), 0, true);
+ 		Extractor exNameTemp = new Extractor(singleLog,p.getProperty(&quot;nameTempExStart&quot;), p.getProperty(&quot;nameTempExEnd&quot;), 0 , true);
+@@ -760,13 +762,13 @@
+ 			icon = exIcon.findNext();
+ 			name = exName.findNext();
+ 			String d=DateFormat.logdate2YMD(exDate.findNext());
+-			if((icon.equals(p.getProperty(&quot;icon_smile&quot;)) || icon.equals(p.getProperty(&quot;icon_camera&quot;))) &amp;&amp; 
++			if((icon.equals(p.getProperty(&quot;icon_smile&quot;)) || icon.equals(p.getProperty(&quot;icon_camera&quot;))) &amp;&amp;
+ 				(name.equals(pref.myAlias) || (pref.myAlias2.length()&gt;0 &amp;&amp; name.equals(pref.myAlias2))) )  {
+ 				chD.is_found = true;
+ 				chD.CacheStatus = d;
+ 			}
+ 			if (nLogs&lt;=MAXLOGS) reslts.add(&quot;&lt;img src='&quot;+ icon +&quot;'&gt;&nbsp;&quot; + d + &quot; &quot; + name +&quot;&lt;br&gt;&quot;+ exLog.findNext());
+-			
++
+ 			singleLog = exSingleLog.findNext();
+ 			exIcon.setSource(singleLog);
+ 			exNameTemp.setSource(singleLog);
+@@ -775,7 +777,7 @@
+ 			exDate.setSource(singleLog);
+ 			exLog.setSource(singleLog);
+ 			// We cannot simply stop if we have reached MAXLOGS just in case we are waiting for
+-			// a log by our alias that happened earlier. 
++			// a log by our alias that happened earlier.
+ 			if (nLogs&gt;=MAXLOGS &amp;&amp; chD.is_found) break;
+ 		}
+ 		if (nLogs&gt;MAXLOGS) {
+@@ -783,14 +785,14 @@
+ 		}
+ 		return reslts;
+ 	}
+-	
++
+ 	/**
+ 	 * Read the travelbug names from a previously fetched Cache page and then
+ 	 * read the travelbug purpose for each travelbug
+ 	 * @param doc The previously fetched cachepage
+ 	 * @return A HTML formatted string with bug names and there purpose
+ 	 */
+-	public void getBugs(CacheHolderDetail chD, String doc){	
++	public void getBugs(CacheHolderDetail chD, String doc){
+ 		Extractor exBlock = new Extractor(doc,p.getProperty(&quot;blockExStart&quot;),p.getProperty(&quot;blockExEnd&quot;) ,0,Extractor.EXCLUDESTARTEND);
+ 		String bugBlock = exBlock.findNext();
+ 		//Vm.debug(&quot;Bugblock: &quot;+bugBlock);
+@@ -825,9 +827,9 @@
+ 		}
+ 		infB.setInfo(oldInfoBox);
+ 	}
+-	
++
+ 	/**
+-	 * Get the images for a previously fetched cache page. Images are extracted 
++	 * Get the images for a previously fetched cache page. Images are extracted
+ 	 * from two areas: The long description and the pictures section (including
+ 	 * the spoiler)
+ 	 * @param doc The previously fetched cachepage
+@@ -878,7 +880,7 @@
+ 						chD.ImagesText.add(imgName); // Keep the image name
+ 						imgCounter++;
+ 					}
+-				} catch (IndexOutOfBoundsException e) { 
++				} catch (IndexOutOfBoundsException e) {
+ 					//Vm.debug(&quot;IndexOutOfBoundsException not in image span&quot;+e.toString()+&quot;imgURL:&quot;+imgUrl);
+ 					pref.log(&quot;Problem loading image. imgURL:&quot;+imgUrl);
+ 				}
+@@ -916,13 +918,13 @@
+ 						chD.ImagesText.add(exImgName.findNext()); // Keep the image description
+ 						imgCounter++;
+ 					}
+-				} catch (IndexOutOfBoundsException e) { 
+-					pref.log(&quot;IndexOutOfBoundsException in image span. imgURL:&quot;+imgUrl,e); 
++				} catch (IndexOutOfBoundsException e) {
++					pref.log(&quot;IndexOutOfBoundsException in image span. imgURL:&quot;+imgUrl,e);
+ 				}
+ 			}
+ 		}
+ 	}
+-	
++
+ 	/**
+ 	 * Read an image from the server
+ 	 * @param imgUrl The Url of the image
+@@ -961,7 +963,7 @@
+ 		} finally {
+ 			//Continue with the spider
+ 		}
+-	}		
++	}
+ 
+ 	/**
+ 	 * Read all additional waypoints from a previously fetched cachepage.
+@@ -989,19 +991,19 @@
+ 				counter++;
+ 				try{ // If addi exists, try to read it to preserve the notes
+ 					cx.readCache(profile.dataDir);
+-				} catch (Exception ex) {};	
++				} catch (Exception ex) {};
+ 				nameRex.search(rowBlock);
+ 				koordRex.search(rowBlock);
+ 				typeRex.search(rowBlock);
+ 				cx.CacheName = nameRex.stringMatched(1);
+ 				//Vm.debug(&quot;Addi: &quot; + cx.CacheName);
+-				if(koordRex.didMatch()) cx.pos.set(koordRex.stringMatched(1)); 
+-				cx.LatLon = cx.pos.toString(); 
++				if(koordRex.didMatch()) cx.pos.set(koordRex.stringMatched(1));
++				cx.LatLon = cx.pos.toString();
+ 				//cx.pos.set(cx.LatLon);
+ 				if(typeRex.didMatch()) cx.type = CacheType.typeText2Number(&quot;Waypoint|&quot;+typeRex.stringMatched(1));
+ 				rowBlock = exRowBlock.findNext();
+ 				descRex.search(rowBlock);
+-				cx.LongDescription = descRex.stringMatched(1); 
++				cx.LongDescription = descRex.stringMatched(1);
+ 				//Vm.debug(descRex.stringMatched(1));
+ 				int idx=profile.getCacheIndex(cx.wayPoint);
+ 				cx.is_found = is_found;
+@@ -1017,7 +1019,7 @@
+ 			}
+ 		}
+ 	}
+-	
++
+ 	private void getAttributes(String doc, CacheHolderDetail chD) {
+ 		Extractor attBlock = new Extractor(doc,p.getProperty(&quot;attBlockExStart&quot;),p.getProperty(&quot;attBlockExEnd&quot;), 0 , true);
+ 		String atts = attBlock.findNext();
+@@ -1029,15 +1031,15 @@
+ 			attribute=attEx.findNext();
+ 		}
+ 	}
+-	
+-	
++
++
+ 	/**
+ 	*	Performs an initial fetch to a given address. In this case
+ 	*	it will be a gc.com address. This method is used to obtain
+ 	*	the result of a search for caches screen.
+ 	*/
+ 	public static String fetch(String address)
+-	   	{	
++	   	{
+ 			CharArray c_data;
+ 			String data=&quot;&quot;;
+ 			try{
+@@ -1064,6 +1066,29 @@
+ 				pref.log(&quot;Read socket ok&quot;);
+ 				JavaUtf8Codec codec = new JavaUtf8Codec();
+ 				c_data = codec.decodeText(daten.data, 0, daten.length, true, null);
++
++				/*
++				 * prepend the response headers to the document
++				 * like non-linux Ewe does
++				 *
++				 * @TODO directly use the properties in the
++				 * code which calls this method instead
++				 */
++				PropertyList pl = conn.documentProperties;
++				if (pl != null) {
++					StringBuffer sb = new StringBuffer();
++					boolean gotany = false;
++
++					for (int i = 0; i &lt; pl.size(); i++) {
++						Property p = (Property)pl.get(i);
++						if (p.value != null) {
++							sb.append(p.name + &quot;: &quot; + p.value + &quot;\r\n&quot;);
++							gotany = true;
++						}
++					}
++					if (gotany)
++						data += sb.toString() + &quot;\r\n&quot;;
++				}
+ 				data += c_data.toString();
+ 				//Vm.debug(&quot;SpiderGC.fetch() result = &quot; + data);
+ 				sock.close();
+@@ -1074,15 +1099,15 @@
+ 			}
+ 			return data;
+ 		}
+-	
++
+ 	/**
+ 	*	After a fetch to gc.com the next fetches have to use the post method.
+ 	*	This method does exactly that. Actually this method is generic in the sense
+ 	*	that it can be used to post to a URL using http post.
+ 	*/
+-	private static String fetch_post(String address, String document, String path) throws IOException 
++	private static String fetch_post(String address, String document, String path) throws IOException
+ 	   	{
+-			
++
+ 			//String line = &quot;&quot;;
+ 			String totline = &quot;&quot;;
+ 			if(pref.myproxy.length()==0){
+@@ -1134,14 +1159,38 @@
+ 					}
+ 					conn.setRequestorProperty(&quot;Connection&quot;, &quot;close&quot;);
+ 					Socket sock = conn.connect();
+-					
++
+ 					//Vm.debug(&quot;getting stuff!&quot;);
+ 					ByteArray daten = conn.readData(sock);
+ 					//Vm.debug(&quot;coming back!&quot;);
+ 					CharArray c_data = codec.decodeText(daten.data, 0, daten.length, true, null);
+ 					sock.close();
+ 					//Vm.debug(c_data.toString());
+-					totline =  c_data.toString();
++					totline = &quot;&quot;;
++
++					/*
++					 * prepend the response headers to the document
++					 * like non-linux Ewe does
++					 *
++					 * @TODO directly use the properties in the
++					 * code which calls this method instead
++					 */
++					PropertyList pl = conn.documentProperties;
++					if (pl != null) {
++						StringBuffer sb = new StringBuffer();
++						boolean gotany = false;
++
++						for (int i = 0; i &lt; pl.size(); i++) {
++							Property p = (Property)pl.get(i);
++							if (p.value != null) {
++								sb.append(p.name + &quot;: &quot; + p.value + &quot;\r\n&quot;);
++								gotany = true;
++							}
++						}
++						if (gotany)
++							totline += sb.toString() + &quot;\r\n&quot;;
++					}
++					totline += c_data.toString();
+ 				} catch (Exception e) {
+ 				}
+ 			} else {
+@@ -1160,20 +1209,44 @@
+ 				}
+ 				conn.setRequestorProperty(&quot;Connection&quot;, &quot;close&quot;);
+ 				Socket sock = conn.connect();
+-				
++
+ 				//Vm.debug(&quot;getting stuff!&quot;);
+ 				ByteArray daten = conn.readData(sock);
+ 				//Vm.debug(&quot;coming back!&quot;);
+ 				CharArray c_data = codec.decodeText(daten.data, 0, daten.length, true, null);
+ 				sock.close();
+ 				//Vm.debug(c_data.toString());
+-				totline =  c_data.toString();
++				totline = &quot;&quot;;
++
++				/*
++				 * prepend the response headers to the document
++				 * like non-linux Ewe does
++				 *
++				 * @TODO directly use the properties in the
++				 * code which calls this method instead
++				 */
++				PropertyList pl = conn.documentProperties;
++				if (pl != null) {
++					StringBuffer sb = new StringBuffer();
++					boolean gotany = false;
++
++					for (int i = 0; i &lt; pl.size(); i++) {
++						Property p = (Property)pl.get(i);
++						if (p.value != null) {
++							sb.append(p.name + &quot;: &quot; + p.value + &quot;\r\n&quot;);
++							gotany = true;
++						}
++					}
++					if (gotany)
++						totline += sb.toString() + &quot;\r\n&quot;;
++				}
++				totline += c_data.toString();
+ 			}
+ 			return totline;
+ 		}
+-	
++
+ 	final static String hex = ewe.util.TextEncoder.hex;
+-	
++
+ 	public String encodeUTF8(String username) {
+ 		char [] what = ewe.sys.Vm.getStringChars(username);
+ 		int max = what.length;
+@@ -1182,15 +1255,15 @@
+ 		for (int i = 0; i&lt;max; i++){
+ 			char c = what[i];
+ 			if (c == ' ') c = '+';
+-			else if (c&lt;='\u00FF') { 
+-				if(c &lt;= ' ' || c == '+' || c == '&amp;' || c == '%' || c == '=' || 
++			else if (c&lt;='\u00FF') {
++				if(c &lt;= ' ' || c == '+' || c == '&amp;' || c == '%' || c == '=' ||
+ 				   c == '|' || c == '{' || c == '}' || c&gt;'\u007F'){
+ 					dest[d++] = '%';
+ 					dest[d++] = hex.charAt((c &gt;&gt; 4) &amp; 0xf);
+ 					dest[d++] = hex.charAt(c &amp; 0xf);
+ 					continue;
+ 				}
+-			
++
+ 			} else {
+ 				dest[d++] = '%';
+ 				dest[d++] = hex.charAt((c &gt;&gt; 12) &amp; 0xf);
+@@ -1204,7 +1277,7 @@
+ 		}
+ 		return new String(dest,0,d);
+ 	}
+-	
++
+ 	/**
+ 	 * Load the bug id for a given name. This method is not ideal, as there are
+ 	 * sometimes several bugs with identical names but different IDs. Normally
+@@ -1237,7 +1310,7 @@
+ 	}
+ 
+ 	/**
+-	 * Fetch a bug's mission for a given GUID or ID. If the guid String is longer 
++	 * Fetch a bug's mission for a given GUID or ID. If the guid String is longer
+ 	 * than 10 characters it is assumed to be a GUID, otherwise it is an ID.
+ 	 * @param guid the guid or id of the travelbug
+ 	 * @return The mission
+@@ -1263,8 +1336,4 @@
+ 		Extractor exDetails = new Extractor(bugDetails,p.getProperty(&quot;bugDetailsStart&quot;),p.getProperty(&quot;bugDetailsEnd&quot;),0,Extractor.EXCLUDESTARTEND);
+ 		return exDetails.findNext();
+ 	}
+-
+-
+-
+-
+-}
+\ No newline at end of file
++}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000742.html">[Cachewolf-svn] r850 - in trunk: resources src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000744.html">[Cachewolf-svn] r852 - trunk/resources
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#743">[ date ]</a>
+              <a href="thread.html#743">[ thread ]</a>
+              <a href="subject.html#743">[ subject ]</a>
+              <a href="author.html#743">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

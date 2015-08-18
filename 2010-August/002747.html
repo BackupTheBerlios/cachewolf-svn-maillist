@@ -1,0 +1,221 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2759 - in trunk/src/CacheWolf: . imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-August/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2759%20-%20in%20trunk/src/CacheWolf%3A%20.%20imp&In-Reply-To=%3C20100828230744.66CB8480F60%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002742.html">
+   <LINK REL="Next"  HREF="002748.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2759 - in trunk/src/CacheWolf: . imp</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2759%20-%20in%20trunk/src/CacheWolf%3A%20.%20imp&In-Reply-To=%3C20100828230744.66CB8480F60%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2759 - in trunk/src/CacheWolf: . imp">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Sun Aug 29 01:07:44 CEST 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002742.html">[Cachewolf-svn] r2754 - trunk/src/CacheWolf/imp
+</A></li>
+        <LI>Next message: <A HREF="002748.html">[Cachewolf-svn] r2760 - in trunk: res_noewe/languages src/CacheWolf	src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2747">[ date ]</a>
+              <a href="thread.html#2747">[ thread ]</a>
+              <a href="subject.html#2747">[ subject ]</a>
+              <a href="author.html#2747">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2010-08-29 01:07:44 +0200 (Sun, 29 Aug 2010)
+New Revision: 2759
+
+Added:
+   trunk/src/CacheWolf/imp/FieldnotesImporter.java
+Modified:
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/Rebuild.java
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+showing work of CW while checking listpages.
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2010-08-28 14:26:32 UTC (rev 2758)
++++ trunk/src/CacheWolf/MainMenu.java	2010-08-28 23:07:44 UTC (rev 2759)
+@@ -14,6 +14,7 @@
+ import CacheWolf.exp.TomTomExporter;
+ import CacheWolf.imp.GPXImporter;
+ import CacheWolf.imp.LOCXMLImporter;
++import CacheWolf.imp.FieldnotesImporter;
+ import CacheWolf.imp.OCXMLImporter;
+ import CacheWolf.imp.OCXMLImporterScreen;
+ import CacheWolf.imp.SpiderGC;
+@@ -361,7 +362,7 @@
+ 			if(mev.selectedItem == loadcaches){
+ 				String dir = pref.getImporterPath(&quot;LocGpxImporter&quot;);
+ 				FileChooser fc = new FileChooser(FileChooserBase.OPEN|FileChooserBase.MULTI_SELECT, dir);
+-				fc.addMask(&quot;*.gpx,*.zip,*.loc&quot;);
++				fc.addMask(&quot;*.gpx,*.zip,*.loc,fieldnotes.txt,geocache_visits.txt&quot;);
+ 				fc.setTitle(MyLocale.getMsg(909,&quot;Select file(s)&quot;));
+ 				if(fc.execute() != FormBase.IDCANCEL){
+ 					dir = fc.getChosenDirectory().toString();
+@@ -381,7 +382,11 @@
+ 					int how = GPXImporter.DOIT_ASK;
+ 					for (int i = 0; i &lt; files.length; i++){
+ 						String file = dir + &quot;/&quot; + files[i];
+-						if (file.endsWith(&quot;loc&quot;)){
++						if (file.endsWith(&quot;txt&quot;)){
++							FieldnotesImporter fn=new FieldnotesImporter(pref, profile, file);
++							fn.doIt();
++						}
++						else if (file.endsWith(&quot;loc&quot;)){
+ 							LOCXMLImporter loc = new LOCXMLImporter(pref, profile, file);
+ 							loc.doIt();
+ 						}
+
+Modified: trunk/src/CacheWolf/Rebuild.java
+===================================================================
+--- trunk/src/CacheWolf/Rebuild.java	2010-08-28 14:26:32 UTC (rev 2758)
++++ trunk/src/CacheWolf/Rebuild.java	2010-08-28 23:07:44 UTC (rev 2759)
+@@ -2,7 +2,6 @@
+ 
+ import CacheWolf.utils.FileBugfix;
+ import ewe.io.FileBase;
+-import ewe.io.FileInputStream;
+ import ewe.io.FileReader;
+ import ewe.io.IOException;
+ import ewe.sys.Handle;
+@@ -47,8 +46,6 @@
+ 			int nProcessed = 0;
+ 			// Now do the actual work
+ 			String details=&quot;&quot;;
+-			byte [] buff = new byte[10*1024];
+-			StringBuffer str = new StringBuffer();
+ 			for (i = 0; i &lt; CacheFiles.length; i++) {
+ 				if (CacheFiles[i] != null) {
+ 					
+
+Added: trunk/src/CacheWolf/imp/FieldnotesImporter.java
+===================================================================
+--- trunk/src/CacheWolf/imp/FieldnotesImporter.java	                        (rev 0)
++++ trunk/src/CacheWolf/imp/FieldnotesImporter.java	2010-08-28 23:07:44 UTC (rev 2759)
+@@ -0,0 +1,62 @@
++package CacheWolf.imp;
++
++import CacheWolf.CacheDB;
++import CacheWolf.CacheHolder;
++import CacheWolf.Preferences;
++import CacheWolf.Profile;
++import ewe.io.FileReader;
++import ewe.io.JavaUtf8Codec;
++import ewe.sys.Vm;
++import ewe.util.mString;
++
++public class FieldnotesImporter {
++	CacheDB cacheDB;
++	Preferences pref;
++	Profile profile;
++	String file;
++
++	public FieldnotesImporter(Preferences pf, Profile prof, String f) {
++		pref = pf;
++		profile = prof;
++		cacheDB = profile.cacheDB;
++		file = f;
++	}
++
++	public void doIt() {
++		try {
++			Vm.showWait(true);
++			FileReader r = new FileReader(file);
++			r.codec=new JavaUtf8Codec();
++			parse(r.readAll());
++			r.close();
++			// save Index
++			profile.saveIndex(pref, Profile.NO_SHOW_PROGRESS_BAR);
++			Vm.showWait(false);
++		} catch (Exception e) {
++			// Vm.debug(e.toString());
++			Vm.showWait(false);
++		}
++	}
++	
++	private void parse(String s) {
++		String[] l=mString.split(s,'&quot;');
++		for (int i = 0; i &lt; l.length; i++) {
++			String s1=l[i];
++			i++;
++			String logText=l[i];
++			String[] l1=mString.split(s1,',');
++			if (l1[0].charAt(0)=='\r') {
++				l1[0]=l1[0].substring(2);
++			}
++			String wayPoint=l1[0];
++			CacheHolder ch = cacheDB.get(wayPoint);
++			if (ch!=null) {
++				ch.setCacheStatus(l[1]+l[2]);
++				ch.getCacheDetails(false).setCacheNotes(logText);
++				ch.save();
++				// ch.getCacheDetails(false).saveCacheDetails();
++			}
++		}
++	}
++
++}
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2010-08-28 14:26:32 UTC (rev 2758)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2010-08-28 23:07:44 UTC (rev 2759)
+@@ -255,6 +255,8 @@
+ 					+ &quot;with tb           : &quot; + (!pref.downloadTBs ? &quot;no&quot; : &quot;yes&quot;)+Preferences.NEWLINE
+ 					,null);
+ 
++			if (Global.mainTab.statBar!=null) Global.mainTab.statBar.updateDisplay(&quot;&quot;);
++
+ 			spiderErrors=downloadCaches(cachesToLoad, spiderErrors, totalCachesToLoad, loadAllLogs);
+ 			spiderErrors=updateCaches(cachesToUpdate, spiderErrors, totalCachesToLoad, loadAllLogs);
+ 
+@@ -574,6 +576,7 @@
+ 						break;
+ 					}
+ 					found_on_page++;
++					if (Global.mainTab.statBar!=null) Global.mainTab.statBar.updateDisplay(&quot;working &quot;+found_on_page);
+ 					String CacheDescriptionGC=RexPropLine.stringMatched(1);
+ 					double gotDistance=getDistGC(CacheDescriptionGC);
+ 					String chWaypoint=getWP(CacheDescriptionGC);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002742.html">[Cachewolf-svn] r2754 - trunk/src/CacheWolf/imp
+</A></li>
+	<LI>Next message: <A HREF="002748.html">[Cachewolf-svn] r2760 - in trunk: res_noewe/languages src/CacheWolf	src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2747">[ date ]</a>
+              <a href="thread.html#2747">[ thread ]</a>
+              <a href="subject.html#2747">[ subject ]</a>
+              <a href="author.html#2747">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

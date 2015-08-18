@@ -1,0 +1,733 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r835 - in trunk: resources src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-August/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r835%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200708261510.l7QFA9O7016584%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000724.html">
+   <LINK REL="Next"  HREF="000726.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r835 - in trunk: resources src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r835%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200708261510.l7QFA9O7016584%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r835 - in trunk: resources src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sun Aug 26 17:10:09 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000724.html">[Cachewolf-svn] r834 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000726.html">[Cachewolf-svn] r836 - in trunk: resources src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#725">[ date ]</a>
+              <a href="thread.html#725">[ thread ]</a>
+              <a href="subject.html#725">[ subject ]</a>
+              <a href="author.html#725">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-08-26 17:09:56 +0200 (Sun, 26 Aug 2007)
+New Revision: 835
+
+Modified:
+   trunk/resources/cachewolf.Languages.cfg
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/Preferences.java
+   trunk/src/CacheWolf/PreferencesScreen.java
+   trunk/src/CacheWolf/SpiderGC.java
+   trunk/src/CacheWolf/TablePanel.java
+   trunk/src/CacheWolf/myTableControl.java
+   trunk/src/CacheWolf/myTableModel.java
+Log:
+Feature: Die Spalten der Listenansicht koennen beliebig ein-/ausgeblendet werden und auch in beliebiger
+Reihenfolge angeordnet werden. Bein Verlassen der Praeferenzen mittels Button Anwenden, werden die Aenderungen
+sofort wirksam. Der PraeferenzenScreen wurde neu strukturiert (schon in vorigem Release begonnen).
+
+Achtung: Wenn die Auswahlbox in der Listenansicht ausgeblendet wird, verschwinden auch einige Optionen aus dem Kontextmenue
+
+
+Modified: trunk/resources/cachewolf.Languages.cfg
+===================================================================
+--- trunk/resources/cachewolf.Languages.cfg	2007-08-26 12:43:34 UTC (rev 834)
++++ trunk/resources/cachewolf.Languages.cfg	2007-08-26 15:09:56 UTC (rev 835)
+@@ -137,6 +137,11 @@
+ 		351=Notizen hinzuf%fcgen/%e4ndern
+ 		400=Dekodieren
+ 		500=Umschalten
++		595=Liste
++		596=Name
++		597=Wegpunkt
++		598=Type
++		599=Auswahlbox
+ 		600=Pr%e4ferenzen
+ 		601=Dein Alias:
+ 		602=Heimatkoordinaten:
+@@ -170,6 +175,7 @@
+ 		630=Hinweise/Logs:  Logs pro Seite
+ 		631=PDA hat Schliessen Button 
+ 		632=Mehr
++		633=Max. logs spidern
+ 		700=Filter setzen
+ 		701=Entfernung
+ 		702=Schwierigkeit
+@@ -658,6 +664,11 @@
+ 		351=Add/Edit notes
+ 		400=Dekode
+ 		500=Switch
++		595=List
++		596=Name
++		597=Waypoint
++		598=Type
++		599=Checkbox
+ 		600=Preferences
+ 		601=Your alias:
+ 		602=Home coordinates:
+@@ -691,6 +702,7 @@
+ 		630=HintLogPanel:  Logs per page 
+ 		631=PDA has close Button
+ 		632=More
++		633=Max. logs to spider
+ 		700=Set filter
+ 		701=Distance
+ 		702=Difficulty
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2007-08-26 12:43:34 UTC (rev 834)
++++ trunk/src/CacheWolf/MainMenu.java	2007-08-26 15:09:56 UTC (rev 835)
+@@ -428,6 +428,7 @@
+ 			}
+ 			if(mev.selectedItem == exit){
+ 				Global.mainTab.saveUnsavedChanges(true);
++				tbp.saveColWidth(pref);
+ 				ewe.sys.Vm.exit(0);
+ 			}
+ 
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2007-08-26 12:43:34 UTC (rev 834)
++++ trunk/src/CacheWolf/Preferences.java	2007-08-26 15:09:56 UTC (rev 835)
+@@ -17,9 +17,6 @@
+  */
+ public class Preferences extends MinML{
+ 
+-	public int tablePrefs[] = {1,1,1,1,1,1,1,1,1,1,1,1};
+-	public int tableWidth[] = {20,20,20,25,92,177,144,83,60,105,50,104,50};
+-
+ 	static protected final int PROFILE_SELECTOR_FORCED_ON=0;
+ 	static protected final int PROFILE_SELECTOR_FORCED_OFF=1;
+ 	static protected final int PROFILE_SELECTOR_ONOROFF=2;
+@@ -48,7 +45,8 @@
+ 
+ 	public int myAppHeight = 0;
+ 	public int myAppWidth = 0;
+-	//public int nLogs = 5;
++	public final int DEFAULT_MAX_LOGS_TO_SPIDER=250;
++	public int maxLogsToSpider = DEFAULT_MAX_LOGS_TO_SPIDER;
+ 	public boolean dirty = false;
+ 
+ 	public String garminConn=&quot;com1&quot;;  // The type of connection which GPSBABEL uses: com1 OR usb.
+@@ -334,10 +332,6 @@
+ 			if (atts.getValue(&quot;autoreload&quot;).equals(&quot;true&quot;)) autoReloadLastProfile=true;
+ 		}
+ 
+-		//if(name.equals(&quot;datadir&quot;)) {
+-		//mydatadir = atts.getValue(&quot;dir&quot;);
+-		//profile.dataDir=mydatadir;
+-		//}
+ 		if(name.equals(&quot;basedir&quot;)) {
+ 			baseDir = atts.getValue(&quot;dir&quot;);
+ 		}
+@@ -347,6 +341,10 @@
+ 			downloadmissingOC = Boolean.valueOf(atts.getValue(&quot;downloadmissing&quot;)).booleanValue();
+ 
+ 		}
++		if (name.equals(&quot;listview&quot;)) {
++			listColMap=atts.getValue(&quot;colmap&quot;);
++			listColWidth=atts.getValue(&quot;colwidths&quot;);	
++		}
+ 		if(name.equals(&quot;proxy&quot;)) {
+ 			myproxy = atts.getValue(&quot;prx&quot;);
+ 			myproxyport = atts.getValue(&quot;prt&quot;);
+@@ -356,61 +354,6 @@
+ 			tmp = atts.getValue(&quot;GPSBabelOptions&quot;);
+ 			if (tmp != null) garminGPSBabelOptions=tmp;
+ 		}
+-		if(name.equals(&quot;tableType&quot;)){ 
+-			tablePrefs[1] = Convert.parseInt(atts.getValue(&quot;active&quot;));
+-			tmp = atts.getValue(&quot;width&quot;);
+-			if (tmp != null) tableWidth[1] = Convert.parseInt(tmp);
+-		}
+-		if(name.equals(&quot;tableD&quot;)){
+-			tablePrefs[2] = Convert.parseInt(atts.getValue(&quot;active&quot;));
+-			tmp = atts.getValue(&quot;width&quot;);
+-			if (tmp != null) tableWidth[2] = Convert.parseInt(tmp);
+-		}
+-		if(name.equals(&quot;tableT&quot;)){
+-			tablePrefs[3] = Convert.parseInt(atts.getValue(&quot;active&quot;));
+-			tmp = atts.getValue(&quot;width&quot;);
+-			if (tmp != null) tableWidth[3] = Convert.parseInt(tmp);
+-		}
+-		if(name.equals(&quot;tableWay&quot;)) {
+-			tablePrefs[4] = Convert.parseInt(atts.getValue(&quot;active&quot;));
+-			tmp = atts.getValue(&quot;width&quot;);
+-			if (tmp != null) tableWidth[4] = Convert.parseInt(tmp);
+-		}
+-		if(name.equals(&quot;tableName&quot;)){
+-			tablePrefs[5] = Convert.parseInt(atts.getValue(&quot;active&quot;));
+-			tmp = atts.getValue(&quot;width&quot;);
+-			if (tmp != null) tableWidth[5] = Convert.parseInt(tmp);
+-		}
+-		if(name.equals(&quot;tableLoc&quot;)){
+-			tablePrefs[6] = Convert.parseInt(atts.getValue(&quot;active&quot;));
+-			tmp = atts.getValue(&quot;width&quot;);
+-			if (tmp != null) tableWidth[6] = Convert.parseInt(tmp);
+-		}
+-		if(name.equals(&quot;tableOwn&quot;)){
+-			tablePrefs[7] = Convert.parseInt(atts.getValue(&quot;active&quot;));
+-			tmp = atts.getValue(&quot;width&quot;);
+-			if (tmp != null) tableWidth[7] = Convert.parseInt(tmp);
+-		}
+-		if(name.equals(&quot;tableHide&quot;)){
+-			tablePrefs[8] = Convert.parseInt(atts.getValue(&quot;active&quot;));
+-			tmp = atts.getValue(&quot;width&quot;);
+-			if (tmp != null) tableWidth[8] = Convert.parseInt(tmp);
+-		}
+-		if(name.equals(&quot;tableStat&quot;)){
+-			tablePrefs[9] = Convert.parseInt(atts.getValue(&quot;active&quot;));
+-			tmp = atts.getValue(&quot;width&quot;);
+-			if (tmp != null) tableWidth[9] = Convert.parseInt(tmp);
+-		}
+-		if(name.equals(&quot;tableDist&quot;)){
+-			tablePrefs[10] = Convert.parseInt(atts.getValue(&quot;active&quot;));
+-			tmp = atts.getValue(&quot;width&quot;);
+-			if (tmp != null) tableWidth[10] = Convert.parseInt(tmp);
+-		}
+-		if(name.equals(&quot;tableBear&quot;)){
+-			tablePrefs[11] = Convert.parseInt(atts.getValue(&quot;active&quot;));
+-			tmp = atts.getValue(&quot;width&quot;);
+-			if (tmp != null) tableWidth[11] = Convert.parseInt(tmp);
+-		}
+ 		if (name.equals(&quot;imagepanel&quot;)) {
+ 			showDeletedImages = Boolean.valueOf(atts.getValue(&quot;showdeletedimages&quot;)).booleanValue();
+ 		}
+@@ -425,6 +368,8 @@
+ 			logsPerPage = Convert.parseInt(atts.getValue(&quot;logsperpage&quot;));
+ 			String strInitialHintHeight=atts.getValue(&quot;initialhintheight&quot;);
+ 			if (strInitialHintHeight!=null) initialHintHeight=Convert.parseInt(strInitialHintHeight);
++			String strMaxLogsToSpider=atts.getValue(&quot;maxspiderlogs&quot;);
++			if (strMaxLogsToSpider!=null) maxLogsToSpider=Convert.parseInt(strInitialHintHeight);
+ 		}
+ 		if (name.equals(&quot;solver&quot;)) {
+ 			solverIgnoreCase=Boolean.valueOf(atts.getValue(&quot;ignorevariablecase&quot;)).booleanValue();
+@@ -444,8 +389,7 @@
+ 		}
+ 	}
+ 
+-	public void characters( char ch[], int start, int length )
+-	{
++	public void characters( char ch[], int start, int length ) {
+ 		if (collectElement!=null) {
+ 			collectElement.append(ch,start,length); // Collect the name of the last profile
+ 		}
+@@ -473,44 +417,24 @@
+ 			PrintWriter outp =  new PrintWriter(new BufferedWriter(new FileWriter(datei)));
+ 			outp.print(&quot;&lt;?xml version=\&quot;1.0\&quot; encoding=\&quot;ISO-8859-1\&quot;?&gt;\n&quot;);
+ 			outp.print(&quot;&lt;preferences&gt;\n&quot;);
++			outp.print(&quot;	&lt;basedir dir = \&quot;&quot;+ baseDir +&quot;\&quot;/&gt;\n&quot;);
++			outp.print(&quot;    &lt;lastprofile autoreload=\&quot;&quot;+autoReloadLastProfile+&quot;\&quot;&gt;&quot;+lastProfile+&quot;&lt;/lastprofile&gt;\n&quot;); //RB
+ 			outp.print(&quot;	&lt;alias name =\&quot;&quot;+ SafeXML.clean(myAlias) +&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;	&lt;alias2 name =\&quot;&quot;+ SafeXML.clean(myAlias2) +&quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;	&lt;basedir dir = \&quot;&quot;+ baseDir +&quot;\&quot;/&gt;\n&quot;);
++			outp.print(&quot;	&lt;browser name = \&quot;&quot;+browser+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;	&lt;proxy prx = \&quot;&quot;+ myproxy+&quot;\&quot; prt = \&quot;&quot;+ myproxyport + &quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;	&lt;port portname = \&quot;&quot;+ mySPO.portName +&quot;\&quot; baud = \&quot;&quot;+ mySPO.baudRate+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;	&lt;portforward active= \&quot;&quot;+ Convert.toString(forwardGPS)+&quot;\&quot; destinationHost = \&quot;&quot;+ forwardGpsHost+&quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;	&lt;tableType active = \&quot;1\&quot; width = \&quot;&quot;+Convert.toString(tableWidth[1])+&quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;	&lt;tableD active = \&quot;&quot;+Convert.toString(tablePrefs[2])+ &quot;\&quot;&quot; +
+-					&quot; width = \&quot;&quot;+Convert.toString(tableWidth[2])+&quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;	&lt;tableT active = \&quot;&quot;+Convert.toString(tablePrefs[3])+ &quot;\&quot;&quot; +
+-					&quot; width = \&quot;&quot;+Convert.toString(tableWidth[3])+&quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;	&lt;tableWay active = \&quot;1\&quot; width = \&quot;&quot;+Convert.toString(tableWidth[4])+&quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;	&lt;tableName active = \&quot;1\&quot; width = \&quot;&quot;+Convert.toString(tableWidth[5])+&quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;	&lt;tableLoc active = \&quot;&quot;+Convert.toString(tablePrefs[6])+ &quot;\&quot;&quot; +
+-					&quot; width = \&quot;&quot;+Convert.toString(tableWidth[6])+&quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;	&lt;tableOwn active = \&quot;&quot;+Convert.toString(tablePrefs[7])+ &quot;\&quot;&quot; +
+-					&quot; width = \&quot;&quot;+Convert.toString(tableWidth[7])+&quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;	&lt;tableHide active = \&quot;&quot;+Convert.toString(tablePrefs[8])+ &quot;\&quot;&quot; +
+-					&quot; width = \&quot;&quot;+Convert.toString(tableWidth[8])+&quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;	&lt;tableStat active = \&quot;&quot;+Convert.toString(tablePrefs[9])+ &quot;\&quot;&quot; +
+-					&quot; width = \&quot;&quot;+Convert.toString(tableWidth[9])+&quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;	&lt;tableDist active = \&quot;&quot;+Convert.toString(tablePrefs[10])+ &quot;\&quot;&quot; +
+-					&quot; width = \&quot;&quot;+Convert.toString(tableWidth[10])+&quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;	&lt;tableBear active = \&quot;&quot;+Convert.toString(tablePrefs[11])+ &quot;\&quot;&quot; +
+-					&quot; width = \&quot;&quot;+Convert.toString(tableWidth[11])+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;font size =\&quot;&quot;+fontSize+&quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;	&lt;browser name = \&quot;&quot;+browser+&quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;    &lt;fixedsip state = \&quot;&quot;+fixSIP+&quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;    &lt;garmin connection = \&quot;&quot;+garminConn+&quot;\&quot; GPSBabelOptions = \&quot;&quot;+garminGPSBabelOptions+&quot;\&quot; /&gt;\n&quot;);
+-			outp.print(&quot;    &lt;lastprofile autoreload=\&quot;&quot;+autoReloadLastProfile+&quot;\&quot;&gt;&quot;+lastProfile+&quot;&lt;/lastprofile&gt;\n&quot;); //RB
+ 			outp.print(&quot;    &lt;screen menuattop=\&quot;&quot;+menuAtTop+&quot;\&quot; tabsattop=\&quot;&quot;+tabsAtTop+&quot;\&quot; showstatus=\&quot;&quot;+showStatus+&quot;\&quot; hasclosebutton=\&quot;&quot;+hasCloseButton+&quot;\&quot;/&gt;\n&quot;);
++			outp.print(&quot;    &lt;fixedsip state = \&quot;&quot;+fixSIP+&quot;\&quot;/&gt;\n&quot;);
++			outp.print(&quot;    &lt;listview colmap=\&quot;&quot;+listColMap+&quot;\&quot; colwidths=\&quot;&quot;+listColWidth+&quot;\&quot; /&gt;\n&quot;);
++			outp.print(&quot;    &lt;travelbugs colmap=\&quot;&quot;+travelbugColMap+&quot;\&quot; colwidths=\&quot;&quot;+travelbugColWidth+&quot;\&quot; shownonlogged=\&quot;&quot;+travelbugShowOnlyNonLogged+&quot;\&quot; /&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;imagepanel showdeletedimages=\&quot;&quot;+showDeletedImages+&quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;    &lt;hintlogpanel logsperpage=\&quot;&quot;+logsPerPage+&quot;\&quot; initialhintheight=\&quot;&quot;+initialHintHeight+&quot;\&quot;/&gt;\n&quot;);
++			outp.print(&quot;    &lt;hintlogpanel logsperpage=\&quot;&quot;+logsPerPage+&quot;\&quot; initialhintheight=\&quot;&quot;+initialHintHeight+&quot;\&quot;  maxspiderlogs=\&quot;&quot;+maxLogsToSpider+&quot;\&quot; /&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;solver ignorevariablecase=\&quot;&quot;+solverIgnoreCase+&quot;\&quot;/&gt;\n&quot;);
+-			//outp.print(&quot;    &lt;maps &quot;)
++			outp.print(&quot;    &lt;garmin connection = \&quot;&quot;+garminConn+&quot;\&quot; GPSBabelOptions = \&quot;&quot;+garminGPSBabelOptions+&quot;\&quot; /&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;opencaching downloadPicsOC=\&quot;&quot;+downloadPicsOC+&quot;\&quot; downloadMaps=\&quot;&quot;+downloadMapsOC+&quot;\&quot; downloadMissing=\&quot;&quot;+downloadmissingOC+&quot;\&quot;/&gt;\n&quot;);
+-			// Obsolete data kept for backward compatibility
+-			//outp.print(&quot;	&lt;syncOC date = \&quot;&quot; + last_sync_opencaching + &quot;\&quot; dist = \&quot;&quot; + distOC +  &quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;	&lt;location lat = \&quot;&quot;+curCentrePt.getLatDeg(CWPoint.DD)+&quot;\&quot; long = \&quot;&quot;+curCentrePt.getLonDeg(CWPoint.DD)+&quot;\&quot;/&gt;\n&quot;);
+ 			if (customMapsPath!=null) outp.print(&quot;	&lt;mapspath dir = \&quot;&quot;+ customMapsPath +&quot;\&quot;/&gt;\n&quot;);
+ 			if (debug) outp.print(&quot;    &lt;debug value=\&quot;true\&quot; /&gt;\n&quot;); // Keep the debug switch if it is set
+@@ -521,7 +445,6 @@
+ 				entry = (MapEntry) itPath.next();
+ 				outp.print(&quot;    &lt;expPath key = \&quot;&quot; + entry.getKey().toString() + &quot;\&quot; value = \&quot;&quot; + entry.getValue().toString().replace('\\', '/') + &quot;\&quot;/&gt;\n&quot;);
+ 			}
+-			outp.print(&quot;  &lt;travelbugs colmap=\&quot;&quot;+travelbugColMap+&quot;\&quot; colwidths=\&quot;&quot;+travelbugColWidth+&quot;\&quot; shownonlogged=\&quot;&quot;+travelbugShowOnlyNonLogged+&quot;\&quot; /&gt;\n&quot;);
+ 			outp.print(&quot;&lt;/preferences&gt;&quot;);
+ 			outp.close();
+ 		} catch (Exception e) {
+
+Modified: trunk/src/CacheWolf/PreferencesScreen.java
+===================================================================
+--- trunk/src/CacheWolf/PreferencesScreen.java	2007-08-26 12:43:34 UTC (rev 834)
++++ trunk/src/CacheWolf/PreferencesScreen.java	2007-08-26 15:09:56 UTC (rev 835)
+@@ -15,7 +15,8 @@
+ public class PreferencesScreen extends Form {
+ 	mButton cancelB, applyB, brwBt, gpsB,btnCentre;
+ 	mChoice NS, EW;
+-	mInput NSDeg, NSm, EWDeg, EWm, DataDir, Proxy, ProxyPort, Alias, nLogs, Browser, fontSize, inpGPS, inpLogsPerPage;
++	mInput NSDeg, NSm, EWDeg, EWm, DataDir, Proxy, ProxyPort, Alias, nLogs, Browser, fontSize, inpGPS, 
++	       inpLogsPerPage,inpMaxLogsToSpider;
+ 	mCheckBox dif, ter, loc, own, hid, stat, dist, bear, chkAutoLoad, chkShowDeletedImg, chkMenuAtTop, 
+ 	          chkTabsAtTop, chkShowStatus,chkHasCloseButton,chkSynthShort;
+ 	mTabbedPanel mTab;
+@@ -98,12 +99,6 @@
+ 		// Second panel - Screen
+ 		/////////////////////////////////////////////////////////
+ 		
+-/*		CellPanel pnlFont=new CellPanel();
+-		pnlFont.addNext(new mLabel(&quot;Font&quot;),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		pnlFont.addLast(fontSize = new mInput(),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+-		fontSize.setText(Convert.toString(pref.fontSize));
+-		pnlDisplay.addLast(pnlFont);
+-*/		
+ 		Frame frmScreen=new Frame();
+ 		frmScreen.borderStyle=CellPanel.BDR_RAISEDOUTER|CellPanel.BDR_SUNKENINNER;
+ 		mLabel lblTitle;
+@@ -139,17 +134,19 @@
+ 		pnlDisplay.addLast(frmImages,CellConstants.STRETCH,CellConstants.FILL);
+ 
+ 		Frame frmHintLog=new Frame();
+-		frmHintLog.borderStyle=CellPanel.BDR_RAISEDOUTER|CellPanel.BDR_SUNKENINNER|CellPanel.BF_BOTTOM;
+-        mLabel lblHlP;
+-		frmHintLog.addNext(lblHlP=new mLabel(MyLocale.getMsg(630,&quot;HintLogPanel:  Logs per page &quot;)));	
+-		frmHintLog.addLast(inpLogsPerPage=new mInput(),CellConstants.DONTSTRETCH,CellConstants.DONTFILL|CellConstants.WEST);
++		//frmHintLog.borderStyle=CellPanel.BDR_RAISEDOUTER|CellPanel.BDR_SUNKENINNER|CellPanel.BF_BOTTOM;
++		frmHintLog.addNext(new mLabel(MyLocale.getMsg(630,&quot;HintLogPanel:  Logs per page &quot;)),CellConstants.DONTSTRETCH,CellConstants.DONTFILL);	
++		frmHintLog.addLast(inpLogsPerPage=new mInput(),CellConstants.DONTSTRETCH,CellConstants.DONTFILL|CellConstants.EAST);
+ 		inpLogsPerPage.setText(Convert.toString(pref.logsPerPage));
+ 		inpLogsPerPage.setPreferredSize(40,-1);
+-		inpLogsPerPage.setTag(INSETS,new Insets(0,0,2,0));
+-		lblHlP.setTag(INSETS,new Insets(6,0,2,0));
++		//inpLogsPerPage.setTag(INSETS,new Insets(0,0,2,0));
++		//lblHlP.setTag(INSETS,new Insets(6,0,2,0));
++		frmHintLog.addNext(new mLabel(MyLocale.getMsg(633,&quot;Max. logs to spider&quot;)),CellConstants.DONTSTRETCH,CellConstants.DONTFILL);	
++		frmHintLog.addLast(inpMaxLogsToSpider=new mInput(),CellConstants.DONTSTRETCH,CellConstants.DONTFILL|CellConstants.EAST);
++		inpMaxLogsToSpider.setText(Convert.toString(pref.maxLogsToSpider));
++		inpMaxLogsToSpider.setPreferredSize(40,-1);
+ 		pnlDisplay.addLast(frmHintLog,CellConstants.STRETCH,CellConstants.FILL);
+ 
+-		pnlDisplay.addLast(new mLabel(&quot;&quot;));
+ 		/////////////////////////////////////////////////////////
+ 		// Third panel - More
+ 		/////////////////////////////////////////////////////////
+@@ -159,46 +156,31 @@
+ 		Proxy.setText(pref.myproxy);
+ 		pnlProxy.addNext(new mLabel(&quot;Port&quot;),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		pnlProxy.addNext(ProxyPort = new mInput(),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		ProxyPort.setText(pref.myproxyport);
+ 		pnlProxy.addLast(new mLabel(&quot;&quot;)).setTag(SPAN,new Dimension(2,1));
+ 		pnlMore.addLast(pnlProxy,HSTRETCH,HFILL);
+ 		
+-		ProxyPort.setText(pref.myproxyport);
+-		Frame frmDisplay=new Frame();
+-		frmDisplay.borderStyle=CellPanel.BDR_RAISEDOUTER|CellPanel.BDR_SUNKENINNER|CellPanel.BF_BOTTOM;
+-		frmDisplay.addLast(new mLabel(MyLocale.getMsg(605,&quot;Display Preferences&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		frmDisplay.addNext(dif = new mCheckBox(MyLocale.getMsg(606,&quot;Difficulty&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		if(pref.tablePrefs[2] == 1) dif.setState(true);
+-		frmDisplay.addNext(ter = new mCheckBox(MyLocale.getMsg(607,&quot;Terrain&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		if(pref.tablePrefs[3] == 1) ter.setState(true);
+-		frmDisplay.addLast(loc = new mCheckBox(MyLocale.getMsg(608,&quot;Location&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		if(pref.tablePrefs[6] == 1) loc.setState(true);
+-		frmDisplay.addNext(own = new mCheckBox(MyLocale.getMsg(609,&quot;Owner&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		if(pref.tablePrefs[7] == 1) own.setState(true); 
+-		frmDisplay.addNext(hid = new mCheckBox(MyLocale.getMsg(610,&quot;Hidden&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		if(pref.tablePrefs[8] == 1) hid.setState(true);
+-		frmDisplay.addLast(stat = new mCheckBox(MyLocale.getMsg(611,&quot;Status&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		if(pref.tablePrefs[9] == 1) stat.setState(true);
+-		frmDisplay.addNext(dist = new mCheckBox(MyLocale.getMsg(612,&quot;Distance&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		if(pref.tablePrefs[10] == 1) dist.setState(true);
+-		frmDisplay.addLast(bear = new mCheckBox(MyLocale.getMsg(613,&quot;Bearing&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		if(pref.tablePrefs[11] == 1) bear.setState(true);
+-		dist.setTag(INSETS,new Insets(0,0,2,0));
+-		bear.setTag(INSETS,new Insets(0,0,2,0));
+-		pnlMore.addLast(frmDisplay,CellConstants.STRETCH,CellConstants.FILL);
+-
+ 		/////////////////////////////////////////////////////////
+-		// Fourth panel - Travelbugs
++		// Fourth/Fifth panel - Listview and Travelbugs
+ 		/////////////////////////////////////////////////////////
+ 
+-		
+         mTab.addCard(pnlGeneral,MyLocale.getMsg(621,&quot;General&quot;),null);
+ 		mTab.addCard(pnlDisplay,MyLocale.getMsg(622,&quot;Screen&quot;),null);
+ 		mTab.addCard(pnlMore,MyLocale.getMsg(632,&quot;More&quot;),null);
+-		/*mTab.addCard(tccList=new TableColumnChooser(new String[] {
+-				&quot;checkbox&quot;,&quot;type&quot;,&quot;difficulty&quot;,&quot;terrain&quot;,
+-				&quot;waypoint&quot;,&quot;name&quot;,&quot;coords&quot;,&quot;owner&quot;,
+-				&quot;date hidden&quot;,&quot;status&quot;,&quot;distance&quot;,&quot;bearing&quot;},pref.listColMap),&quot;List&quot;,null);
+-		*/
++		mTab.addCard(tccList=new TableColumnChooser(new String[] {
++				MyLocale.getMsg(599,&quot;checkbox&quot;),
++				MyLocale.getMsg(598,&quot;type&quot;),
++				MyLocale.getMsg(606,&quot;Difficulty&quot;),
++				MyLocale.getMsg(607,&quot;Terrain&quot;),
++				MyLocale.getMsg(597,&quot;waypoint&quot;),
++				MyLocale.getMsg(596,&quot;name&quot;),
++				MyLocale.getMsg(608,&quot;Location&quot;),
++				MyLocale.getMsg(609,&quot;Owner&quot;),
++				MyLocale.getMsg(610,&quot;Hidden&quot;),
++				MyLocale.getMsg(611,&quot;Status&quot;),
++				MyLocale.getMsg(612,&quot;Distance&quot;),
++				MyLocale.getMsg(613,&quot;Bearing&quot;)},pref.listColMap),MyLocale.getMsg(595,&quot;List&quot;),null);
++
+ 		Card c=mTab.addCard(tccBugs=new TableColumnChooser(new String[] {
+ 				MyLocale.getMsg(6000,&quot;Guid&quot;),
+ 				MyLocale.getMsg(6001,&quot;Name&quot;),
+@@ -232,8 +214,11 @@
+ 				//}
+ 				pref.fontSize = Convert.toInt(fontSize.getText());
+ 				if (pref.fontSize&lt;6) pref.fontSize=12;
+-				pref.logsPerPage=Convert.toInt(inpLogsPerPage.getText());
++				pref.logsPerPage=Common.parseInt(inpLogsPerPage.getText());
+ 				if (pref.logsPerPage==0) pref.logsPerPage=pref.DEFAULT_LOGS_PER_PAGE;
++				pref.maxLogsToSpider=Common.parseInt(inpMaxLogsToSpider.getText());
++				if (pref.maxLogsToSpider==0) pref.maxLogsToSpider=pref.DEFAULT_MAX_LOGS_TO_SPIDER;
++				
+ 				Font defaultGuiFont = mApp.findFont(&quot;gui&quot;);
+ 				int sz = (pref.fontSize);
+ 				Font newGuiFont = new Font(defaultGuiFont.getName(), defaultGuiFont.getStyle(), sz); 
+@@ -247,14 +232,6 @@
+ 				pref.myproxy = Proxy.getText();
+ 				pref.myproxyport = ProxyPort.getText();
+ 				//myPreferences.nLogs = Convert.parseInt(nLogs.getText());
+-				pref.tablePrefs[2] = (dif.getState()==true ? 1 : 0);
+-				pref.tablePrefs[3] = (ter.getState()==true ? 1 : 0);
+-				pref.tablePrefs[6] = (loc.getState()==true ? 1 : 0);
+-				pref.tablePrefs[7] = (own.getState()==true ? 1 : 0);
+-				pref.tablePrefs[8] = (hid.getState()==true ? 1 : 0);
+-				pref.tablePrefs[9] = (stat.getState()==true ? 1 : 0);
+-				pref.tablePrefs[10] = (dist.getState()==true ? 1 : 0);
+-				pref.tablePrefs[11] = (bear.getState()==true ? 1 : 0);
+ 				pref.autoReloadLastProfile=chkAutoLoad.getState();
+ 				pref.showDeletedImages=chkShowDeletedImg.getState();
+ 				pref.garminConn=chcGarminPort.getSelectedItem().toString();
+@@ -264,6 +241,8 @@
+ 				pref.showStatus=chkShowStatus.getState();
+ 				pref.hasCloseButton=chkHasCloseButton.getState();
+ 				pref.travelbugColMap=tccBugs.getSelectedCols();
++				pref.listColMap=tccList.getSelectedCols();
++				Global.mainTab.tbP.myMod.setColumnNamesAndWidths();
+ 				pref.savePreferences();
+ 				pref.dirty = true; // Need to update table in case columns were enabled/disabled
+ 				this.close(0);
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2007-08-26 12:43:34 UTC (rev 834)
++++ trunk/src/CacheWolf/SpiderGC.java	2007-08-26 15:09:56 UTC (rev 835)
+@@ -72,6 +72,7 @@
+ 			// We don't display an error message box here, as the call to 
+ 			// spiderSingle or doIt will do this
+ 		}
++		MAXLOGS=pref.maxLogsToSpider;
+ 	}
+ 	
+ 	private boolean existsSpiderDef() {
+
+Modified: trunk/src/CacheWolf/TablePanel.java
+===================================================================
+--- trunk/src/CacheWolf/TablePanel.java	2007-08-26 12:43:34 UTC (rev 834)
++++ trunk/src/CacheWolf/TablePanel.java	2007-08-26 15:09:56 UTC (rev 835)
+@@ -107,13 +107,11 @@
+ 	}
+ 	
+ 	public void saveColWidth(Preferences pref){
+-		int j=0;
+-		for (int i = 0; i&lt;myMod.MAXCOLUMNS; i++){
+-			if(pref.tablePrefs[i] == 1){
+-				pref.tableWidth[i] = myMod.getColWidth(j++);
+-			}
++		String colWidths=myMod.getColWidths();
++		if (!colWidths.equals(pref.listColWidth)) {
++			pref.listColWidth=colWidths;
++			pref.savePreferences();
+ 		}
+-		pref.savePreferences();
+ 	}
+ 	
+ 	/*
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2007-08-26 12:43:34 UTC (rev 834)
++++ trunk/src/CacheWolf/myTableControl.java	2007-08-26 15:09:56 UTC (rev 835)
+@@ -15,26 +15,31 @@
+ 	public Profile profile;
+ 	public Vector cacheDB;
+ 	public TablePanel tbp;
++	private Menu mFull = new Menu(new String[]{
++			MyLocale.getMsg(1021,&quot;Open description&quot;),
++			MyLocale.getMsg(1010,&quot;Goto&quot;),
++			MyLocale.getMsg(1019,&quot;Enter&quot;),
++			&quot;-&quot;,
++			MyLocale.getMsg(1020,&quot;Open in $browser online&quot;),
++			MyLocale.getMsg(1018,&quot;Open in browser offline&quot;),
++			&quot;-&quot;,
++			MyLocale.getMsg(1011,&quot;Filter&quot;),
++			MyLocale.getMsg(1012,&quot;Delete&quot;),
++			MyLocale.getMsg(1014,&quot;Update&quot;),
++			&quot;-&quot;,
++			MyLocale.getMsg(1015,&quot;Select all&quot;),
++			MyLocale.getMsg(1016,&quot;De-select all&quot;)},
++			MyLocale.getMsg(1013,&quot;With selection&quot;));
++	private Menu mSmall = new Menu(new String[]{
++			MyLocale.getMsg(1021,&quot;Open description&quot;),
++			MyLocale.getMsg(1010,&quot;Goto&quot;),
++			MyLocale.getMsg(1019,&quot;Enter&quot;),
++			&quot;-&quot;,
++			MyLocale.getMsg(1020,&quot;Open in $browser online&quot;),
++			MyLocale.getMsg(1018,&quot;Open in browser offline&quot;)},
++			MyLocale.getMsg(1013,&quot;With selection&quot;));
+ 
+ 	myTableControl(TablePanel tablePanel) {
+-		Menu m = new Menu(new String[]{
+-				MyLocale.getMsg(1021,&quot;Open description&quot;),
+-				MyLocale.getMsg(1010,&quot;Goto&quot;),
+-				MyLocale.getMsg(1019,&quot;Enter&quot;),
+-				&quot;-&quot;,
+-				MyLocale.getMsg(1020,&quot;Open in $browser online&quot;),
+-				MyLocale.getMsg(1018,&quot;Open in browser offline&quot;),
+-				&quot;-&quot;,
+-				MyLocale.getMsg(1011,&quot;Filter&quot;),
+-				MyLocale.getMsg(1012,&quot;Delete&quot;),
+-				MyLocale.getMsg(1014,&quot;Update&quot;),
+-				&quot;-&quot;,
+-				MyLocale.getMsg(1015,&quot;Select all&quot;),
+-				MyLocale.getMsg(1016,&quot;De-select all&quot;)},
+-				MyLocale.getMsg(1013,&quot;With selection&quot;));
+-		setMenu(m);
+-		if (!Vm.getPlatform().equals(&quot;Win32&quot;) &amp;&amp; !Vm.getPlatform().equals(&quot;Java&quot;))
+-		   ((MenuItem)m.items.get(5)).modifiers|=MenuItem.Disabled;
+ 		profile=Global.getProfile();
+ 		cacheDB = profile.cacheDB;
+ 		pref = Global.getPref();
+@@ -42,6 +47,20 @@
+ 		allowDragSelection = false; // allow only one row to be selected at one time
+ 	}
+ 
++	/** Full menu when listview includes checkbox */
++	public void setMenuFull() {
++		setMenu(mFull);
++		if (!Vm.getPlatform().equals(&quot;Win32&quot;) &amp;&amp; !Vm.getPlatform().equals(&quot;Java&quot;))
++		   ((MenuItem)mFull.items.get(5)).modifiers|=MenuItem.Disabled;
++	}
++	
++	/** Small menu when listview does not include checkbox */
++	public void setMenuSmall() {
++		setMenu(mSmall);
++		if (!Vm.getPlatform().equals(&quot;Win32&quot;) &amp;&amp; !Vm.getPlatform().equals(&quot;Java&quot;))
++			   ((MenuItem)mSmall.items.get(5)).modifiers|=MenuItem.Disabled;
++	}
++	
+ 	public void penRightReleased(Point p){
+ 		if (cacheDB.size()&gt;0) // No context menu when DB is empty
+ 			menuState.doShowMenu(p,true,null); // direct call (not through doMenu) is neccesary because it will exclude the whole table
+
+Modified: trunk/src/CacheWolf/myTableModel.java
+===================================================================
+--- trunk/src/CacheWolf/myTableModel.java	2007-08-26 12:43:34 UTC (rev 834)
++++ trunk/src/CacheWolf/myTableModel.java	2007-08-26 15:09:56 UTC (rev 835)
+@@ -26,25 +26,32 @@
+ 	private static final Color COLOR_SELECTED	= new Color(198,198,198);
+ 	private static final Color COLOR_ARCHFND_FG	= new Color(255,0,0); // Archived &amp;&amp; Found
+ 	private static final Color COLOR_ARCHFND_BG	= new Color(152,251,152);	
+-	Vector cacheDB;
+-	String[] colName;
+-	int[] colWidth;
+-	int [] colID; // The number of the column in the original sequence in the prefs file
+-	int usedColumns; // Columns actually used (&lt;=MAXCOLUMNS)
+-	static Image cacheImages[] = new Image[454];
+-	static Image noFindLogs[] = new Image[4];
+-	Image red, blue, green, yellow, skull;
+-	mImage bug;
+-	myTableControl tcControl;
+-	boolean sortAsc = false;
+-	int sortedBy = -1;
+-	FontMetrics fm;
+-	Image checkboxTicked,checkboxUnticked;
++	private Vector cacheDB;
++	/** How the columns are mapped onto the list view. If colMap[i]=j, it means that
++	 * the element j (as per the list below) is visible in column i. 
++	 * [0]TickBox, [1]Type, [2]Distance, [3]Terrain, [4]waypoint, [5]name, [6]coordinates, 
++	 * [7]owner, [8]datehidden, [9]status, [10]distance, [11]bearing
++	 */
++	private int[] colMap;
++	/** The column widths corresponding to the list of columns above */
++	private int[] colWidth;
++	private String [] colName = {&quot; &quot;,&quot;?&quot;,MyLocale.getMsg(1000,&quot;D&quot;),MyLocale.getMsg(1001,&quot;T&quot;),MyLocale.getMsg(1002,&quot;Waypoint&quot;),&quot;Name&quot;,MyLocale.getMsg(1004,&quot;Location&quot;),MyLocale.getMsg(1005,&quot;Owner&quot;),MyLocale.getMsg(1006,&quot;Hidden&quot;),MyLocale.getMsg(1007,&quot;Status&quot;),MyLocale.getMsg(1008,&quot;Dist&quot;),MyLocale.getMsg(1009,&quot;Bear&quot;)};
++	
++	public static Image cacheImages[] = new Image[454]; // Images are used by TableControl
++	private static Image noFindLogs[] = new Image[4];
++	private Image red, blue, green, yellow, skull;
++	private Image checkboxTicked,checkboxUnticked;
++	private mImage bug;
++	private boolean sortAsc = false;
++	private int sortedBy = -1;
++	private FontMetrics fm;
+ 	/** This is the modifier (Shift &amp; Control key status) for Pen Events
+ 	 * it is set in myTableControl.onEvent */
+ 	public int penEventModifiers; 
+ 	/** The row of the last click where the shift key was pressed */
+ 	private int lastRow=-1;
++	private myTableControl tcControl;
++	
+ 	public myTableModel(myTableControl tc, FontMetrics fm){
+ 		super();
+ 		cacheDB = Global.getProfile().cacheDB;
+@@ -100,27 +107,34 @@
+ 	 *
+ 	 */
+ 	public void setColumnNamesAndWidths() {
+-		String [] spName = {&quot; &quot;,&quot;?&quot;,MyLocale.getMsg(1000,&quot;D&quot;),MyLocale.getMsg(1001,&quot;T&quot;),MyLocale.getMsg(1002,&quot;Waypoint&quot;),&quot;Name&quot;,MyLocale.getMsg(1004,&quot;Location&quot;),MyLocale.getMsg(1005,&quot;Owner&quot;),MyLocale.getMsg(1006,&quot;Hidden&quot;),MyLocale.getMsg(1007,&quot;Status&quot;),MyLocale.getMsg(1008,&quot;Dist&quot;),MyLocale.getMsg(1009,&quot;Bear&quot;)};
+-		// [0]TickBox, [1]Type, [2]Distance, [3]Terrain, [4]waypoint, [5]name, [6]coordinates, 
+-		// [7]owner, [8]datehidden, [9]status, [10]distance, [11]bearing
+-		Preferences pref=Global.getPref();
+-		colName=new String[MAXCOLUMNS]; // Always dimension to max columns, a few columns could be wasted
+-		colWidth=new int[MAXCOLUMNS];
+-		colID=new int[MAXCOLUMNS];
+-		
+-		usedColumns = 0;
+-		for(int i = 0; i&lt;MAXCOLUMNS;i++){
+-			if(pref.tablePrefs[i] == 1){
+-				colName[usedColumns] = spName[i];
+-				colWidth[usedColumns] = pref.tableWidth[i];
+-				colID[usedColumns]=i;
+-				usedColumns++;
+-			}
+-		}
+-		this.numCols = usedColumns;
++		colMap=TableColumnChooser.str2Array(Global.getPref().listColMap,0,11,0);
++		colWidth=TableColumnChooser.str2Array(Global.getPref().listColWidth,10,1024,50);
++		numCols=colMap.length;
+ 		clearCellAdjustments();
++		// If the displayed columns include the checkbox, we use the full menu
++		if ((&quot;,&quot;+Global.getPref().listColMap+&quot;,&quot;).indexOf(&quot;,0,&quot;)&gt;=0)
++			tcControl.setMenuFull();
++		else
++			tcControl.setMenuSmall();
+ 	}
+ 	
++	/**
++	 * Return the column widths as a comma delimited string for storing in the preferences
++	 * @return
++	 */
++	public String getColWidths() {
++		// Update the list with the current widths
++		for (int col=0; col&lt;numCols; col++) {
++			colWidth[colMap[col]]=getColWidth(col);
++		}
++		// Convert to string
++		StringBuffer sb=new StringBuffer(40);
++		for (int i=0; i&lt;colWidth.length; i++) {
++			if (sb.length()!=0) sb.append(',');
++			sb.append(colWidth[i]);
++		}
++		return sb.toString();
++	}
+ 	public void updateRows(){
+ 		Vector sortDB = new Vector();
+ 		Vector filteredDB = new Vector();
+@@ -194,8 +208,8 @@
+ 	public int calculateColWidth(int col){
+ 		if(col == -1) 
+         	return 0;
+-        else if (col&lt;usedColumns)
+-        	return colWidth[col];
++        else if (col&lt;numCols)
++        	return colWidth[colMap[col]];
+         else return 0;
+ 	}
+ 	
+@@ -211,12 +225,12 @@
+ 
+ 	public Object getCellData(int row, int col){
+ 		if(row == -1) {
+-			return (String)colName[col];
++			return (String)colName[colMap[col]];
+ 		} else {
+ 			try { // Access to row can fail if many caches are deleted
+ 				CacheHolder ch = (CacheHolder)cacheDB.get(row);
+ 				if(ch.is_filtered == false){
+-					switch(colID[col]) { // Faster than using column names
++					switch(colMap[col]) { // Faster than using column names
+ 						case 0: // Checkbox
+ 							if (ch.is_Checked) 
+ 								return checkboxTicked; 
+@@ -348,4 +362,5 @@
+ 			}
+ 		}		
+ 	}
++	
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000724.html">[Cachewolf-svn] r834 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000726.html">[Cachewolf-svn] r836 - in trunk: resources src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#725">[ date ]</a>
+              <a href="thread.html#725">[ thread ]</a>
+              <a href="subject.html#725">[ subject ]</a>
+              <a href="author.html#725">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

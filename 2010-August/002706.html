@@ -1,0 +1,4058 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2720 - in trunk: . lib tools tools/json	tools/json/src tools/json/src/net tools/json/src/net/ax86	tools/json/src/org tools/json/src/org/json
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-August/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2720%20-%20in%20trunk%3A%20.%20lib%20tools%20tools/json%0A%09tools/json/src%20tools/json/src/net%20tools/json/src/net/ax86%0A%09tools/json/src/org%20tools/json/src/org/json&In-Reply-To=%3C20100807113100.26DD0480F11%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002704.html">
+   <LINK REL="Next"  HREF="002707.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2720 - in trunk: . lib tools tools/json	tools/json/src tools/json/src/net tools/json/src/net/ax86	tools/json/src/org tools/json/src/org/json</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2720%20-%20in%20trunk%3A%20.%20lib%20tools%20tools/json%0A%09tools/json/src%20tools/json/src/net%20tools/json/src/net/ax86%0A%09tools/json/src/org%20tools/json/src/org/json&In-Reply-To=%3C20100807113100.26DD0480F11%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2720 - in trunk: . lib tools tools/json	tools/json/src tools/json/src/net tools/json/src/net/ax86	tools/json/src/org tools/json/src/org/json">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Sat Aug  7 01:31:00 CEST 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002704.html">[Cachewolf-svn] r2718 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="002707.html">[Cachewolf-svn] r2721 - trunk/res_noewe
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2706">[ date ]</a>
+              <a href="thread.html#2706">[ thread ]</a>
+              <a href="subject.html#2706">[ subject ]</a>
+              <a href="author.html#2706">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2010-08-07 13:30:59 +0200 (Sat, 07 Aug 2010)
+New Revision: 2720
+
+Added:
+   trunk/lib/json.jar
+   trunk/tools/json/
+   trunk/tools/json/src/
+   trunk/tools/json/src/net/
+   trunk/tools/json/src/net/ax86/
+   trunk/tools/json/src/net/ax86/GPS.java
+   trunk/tools/json/src/net/ax86/GPSException.java
+   trunk/tools/json/src/net/ax86/GPSHook.java
+   trunk/tools/json/src/net/ax86/GPSTest.java
+   trunk/tools/json/src/org/
+   trunk/tools/json/src/org/json/
+   trunk/tools/json/src/org/json/JSONArray.java
+   trunk/tools/json/src/org/json/JSONException.java
+   trunk/tools/json/src/org/json/JSONObject.java
+   trunk/tools/json/src/org/json/JSONString.java
+   trunk/tools/json/src/org/json/JSONTokener.java
+   trunk/tools/json/src/org/json/Test.java
+Modified:
+   trunk/.classpath
+Log:
+adding lib json.jar for new gpsd support.
+source java is in tools subdir.
+
+Modified: trunk/.classpath
+===================================================================
+--- trunk/.classpath	2010-08-07 10:17:07 UTC (rev 2719)
++++ trunk/.classpath	2010-08-07 11:30:59 UTC (rev 2720)
+@@ -3,5 +3,6 @@
+ 	&lt;classpathentry excluding=&quot;build/&quot; kind=&quot;src&quot; path=&quot;src&quot;/&gt;
+ 	&lt;classpathentry kind=&quot;lib&quot; path=&quot;lib/CompileEwe.zip&quot; sourcepath=&quot;lib/JavaEwe.zip&quot;/&gt;
+ 	&lt;classpathentry kind=&quot;lib&quot; path=&quot;lib&quot;/&gt;
++	&lt;classpathentry kind=&quot;lib&quot; path=&quot;lib/json.jar&quot;/&gt;
+ 	&lt;classpathentry kind=&quot;output&quot; path=&quot;bin&quot;/&gt;
+ &lt;/classpath&gt;
+
+Added: trunk/lib/json.jar
+===================================================================
+(Binary files differ)
+
+
+Property changes on: trunk/lib/json.jar
+___________________________________________________________________
+Added: svn:mime-type
+   + application/octet-stream
+
+Added: trunk/tools/json/src/net/ax86/GPS.java
+===================================================================
+--- trunk/tools/json/src/net/ax86/GPS.java	                        (rev 0)
++++ trunk/tools/json/src/net/ax86/GPS.java	2010-08-07 11:30:59 UTC (rev 2720)
+@@ -0,0 +1,377 @@
++package net.ax86;
++
++import ewe.io.IOException;
++import org.json.JSONException;
++
++import ewe.io.InputStreamReader;
++import ewe.io.BufferedReader;
++import ewe.io.OutputStreamWriter;
++import ewe.io.BufferedWriter;
++import ewe.net.Socket;
++
++import org.json.JSONObject;
++
++/**
++ * gpsd client library.
++ *
++ * This a simple library that allows low-level communication with the
++ * GPS daemon.
++ *
++ * Things that are in C libgps but not in this library (or are done in a
++ * different way):
++ *  - GPS::stream():
++ *     - Works with JSON data only. That means there is no option to change
++ *       the reporting format (no WATCH_JSON, WATCH_NMEA, WATCH_RARE,
++ *       WATCH_RAW flags).
++ *     - Always uses the new protocol (no WATCH_NEWSTYLE, WATCH_OLDSTYLE
++ *       flags).
++ *     - Non-blocking mode is not yet implemented (no POLL_NONBLOCK flag).
++ *       I think this is the only real limitation of this implementation.
++ *
++ * Copyright (c) 2010 by Tilman Blumenbach.
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; version 2 of the License.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ *
++ * @author Tilman Blumenbach
++ * @version 0.9_ewe
++ *
++ * @see &lt;a href=&quot;<A HREF="http://gpsd.berlios.de/gpsd.html">http://gpsd.berlios.de/gpsd.html</A>&quot;&gt;gpsd manpage for more information&lt;/a&gt;
++ */
++public class GPS
++{
++	/**
++	 * The major version of this API (NOT the gpsd API!).
++	 */
++	public static final int API_MAJOR     = 0;
++	/**
++	 * The minor version of this API (NOT the gpsd API!).
++	 */
++	public static final int API_MINOR     = 9;
++
++	/**
++	 * Disable watcher mode and other given WATCH_* flags.
++	 *
++	 * @see #stream( int )
++	 */
++	public static final int WATCH_DISABLE = 1&lt;&lt;0;
++	/**
++	 * Enable watcher mode and other given WATCH_* flags.
++	 *
++	 * @see #stream( int )
++	 */
++	public static final int WATCH_ENABLE  = 1&lt;&lt;1;
++	/**
++	 * When reporting AIS data, scale integer quantities to floats if
++	 * they have a divisor or rendering formula assosiated with them.
++	 *
++	 * @see #stream( int )
++	 */
++	public static final int WATCH_SCALED  = 1&lt;&lt;2;
++	/**
++	 * Restrict watching to a speciied device, patch given as second
++	 * argument to {@link #stream( int, String ) stream()}.
++	 *
++	 * @see #stream( int, String )
++	 */
++	public static final int WATCH_DEVICE  = 1&lt;&lt;3;
++
++	/**
++	 * DEVICE flags: GPS data has been seen on this device.
++	 */
++	public static final int SEEN_GPS      = 0x01;
++	/**
++	 * DEVICE flags: RTCM2 data has been seen on this device.
++	 */
++	public static final int SEEN_RTCM2    = 0x02;
++	/**
++	 * DEVICE flags: RTCM3 data has been seen on this device.
++	 */
++	public static final int SEEN_RTCM3    = 0x04;
++	/**
++	 * DEVICE flags: AIS data has been seen on this device.
++	 */
++	public static final int SEEN_AIS      = 0x08;
++
++	/**
++	 * The Socket used for communication with gpsd.
++	 */
++	private Socket sock;
++	/**
++	 * BufferedReader for the {@link #sock Socket}.
++	 *
++	 * @see #sock
++	 */
++	protected BufferedReader in;
++	/**
++	 * BufferedWriter for the {@link #sock Socket}.
++	 *
++	 * @see #sock
++	 */
++	protected BufferedWriter out;
++
++	/**
++	 * A {@link GPSHook} object used for certain callbacks.
++	 *
++	 * @see GPSHook
++	 * @see #setHook( GPSHook )
++	 */
++	protected GPSHook hook = null;
++
++
++	/**
++	 * Constructor: Creates a new GPS object and connects its
++	 * {@link #sock Socket} to a gpsd.
++	 *
++	 * @param host Host name or IP address to connect to.
++	 * @param port Port to connect to.
++	 *
++	 * @throws IOException E. g. on a connection failure.
++	 *
++	 * @see #cleanup() Call the &lt;code&gt;cleanup()&lt;/code&gt; method when you
++	 *                 do not need this object anymore.
++	 */
++	public GPS( String host, int port )
++		throws IOException
++	{
++		this.sock = new Socket( host, port );
++		this.in   = new BufferedReader( new InputStreamReader( this.sock.getInputStream() ) );
++		this.out  = new BufferedWriter( new OutputStreamWriter( this.sock.getOutputStream() ) );
++	}
++
++
++	/**
++	 * Constructor: Creates a new GPS object and connects its
++	 * {@link #sock Socket} to a gpsd.
++	 *
++	 * This simply calls {@link #constructor( String, int )} with the
++	 * default gpsd port 2947.
++	 *
++	 * @param host Host name or IP address to connect to.
++	 *
++	 * @throws IOException E. g. on a connection failure.
++	 *
++	 * @see #constructor( String, int )
++	 * @see #cleanup() Call the &lt;code&gt;cleanup()&lt;/code&gt; method when you
++	 *                 do not need this object anymore.
++	 */
++	public GPS( String host )
++		throws IOException
++	{
++		this( host, 2947 );
++	}
++
++
++	/**
++	 * Sends data to gpsd.
++	 *
++	 * @param data The data to send.
++	 *
++	 * @throws IOException When data could not be written to the stream.
++	 */
++	public void send( String data )
++		throws IOException
++	{
++		this.out.write( data, 0, data.length() );
++		// Make sure it gets through:
++		this.out.flush();
++	}
++
++
++	/**
++	 * Asks gpsd for data from the last-seen fixes on all active GPS devices.
++	 *
++	 * This is a very simple method that just calls
++	 * {@link #send( String )} to send a &quot;POLL&quot; command to the
++	 * server.
++	 * 
++	 * @throws IOException When data could not be written to the stream.
++	 * 
++	 * @see #send( String )
++	 */
++	public void poll()
++		throws IOException
++	{
++		this.send( &quot;?POLL;&quot; );
++	}
++
++
++	/**
++	 * Gets the next {@linkplain JSONObject JSON object} from gpsd.
++	 *
++	 * This call blocks when there is no data available. Use
++	 * {@link #waiting()} to check if there is data waiting.
++	 *
++	 * If there is a {@linkplain GPSHook hook} set, its
++	 * {@link GPSHook#onRawData( JSONObject, String )} method will be called.
++	 *
++	 * @return A {@link JSONObject} containing the data received from gpsd.
++	 * 
++	 * @throws IOException On a stream reading failure.
++	 * @throws JSONException On a JSON parsing failure (e. g. syntax error).
++	 *
++	 * @see JSONObject
++	 * @see #waiting()
++	 * @see GPSHook#onRawData( JSONObject, String )
++	 */
++	public JSONObject read()
++		throws IOException, JSONException
++	{
++		String rawJSON = this.in.readLine();
++		JSONObject parsedJSON;
++
++		if( rawJSON == null )
++		{
++			throw new IOException( &quot;End Of Stream reached&quot; );
++		}
++
++		parsedJSON = new JSONObject( rawJSON );
++
++		// Call our hook, if set:
++		if( this.hook != null )
++		{
++			this.hook.onRawData( parsedJSON, rawJSON );
++		}
++
++		return parsedJSON;
++	}
++
++
++	/**
++	 * Checks whether there is data from gpsd to be {@linkplain #read() read}.
++	 *
++	 * Tblue&gt; TODO: This does not seem to work correctly in Ewe (but it
++	 *              does with Sun's JRE). Ewe bug?
++	 * 
++	 * @return True if there is data to be read, false otherwise.
++	 */
++	public boolean waiting()
++	{
++		try
++		{
++			return this.in.ready();
++		}
++		catch( IOException ignored )
++		{
++			return false;
++		}
++	}
++
++
++	/**
++	 * Enables/tunes gpsd watcher mode.
++	 *
++	 * @param flags Flags describing the action(s) to take.
++	 * @param arg   A String treated as an argument to certain flags.
++	 *
++	 * @throws IOException E. g. on a {@link #sock Stream} write error.
++	 * @throws JSONException If we made a huge mistake like passing a
++	 *                       &lt;code&gt;null&lt;/code&gt; String to one of the
++	 *                       {@link JSONObject#put()} methods. Should not
++	 *                       happen.
++	 * @throws GPSException If &lt;code&gt;arg&lt;/code&gt; is &lt;code&gt;null&lt;/code&gt; but
++	 *                      is needed by a flag.
++	 *
++	 * @see #WATCH_DISABLE
++	 * @see #WATCH_ENABLE
++	 * @see #WATCH_SCALED
++	 * @see #WATCH_DEVICE
++	 */
++	public void stream( int flags, String arg )
++		throws IOException, JSONException, GPSException
++	{
++		JSONObject GPSData = new JSONObject();
++
++		GPSData.put( &quot;class&quot;, &quot;WATCH&quot; );
++
++		if( ( flags &amp; WATCH_ENABLE ) != 0 )
++		{
++			GPSData.put( &quot;enable&quot;, true );
++
++			if( ( flags &amp; WATCH_SCALED ) != 0 )
++			{
++				GPSData.put( &quot;scaled&quot;, true );
++			}
++			if( ( flags &amp; WATCH_DEVICE ) != 0 )
++			{
++				if( arg == null )
++				{
++					throw new GPSException( &quot;No argument provided with WATCH_DEVICE&quot; );
++				}
++
++				GPSData.put( &quot;device&quot;, arg );
++			}
++		}
++		else // WATCH_DISABLE?
++		{
++			GPSData.put( &quot;enable&quot;, false );
++
++			if( ( flags &amp; WATCH_SCALED ) != 0 )
++			{
++				GPSData.put( &quot;scaled&quot;, false );
++			}
++		}
++
++		// Send request to the server:
++		this.send( &quot;?WATCH=&quot; + GPSData.toString() + &quot;;&quot; );
++	}
++
++
++	/**
++	 * Enables/tunes gpsd watcher mode.
++	 *
++	 * This simply calls {@link #stream( int, String )} with an &lt;code&gt;arg&lt;/code&gt;
++	 * parameter of &lt;code&gt;null&lt;/code&gt;.
++	 *
++	 * @param int Flags describing the action(s) to take.
++	 *
++	 * @throws IOException E. g. on a {@link #sock Stream} write error.
++	 * @throws JSONException If we made a huge mistake like passing a
++	 *                       &lt;code&gt;null&lt;/code&gt; String to one of the
++	 *                       {@link JSONObject#put()} methods. Should not
++	 *                       happen.
++	 * @throws GPSException If &lt;code&gt;arg&lt;/code&gt; is &lt;code&gt;null&lt;/code&gt; but
++	 *                      is needed by a flag.
++	 *
++	 * @see #stream( int, String ) stream( int, String ) for information
++	 *                             about flags.
++	 */
++	public void stream( int flags )
++		throws IOException, JSONException, GPSException
++	{
++		this.stream( flags, null );
++	}
++
++
++	/**
++	 * Sets a {@linkplain GPSHook hook} to call on certain events.
++	 *
++	 * @param hook The {@link GPSHook} to set.
++	 * @see GPSHook
++	 */
++	public void setHook( GPSHook hook )
++	{
++		this.hook = hook;
++	}
++
++
++	/**
++	 * &quot;Destructor&quot;: Does the final clean up.
++	 *
++	 * Call this method when you do not this object anymore.
++	 */
++	public void cleanup()
++	{
++		// Close our socket. Also closes its Input and Output streams.
++		this.sock.close();
++	}
++}
+
+Added: trunk/tools/json/src/net/ax86/GPSException.java
+===================================================================
+--- trunk/tools/json/src/net/ax86/GPSException.java	                        (rev 0)
++++ trunk/tools/json/src/net/ax86/GPSException.java	2010-08-07 11:30:59 UTC (rev 2720)
+@@ -0,0 +1,49 @@
++package net.ax86;
++
++/**
++ * The GPSException is thrown by {@link GPS} when errors occur.
++ *
++ * Copyright (c) 2010 by Tilman Blumenbach.
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; version 2 of the License.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ * 
++ * @author Tilman Blumenbach
++ * @version 1.0
++ *
++ * @see GPS
++ */
++public class GPSException extends Exception
++{
++	public GPSException()
++	{
++		super();
++	}
++
++
++	public GPSException( String message )
++	{
++		super( message );
++	}
++
++
++	public GPSException( String message, Throwable cause )
++	{
++		super( message, cause );
++	}
++
++
++	public GPSException( Throwable cause )
++	{
++		super( cause );
++	}
++}
+
+Added: trunk/tools/json/src/net/ax86/GPSHook.java
+===================================================================
+--- trunk/tools/json/src/net/ax86/GPSHook.java	                        (rev 0)
++++ trunk/tools/json/src/net/ax86/GPSHook.java	2010-08-07 11:30:59 UTC (rev 2720)
+@@ -0,0 +1,41 @@
++package net.ax86;
++
++import org.json.JSONObject;
++
++/**
++ * Hook interface supposed to be implemented by classes who want to be
++ * used as a &quot;callback&quot; on certain {@link GPS} events.
++ *
++ * Copyright (c) 2010 by Tilman Blumenbach.
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; version 2 of the License.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ * 
++ * @author Tilman Blumenbach
++ * @version 1.0
++ *
++ * @see GPS
++ * @see GPS#setHook( GPSHook )
++ */
++public interface GPSHook
++{
++	/**
++	 * Gets called e. g. by {@link GPS#read()}.
++	 *
++	 * @param JSONObject The parsed JSON data received from gpsd.
++	 * @param String     The raw (unparsed) JSON data from gpsd.
++	 *
++	 * @see GPS#read()
++	 * @see JSONObject
++	 */
++	public void onRawData( JSONObject parsedData, String rawData );
++}
+
+Added: trunk/tools/json/src/net/ax86/GPSTest.java
+===================================================================
+--- trunk/tools/json/src/net/ax86/GPSTest.java	                        (rev 0)
++++ trunk/tools/json/src/net/ax86/GPSTest.java	2010-08-07 11:30:59 UTC (rev 2720)
+@@ -0,0 +1,95 @@
++package net.ax86;
++
++import ewe.sys.*;
++
++import net.ax86.GPSException;
++import net.ax86.GPS;
++import org.json.*;
++
++/**
++ * Quick and dirty (but convenient) test class/program for the {@link GPS}
++ * class.
++ *
++ * @author Tilman Blumenbach
++ */
++public class GPSTest
++{
++	public static void main( String args[] )
++	{
++		JSONObject JSON = null, two;
++		JSONArray arr;
++		GPS g = null;
++		int maj = 0, min = 0;
++
++		Vm.startEwe(args);
++
++		try
++		{
++			g = new GPS( &quot;127.0.0.1&quot; );
++			g.stream( GPS.WATCH_ENABLE );
++			JSON = g.read();
++		}
++		catch( Exception e )
++		{
++			Vm.debug( &quot;Could not connect to gpsd: &quot; + e.getMessage() );
++			Vm.exit(1);
++		}
++
++		try
++		{
++			maj = JSON.getInt( &quot;proto_major&quot; );
++			min = JSON.getInt( &quot;proto_minor&quot; );
++		}
++		catch( JSONException e )
++		{
++			Vm.debug( &quot;JSON error: &quot; + e.getMessage() );
++			Vm.exit(1);
++		}
++		
++		Vm.debug( &quot;Major: &quot; + maj + &quot;, minor: &quot; + min );
++
++		try
++		{
++			while( true )
++			{
++				// Make sure we have enough data:
++				//Vm.debug( &quot;&gt;&gt; POLLING!&quot; );
++
++				JSON = g.read();
++				Vm.debug( &quot;&gt;&gt; Got JSON [&quot; + JSON.getString( &quot;class&quot; ) + &quot;]: &quot; );
++				Vm.debug( &quot;&gt;&gt;&gt; &quot; + JSON.toString() );
++
++				if( JSON.getString( &quot;class&quot; ).equals( &quot;DEVICE&quot; ) &amp;&amp;
++				    JSON.has( &quot;activated&quot; ) &amp;&amp; JSON.getDouble( &quot;activated&quot; ) != 0 )
++				{
++					Vm.debug( &quot;&gt;&gt; Keeping up.&quot; );
++					g.stream( GPS.WATCH_ENABLE );
++				}
++				else if( JSON.getString( &quot;class&quot; ).equals( &quot;POLL&quot; ) )
++				{
++					arr = JSON.getJSONArray( &quot;fixes&quot; );
++					for( int i = 0; i &lt; arr.length(); i++ )
++					{
++						two = arr.getJSONObject( i );
++						if( two.has( &quot;lat&quot; ) &amp;&amp; two.has( &quot;lon&quot; ) )
++						{
++							Vm.debug( &quot;&gt;&gt; LAT: &quot; + two.getDouble( &quot;lat&quot; ) +
++									&quot; LON: &quot; + two.getDouble( &quot;lon&quot; ) );
++						}
++					}
++				}
++
++				g.poll();
++				Thread.sleep( 3000 );
++			}
++		}
++		catch( Exception e )
++		{
++			Vm.debug( &quot;EOF?&quot; );
++			e.printStackTrace();
++			Vm.exit(1);
++		}
++
++		Vm.exit(0);
++	}
++}
+
+Added: trunk/tools/json/src/org/json/JSONArray.java
+===================================================================
+--- trunk/tools/json/src/org/json/JSONArray.java	                        (rev 0)
++++ trunk/tools/json/src/org/json/JSONArray.java	2010-08-07 11:30:59 UTC (rev 2720)
+@@ -0,0 +1,880 @@
++package org.json;
++
++/*
++Copyright (c) 2002 JSON.org
++
++Permission is hereby granted, free of charge, to any person obtaining a copy
++of this software and associated documentation files (the &quot;Software&quot;), to deal
++in the Software without restriction, including without limitation the rights
++to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++copies of the Software, and to permit persons to whom the Software is
++furnished to do so, subject to the following conditions:
++
++The above copyright notice and this permission notice shall be included in all
++copies or substantial portions of the Software.
++
++The Software shall be used for Good, not Evil.
++
++THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
++SOFTWARE.
++*/
++
++import ewe.io.IOException;
++import ewe.io.Writer;
++import ewe.util.Iterator;
++import ewe.util.Map;
++import ewe.util.Vector; // Tblue&gt; TODO: Not thread-safe?
++import ewe.reflect.Wrapper;
++import ewe.reflect.Array;
++
++/**
++ * A JSONArray is an ordered sequence of values. Its external text form is a
++ * string wrapped in square brackets with commas separating the values. The
++ * internal form is an object having &lt;code&gt;get&lt;/code&gt; and &lt;code&gt;opt&lt;/code&gt;
++ * methods for accessing the values by index, and &lt;code&gt;put&lt;/code&gt; methods for
++ * adding or replacing values. The values can be any of these types:
++ * &lt;code&gt;Boolean&lt;/code&gt;, &lt;code&gt;JSONArray&lt;/code&gt;, &lt;code&gt;JSONObject&lt;/code&gt;,
++ * &lt;code&gt;Number&lt;/code&gt;, &lt;code&gt;String&lt;/code&gt;, or the
++ * &lt;code&gt;JSONObject.NULL object&lt;/code&gt;.
++ * &lt;p&gt;
++ * The constructor can convert a JSON text into a Java object. The
++ * &lt;code&gt;toString&lt;/code&gt; method converts to JSON text.
++ * &lt;p&gt;
++ * A &lt;code&gt;get&lt;/code&gt; method returns a value if one can be found, and throws an
++ * exception if one cannot be found. An &lt;code&gt;opt&lt;/code&gt; method returns a
++ * default value instead of throwing an exception, and so is useful for
++ * obtaining optional values.
++ * &lt;p&gt;
++ * The generic &lt;code&gt;get()&lt;/code&gt; and &lt;code&gt;opt()&lt;/code&gt; methods return an
++ * object which you can cast or query for type. There are also typed
++ * &lt;code&gt;get&lt;/code&gt; and &lt;code&gt;opt&lt;/code&gt; methods that do type checking and type
++ * coercion for you.
++ * &lt;p&gt;
++ * The texts produced by the &lt;code&gt;toString&lt;/code&gt; methods strictly conform to
++ * JSON syntax rules. The constructors are more forgiving in the texts they will
++ * accept:
++ * &lt;ul&gt;
++ * &lt;li&gt;An extra &lt;code&gt;,&lt;/code&gt;&nbsp;&lt;small&gt;(comma)&lt;/small&gt; may appear just
++ *     before the closing bracket.&lt;/li&gt;
++ * &lt;li&gt;The &lt;code&gt;null&lt;/code&gt; value will be inserted when there
++ *     is &lt;code&gt;,&lt;/code&gt;&nbsp;&lt;small&gt;(comma)&lt;/small&gt; elision.&lt;/li&gt;
++ * &lt;li&gt;Strings may be quoted with &lt;code&gt;'&lt;/code&gt;&nbsp;&lt;small&gt;(single
++ *     quote)&lt;/small&gt;.&lt;/li&gt;
++ * &lt;li&gt;Strings do not need to be quoted at all if they do not begin with a quote
++ *     or single quote, and if they do not contain leading or trailing spaces,
++ *     and if they do not contain any of these characters:
++ *     &lt;code&gt;{ } [ ] / \ : , = ; #&lt;/code&gt; and if they do not look like numbers
++ *     and if they are not the reserved words &lt;code&gt;true&lt;/code&gt;,
++ *     &lt;code&gt;false&lt;/code&gt;, or &lt;code&gt;null&lt;/code&gt;.&lt;/li&gt;
++ * &lt;li&gt;Values can be separated by &lt;code&gt;;&lt;/code&gt; &lt;small&gt;(semicolon)&lt;/small&gt; as
++ *     well as by &lt;code&gt;,&lt;/code&gt; &lt;small&gt;(comma)&lt;/small&gt;.&lt;/li&gt;
++ * &lt;li&gt;Numbers may have the 
++ *     &lt;code&gt;0x-&lt;/code&gt; &lt;small&gt;(hex)&lt;/small&gt; prefix.&lt;/li&gt;
++ * &lt;/ul&gt;
++
++ * @author JSON.org
++ * @author Tilman Blumenbach (modifications for Ewe)
++ * @version 2009-04-14_ewe
++ */
++public class JSONArray {
++
++
++    /**
++     * The Vector where the JSONArray's properties are kept.
++     */
++    private Vector myVector;
++
++
++    /**
++     * Construct an empty JSONArray.
++     */
++    public JSONArray() {
++        this.myVector = new Vector();
++    }
++
++    /**
++     * Construct a JSONArray from a JSONTokener.
++     * @param x A JSONTokener
++     * @throws JSONException If there is a syntax error.
++     */
++    public JSONArray(JSONTokener x) throws JSONException {
++        this();
++        char c = x.nextClean();
++        char q;
++        if (c == '[') {
++            q = ']';
++        } else if (c == '(') {
++            q = ')';
++        } else {
++            throw x.syntaxError(&quot;A JSONArray text must start with '['&quot;);
++        }
++        if (x.nextClean() == ']') {
++            return;
++        }
++        x.back();
++        for (;;) {
++            if (x.nextClean() == ',') {
++                x.back();
++                this.myVector.add(null);
++            } else {
++                x.back();
++                this.myVector.add(x.nextValue());
++            }
++            c = x.nextClean();
++            switch (c) {
++            case ';':
++            case ',':
++                if (x.nextClean() == ']') {
++                    return;
++                }
++                x.back();
++                break;
++            case ']':
++            case ')':
++                if (q != c) {
++                    throw x.syntaxError(&quot;Expected a '&quot; + new Character(q) + &quot;'&quot;);
++                }
++                return;
++            default:
++                throw x.syntaxError(&quot;Expected a ',' or ']'&quot;);
++            }
++        }
++    }
++
++
++    /**
++     * Construct a JSONArray from a source JSON text.
++     * @param source     A string that begins with
++     * &lt;code&gt;[&lt;/code&gt;&nbsp;&lt;small&gt;(left bracket)&lt;/small&gt;
++     *  and ends with &lt;code&gt;]&lt;/code&gt;&nbsp;&lt;small&gt;(right bracket)&lt;/small&gt;.
++     *  @throws JSONException If there is a syntax error.
++     */
++    public JSONArray(String source) throws JSONException {
++        this(new JSONTokener(source));
++    }
++
++
++    /**
++     * Construct a JSONArray from an array
++     * @throws JSONException If not an array.
++     */
++    public JSONArray(Object array) throws JSONException {
++        this();
++
++        Wrapper wrapped = null;
++
++        if (Array.isArray(array)) {
++            int length = Array.getLength(array);
++            for (int i = 0; i &lt; length; i++) {
++                wrapped = Array.getElement( array, i, wrapped );
++                this.put(JSONObject.wrap(wrapped.toJavaWrapper()));
++            }
++        } else {
++            throw new JSONException(
++&quot;JSONArray initial value should be a string or array.&quot;);
++        }
++    }
++
++     
++    /**
++     * Get the object value associated with an index.
++     * @param index
++     *  The index must be between 0 and length() - 1.
++     * @return An object value.
++     * @throws JSONException If there is no value for the index.
++     */
++    public Object get(int index) throws JSONException {
++        Object o = opt(index);
++        if (o == null) {
++            throw new JSONException(&quot;JSONArray[&quot; + index + &quot;] not found.&quot;);
++        }
++        return o;
++    }
++
++
++    /**
++     * Get the boolean value associated with an index.
++     * The string values &quot;true&quot; and &quot;false&quot; are converted to boolean.
++     *
++     * @param index The index must be between 0 and length() - 1.
++     * @return      The truth.
++     * @throws JSONException If there is no value for the index or if the
++     *  value is not convertable to boolean.
++     */
++    public boolean getBoolean(int index) throws JSONException {
++        Object o = get(index);
++        if (o.equals(Boolean.FALSE) ||
++                (o instanceof String &amp;&amp;
++                ((String)o).equalsIgnoreCase(&quot;false&quot;))) {
++            return false;
++        } else if (o.equals(Boolean.TRUE) ||
++                (o instanceof String &amp;&amp;
++                ((String)o).equalsIgnoreCase(&quot;true&quot;))) {
++            return true;
++        }
++        throw new JSONException(&quot;JSONArray[&quot; + index + &quot;] is not a Boolean.&quot;);
++    }
++
++
++    /**
++     * Get the double value associated with an index.
++     *
++     * @param index The index must be between 0 and length() - 1.
++     * @return      The value.
++     * @throws   JSONException If the key is not found or if the value cannot
++     *  be converted to a number.
++     */
++    public double getDouble(int index) throws JSONException {
++        Object o = get(index);
++        try {
++            return o instanceof Number ?
++                ((Number)o).doubleValue() :
++                Double.valueOf((String)o).doubleValue();
++        } catch (Exception e) {
++            throw new JSONException(&quot;JSONArray[&quot; + index +
++                &quot;] is not a number.&quot;);
++        }
++    }
++
++
++    /**
++     * Get the int value associated with an index.
++     *
++     * @param index The index must be between 0 and length() - 1.
++     * @return      The value.
++     * @throws   JSONException If the key is not found or if the value cannot
++     *  be converted to a number.
++     *  if the value cannot be converted to a number.
++     */
++    public int getInt(int index) throws JSONException {
++        Object o = get(index);
++        return o instanceof Number ?
++                ((Number)o).intValue() : (int)getDouble(index);
++    }
++
++
++    /**
++     * Get the JSONArray associated with an index.
++     * @param index The index must be between 0 and length() - 1.
++     * @return      A JSONArray value.
++     * @throws JSONException If there is no value for the index. or if the
++     * value is not a JSONArray
++     */
++    public JSONArray getJSONArray(int index) throws JSONException {
++        Object o = get(index);
++        if (o instanceof JSONArray) {
++            return (JSONArray)o;
++        }
++        throw new JSONException(&quot;JSONArray[&quot; + index +
++                &quot;] is not a JSONArray.&quot;);
++    }
++
++
++    /**
++     * Get the JSONObject associated with an index.
++     * @param index subscript
++     * @return      A JSONObject value.
++     * @throws JSONException If there is no value for the index or if the
++     * value is not a JSONObject
++     */
++    public JSONObject getJSONObject(int index) throws JSONException {
++        Object o = get(index);
++        if (o instanceof JSONObject) {
++            return (JSONObject)o;
++        }
++        throw new JSONException(&quot;JSONArray[&quot; + index +
++            &quot;] is not a JSONObject.&quot;);
++    }
++
++
++    /**
++     * Get the long value associated with an index.
++     *
++     * @param index The index must be between 0 and length() - 1.
++     * @return      The value.
++     * @throws   JSONException If the key is not found or if the value cannot
++     *  be converted to a number.
++     */
++    public long getLong(int index) throws JSONException {
++        Object o = get(index);
++        return o instanceof Number ?
++                ((Number)o).longValue() : (long)getDouble(index);
++    }
++
++
++    /**
++     * Get the string associated with an index.
++     * @param index The index must be between 0 and length() - 1.
++     * @return      A string value.
++     * @throws JSONException If there is no value for the index.
++     */
++    public String getString(int index) throws JSONException {
++        return get(index).toString();
++    }
++
++
++    /**
++     * Determine if the value is null.
++     * @param index The index must be between 0 and length() - 1.
++     * @return true if the value at the index is null, or if there is no value.
++     */
++    public boolean isNull(int index) {
++        return JSONObject.NULL.equals(opt(index));
++    }
++
++
++    /**
++     * Make a string from the contents of this JSONArray. The
++     * &lt;code&gt;separator&lt;/code&gt; string is inserted between each element.
++     * Warning: This method assumes that the data structure is acyclical.
++     * @param separator A string that will be inserted between the elements.
++     * @return a string.
++     * @throws JSONException If the array contains an invalid number.
++     */
++    public String join(String separator) throws JSONException {
++        int len = length();
++        StringBuffer sb = new StringBuffer();
++
++        for (int i = 0; i &lt; len; i += 1) {
++            if (i &gt; 0) {
++                sb.append(separator);
++            }
++            sb.append(JSONObject.valueToString(this.myVector.get(i)));
++        }
++        return sb.toString();
++    }
++
++
++    /**
++     * Get the number of elements in the JSONArray, included nulls.
++     *
++     * @return The length (or size).
++     */
++    public int length() {
++        return this.myVector.size();
++    }
++
++
++    /**
++     * Get the optional object value associated with an index.
++     * @param index The index must be between 0 and length() - 1.
++     * @return      An object value, or null if there is no
++     *              object at that index.
++     */
++    public Object opt(int index) {
++        return (index &lt; 0 || index &gt;= length()) ?
++            null : this.myVector.get(index);
++    }
++
++
++    /**
++     * Get the optional boolean value associated with an index.
++     * It returns false if there is no value at that index,
++     * or if the value is not Boolean.TRUE or the String &quot;true&quot;.
++     *
++     * @param index The index must be between 0 and length() - 1.
++     * @return      The truth.
++     */
++    public boolean optBoolean(int index)  {
++        return optBoolean(index, false);
++    }
++
++
++    /**
++     * Get the optional boolean value associated with an index.
++     * It returns the defaultValue if there is no value at that index or if
++     * it is not a Boolean or the String &quot;true&quot; or &quot;false&quot; (case insensitive).
++     *
++     * @param index The index must be between 0 and length() - 1.
++     * @param defaultValue     A boolean default.
++     * @return      The truth.
++     */
++    public boolean optBoolean(int index, boolean defaultValue)  {
++        try {
++            return getBoolean(index);
++        } catch (Exception e) {
++            return defaultValue;
++        }
++    }
++
++
++    /**
++     * Get the optional double value associated with an index.
++     * NaN is returned if there is no value for the index,
++     * or if the value is not a number and cannot be converted to a number.
++     *
++     * @param index The index must be between 0 and length() - 1.
++     * @return      The value.
++     */
++    public double optDouble(int index) {
++        return optDouble(index, Double.NaN);
++    }
++
++
++    /**
++     * Get the optional double value associated with an index.
++     * The defaultValue is returned if there is no value for the index,
++     * or if the value is not a number and cannot be converted to a number.
++     *
++     * @param index subscript
++     * @param defaultValue     The default value.
++     * @return      The value.
++     */
++    public double optDouble(int index, double defaultValue) {
++        try {
++            return getDouble(index);
++        } catch (Exception e) {
++            return defaultValue;
++        }
++    }
++
++
++    /**
++     * Get the optional int value associated with an index.
++     * Zero is returned if there is no value for the index,
++     * or if the value is not a number and cannot be converted to a number.
++     *
++     * @param index The index must be between 0 and length() - 1.
++     * @return      The value.
++     */
++    public int optInt(int index) {
++        return optInt(index, 0);
++    }
++
++
++    /**
++     * Get the optional int value associated with an index.
++     * The defaultValue is returned if there is no value for the index,
++     * or if the value is not a number and cannot be converted to a number.
++     * @param index The index must be between 0 and length() - 1.
++     * @param defaultValue     The default value.
++     * @return      The value.
++     */
++    public int optInt(int index, int defaultValue) {
++        try {
++            return getInt(index);
++        } catch (Exception e) {
++            return defaultValue;
++        }
++    }
++
++
++    /**
++     * Get the optional JSONArray associated with an index.
++     * @param index subscript
++     * @return      A JSONArray value, or null if the index has no value,
++     * or if the value is not a JSONArray.
++     */
++    public JSONArray optJSONArray(int index) {
++        Object o = opt(index);
++        return o instanceof JSONArray ? (JSONArray)o : null;
++    }
++
++
++    /**
++     * Get the optional JSONObject associated with an index.
++     * Null is returned if the key is not found, or null if the index has
++     * no value, or if the value is not a JSONObject.
++     *
++     * @param index The index must be between 0 and length() - 1.
++     * @return      A JSONObject value.
++     */
++    public JSONObject optJSONObject(int index) {
++        Object o = opt(index);
++        return o instanceof JSONObject ? (JSONObject)o : null;
++    }
++
++
++    /**
++     * Get the optional long value associated with an index.
++     * Zero is returned if there is no value for the index,
++     * or if the value is not a number and cannot be converted to a number.
++     *
++     * @param index The index must be between 0 and length() - 1.
++     * @return      The value.
++     */
++    public long optLong(int index) {
++        return optLong(index, 0);
++    }
++
++
++    /**
++     * Get the optional long value associated with an index.
++     * The defaultValue is returned if there is no value for the index,
++     * or if the value is not a number and cannot be converted to a number.
++     * @param index The index must be between 0 and length() - 1.
++     * @param defaultValue     The default value.
++     * @return      The value.
++     */
++    public long optLong(int index, long defaultValue) {
++        try {
++            return getLong(index);
++        } catch (Exception e) {
++            return defaultValue;
++        }
++    }
++
++
++    /**
++     * Get the optional string value associated with an index. It returns an
++     * empty string if there is no value at that index. If the value
++     * is not a string and is not null, then it is coverted to a string.
++     *
++     * @param index The index must be between 0 and length() - 1.
++     * @return      A String value.
++     */
++    public String optString(int index) {
++        return optString(index, &quot;&quot;);
++    }
++
++
++    /**
++     * Get the optional string associated with an index.
++     * The defaultValue is returned if the key is not found.
++     *
++     * @param index The index must be between 0 and length() - 1.
++     * @param defaultValue     The default value.
++     * @return      A String value.
++     */
++    public String optString(int index, String defaultValue) {
++        Object o = opt(index);
++        return o != null ? o.toString() : defaultValue;
++    }
++
++
++    /**
++     * Append a boolean value. This increases the array's length by one.
++     *
++     * @param value A boolean value.
++     * @return this.
++     */
++    public JSONArray put(boolean value) {
++        put(value ? Boolean.TRUE : Boolean.FALSE);
++        return this;
++    }
++
++
++    /**
++     * Append a double value. This increases the array's length by one.
++     *
++     * @param value A double value.
++     * @throws JSONException if the value is not finite.
++     * @return this.
++     */
++    public JSONArray put(double value) throws JSONException {
++        Double d = new Double(value);
++        JSONObject.testValidity(d);
++        put(d);
++        return this;
++    }
++
++
++    /**
++     * Append an int value. This increases the array's length by one.
++     *
++     * @param value An int value.
++     * @return this.
++     */
++    public JSONArray put(int value) {
++        put(new Integer(value));
++        return this;
++    }
++
++
++    /**
++     * Append an long value. This increases the array's length by one.
++     *
++     * @param value A long value.
++     * @return this.
++     */
++    public JSONArray put(long value) {
++        put(new Long(value));
++        return this;
++    }
++
++
++    /**
++     * Put a value in the JSONArray, where the value will be a
++     * JSONObject which is produced from a Map.
++     * @param value A Map value.
++     * @return      this.
++     */
++    public JSONArray put(Map value) {
++        put(new JSONObject(value));
++        return this;
++    }
++
++
++    /**
++     * Append an object value. This increases the array's length by one.
++     * @param value An object value.  The value should be a
++     *  Boolean, Double, Integer, JSONArray, JSONObject, Long, or String, or the
++     *  JSONObject.NULL object.
++     * @return this.
++     */
++    public JSONArray put(Object value) {
++        this.myVector.add(value);
++        return this;
++    }
++
++
++    /**
++     * Put or replace a boolean value in the JSONArray. If the index is greater
++     * than the length of the JSONArray, then null elements will be added as
++     * necessary to pad it out.
++     * @param index The subscript.
++     * @param value A boolean value.
++     * @return this.
++     * @throws JSONException If the index is negative.
++     */
++    public JSONArray put(int index, boolean value) throws JSONException {
++        put(index, value ? Boolean.TRUE : Boolean.FALSE);
++        return this;
++    }
++
++
++    /**
++     * Put or replace a double value. If the index is greater than the length of
++     *  the JSONArray, then null elements will be added as necessary to pad
++     *  it out.
++     * @param index The subscript.
++     * @param value A double value.
++     * @return this.
++     * @throws JSONException If the index is negative or if the value is
++     * not finite.
++     */
++    public JSONArray put(int index, double value) throws JSONException {
++        put(index, new Double(value));
++        return this;
++    }
++
++
++    /**
++     * Put or replace an int value. If the index is greater than the length of
++     *  the JSONArray, then null elements will be added as necessary to pad
++     *  it out.
++     * @param index The subscript.
++     * @param value An int value.
++     * @return this.
++     * @throws JSONException If the index is negative.
++     */
++    public JSONArray put(int index, int value) throws JSONException {
++        put(index, new Integer(value));
++        return this;
++    }
++
++
++    /**
++     * Put or replace a long value. If the index is greater than the length of
++     *  the JSONArray, then null elements will be added as necessary to pad
++     *  it out.
++     * @param index The subscript.
++     * @param value A long value.
++     * @return this.
++     * @throws JSONException If the index is negative.
++     */
++    public JSONArray put(int index, long value) throws JSONException {
++        put(index, new Long(value));
++        return this;
++    }
++
++
++    /**
++     * Put a value in the JSONArray, where the value will be a
++     * JSONObject which is produced from a Map.
++     * @param index The subscript.
++     * @param value The Map value.
++     * @return      this.
++     * @throws JSONException If the index is negative or if the the value is
++     *  an invalid number.
++     */
++    public JSONArray put(int index, Map value) throws JSONException {
++        put(index, new JSONObject(value));
++        return this;
++    }
++
++
++    /**
++     * Put or replace an object value in the JSONArray. If the index is greater
++     *  than the length of the JSONArray, then null elements will be added as
++     *  necessary to pad it out.
++     * @param index The subscript.
++     * @param value The value to put into the array. The value should be a
++     *  Boolean, Double, Integer, JSONArray, JSONObject, Long, or String, or the
++     *  JSONObject.NULL object.
++     * @return this.
++     * @throws JSONException If the index is negative or if the the value is
++     *  an invalid number.
++     */
++    public JSONArray put(int index, Object value) throws JSONException {
++        JSONObject.testValidity(value);
++        if (index &lt; 0) {
++            throw new JSONException(&quot;JSONArray[&quot; + index + &quot;] not found.&quot;);
++        }
++        if (index &lt; length()) {
++            this.myVector.set(index, value);
++        } else {
++            while (index != length()) {
++                put(JSONObject.NULL);
++            }
++            put(value);
++        }
++        return this;
++    }
++    
++    
++    /**
++     * Remove an index and close the hole.
++     * @param index The index of the element to be removed.
++     * @return The value that was associated with the index,
++     * or null if there was no value.
++     */
++    public Object remove(int index) {
++    	Object o = opt(index);
++        this.myVector.del(index);
++        return o;
++    }
++
++
++    /**
++     * Produce a JSONObject by combining a JSONArray of names with the values
++     * of this JSONArray.
++     * @param names A JSONArray containing a list of key strings. These will be
++     * paired with the values.
++     * @return A JSONObject, or null if there are no names or if this JSONArray
++     * has no values.
++     * @throws JSONException If any of the names are null.
++     */
++    public JSONObject toJSONObject(JSONArray names) throws JSONException {
++        if (names == null || names.length() == 0 || length() == 0) {
++            return null;
++        }
++        JSONObject jo = new JSONObject();
++        for (int i = 0; i &lt; names.length(); i += 1) {
++            jo.put(names.getString(i), this.opt(i));
++        }
++        return jo;
++    }
++
++
++    /**
++     * Make a JSON text of this JSONArray. For compactness, no
++     * unnecessary whitespace is added. If it is not possible to produce a
++     * syntactically correct JSON text then null will be returned instead. This
++     * could occur if the array contains an invalid number.
++     * &lt;p&gt;
++     * Warning: This method assumes that the data structure is acyclical.
++     *
++     * @return a printable, displayable, transmittable
++     *  representation of the array.
++     */
++    public String toString() {
++        try {
++            return '[' + join(&quot;,&quot;) + ']';
++        } catch (Exception e) {
++            return null;
++        }
++    }
++
++
++    /**
++     * Make a prettyprinted JSON text of this JSONArray.
++     * Warning: This method assumes that the data structure is acyclical.
++     * @param indentFactor The number of spaces to add to each level of
++     *  indentation.
++     * @return a printable, displayable, transmittable
++     *  representation of the object, beginning
++     *  with &lt;code&gt;[&lt;/code&gt;&nbsp;&lt;small&gt;(left bracket)&lt;/small&gt; and ending
++     *  with &lt;code&gt;]&lt;/code&gt;&nbsp;&lt;small&gt;(right bracket)&lt;/small&gt;.
++     * @throws JSONException
++     */
++    public String toString(int indentFactor) throws JSONException {
++        return toString(indentFactor, 0);
++    }
++
++
++    /**
++     * Make a prettyprinted JSON text of this JSONArray.
++     * Warning: This method assumes that the data structure is acyclical.
++     * @param indentFactor The number of spaces to add to each level of
++     *  indentation.
++     * @param indent The indention of the top level.
++     * @return a printable, displayable, transmittable
++     *  representation of the array.
++     * @throws JSONException
++     */
++    String toString(int indentFactor, int indent) throws JSONException {
++        int len = length();
++        if (len == 0) {
++            return &quot;[]&quot;;
++        }
++        int i;
++        StringBuffer sb = new StringBuffer(&quot;[&quot;);
++        if (len == 1) {
++            sb.append(JSONObject.valueToString(this.myVector.get(0),
++                    indentFactor, indent));
++        } else {
++            int newindent = indent + indentFactor;
++            sb.append('\n');
++            for (i = 0; i &lt; len; i += 1) {
++                if (i &gt; 0) {
++                    sb.append(&quot;,\n&quot;);
++                }
++                for (int j = 0; j &lt; newindent; j += 1) {
++                    sb.append(' ');
++                }
++                sb.append(JSONObject.valueToString(this.myVector.get(i),
++                        indentFactor, newindent));
++            }
++            sb.append('\n');
++            for (i = 0; i &lt; indent; i += 1) {
++                sb.append(' ');
++            }
++        }
++        sb.append(']');
++        return sb.toString();
++    }
++
++
++    /**
++     * Write the contents of the JSONArray as JSON text to a writer.
++     * For compactness, no whitespace is added.
++     * &lt;p&gt;
++     * Warning: This method assumes that the data structure is acyclical.
++     *
++     * @return The writer.
++     * @throws JSONException
++     */
++    public Writer write(Writer writer) throws JSONException {
++        try {
++            boolean b = false;
++            int     len = length();
++
++            writer.write('[');
++
++            for (int i = 0; i &lt; len; i += 1) {
++                if (b) {
++                    writer.write(',');
++                }
++                Object v = this.myVector.get(i);
++                if (v instanceof JSONObject) {
++                    ((JSONObject)v).write(writer);
++                } else if (v instanceof JSONArray) {
++                    ((JSONArray)v).write(writer);
++                } else {
++                    writer.write(JSONObject.valueToString(v));
++                }
++                b = true;
++            }
++            writer.write(']');
++            return writer;
++        } catch (IOException e) {
++           throw new JSONException(e);
++        }
++    }
++}
+
+Added: trunk/tools/json/src/org/json/JSONException.java
+===================================================================
+--- trunk/tools/json/src/org/json/JSONException.java	                        (rev 0)
++++ trunk/tools/json/src/org/json/JSONException.java	2010-08-07 11:30:59 UTC (rev 2720)
+@@ -0,0 +1,31 @@
++package org.json;
++
++/**
++ * The JSONException is thrown by the JSON.org classes when things are amiss.
++ * @author JSON.org
++ * @version 2008-09-18
++ */
++public class JSONException extends Exception {
++    /**
++	 * 
++	 */
++	private static final long serialVersionUID = 0;
++	private Throwable cause;
++
++    /**
++     * Constructs a JSONException with an explanatory message.
++     * @param message Detail about the reason for the exception.
++     */
++    public JSONException(String message) {
++        super(message);
++    }
++
++    public JSONException(Throwable t) {
++        super(t.getMessage());
++        this.cause = t;
++    }
++
++    public Throwable getCause() {
++        return this.cause;
++    }
++}
+
+Added: trunk/tools/json/src/org/json/JSONObject.java
+===================================================================
+--- trunk/tools/json/src/org/json/JSONObject.java	                        (rev 0)
++++ trunk/tools/json/src/org/json/JSONObject.java	2010-08-07 11:30:59 UTC (rev 2720)
+@@ -0,0 +1,1583 @@
++package org.json;
++
++/*
++Copyright (c) 2002 JSON.org
++
++Permission is hereby granted, free of charge, to any person obtaining a copy
++of this software and associated documentation files (the &quot;Software&quot;), to deal
++in the Software without restriction, including without limitation the rights
++to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++copies of the Software, and to permit persons to whom the Software is
++furnished to do so, subject to the following conditions:
++
++The above copyright notice and this permission notice shall be included in all
++copies or substantial portions of the Software.
++
++The Software shall be used for Good, not Evil.
++
++THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
++SOFTWARE.
++*/
++
++import ewe.io.IOException;
++import ewe.io.Writer;
++import ewe.util.Iterator;
++import ewe.util.Enumeration;
++import ewe.util.Map;
++import ewe.util.Hashtable; // Tblue&gt; TODO: Not thread-safe?
++import ewe.util.Utils;
++import ewe.util.StandardComparer;
++import ewe.reflect.Reflect;
++import ewe.reflect.Wrapper;
++import ewe.reflect.Field;
++import ewe.reflect.Array;
++
++import java.lang.reflect.Modifier;
++import java.lang.reflect.Method;
++
++/**
++ * A JSONObject is an unordered collection of name/value pairs. Its
++ * external form is a string wrapped in curly braces with colons between the
++ * names and values, and commas between the values and names. The internal form
++ * is an object having &lt;code&gt;get&lt;/code&gt; and &lt;code&gt;opt&lt;/code&gt; methods for
++ * accessing the values by name, and &lt;code&gt;put&lt;/code&gt; methods for adding or
++ * replacing values by name. The values can be any of these types:
++ * &lt;code&gt;Boolean&lt;/code&gt;, &lt;code&gt;JSONArray&lt;/code&gt;, &lt;code&gt;JSONObject&lt;/code&gt;,
++ * &lt;code&gt;Number&lt;/code&gt;, &lt;code&gt;String&lt;/code&gt;, or the &lt;code&gt;JSONObject.NULL&lt;/code&gt;
++ * object. A JSONObject constructor can be used to convert an external form
++ * JSON text into an internal form whose values can be retrieved with the
++ * &lt;code&gt;get&lt;/code&gt; and &lt;code&gt;opt&lt;/code&gt; methods, or to convert values into a
++ * JSON text using the &lt;code&gt;put&lt;/code&gt; and &lt;code&gt;toString&lt;/code&gt; methods.
++ * A &lt;code&gt;get&lt;/code&gt; method returns a value if one can be found, and throws an
++ * exception if one cannot be found. An &lt;code&gt;opt&lt;/code&gt; method returns a
++ * default value instead of throwing an exception, and so is useful for
++ * obtaining optional values.
++ * &lt;p&gt;
++ * The generic &lt;code&gt;get()&lt;/code&gt; and &lt;code&gt;opt()&lt;/code&gt; methods return an
++ * object, which you can cast or query for type. There are also typed
++ * &lt;code&gt;get&lt;/code&gt; and &lt;code&gt;opt&lt;/code&gt; methods that do type checking and type
++ * coercion for you.
++ * &lt;p&gt;
++ * The &lt;code&gt;put&lt;/code&gt; methods adds values to an object. For example, &lt;pre&gt;
++ *     myString = new JSONObject().put(&quot;JSON&quot;, &quot;Hello, World!&quot;).toString();&lt;/pre&gt;
++ * produces the string &lt;code&gt;{&quot;JSON&quot;: &quot;Hello, World&quot;}&lt;/code&gt;.
++ * &lt;p&gt;
++ * The texts produced by the &lt;code&gt;toString&lt;/code&gt; methods strictly conform to
++ * the JSON syntax rules.
++ * The constructors are more forgiving in the texts they will accept:
++ * &lt;ul&gt;
++ * &lt;li&gt;An extra &lt;code&gt;,&lt;/code&gt;&nbsp;&lt;small&gt;(comma)&lt;/small&gt; may appear just
++ *     before the closing brace.&lt;/li&gt;
++ * &lt;li&gt;Strings may be quoted with &lt;code&gt;'&lt;/code&gt;&nbsp;&lt;small&gt;(single
++ *     quote)&lt;/small&gt;.&lt;/li&gt;
++ * &lt;li&gt;Strings do not need to be quoted at all if they do not begin with a quote
++ *     or single quote, and if they do not contain leading or trailing spaces,
++ *     and if they do not contain any of these characters:
++ *     &lt;code&gt;{ } [ ] / \ : , = ; #&lt;/code&gt; and if they do not look like numbers
++ *     and if they are not the reserved words &lt;code&gt;true&lt;/code&gt;,
++ *     &lt;code&gt;false&lt;/code&gt;, or &lt;code&gt;null&lt;/code&gt;.&lt;/li&gt;
++ * &lt;li&gt;Keys can be followed by &lt;code&gt;=&lt;/code&gt; or &lt;code&gt;=&gt;&lt;/code&gt; as well as
++ *     by &lt;code&gt;:&lt;/code&gt;.&lt;/li&gt;
++ * &lt;li&gt;Values can be followed by &lt;code&gt;;&lt;/code&gt; &lt;small&gt;(semicolon)&lt;/small&gt; as
++ *     well as by &lt;code&gt;,&lt;/code&gt; &lt;small&gt;(comma)&lt;/small&gt;.&lt;/li&gt;
++ * &lt;li&gt;Numbers may have the &lt;code&gt;0x-&lt;/code&gt; &lt;small&gt;(hex)&lt;/small&gt; prefix.&lt;/li&gt;
++ * &lt;/ul&gt;
++ * @author JSON.org
++ * @author Tilman Blumenbach (modifications for Ewe)
++ * @version 2010-05-17_ewe
++ */
++public class JSONObject {
++
++    /**
++     * JSONObject.NULL is equivalent to the value that JavaScript calls null,
++     * whilst Java's null is equivalent to the value that JavaScript calls
++     * undefined.
++     */
++     private static final class Null {
++
++        /**
++         * There is only intended to be a single instance of the NULL object,
++         * so the clone method returns itself.
++         * @return     NULL.
++         */
++        protected final Object clone() {
++            return this;
++        }
++
++
++        /**
++         * A Null object is equal to the null value and to itself.
++         * @param object    An object to test for nullness.
++         * @return true if the object parameter is the JSONObject.NULL object
++         *  or null.
++         */
++        public boolean equals(Object object) {
++            return object == null || object == this;
++        }
++
++
++        /**
++         * Get the &quot;null&quot; string value.
++         * @return The string &quot;null&quot;.
++         */
++        public String toString() {
++            return &quot;null&quot;;
++        }
++    }
++
++
++    /**
++     * The map where the JSONObject's properties are kept.
++     */
++    private Map map;
++
++
++    /**
++     * It is sometimes more convenient and less ambiguous to have a
++     * &lt;code&gt;NULL&lt;/code&gt; object than to use Java's &lt;code&gt;null&lt;/code&gt; value.
++     * &lt;code&gt;JSONObject.NULL.equals(null)&lt;/code&gt; returns &lt;code&gt;true&lt;/code&gt;.
++     * &lt;code&gt;JSONObject.NULL.toString()&lt;/code&gt; returns &lt;code&gt;&quot;null&quot;&lt;/code&gt;.
++     */
++    public static final Object NULL = new Null();
++
++
++    /**
++     * Construct an empty JSONObject.
++     */
++    public JSONObject() {
++        this.map = new Hashtable();
++    }
++
++
++    /**
++     * Construct a JSONObject from a subset of another JSONObject.
++     * An array of strings is used to identify the keys that should be copied.
++     * Missing keys are ignored.
++     * @param jo A JSONObject.
++     * @param names An array of strings.
++     * @throws JSONException 
++     * @exception JSONException If a value is a non-finite number or if a name is duplicated.
++     */
++    public JSONObject(JSONObject jo, String[] names) {
++        this();
++        for (int i = 0; i &lt; names.length; i += 1) {
++        	try {
++        		putOnce(names[i], jo.opt(names[i]));
++        	} catch (Exception ignore) {
++        	}
++        }
++    }
++
++
++    /**
++     * Construct a JSONObject from a JSONTokener.
++     * @param x A JSONTokener object containing the source string.
++     * @throws JSONException If there is a syntax error in the source string
++     *  or a duplicated key.
++     */
++    public JSONObject(JSONTokener x) throws JSONException {
++        this();
++        char c;
++        String key;
++
++        if (x.nextClean() != '{') {
++            throw x.syntaxError(&quot;A JSONObject text must begin with '{'&quot;);
++        }
++        for (;;) {
++            c = x.nextClean();
++            switch (c) {
++            case 0:
++                throw x.syntaxError(&quot;A JSONObject text must end with '}'&quot;);
++            case '}':
++                return;
++            default:
++                x.back();
++                key = x.nextValue().toString();
++            }
++
++            /*
++             * The key is followed by ':'. We will also tolerate '=' or '=&gt;'.
++             */
++
++            c = x.nextClean();
++            if (c == '=') {
++                if (x.next() != '&gt;') {
++                    x.back();
++                }
++            } else if (c != ':') {
++                throw x.syntaxError(&quot;Expected a ':' after a key&quot;);
++            }
++            putOnce(key, x.nextValue());
++
++            /*
++             * Pairs are separated by ','. We will also tolerate ';'.
++             */
++
++            switch (x.nextClean()) {
++            case ';':
++            case ',':
++                if (x.nextClean() == '}') {
++                    return;
++                }
++                x.back();
++                break;
++            case '}':
++                return;
++            default:
++                throw x.syntaxError(&quot;Expected a ',' or '}'&quot;);
++            }
++        }
++    }
++
++
++    /**
++     * Construct a JSONObject from a Map.
++     *
++     * @param map A map object that can be used to initialize the contents of
++     *  the JSONObject.
++     * @throws JSONException 
++     */
++    public JSONObject(Map map) {
++        this.map = new Hashtable();
++        if (map != null) {
++            Iterator i = map.entries();
++            while (i.hasNext()) {
++                Map.MapEntry e = (Map.MapEntry)i.next();
++                this.map.put(e.getKey(), wrap(e.getValue()));
++            }
++        }
++    }
++
++
++    /**
++     * Construct a JSONObject from an Object using bean getters.
++     * It reflects on all of the public methods of the object.
++     * For each of the methods with no parameters and a name starting
++     * with &lt;code&gt;&quot;get&quot;&lt;/code&gt; or &lt;code&gt;&quot;is&quot;&lt;/code&gt; followed by an uppercase letter,
++     * the method is invoked, and a key and the value returned from the getter method
++     * are put into the new JSONObject.
++     *
++     * The key is formed by removing the &lt;code&gt;&quot;get&quot;&lt;/code&gt; or &lt;code&gt;&quot;is&quot;&lt;/code&gt; prefix.
++     * If the second remaining character is not upper case, then the first
++     * character is converted to lower case.
++     *
++     * For example, if an object has a method named &lt;code&gt;&quot;getName&quot;&lt;/code&gt;, and
++     * if the result of calling &lt;code&gt;object.getName()&lt;/code&gt; is &lt;code&gt;&quot;Larry Fine&quot;&lt;/code&gt;,
++     * then the JSONObject will contain &lt;code&gt;&quot;name&quot;: &quot;Larry Fine&quot;&lt;/code&gt;.
++     *
++     * @param bean An object that has getter methods that should be used
++     * to make a JSONObject.
++     */
++    public JSONObject(Object bean) {
++        this();
++        populateMap(bean);
++    }
++
++
++    /**
++     * Construct a JSONObject from an Object, using reflection to find the
++     * public members. The resulting JSONObject's keys will be the strings
++     * from the names array, and the values will be the field values associated
++     * with those keys in the object. If a key is not found or not visible,
++     * then it will not be copied into the new JSONObject.
++     * @param object An object that has fields that should be used to make a
++     * JSONObject.
++     * @param names An array of strings, the names of the fields to be obtained
++     * from the object.
++     */
++    public JSONObject(Object object, String names[]) {
++        this();
++        
++        Reflect c = Reflect.getForObject( object );
++        Wrapper wrapped = null;
++        
++        for (int i = 0; i &lt; names.length; i += 1) {
++            String name = names[i];
++            try {
++                wrapped = c.getField(name, Reflect.PUBLIC).getValue( object, wrapped );
++                putOpt(name, wrapped.toJavaWrapper());
++            } catch (Exception ignore) {
++            }
++        }
++    }
++
++
++    /**
++     * Construct a JSONObject from a source JSON text string.
++     * This is the most commonly used JSONObject constructor.
++     * @param source    A string beginning
++     *  with &lt;code&gt;{&lt;/code&gt;&nbsp;&lt;small&gt;(left brace)&lt;/small&gt; and ending
++     *  with &lt;code&gt;}&lt;/code&gt;&nbsp;&lt;small&gt;(right brace)&lt;/small&gt;.
++     * @exception JSONException If there is a syntax error in the source
++     *  string or a duplicated key.
++     */
++    public JSONObject(String source) throws JSONException {
++        this(new JSONTokener(source));
++    }
++
++
++    /**
++     * Accumulate values under a key. It is similar to the put method except
++     * that if there is already an object stored under the key then a
++     * JSONArray is stored under the key to hold all of the accumulated values.
++     * If there is already a JSONArray, then the new value is appended to it.
++     * In contrast, the put method replaces the previous value.
++     * @param key   A key string.
++     * @param value An object to be accumulated under the key.
++     * @return this.
++     * @throws JSONException If the value is an invalid number
++     *  or if the key is null.
++     */
++    public JSONObject accumulate(String key, Object value)
++            throws JSONException {
++        testValidity(value);
++        Object o = opt(key);
++        if (o == null) {
++            put(key, value instanceof JSONArray ?
++                    new JSONArray().put(value) :
++                    value);
++        } else if (o instanceof JSONArray) {
++            ((JSONArray)o).put(value);
++        } else {
++            put(key, new JSONArray().put(o).put(value));
++        }
++        return this;
++    }
++
++
++    /**
++     * Append values to the array under a key. If the key does not exist in the
++     * JSONObject, then the key is put in the JSONObject with its value being a
++     * JSONArray containing the value parameter. If the key was already
++     * associated with a JSONArray, then the value parameter is appended to it.
++     * @param key   A key string.
++     * @param value An object to be accumulated under the key.
++     * @return this.
++     * @throws JSONException If the key is null or if the current value
++     *  associated with the key is not a JSONArray.
++     */
++    public JSONObject append(String key, Object value) throws JSONException {
++        testValidity(value);
++        Object o = opt(key);
++        if (o == null) {
++            put(key, new JSONArray().put(value));
++        } else if (o instanceof JSONArray) {
++            put(key, ((JSONArray)o).put(value));
++        } else {
++            throw new JSONException(&quot;JSONObject[&quot; + key +
++                    &quot;] is not a JSONArray.&quot;);
++        }
++        return this;
++    }
++
++
++    /**
++     * Produce a string from a double. The string &quot;null&quot; will be returned if
++     * the number is not finite.
++     * @param  d A double.
++     * @return A String.
++     */
++    static public String doubleToString(double d) {
++        if (Double.isInfinite(d) || Double.isNaN(d)) {
++            return &quot;null&quot;;
++        }
++
++// Shave off trailing zeros and decimal point, if possible.
++
++        String s = Double.toString(d);
++        if (s.indexOf('.') &gt; 0 &amp;&amp; s.indexOf('e') &lt; 0 &amp;&amp; s.indexOf('E') &lt; 0) {
++            while (s.endsWith(&quot;0&quot;)) {
++                s = s.substring(0, s.length() - 1);
++            }
++            if (s.endsWith(&quot;.&quot;)) {
++                s = s.substring(0, s.length() - 1);
++            }
++        }
++        return s;
++    }
++
++
++    /**
++     * Get the value object associated with a key.
++     *
++     * @param key   A key string.
++     * @return      The object associated with the key.
++     * @throws   JSONException if the key is not found.
++     */
++    public Object get(String key) throws JSONException {
++        Object o = opt(key);
++        if (o == null) {
++            throw new JSONException(&quot;JSONObject[&quot; + quote(key) +
++                    &quot;] not found.&quot;);
++        }
++        return o;
++    }
++
++
++    /**
++     * Get the boolean value associated with a key.
++     *
++     * @param key   A key string.
++     * @return      The truth.
++     * @throws   JSONException
++     *  if the value is not a Boolean or the String &quot;true&quot; or &quot;false&quot;.
++     */
++    public boolean getBoolean(String key) throws JSONException {
++        Object o = get(key);
++        if (o.equals(Boolean.FALSE) ||
++                (o instanceof String &amp;&amp;
++                ((String)o).equalsIgnoreCase(&quot;false&quot;))) {
++            return false;
++        } else if (o.equals(Boolean.TRUE) ||
++                (o instanceof String &amp;&amp;
++                ((String)o).equalsIgnoreCase(&quot;true&quot;))) {
++            return true;
++        }
++        throw new JSONException(&quot;JSONObject[&quot; + quote(key) +
++                &quot;] is not a Boolean.&quot;);
++    }
++
++
++    /**
++     * Get the double value associated with a key.
++     * @param key   A key string.
++     * @return      The numeric value.
++     * @throws JSONException if the key is not found or
++     *  if the value is not a Number object and cannot be converted to a number.
++     */
++    public double getDouble(String key) throws JSONException {
++        Object o = get(key);
++        try {
++            return o instanceof Number ?
++                ((Number)o).doubleValue() :
++                Double.valueOf((String)o).doubleValue();
++        } catch (Exception e) {
++            throw new JSONException(&quot;JSONObject[&quot; + quote(key) +
++                &quot;] is not a number.&quot;);
++        }
++    }
++
++
++    /**
++     * Get the int value associated with a key. 
++     *
++     * @param key   A key string.
++     * @return      The integer value.
++     * @throws   JSONException if the key is not found or if the value cannot
++     *  be converted to an integer.
++     */
++    public int getInt(String key) throws JSONException {
++        Object o = get(key);
++        try {
++            return o instanceof Number ?
++                ((Number)o).intValue() :
++                Integer.parseInt((String)o);
++        } catch (Exception e) {
++            throw new JSONException(&quot;JSONObject[&quot; + quote(key) +
++                &quot;] is not an int.&quot;);
++        }
++    }
++
++
++    /**
++     * Get the JSONArray value associated with a key.
++     *
++     * @param key   A key string.
++     * @return      A JSONArray which is the value.
++     * @throws   JSONException if the key is not found or
++     *  if the value is not a JSONArray.
++     */
++    public JSONArray getJSONArray(String key) throws JSONException {
++        Object o = get(key);
++        if (o instanceof JSONArray) {
++            return (JSONArray)o;
++        }
++        throw new JSONException(&quot;JSONObject[&quot; + quote(key) +
++                &quot;] is not a JSONArray.&quot;);
++    }
++
++
++    /**
++     * Get the JSONObject value associated with a key.
++     *
++     * @param key   A key string.
++     * @return      A JSONObject which is the value.
++     * @throws   JSONException if the key is not found or
++     *  if the value is not a JSONObject.
++     */
++    public JSONObject getJSONObject(String key) throws JSONException {
++        Object o = get(key);
++        if (o instanceof JSONObject) {
++            return (JSONObject)o;
++        }
++        throw new JSONException(&quot;JSONObject[&quot; + quote(key) +
++                &quot;] is not a JSONObject.&quot;);
++    }
++
++
++    /**
++     * Get the long value associated with a key. 
++     *
++     * @param key   A key string.
++     * @return      The long value.
++     * @throws   JSONException if the key is not found or if the value cannot
++     *  be converted to a long.
++     */
++    public long getLong(String key) throws JSONException {
++        Object o = get(key);
++        try {
++            return o instanceof Number ?
++                ((Number)o).longValue() :
++                Long.parseLong((String)o);
++        } catch (Exception e) {
++            throw new JSONException(&quot;JSONObject[&quot; + quote(key) +
++                &quot;] is not a long.&quot;);
++        }
++    }
++
++
++    /**
++     * Get an array of field names from a JSONObject.
++     *
++     * @return An array of field names, or null if there are no names.
++     */
++    public static String[] getNames(JSONObject jo) {
++        int length = jo.length();
++        if (length == 0) {
++            return null;
++        }
++        Enumeration i     = jo.keys();
++        String[]    names = new String[length];
++        int j = 0;
++        while (i.hasMoreElements()) {
++            names[j] = (String)i.nextElement();
++            j += 1;
++        }
++        return names;
++    }
++
++
++    /**
++     * Get an array of field names from an Object.
++     *
++     * @return An array of field names, or null if there are no names.
++     */
++    public static String[] getNames(Object object) {
++        if (object == null) {
++            return null;
++        }
++        Reflect klass = Reflect.getForObject( object );
++        Field[] fields = klass.getFields( Reflect.PUBLIC );
++        int length = fields.length;
++        if (length == 0) {
++            return null;
++        }
++        String[] names = new String[length];
++        for (int i = 0; i &lt; length; i += 1) {
++            names[i] = fields[i].getName();
++        }
++        return names;
++    }
++
++
++    /**
++     * Get the string associated with a key.
++     *
++     * @param key   A key string.
++     * @return      A string which is the value.
++     * @throws   JSONException if the key is not found.
++     */
++    public String getString(String key) throws JSONException {
++        return get(key).toString();
++    }
++
++
++    /**
++     * Determine if the JSONObject contains a specific key.
++     * @param key   A key string.
++     * @return      true if the key exists in the JSONObject.
++     */
++    public boolean has(String key) {
++        return this.map.containsKey(key);
++    }
++    
++    
++    /**
++     * Increment a property of a JSONObject. If there is no such property,
++     * create one with a value of 1. If there is such a property, and if
++     * it is an Integer, Long, Double, or Float, then add one to it.
++     * @param key  A key string.
++     * @return this.
++     * @throws JSONException If there is already a property with this name
++     * that is not an Integer, Long, Double, or Float.
++     */
++    public JSONObject increment(String key) throws JSONException {
++    	Object value = opt(key);
++    	if (value == null) {
++    		put(key, 1);
++    	} else {
++    		if (value instanceof Integer) {
++    			put(key, ((Integer)value).intValue() + 1);
++    		} else if (value instanceof Long) {
++    			put(key, ((Long)value).longValue() + 1);    			
++    		} else if (value instanceof Double) {
++	    		put(key, ((Double)value).doubleValue() + 1);    			
++    		} else if (value instanceof Float) {
++	    		put(key, ((Float)value).floatValue() + 1);    			
++		    } else {
++		    	throw new JSONException(&quot;Unable to increment [&quot; + key + &quot;].&quot;);
++		    }
++	    }
++    	return this;
++    }
++
++
++    /**
++     * Determine if the value associated with the key is null or if there is
++     *  no value.
++     * @param key   A key string.
++     * @return      true if there is no value associated with the key or if
++     *  the value is the JSONObject.NULL object.
++     */
++    public boolean isNull(String key) {
++        return JSONObject.NULL.equals(opt(key));
++    }
++
++
++    /**
++     * Get an enumeration of the keys of the JSONObject.
++     *
++     * @return An enumeration of the keys.
++     */
++    public Enumeration keys() {
++        return ((Hashtable)(this.map)).keys();
++    }
++
++
++    /**
++     * Get the number of keys stored in the JSONObject.
++     *
++     * @return The number of keys in the JSONObject.
++     */
++    public int length() {
++        return this.map.size();
++    }
++
++
++    /**
++     * Produce a JSONArray containing the names of the elements of this
++     * JSONObject.
++     * @return A JSONArray containing the key strings, or null if the JSONObject
++     * is empty.
++     */
++    public JSONArray names() {
++        JSONArray   ja   = new JSONArray();
++        Enumeration keys = keys();
++        while (keys.hasMoreElements()) {
++            ja.put(keys.nextElement());
++        }
++        return ja.length() == 0 ? null : ja;
++    }
++
++    /**
++     * Produce a string from a Number.
++     * @param  n A Number
++     * @return A String.
++     * @throws JSONException If n is a non-finite number.
++     */
++    static public String numberToString(Number n)
++            throws JSONException {
++        if (n == null) {
++            throw new JSONException(&quot;Null pointer&quot;);
++        }
++        testValidity(n);
++
++// Shave off trailing zeros and decimal point, if possible.
++
++        String s = n.toString();
++        if (s.indexOf('.') &gt; 0 &amp;&amp; s.indexOf('e') &lt; 0 &amp;&amp; s.indexOf('E') &lt; 0) {
++            while (s.endsWith(&quot;0&quot;)) {
++                s = s.substring(0, s.length() - 1);
++            }
++            if (s.endsWith(&quot;.&quot;)) {
++                s = s.substring(0, s.length() - 1);
++            }
++        }
++        return s;
++    }
++
++
++    /**
++     * Get an optional value associated with a key.
++     * @param key   A key string.
++     * @return      An object which is the value, or null if there is no value.
++     */
++    public Object opt(String key) {
++        return key == null ? null : this.map.get(key);
++    }
++
++
++    /**
++     * Get an optional boolean associated with a key.
++     * It returns false if there is no such key, or if the value is not
++     * Boolean.TRUE or the String &quot;true&quot;.
++     *
++     * @param key   A key string.
++     * @return      The truth.
++     */
++    public boolean optBoolean(String key) {
++        return optBoolean(key, false);
++    }
++
++
++    /**
++     * Get an optional boolean associated with a key.
++     * It returns the defaultValue if there is no such key, or if it is not
++     * a Boolean or the String &quot;true&quot; or &quot;false&quot; (case insensitive).
++     *
++     * @param key              A key string.
++     * @param defaultValue     The default.
++     * @return      The truth.
++     */
++    public boolean optBoolean(String key, boolean defaultValue) {
++        try {
++            return getBoolean(key);
++        } catch (Exception e) {
++            return defaultValue;
++        }
++    }
++
++
++    /**
++     * Get an optional double associated with a key,
++     * or NaN if there is no such key or if its value is not a number.
++     * If the value is a string, an attempt will be made to evaluate it as
++     * a number.
++     *
++     * @param key   A string which is the key.
++     * @return      An object which is the value.
++     */
++    public double optDouble(String key) {
++        return optDouble(key, Double.NaN);
++    }
++
++
++    /**
++     * Get an optional double associated with a key, or the
++     * defaultValue if there is no such key or if its value is not a number.
++     * If the value is a string, an attempt will be made to evaluate it as
++     * a number.
++     *
++     * @param key   A key string.
++     * @param defaultValue     The default.
++     * @return      An object which is the value.
++     */
++    public double optDouble(String key, double defaultValue) {
++        try {
++            Object o = opt(key);
++            return o instanceof Number ? ((Number)o).doubleValue() :
++                new Double((String)o).doubleValue();
++        } catch (Exception e) {
++            return defaultValue;
++        }
++    }
++
++
++    /**
++     * Get an optional int value associated with a key,
++     * or zero if there is no such key or if the value is not a number.
++     * If the value is a string, an attempt will be made to evaluate it as
++     * a number.
++     *
++     * @param key   A key string.
++     * @return      An object which is the value.
++     */
++    public int optInt(String key) {
++        return optInt(key, 0);
++    }
++
++
++    /**
++     * Get an optional int value associated with a key,
++     * or the default if there is no such key or if the value is not a number.
++     * If the value is a string, an attempt will be made to evaluate it as
++     * a number.
++     *
++     * @param key   A key string.
++     * @param defaultValue     The default.
++     * @return      An object which is the value.
++     */
++    public int optInt(String key, int defaultValue) {
++        try {
++            return getInt(key);
++        } catch (Exception e) {
++            return defaultValue;
++        }
++    }
++
++
++    /**
++     * Get an optional JSONArray associated with a key.
++     * It returns null if there is no such key, or if its value is not a
++     * JSONArray.
++     *
++     * @param key   A key string.
++     * @return      A JSONArray which is the value.
++     */
++    public JSONArray optJSONArray(String key) {
++        Object o = opt(key);
++        return o instanceof JSONArray ? (JSONArray)o : null;
++    }
++
++
++    /**
++     * Get an optional JSONObject associated with a key.
++     * It returns null if there is no such key, or if its value is not a
++     * JSONObject.
++     *
++     * @param key   A key string.
++     * @return      A JSONObject which is the value.
++     */
++    public JSONObject optJSONObject(String key) {
++        Object o = opt(key);
++        return o instanceof JSONObject ? (JSONObject)o : null;
++    }
++
++
++    /**
++     * Get an optional long value associated with a key,
++     * or zero if there is no such key or if the value is not a number.
++     * If the value is a string, an attempt will be made to evaluate it as
++     * a number.
++     *
++     * @param key   A key string.
++     * @return      An object which is the value.
++     */
++    public long optLong(String key) {
++        return optLong(key, 0);
++    }
++
++
++    /**
++     * Get an optional long value associated with a key,
++     * or the default if there is no such key or if the value is not a number.
++     * If the value is a string, an attempt will be made to evaluate it as
++     * a number.
++     *
++     * @param key   A key string.
++     * @param defaultValue     The default.
++     * @return      An object which is the value.
++     */
++    public long optLong(String key, long defaultValue) {
++        try {
++            return getLong(key);
++        } catch (Exception e) {
++            return defaultValue;
++        }
++    }
++
++
++    /**
++     * Get an optional string associated with a key.
++     * It returns an empty string if there is no such key. If the value is not
++     * a string and is not null, then it is coverted to a string.
++     *
++     * @param key   A key string.
++     * @return      A string which is the value.
++     */
++    public String optString(String key) {
++        return optString(key, &quot;&quot;);
++    }
++
++
++    /**
++     * Get an optional string associated with a key.
++     * It returns the defaultValue if there is no such key.
++     *
++     * @param key   A key string.
++     * @param defaultValue     The default.
++     * @return      A string which is the value.
++     */
++    public String optString(String key, String defaultValue) {
++        Object o = opt(key);
++        return o != null ? o.toString() : defaultValue;
++    }
++
++
++    private void populateMap(Object bean) {
++        Class klass = Reflect.getForObject(bean).getReflectedClass();
++
++// If klass is a System class then set includeSuperClass to false. 
++
++        boolean includeSuperClass = klass.getClassLoader() != null;
++
++        Method[] methods = (includeSuperClass) ?
++                klass.getMethods() : klass.getDeclaredMethods();
++        for (int i = 0; i &lt; methods.length; i += 1) {
++            try {
++                Method method = methods[i];
++                if (Modifier.isPublic(method.getModifiers())) {
++                    String name = method.getName();
++                    String key = &quot;&quot;;
++                    if (name.startsWith(&quot;get&quot;)) {
++                    	if (name.equals(&quot;getClass&quot;) || 
++                    			name.equals(&quot;getDeclaringClass&quot;)) {
++                    		key = &quot;&quot;;
++                    	} else {
++                    		key = name.substring(3);
++                    	}
++                    } else if (name.startsWith(&quot;is&quot;)) {
++                        key = name.substring(2);
++                    }
++                    if (key.length() &gt; 0 &amp;&amp;
++                            Character.isUpperCase(key.charAt(0)) &amp;&amp;
++                            method.getParameterTypes().length == 0) {
++                        if (key.length() == 1) {
++                            key = key.toLowerCase();
++                        } else if (!Character.isUpperCase(key.charAt(1))) {
++                            key = key.substring(0, 1).toLowerCase() +
++                                key.substring(1);
++                        }
++
++                        Object result = method.invoke(bean, (Object[])null);
++
++                        map.put(key, wrap(result));
++                    }
++                }
++            } catch (Exception ignore) {
++            }
++        }
++    }
++
++
++    /**
++     * Put a key/boolean pair in the JSONObject.
++     *
++     * @param key   A key string.
++     * @param value A boolean which is the value.
++     * @return this.
++     * @throws JSONException If the key is null.
++     */
++    public JSONObject put(String key, boolean value) throws JSONException {
++        put(key, value ? Boolean.TRUE : Boolean.FALSE);
++        return this;
++    }
++
++
++    /**
++     * Put a key/double pair in the JSONObject.
++     *
++     * @param key   A key string.
++     * @param value A double which is the value.
++     * @return this.
++     * @throws JSONException If the key is null or if the number is invalid.
++     */
++    public JSONObject put(String key, double value) throws JSONException {
++        put(key, new Double(value));
++        return this;
++    }
++
++
++    /**
++     * Put a key/int pair in the JSONObject.
++     *
++     * @param key   A key string.
++     * @param value An int which is the value.
++     * @return this.
++     * @throws JSONException If the key is null.
++     */
++    public JSONObject put(String key, int value) throws JSONException {
++        put(key, new Integer(value));
++        return this;
++    }
++
++
++    /**
++     * Put a key/long pair in the JSONObject.
++     *
++     * @param key   A key string.
++     * @param value A long which is the value.
++     * @return this.
++     * @throws JSONException If the key is null.
++     */
++    public JSONObject put(String key, long value) throws JSONException {
++        put(key, new Long(value));
++        return this;
++    }
++
++
++    /**
++     * Put a key/value pair in the JSONObject, where the value will be a
++     * JSONObject which is produced from a Map.
++     * @param key   A key string.
++     * @param value A Map value.
++     * @return      this.
++     * @throws JSONException
++     */
++    public JSONObject put(String key, Map value) throws JSONException {
++        put(key, new JSONObject(value));
++        return this;
++    }
++
++
++    /**
++     * Put a key/value pair in the JSONObject. If the value is null,
++     * then the key will be removed from the JSONObject if it is present.
++     * @param key   A key string.
++     * @param value An object which is the value. It should be of one of these
++     *  types: Boolean, Double, Integer, JSONArray, JSONObject, Long, String,
++     *  or the JSONObject.NULL object.
++     * @return this.
++     * @throws JSONException If the value is non-finite number
++     *  or if the key is null.
++     */
++    public JSONObject put(String key, Object value) throws JSONException {
++        if (key == null) {
++            throw new JSONException(&quot;Null key.&quot;);
++        }
++        if (value != null) {
++            testValidity(value);
++            this.map.put(key, value);
++        } else {
++            remove(key);
++        }
++        return this;
++    }
++
++
++    /**
++     * Put a key/value pair in the JSONObject, but only if the key and the
++     * value are both non-null, and only if there is not already a member
++     * with that name.
++     * @param key
++     * @param value
++     * @return his.
++     * @throws JSONException if the key is a duplicate
++     */
++    public JSONObject putOnce(String key, Object value) throws JSONException {
++        if (key != null &amp;&amp; value != null) {
++            if (opt(key) != null) {
++                throw new JSONException(&quot;Duplicate key \&quot;&quot; + key + &quot;\&quot;&quot;);
++            }
++            put(key, value);
++        }
++        return this;
++    }
++
++
++    /**
++     * Put a key/value pair in the JSONObject, but only if the
++     * key and the value are both non-null.
++     * @param key   A key string.
++     * @param value An object which is the value. It should be of one of these
++     *  types: Boolean, Double, Integer, JSONArray, JSONObject, Long, String,
++     *  or the JSONObject.NULL object.
++     * @return this.
++     * @throws JSONException If the value is a non-finite number.
++     */
++    public JSONObject putOpt(String key, Object value) throws JSONException {
++        if (key != null &amp;&amp; value != null) {
++            put(key, value);
++        }
++        return this;
++    }
++
++
++    /**
++     * Produce a string in double quotes with backslash sequences in all the
++     * right places. A backslash will be inserted within &lt;/, allowing JSON
++     * text to be delivered in HTML. In JSON text, a string cannot contain a
++     * control character or an unescaped quote or backslash.
++     * @param string A String
++     * @return  A String correctly formatted for insertion in a JSON text.
++     */
++    public static String quote(String string) {
++        if (string == null || string.length() == 0) {
++            return &quot;\&quot;\&quot;&quot;;
++        }
++
++        char         b;
++        char         c = 0;
++        int          i;
++        int          len = string.length();
++        StringBuffer sb = new StringBuffer(len + 4);
++        String       t;
++
++        sb.append('&quot;');
++        for (i = 0; i &lt; len; i += 1) {
++            b = c;
++            c = string.charAt(i);
++            switch (c) {
++            case '\\':
++            case '&quot;':
++                sb.append('\\');
++                sb.append(c);
++                break;
++            case '/':
++                if (b == '&lt;') {
++                    sb.append('\\');
++                }
++                sb.append(c);
++                break;
++            case '\b':
++                sb.append(&quot;\\b&quot;);
++                break;
++            case '\t':
++                sb.append(&quot;\\t&quot;);
++                break;
++            case '\n':
++                sb.append(&quot;\\n&quot;);
++                break;
++            case '\f':
++                sb.append(&quot;\\f&quot;);
++                break;
++            case '\r':
++                sb.append(&quot;\\r&quot;);
++                break;
++            default:
++                if (c &lt; ' ' || (c &gt;= '\u0080' &amp;&amp; c &lt; '\u00a0') ||
++                               (c &gt;= '\u2000' &amp;&amp; c &lt; '\u2100')) {
++                    t = &quot;000&quot; + Integer.toHexString(c);
++                    sb.append(&quot;\\u&quot; + t.substring(t.length() - 4));
++                } else {
++                    sb.append(c);
++                }
++            }
++        }
++        sb.append('&quot;');
++        return sb.toString();
++    }
++
++    /**
++     * Remove a name and its value, if present.
++     * @param key The name to be removed.
++     * @return The value that was associated with the name,
++     * or null if there was no value.
++     */
++    public Object remove(String key) {
++        return this.map.remove(key);
++    }
++
++    /**
++     * Get a alphabetically sorted array of the keys in the JSONObject.
++     *
++     * Tblue&gt; I know this is ugly and probably completely inefficient
++     *        but blame Ewe for not providing a TreeSet. 
++     * 
++     * @return An array containing the keys.
++     */
++    public Object[] sortedKeys() {
++      Enumeration iter = this.keys();
++      Object[] keys = new Object[this.length()];
++      int i;
++
++      for( i = 0; iter.hasMoreElements(); i++ ) {
++        keys[i] = iter.nextElement();
++      }
++
++      // Now sort the keys:
++      Utils.sort( keys, new StandardComparer(), false );
++      return keys;
++    }
++
++    /**
++     * Try to convert a string into a number, boolean, or null. If the string
++     * can't be converted, return the string.
++     * @param s A String.
++     * @return A simple JSON value.
++     */
++    static public Object stringToValue(String s) {
++        if (s.equals(&quot;&quot;)) {
++            return s;
++        }
++        if (s.equalsIgnoreCase(&quot;true&quot;)) {
++            return Boolean.TRUE;
++        }
++        if (s.equalsIgnoreCase(&quot;false&quot;)) {
++            return Boolean.FALSE;
++        }
++        if (s.equalsIgnoreCase(&quot;null&quot;)) {
++            return JSONObject.NULL;
++        }
++
++        /*
++         * If it might be a number, try converting it. 
++         * We support the non-standard 0x- convention. 
++         * If a number cannot be produced, then the value will just
++         * be a string. Note that the 0x-, plus, and implied string
++         * conventions are non-standard. A JSON parser may accept
++         * non-JSON forms as long as it accepts all correct JSON forms.
++         */
++
++        char b = s.charAt(0);
++        if ((b &gt;= '0' &amp;&amp; b &lt;= '9') || b == '.' || b == '-' || b == '+') {
++            if (b == '0' &amp;&amp; s.length() &gt; 2 &amp;&amp;
++                        (s.charAt(1) == 'x' || s.charAt(1) == 'X')) {
++                try {
++                    return new Integer(Integer.parseInt(s.substring(2), 16));
++                } catch (Exception ignore) {
++                }
++            }
++            try {
++                if (s.indexOf('.') &gt; -1 || 
++                		s.indexOf('e') &gt; -1 || s.indexOf('E') &gt; -1) {
++                    return Double.valueOf(s);
++                } else {
++                    Long myLong = new Long(s);
++                    if (myLong.longValue() == myLong.intValue()) {
++                        return new Integer(myLong.intValue());
++                    } else {
++                        return myLong;
++                    }
++                }
++            }  catch (Exception ignore) {
++            }
++        }
++        return s;
++    }
++
++
++    /**
++     * Throw an exception if the object is an NaN or infinite number.
++     * @param o The object to test.
++     * @throws JSONException If o is a non-finite number.
++     */
++    static void testValidity(Object o) throws JSONException {
++        if (o != null) {
++            if (o instanceof Double) {
++                if (((Double)o).isInfinite() || ((Double)o).isNaN()) {
++                    throw new JSONException(
++                        &quot;JSON does not allow non-finite numbers.&quot;);
++                }
++            } else if (o instanceof Float) {
++                if (((Float)o).isInfinite() || ((Float)o).isNaN()) {
++                    throw new JSONException(
++                        &quot;JSON does not allow non-finite numbers.&quot;);
++                }
++            }
++        }
++    }
++
++
++    /**
++     * Produce a JSONArray containing the values of the members of this
++     * JSONObject.
++     * @param names A JSONArray containing a list of key strings. This
++     * determines the sequence of the values in the result.
++     * @return A JSONArray of values.
++     * @throws JSONException If any of the values are non-finite numbers.
++     */
++    public JSONArray toJSONArray(JSONArray names) throws JSONException {
++        if (names == null || names.length() == 0) {
++            return null;
++        }
++        JSONArray ja = new JSONArray();
++        for (int i = 0; i &lt; names.length(); i += 1) {
++            ja.put(this.opt(names.getString(i)));
++        }
++        return ja;
++    }
++
++    /**
++     * Make a JSON text of this JSONObject. For compactness, no whitespace
++     * is added. If this would not result in a syntactically correct JSON text,
++     * then null will be returned instead.
++     * &lt;p&gt;
++     * Warning: This method assumes that the data structure is acyclical.
++     *
++     * @return a printable, displayable, portable, transmittable
++     *  representation of the object, beginning
++     *  with &lt;code&gt;{&lt;/code&gt;&nbsp;&lt;small&gt;(left brace)&lt;/small&gt; and ending
++     *  with &lt;code&gt;}&lt;/code&gt;&nbsp;&lt;small&gt;(right brace)&lt;/small&gt;.
++     */
++    public String toString() {
++        try {
++            Enumeration  keys = keys();
++            StringBuffer sb = new StringBuffer(&quot;{&quot;);
++
++            while (keys.hasMoreElements()) {
++                if (sb.length() &gt; 1) {
++                    sb.append(',');
++                }
++                Object o = keys.nextElement();
++                sb.append(quote(o.toString()));
++                sb.append(':');
++                sb.append(valueToString(this.map.get(o)));
++            }
++            sb.append('}');
++            return sb.toString();
++        } catch (Exception e) {
++            return null;
++        }
++    }
++
++
++    /**
++     * Make a prettyprinted JSON text of this JSONObject.
++     * &lt;p&gt;
++     * Warning: This method assumes that the data structure is acyclical.
++     * @param indentFactor The number of spaces to add to each level of
++     *  indentation.
++     * @return a printable, displayable, portable, transmittable
++     *  representation of the object, beginning
++     *  with &lt;code&gt;{&lt;/code&gt;&nbsp;&lt;small&gt;(left brace)&lt;/small&gt; and ending
++     *  with &lt;code&gt;}&lt;/code&gt;&nbsp;&lt;small&gt;(right brace)&lt;/small&gt;.
++     * @throws JSONException If the object contains an invalid number.
++     */
++    public String toString(int indentFactor) throws JSONException {
++        return toString(indentFactor, 0);
++    }
++
++
++    /**
++     * Make a prettyprinted JSON text of this JSONObject.
++     * &lt;p&gt;
++     * Warning: This method assumes that the data structure is acyclical.
++     * @param indentFactor The number of spaces to add to each level of
++     *  indentation.
++     * @param indent The indentation of the top level.
++     * @return a printable, displayable, transmittable
++     *  representation of the object, beginning
++     *  with &lt;code&gt;{&lt;/code&gt;&nbsp;&lt;small&gt;(left brace)&lt;/small&gt; and ending
++     *  with &lt;code&gt;}&lt;/code&gt;&nbsp;&lt;small&gt;(right brace)&lt;/small&gt;.
++     * @throws JSONException If the object contains an invalid number.
++     */
++    String toString(int indentFactor, int indent) throws JSONException {
++        int i, j;
++        int n = length();
++        if (n == 0) {
++            return &quot;{}&quot;;
++        }
++        Object[]     keys = sortedKeys();
++        StringBuffer sb = new StringBuffer(&quot;{&quot;);
++        int          newindent = indent + indentFactor;
++        Object       o;
++        if (n == 1) {
++            o = keys[0];
++            sb.append(quote(o.toString()));
++            sb.append(&quot;: &quot;);
++            sb.append(valueToString(this.map.get(o), indentFactor,
++                    indent));
++        } else {
++            for( i = 0; i &lt; n; i++) {
++                o = keys[i];
++                if (sb.length() &gt; 1) {
++                    sb.append(&quot;,\n&quot;);
++                } else {
++                    sb.append('\n');
++                }
++                for (j = 0; j &lt; newindent; j += 1) {
++                    sb.append(' ');
++                }
++                sb.append(quote(o.toString()));
++                sb.append(&quot;: &quot;);
++                sb.append(valueToString(this.map.get(o), indentFactor,
++                        newindent));
++            }
++            if (sb.length() &gt; 1) {
++                sb.append('\n');
++                for (j = 0; j &lt; indent; j += 1) {
++                    sb.append(' ');
++                }
++            }
++        }
++        sb.append('}');
++        return sb.toString();
++    }
++
++
++    /**
++     * Make a JSON text of an Object value. If the object has an
++     * value.toJSONString() method, then that method will be used to produce
++     * the JSON text. The method is required to produce a strictly
++     * conforming text. If the object does not contain a toJSONString
++     * method (which is the most common case), then a text will be
++     * produced by other means. If the value is an array or Collection,
++     * then a JSONArray will be made from it and its toJSONString method
++     * will be called. If the value is a MAP, then a JSONObject will be made
++     * from it and its toJSONString method will be called. Otherwise, the
++     * value's toString method will be called, and the result will be quoted.
++     *
++     * &lt;p&gt;
++     * Warning: This method assumes that the data structure is acyclical.
++     * @param value The value to be serialized.
++     * @return a printable, displayable, transmittable
++     *  representation of the object, beginning
++     *  with &lt;code&gt;{&lt;/code&gt;&nbsp;&lt;small&gt;(left brace)&lt;/small&gt; and ending
++     *  with &lt;code&gt;}&lt;/code&gt;&nbsp;&lt;small&gt;(right brace)&lt;/small&gt;.
++     * @throws JSONException If the value is or contains an invalid number.
++     */
++    static String valueToString(Object value) throws JSONException {
++        if (value == null || value.equals(null)) {
++            return &quot;null&quot;;
++        }
++        if (value instanceof JSONString) {
++            Object o;
++            try {
++                o = ((JSONString)value).toJSONString();
++            } catch (Exception e) {
++                throw new JSONException(e);
++            }
++            if (o instanceof String) {
++                return (String)o;
++            }
++            throw new JSONException(&quot;Bad value from toJSONString: &quot; + o);
++        }
++        if (value instanceof Number) {
++            return numberToString((Number) value);
++        }
++        if (value instanceof Boolean || value instanceof JSONObject ||
++                value instanceof JSONArray) {
++            return value.toString();
++        }
++        if (value instanceof Map) {
++            return new JSONObject((Map)value).toString();
++        }
++        if (Array.isArray(value)) {
++            return new JSONArray(value).toString();
++        }
++        return quote(value.toString());
++    }
++
++
++    /**
++     * Make a prettyprinted JSON text of an object value.
++     * &lt;p&gt;
++     * Warning: This method assumes that the data structure is acyclical.
++     * @param value The value to be serialized.
++     * @param indentFactor The number of spaces to add to each level of
++     *  indentation.
++     * @param indent The indentation of the top level.
++     * @return a printable, displayable, transmittable
++     *  representation of the object, beginning
++     *  with &lt;code&gt;{&lt;/code&gt;&nbsp;&lt;small&gt;(left brace)&lt;/small&gt; and ending
++     *  with &lt;code&gt;}&lt;/code&gt;&nbsp;&lt;small&gt;(right brace)&lt;/small&gt;.
++     * @throws JSONException If the object contains an invalid number.
++     */
++     static String valueToString(Object value, int indentFactor, int indent)
++            throws JSONException {
++        if (value == null || value.equals(null)) {
++            return &quot;null&quot;;
++        }
++        try {
++            if (value instanceof JSONString) {
++                Object o = ((JSONString)value).toJSONString();
++                if (o instanceof String) {
++                    return (String)o;
++                }
++            }
++        } catch (Exception ignore) {
++        }
++        if (value instanceof Number) {
++            return numberToString((Number) value);
++        }
++        if (value instanceof Boolean) {
++            return value.toString();
++        }
++        if (value instanceof JSONObject) {
++            return ((JSONObject)value).toString(indentFactor, indent);
++        }
++        if (value instanceof JSONArray) {
++            return ((JSONArray)value).toString(indentFactor, indent);
++        }
++        if (value instanceof Map) {
++            return new JSONObject((Map)value).toString(indentFactor, indent);
++        }
++        if (Array.isArray(value)) {
++            return new JSONArray(value).toString(indentFactor, indent);
++        }
++        return quote(value.toString());
++    }
++
++
++     /**
++      * Wrap an object, if necessary. If the object is null, return the NULL 
++      * object. If it is an array or collection, wrap it in a JSONArray. If 
++      * it is a map, wrap it in a JSONObject. If it is a standard property 
++      * (Double, String, et al) then it is already wrapped. Otherwise, if it 
++      * comes from one of the java packages, turn it into a string. And if 
++      * it doesn't, try to wrap it in a JSONObject. If the wrapping fails,
++      * then null is returned.
++      *
++      * @param object The object to wrap
++      * @return The wrapped value
++      */
++     static Object wrap(Object object) {
++         try {
++             if (object == null) {
++                 return NULL;
++             }
++             if (object instanceof JSONObject || object instanceof JSONArray || 
++            		 NULL.equals(object)      || object instanceof JSONString || 
++            		 object instanceof Byte   || object instanceof Character ||
++                     object instanceof Short  || object instanceof Integer   ||
++                     object instanceof Long   || object instanceof Boolean   || 
++                     object instanceof Float  || object instanceof Double    ||
++                     object instanceof String) {
++                 return object;
++             }
++             
++             if (Array.isArray(object)) {
++                 return new JSONArray(object);
++             }
++             if (object instanceof Map) {
++                 return new JSONObject((Map)object);
++             }
++             Package objectPackage = Reflect.getForObject(object).getReflectedClass().getPackage();
++             String objectPackageName = ( objectPackage != null ? objectPackage.getName() : &quot;&quot; );
++             if (objectPackageName.startsWith(&quot;java.&quot;) ||
++            		 objectPackageName.startsWith(&quot;javax.&quot;) ||
++            		 Reflect.getForObject(object).getReflectedClass().getClassLoader() == null) {
++                 return object.toString();
++             }
++             return new JSONObject(object);
++         } catch(Exception exception) {
++             return null;
++         }
++     }
++
++     
++     /**
++      * Write the contents of the JSONObject as JSON text to a writer.
++      * For compactness, no whitespace is added.
++      * &lt;p&gt;
++      * Warning: This method assumes that the data structure is acyclical.
++      *
++      * @return The writer.
++      * @throws JSONException
++      */
++     public Writer write(Writer writer) throws JSONException {
++        try {
++            boolean  b = false;
++            Enumeration keys = keys();
++            writer.write('{');
++
++            while (keys.hasMoreElements()) {
++                if (b) {
++                    writer.write(',');
++                }
++                Object k = keys.nextElement();
++                writer.write(quote(k.toString()));
++                writer.write(':');
++                Object v = this.map.get(k);
++                if (v instanceof JSONObject) {
++                    ((JSONObject)v).write(writer);
++                } else if (v instanceof JSONArray) {
++                    ((JSONArray)v).write(writer);
++                } else {
++                    writer.write(valueToString(v));
++                }
++                b = true;
++            }
++            writer.write('}');
++            return writer;
++        } catch (IOException exception) {
++            throw new JSONException(exception);
++        }
++     }
++}
+
+Added: trunk/tools/json/src/org/json/JSONString.java
+===================================================================
+--- trunk/tools/json/src/org/json/JSONString.java	                        (rev 0)
++++ trunk/tools/json/src/org/json/JSONString.java	2010-08-07 11:30:59 UTC (rev 2720)
+@@ -0,0 +1,18 @@
++package org.json;
++/**
++ * The &lt;code&gt;JSONString&lt;/code&gt; interface allows a &lt;code&gt;toJSONString()&lt;/code&gt; 
++ * method so that a class can change the behavior of 
++ * &lt;code&gt;JSONObject.toString()&lt;/code&gt;, &lt;code&gt;JSONArray.toString()&lt;/code&gt;,
++ * and &lt;code&gt;JSONWriter.value(&lt;/code&gt;Object&lt;code&gt;)&lt;/code&gt;. The 
++ * &lt;code&gt;toJSONString&lt;/code&gt; method will be used instead of the default behavior 
++ * of using the Object's &lt;code&gt;toString()&lt;/code&gt; method and quoting the result.
++ */
++public interface JSONString {
++	/**
++	 * The &lt;code&gt;toJSONString&lt;/code&gt; method allows a class to produce its own JSON 
++	 * serialization. 
++	 * 
++	 * @return A strictly syntactically correct JSON text.
++	 */
++	public String toJSONString();
++}
+
+Added: trunk/tools/json/src/org/json/JSONTokener.java
+===================================================================
+--- trunk/tools/json/src/org/json/JSONTokener.java	                        (rev 0)
++++ trunk/tools/json/src/org/json/JSONTokener.java	2010-08-07 11:30:59 UTC (rev 2720)
+@@ -0,0 +1,435 @@
++package org.json;
++
++import ewe.io.BufferedReader;
++import ewe.io.IOException;
++import ewe.io.Reader;
++import ewe.io.StringReader;
++
++/*
++Copyright (c) 2002 JSON.org
++
++Permission is hereby granted, free of charge, to any person obtaining a copy
++of this software and associated documentation files (the &quot;Software&quot;), to deal
++in the Software without restriction, including without limitation the rights
++to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
++copies of the Software, and to permit persons to whom the Software is
++furnished to do so, subject to the following conditions:
++
++The above copyright notice and this permission notice shall be included in all
++copies or substantial portions of the Software.
++
++The Software shall be used for Good, not Evil.
++
++THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
++IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
++FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
++AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
++LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
++OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
++SOFTWARE.
++*/
++
++/**
++ * A JSONTokener takes a source string and extracts characters and tokens from
++ * it. It is used by the JSONObject and JSONArray constructors to parse
++ * JSON source strings.
++ * @author JSON.org
++ * @version 2010-02-02_ewe
++ */
++public class JSONTokener {
++
++    private int 	character;
++	private boolean eof;
++    private int 	index;
++    private int 	line;
++    private char 	previous;
++    private Reader 	reader;
++    private boolean usePrevious;
++
++
++    /**
++     * Construct a JSONTokener from a reader.
++     *
++     * @param reader     A reader.
++     */
++    public JSONTokener(Reader reader) {
++        this.reader = reader.markSupported() ? 
++        		reader : new BufferedReader(reader);
++        this.eof = false;
++        this.usePrevious = false;
++        this.previous = 0;
++        this.index = 0;
++        this.character = 1;
++        this.line = 1;
++    }
++
++
++    /**
++     * Construct a JSONTokener from a string.
++     *
++     * @param s     A source string.
++     */
++    public JSONTokener(String s) {
++        this(new StringReader(s));
++    }
++
++
++    /**
++     * Back up one character. This provides a sort of lookahead capability,
++     * so that you can test for a digit or letter before attempting to parse
++     * the next number or identifier.
++     */
++    public void back() throws JSONException {
++        if (usePrevious || index &lt;= 0) {
++            throw new JSONException(&quot;Stepping back two steps is not supported&quot;);
++        }
++        this.index -= 1;
++        this.character -= 1;
++        this.usePrevious = true;
++        this.eof = false;
++    }
++
++
++    /**
++     * Get the hex value of a character (base16).
++     * @param c A character between '0' and '9' or between 'A' and 'F' or
++     * between 'a' and 'f'.
++     * @return  An int between 0 and 15, or -1 if c was not a hex digit.
++     */
++    public static int dehexchar(char c) {
++        if (c &gt;= '0' &amp;&amp; c &lt;= '9') {
++            return c - '0';
++        }
++        if (c &gt;= 'A' &amp;&amp; c &lt;= 'F') {
++            return c - ('A' - 10);
++        }
++        if (c &gt;= 'a' &amp;&amp; c &lt;= 'f') {
++            return c - ('a' - 10);
++        }
++        return -1;
++    }
++    
++    public boolean end() {
++    	return eof &amp;&amp; !usePrevious;    	
++    }
++
++
++    /**
++     * Determine if the source string still contains characters that next()
++     * can consume.
++     * @return true if not yet at the end of the source.
++     */
++    public boolean more() throws JSONException {
++        next();
++        if (end()) {
++            return false;
++        } 
++        back();
++        return true;
++    }
++
++
++    /**
++     * Get the next character in the source string.
++     *
++     * @return The next character, or 0 if past the end of the source string.
++     */
++    public char next() throws JSONException {
++        int c;
++        if (this.usePrevious) {
++        	this.usePrevious = false;
++            c = this.previous;
++        } else {
++	        try {
++	            c = this.reader.read();
++	        } catch (IOException exception) {
++	            throw new JSONException(exception);
++	        }
++	
++	        if (c &lt;= 0) { // End of stream
++	        	this.eof = true;
++	        	c = 0;
++	        } 
++        }
++    	this.index += 1;
++    	if (this.previous == '\r') {
++    		this.line += 1;
++    		this.character = c == '\n' ? 0 : 1;
++    	} else if (c == '\n') {
++    		this.line += 1;
++    		this.character = 0;
++    	} else {
++    		this.character += 1;
++    	}
++    	this.previous = (char) c;
++        return this.previous;
++    }
++
++
++    /**
++     * Consume the next character, and check that it matches a specified
++     * character.
++     * @param c The character to match.
++     * @return The character.
++     * @throws JSONException if the character does not match.
++     */
++    public char next(char c) throws JSONException {
++        char n = next();
++        if (n != c) {
++            throw syntaxError(&quot;Expected '&quot; + c + &quot;' and instead saw '&quot; +
++                    n + &quot;'&quot;);
++        }
++        return n;
++    }
++
++
++    /**
++     * Get the next n characters.
++     *
++     * @param n     The number of characters to take.
++     * @return      A string of n characters.
++     * @throws JSONException
++     *   Substring bounds error if there are not
++     *   n characters remaining in the source string.
++     */
++     public String next(int n) throws JSONException {
++         if (n == 0) {
++             return &quot;&quot;;
++         }
++
++         char[] buffer = new char[n];
++         int pos = 0;
++
++         while (pos &lt; n) {
++             buffer[pos] = next();
++             if (end()) {
++                 throw syntaxError(&quot;Substring bounds error&quot;);                 
++             }
++             pos += 1;
++         }
++         return new String(buffer);
++     }
++
++
++    /**
++     * Get the next char in the string, skipping whitespace.
++     * @throws JSONException
++     * @return  A character, or 0 if there are no more characters.
++     */
++    public char nextClean() throws JSONException {
++        for (;;) {
++            char c = next();
++            if (c == 0 || c &gt; ' ') {
++                return c;
++            }
++        }
++    }
++
++
++    /**
++     * Return the characters up to the next close quote character.
++     * Backslash processing is done. The formal JSON format does not
++     * allow strings in single quotes, but an implementation is allowed to
++     * accept them.
++     * @param quote The quoting character, either
++     *      &lt;code&gt;&quot;&lt;/code&gt;&nbsp;&lt;small&gt;(double quote)&lt;/small&gt; or
++     *      &lt;code&gt;'&lt;/code&gt;&nbsp;&lt;small&gt;(single quote)&lt;/small&gt;.
++     * @return      A String.
++     * @throws JSONException Unterminated string.
++     */
++    public String nextString(char quote) throws JSONException {
++        char c;
++        StringBuffer sb = new StringBuffer();
++        for (;;) {
++            c = next();
++            switch (c) {
++            case 0:
++            case '\n':
++            case '\r':
++                throw syntaxError(&quot;Unterminated string&quot;);
++            case '\\':
++                c = next();
++                switch (c) {
++                case 'b':
++                    sb.append('\b');
++                    break;
++                case 't':
++                    sb.append('\t');
++                    break;
++                case 'n':
++                    sb.append('\n');
++                    break;
++                case 'f':
++                    sb.append('\f');
++                    break;
++                case 'r':
++                    sb.append('\r');
++                    break;
++                case 'u':
++                    sb.append((char)Integer.parseInt(next(4), 16));
++                    break;
++                case '&quot;':
++                case '\'':
++                case '\\':
++                case '/':
++                	sb.append(c);
++                	break;
++                default:
++                    throw syntaxError(&quot;Illegal escape.&quot;);
++                }
++                break;
++            default:
++                if (c == quote) {
++                    return sb.toString();
++                }
++                sb.append(c);
++            }
++        }
++    }
++
++
++    /**
++     * Get the text up but not including the specified character or the
++     * end of line, whichever comes first.
++     * @param  d A delimiter character.
++     * @return   A string.
++     */
++    public String nextTo(char d) throws JSONException {
++        StringBuffer sb = new StringBuffer();
++        for (;;) {
++            char c = next();
++            if (c == d || c == 0 || c == '\n' || c == '\r') {
++                if (c != 0) {
++                    back();
++                }
++                return sb.toString().trim();
++            }
++            sb.append(c);
++        }
++    }
++
++
++    /**
++     * Get the text up but not including one of the specified delimiter
++     * characters or the end of line, whichever comes first.
++     * @param delimiters A set of delimiter characters.
++     * @return A string, trimmed.
++     */
++    public String nextTo(String delimiters) throws JSONException {
++        char c;
++        StringBuffer sb = new StringBuffer();
++        for (;;) {
++            c = next();
++            if (delimiters.indexOf(c) &gt;= 0 || c == 0 ||
++                    c == '\n' || c == '\r') {
++                if (c != 0) {
++                    back();
++                }
++                return sb.toString().trim();
++            }
++            sb.append(c);
++        }
++    }
++
++
++    /**
++     * Get the next value. The value can be a Boolean, Double, Integer,
++     * JSONArray, JSONObject, Long, or String, or the JSONObject.NULL object.
++     * @throws JSONException If syntax error.
++     *
++     * @return An object.
++     */
++    public Object nextValue() throws JSONException {
++        char c = nextClean();
++        String s;
++
++        switch (c) {
++            case '&quot;':
++            case '\'':
++                return nextString(c);
++            case '{':
++                back();
++                return new JSONObject(this);
++            case '[':
++            case '(':
++                back();
++                return new JSONArray(this);
++        }
++
++        /*
++         * Handle unquoted text. This could be the values true, false, or
++         * null, or it can be a number. An implementation (such as this one)
++         * is allowed to also accept non-standard forms.
++         *
++         * Accumulate characters until we reach the end of the text or a
++         * formatting character.
++         */
++
++        StringBuffer sb = new StringBuffer();
++        while (c &gt;= ' ' &amp;&amp; &quot;,:]}/\\\&quot;[{;=#&quot;.indexOf(c) &lt; 0) {
++            sb.append(c);
++            c = next();
++        }
++        back();
++
++        s = sb.toString().trim();
++        if (s.equals(&quot;&quot;)) {
++            throw syntaxError(&quot;Missing value&quot;);
++        }
++        return JSONObject.stringToValue(s);
++    }
++
++
++    /**
++     * Skip characters until the next character is the requested character.
++     * If the requested character is not found, no characters are skipped.
++     * @param to A character to skip to.
++     * @return The requested character, or zero if the requested character
++     * is not found.
++     */
++    public char skipTo(char to) throws JSONException {
++        char c;
++        try {
++            int startIndex = this.index;
++            int startCharacter = this.character;
++            int startLine = this.line;
++            reader.mark(Integer.MAX_VALUE);
++            do {
++                c = next();
++                if (c == 0) {
++                    reader.reset();
++                    this.index = startIndex;
++                    this.character = startCharacter;
++                    this.line = startLine;
++                    return c;
++                }
++            } while (c != to);
++        } catch (IOException exc) {
++            throw new JSONException(exc);
++        }
++
++        back();
++        return c;
++    }
++    
++
++    /**
++     * Make a JSONException to signal a syntax error.
++     *
++     * @param message The error message.
++     * @return  A JSONException object, suitable for throwing
++     */
++    public JSONException syntaxError(String message) {
++        return new JSONException(message + toString());
++    }
++
++
++    /**
++     * Make a printable string of this JSONTokener.
++     *
++     * @return &quot; at {index} [character {character} line {line}]&quot;
++     */
++    public String toString() {
++        return &quot; at &quot; + index + &quot; [character &quot; + this.character + &quot; line &quot; + this.line + &quot;]&quot;;
++    }
++}
+
+Added: trunk/tools/json/src/org/json/Test.java
+===================================================================
+--- trunk/tools/json/src/org/json/Test.java	                        (rev 0)
++++ trunk/tools/json/src/org/json/Test.java	2010-08-07 11:30:59 UTC (rev 2720)
+@@ -0,0 +1,378 @@
++package org.json;
++
++import ewe.sys.*;
++import ewe.sys.Double;
++
++import ewe.util.Enumeration;
++import ewe.util.Map;
++import ewe.io.StringWriter;
++
++import ewe.reflect.Array;
++import ewe.reflect.Wrapper;
++
++
++/**
++ * Test class. This file is not formally a member of the org.json library.
++ * It is just a casual test tool.
++ */
++public class Test {
++	
++    /**
++     * Entry point.
++     * @param args
++     */
++    public static void main(String args[]) {
++        Vm.startEwe(args);
++
++        Vm.debug( String.valueOf( Array.isArray( &quot;foo&quot; ) ) );
++        
++        double[] ia = { 1, 6, 95, 0, -200.6 };
++        int x;
++        Wrapper wrap = null;
++
++        for( x = 0; x &lt; Array.getLength( ia ); x++ )
++        {
++          wrap = Array.getElement( ia, x, wrap );
++          Vm.debug( &quot;[&quot; + x + &quot;] &quot; + String.valueOf( wrap.toJavaWrapper() ) );
++        }
++  
++        Enumeration it;
++        JSONArray a;
++        JSONObject j;
++        Object o;
++        String s;
++        
++/** 
++ *  Obj is a typical class that implements JSONString. It also
++ *  provides some beanie methods that can be used to 
++ *  construct a JSONObject. It also demonstrates constructing
++ *  a JSONObject with an array of names.
++ */
++        class Obj implements JSONString {
++        	public String aString;
++        	public double aNumber;
++        	public boolean aBoolean;
++        	
++            public Obj(String string, double n, boolean b) {
++                this.aString = string;
++                this.aNumber = n;
++                this.aBoolean = b;
++            }
++            
++            public double getNumber() {
++            	return this.aNumber;
++            }
++            
++            public String getString() {
++            	return this.aString;
++            }
++            
++            public boolean isBoolean() {
++            	return this.aBoolean;
++            }
++            
++            public String getBENT() {
++            	return &quot;All uppercase key&quot;;
++            }
++            
++            public String getX() {
++            	return &quot;x&quot;;
++            }
++            
++            public String toJSONString() {
++            	return &quot;{&quot; + JSONObject.quote(this.aString) + &quot;:&quot; + 
++            	JSONObject.doubleToString(this.aNumber) + &quot;}&quot;;
++            }            
++            public String toString() {
++            	return this.getString() + &quot; &quot; + this.getNumber() + &quot; &quot; + 
++            			this.isBoolean() + &quot;.&quot; + this.getBENT() + &quot; &quot; + this.getX();
++            }
++        }      
++        
++
++    	Obj obj = new Obj(&quot;A beany object&quot;, 42, true);
++        
++        try {     
++            s = &quot;[0.1]&quot;;
++            a = new JSONArray(s);
++            Vm.debug(a.toString());
++            Vm.debug(&quot;&quot;);
++            
++            j = new JSONObject();
++            o = null;
++            j.put(&quot;booga&quot;, o);
++            j.put(&quot;wooga&quot;, JSONObject.NULL);
++            Vm.debug(j.toString());
++            Vm.debug(&quot;&quot;);
++           
++            j = new JSONObject();
++            j.increment(&quot;two&quot;);
++            j.increment(&quot;two&quot;);
++            Vm.debug(j.toString());
++            Vm.debug(&quot;&quot;);
++            
++            
++            s = &quot;{     \&quot;list of lists\&quot; : [         [1, 2, 3],         [4, 5, 6],     ] }&quot;;
++            j = new JSONObject(s);
++            Vm.debug(j.toString(4));
++                    
++            
++            j = new JSONObject(obj);
++            Vm.debug(j.toString());
++            
++            s = &quot;{ \&quot;entity\&quot;: { \&quot;imageURL\&quot;: \&quot;\&quot;, \&quot;name\&quot;: \&quot;IXXXXXXXXXXXXX\&quot;, \&quot;id\&quot;: 12336, \&quot;ratingCount\&quot;: null, \&quot;averageRating\&quot;: null } }&quot;;
++            j = new JSONObject(s);
++            Vm.debug(j.toString(2));
++
++        	int ar[] = {1, 2, 3};
++        	JSONArray ja = new JSONArray(ar);
++        	Vm.debug(ja.toString());
++        	
++        	String sa[] = {&quot;aString&quot;, &quot;aNumber&quot;, &quot;aBoolean&quot;};            
++            j = new JSONObject(obj, sa);
++            j.put(&quot;Testing JSONString interface&quot;, obj);
++            Vm.debug(j.toString(4));          
++            
++            j = new JSONObject(&quot;{slashes: '///', closetag: '&lt;/script&gt;', backslash:'\\\\', ei: {quotes: '\&quot;\\''},eo: {a: '\&quot;quoted\&quot;', b:\&quot;don't\&quot;}, quotes: [\&quot;'\&quot;, '\&quot;']}&quot;);
++            Vm.debug(j.toString(2));
++            Vm.debug(&quot;&quot;);
++
++            j = new JSONObject(
++                &quot;{foo: [true, false,9876543210,    0.0, 1.00000001,  1.000000000001, 1.00000000000000001,&quot; +
++                &quot; .00000000000000001, 2.00, 0.1, 2e100, -32,[],{}, \&quot;string\&quot;], &quot; +
++                &quot;  to   : null, op : 'Good',&quot; +
++                &quot;ten:10} postfix comment&quot;);
++            j.put(&quot;String&quot;, &quot;98.6&quot;);
++            j.put(&quot;JSONObject&quot;, new JSONObject());
++            j.put(&quot;JSONArray&quot;, new JSONArray());
++            j.put(&quot;int&quot;, 57);
++            j.put(&quot;double&quot;, 123456789012345678901234567890.);
++            j.put(&quot;true&quot;, true);
++            j.put(&quot;false&quot;, false);
++            j.put(&quot;null&quot;, JSONObject.NULL);
++            j.put(&quot;bool&quot;, &quot;true&quot;);
++            j.put(&quot;zero&quot;, -0.0);
++            j.put(&quot;\\u2028&quot;, &quot;\u2028&quot;);
++            j.put(&quot;\\u2029&quot;, &quot;\u2029&quot;);
++            a = j.getJSONArray(&quot;foo&quot;);
++            a.put(666);
++            a.put(2001.99);
++            a.put(&quot;so \&quot;fine\&quot;.&quot;);
++            a.put(&quot;so &lt;fine&gt;.&quot;);
++            a.put(true);
++            a.put(false);
++            a.put(new JSONArray());
++            a.put(new JSONObject());
++            j.put(&quot;keys&quot;, JSONObject.getNames(j));
++            Vm.debug(j.toString(4));
++
++            Vm.debug(&quot;String: &quot; + j.getDouble(&quot;String&quot;));
++            Vm.debug(&quot;  bool: &quot; + j.getBoolean(&quot;bool&quot;));
++            Vm.debug(&quot;    to: &quot; + j.getString(&quot;to&quot;));
++            Vm.debug(&quot;  true: &quot; + j.getString(&quot;true&quot;));
++            Vm.debug(&quot;   foo: &quot; + j.getJSONArray(&quot;foo&quot;));
++            Vm.debug(&quot;    op: &quot; + j.getString(&quot;op&quot;));
++            Vm.debug(&quot;   ten: &quot; + j.getInt(&quot;ten&quot;));
++            Vm.debug(&quot;  oops: &quot; + j.optBoolean(&quot;oops&quot;));
++
++            j = new JSONObject(&quot;{nix: null, nux: false, null: 'null', 'Request-URI': '/', Method: 'GET', 'HTTP-Version': 'HTTP/1.0'}&quot;);
++            Vm.debug(j.toString(2));
++            Vm.debug(&quot;isNull: &quot; + j.isNull(&quot;nix&quot;));
++            Vm.debug(&quot;   has: &quot; + j.has(&quot;nix&quot;));
++            Vm.debug(&quot;&quot;);
++
++            j = new JSONObject(&quot;{script: 'It is not allowed in HTML to send a close script tag in a string&lt;script&gt;because it confuses browsers&lt;/script&gt;so we insert a backslash before the /'}&quot;);
++            Vm.debug(j.toString());
++            Vm.debug(&quot;&quot;);
++
++            JSONTokener jt = new JSONTokener(&quot;{op:'test', to:'session', pre:1}{op:'test', to:'session', pre:2}&quot;);
++            j = new JSONObject(jt);
++            Vm.debug(j.toString());
++            Vm.debug(&quot;pre: &quot; + j.optInt(&quot;pre&quot;));
++            int i = jt.skipTo('{');
++            Vm.debug(String.valueOf(i));
++            j = new JSONObject(jt);
++            Vm.debug(j.toString());
++            Vm.debug(&quot;&quot;);
++
++            a = new JSONArray(&quot; [\&quot;&lt;escape&gt;\&quot;, next is an implied null , , ok,] &quot;);
++            Vm.debug(a.toString());
++            Vm.debug(&quot;&quot;);
++
++            j = new JSONObject(&quot;{ fun =&gt; with non-standard forms ; forgiving =&gt; This package can be used to parse formats that are similar to but not stricting conforming to JSON; why=To make it easier to migrate existing data to JSON,one = [[1.00]]; uno=[[{1=&gt;1}]];'+':+6e66 ;pluses=+++;empty = '' , 'double':0.666,true: TRUE, false: FALSE, null=NULL;[true] = [[!,@;*]]; string=&gt;  o. k. ; \r oct=0666; hex=0x666; dec=666; o=0999; noh=0x0x}&quot;);
++            Vm.debug(j.toString(4));
++            Vm.debug(&quot;&quot;);
++            if (j.getBoolean(&quot;true&quot;) &amp;&amp; !j.getBoolean(&quot;false&quot;)) {
++                Vm.debug(&quot;It's all good&quot;);
++            }
++
++            Vm.debug(&quot;&quot;);
++            j = new JSONObject(j, new String[]{&quot;dec&quot;, &quot;oct&quot;, &quot;hex&quot;, &quot;missing&quot;});
++            Vm.debug(j.toString(4));
++
++            Vm.debug(&quot;&quot;);
++            j = new JSONObject(&quot;{string: \&quot;98.6\&quot;, long: 2147483648, int: 2147483647, longer: 9223372036854775807, double: 9223372036854775808}&quot;);
++            Vm.debug(j.toString(4));
++
++            Vm.debug(&quot;\ngetInt&quot;);
++            Vm.debug(&quot;int    &quot; + j.getInt(&quot;int&quot;));
++            Vm.debug(&quot;long   &quot; + j.getInt(&quot;long&quot;));
++            Vm.debug(&quot;longer &quot; + j.getInt(&quot;longer&quot;));
++            //Vm.debug(&quot;double &quot; + j.getInt(&quot;double&quot;));
++            //Vm.debug(&quot;string &quot; + j.getInt(&quot;string&quot;));
++
++            Vm.debug(&quot;\ngetLong&quot;);
++            Vm.debug(&quot;int    &quot; + j.getLong(&quot;int&quot;));
++            Vm.debug(&quot;long   &quot; + j.getLong(&quot;long&quot;));
++            Vm.debug(&quot;longer &quot; + j.getLong(&quot;longer&quot;));
++            //Vm.debug(&quot;double &quot; + j.getLong(&quot;double&quot;));
++            //Vm.debug(&quot;string &quot; + j.getLong(&quot;string&quot;));
++
++            Vm.debug(&quot;\ngetDouble&quot;);
++            Vm.debug(&quot;int    &quot; + j.getDouble(&quot;int&quot;));
++            Vm.debug(&quot;long   &quot; + j.getDouble(&quot;long&quot;));
++            Vm.debug(&quot;longer &quot; + j.getDouble(&quot;longer&quot;));
++            Vm.debug(&quot;double &quot; + j.getDouble(&quot;double&quot;));
++            Vm.debug(&quot;string &quot; + j.getDouble(&quot;string&quot;));
++
++            j.put(&quot;good sized&quot;, 9223372036854775807L);
++            Vm.debug(j.toString(4));
++
++            a = new JSONArray(&quot;[2147483647, 2147483648, 9223372036854775807, 9223372036854775808]&quot;);
++            Vm.debug(a.toString(4));
++
++            Vm.debug(&quot;\nKeys: &quot;);
++            it = j.keys();
++            while (it.hasMoreElements()) {
++                s = (String)it.nextElement();
++                Vm.debug(s + &quot;: &quot; + j.getString(s));
++            }
++
++
++            Vm.debug(&quot;\naccumulate: &quot;);
++            j = new JSONObject();
++            j.accumulate(&quot;stooge&quot;, &quot;Curly&quot;);
++            j.accumulate(&quot;stooge&quot;, &quot;Larry&quot;);
++            j.accumulate(&quot;stooge&quot;, &quot;Moe&quot;);
++            a = j.getJSONArray(&quot;stooge&quot;);
++            a.put(5, &quot;Shemp&quot;);
++            Vm.debug(j.toString(4));
++
++            Map m = null;
++            
++            j = new JSONObject(m);
++            j.append(&quot;stooge&quot;, &quot;Joe DeRita&quot;);
++            j.append(&quot;stooge&quot;, &quot;Shemp&quot;);
++            j.accumulate(&quot;stooges&quot;, &quot;Curly&quot;);
++            j.accumulate(&quot;stooges&quot;, &quot;Larry&quot;);
++            j.accumulate(&quot;stooges&quot;, &quot;Moe&quot;);
++            j.accumulate(&quot;stoogearray&quot;, j.get(&quot;stooges&quot;));
++            j.put(&quot;map&quot;, m);
++            Vm.debug(j.toString(4));
++            
++            s = &quot;{plist=Apple; AnimalSmells = { pig = piggish; lamb = lambish; worm = wormy; }; AnimalSounds = { pig = oink; lamb = baa; worm = baa;  Lisa = \&quot;Why is the worm talking like a lamb?\&quot; } ; AnimalColors = { pig = pink; lamb = black; worm = pink; } } &quot;; 
++            j = new JSONObject(s);
++            Vm.debug(j.toString(4));
++            
++            s = &quot; (\&quot;San Francisco\&quot;, \&quot;New York\&quot;, \&quot;Seoul\&quot;, \&quot;London\&quot;, \&quot;Seattle\&quot;, \&quot;Shanghai\&quot;)&quot;;
++            a = new JSONArray(s);
++            Vm.debug(a.toString());
++            
++            
++            Vm.debug(&quot;\nTesting Exceptions: &quot;);
++
++            Vm.debug(&quot;&gt;&gt; Exception: &quot;);
++            try {
++                a = new JSONArray(&quot;[\n\r\n\r}&quot;);
++                Vm.debug(a.toString());
++            } catch (Exception e) {
++                Vm.debug(e.toString());
++            }
++            
++            Vm.debug(&quot;&gt;&gt; Exception: &quot;);
++            try {
++                a = new JSONArray(&quot;&lt;\n\r\n\r      &quot;);
++                Vm.debug(a.toString());
++            } catch (Exception e) {
++                Vm.debug(e.toString());
++            }
++            
++            Vm.debug(&quot;&gt;&gt; Exception: &quot;);
++            try {
++                a = new JSONArray();
++                a.put(Double.NEGATIVE_INFINITY);
++                a.put(Double.NAN);
++                Vm.debug(a.toString());
++            } catch (Exception e) {
++                Vm.debug(e.toString());
++            }
++            Vm.debug(&quot;&gt;&gt; Exception: &quot;);
++            try {
++                Vm.debug(String.valueOf(j.getDouble(&quot;stooge&quot;)));
++            } catch (Exception e) {
++                Vm.debug(e.toString());
++            }
++            Vm.debug(&quot;&gt;&gt; Exception: &quot;);
++            try {
++                Vm.debug(String.valueOf(j.getDouble(&quot;howard&quot;)));
++            } catch (Exception e) {
++                Vm.debug(e.toString());
++            }
++            Vm.debug(&quot;&gt;&gt; Exception: &quot;);
++            try {
++                Vm.debug(j.put(null, &quot;howard&quot;).toString());
++            } catch (Exception e) {
++                Vm.debug(e.toString());
++            }
++            Vm.debug(&quot;&gt;&gt; Exception: &quot;);
++            try {
++                Vm.debug(String.valueOf(a.getDouble(0)));
++            } catch (Exception e) {
++                Vm.debug(e.toString());
++            }
++            Vm.debug(&quot;&gt;&gt; Exception: &quot;);
++            try {
++                Vm.debug(a.get(-1).toString());
++            } catch (Exception e) {
++                Vm.debug(e.toString());
++            }
++            Vm.debug(&quot;&gt;&gt; Exception: &quot;);
++            try {
++                Vm.debug(a.put(Double.NAN).toString());
++            } catch (Exception e) {
++                Vm.debug(e.toString());
++            }
++            Vm.debug(&quot;&gt;&gt; Exception: &quot;);
++            try {            	
++            	ja = new JSONArray(new Object());
++            	Vm.debug(ja.toString());
++            } catch (Exception e) {
++            	Vm.debug(e.toString());
++            }
++
++            Vm.debug(&quot;&gt;&gt; Exception: &quot;);
++            try {            	
++            	s = &quot;[)&quot;;
++            	a = new JSONArray(s);
++            	Vm.debug(a.toString());
++            } catch (Exception e) {
++            	Vm.debug(e.toString());
++            }
++
++            Vm.debug(&quot;&gt;&gt; Exception: &quot;);
++            try {            	
++                s = &quot;{\&quot;koda\&quot;: true, \&quot;koda\&quot;: true}&quot;;
++                j = new JSONObject(s);
++                Vm.debug(j.toString(4));
++            } catch (Exception e) {
++            	Vm.debug(e.toString());
++            }
++
++        } catch (Exception e) {
++            Vm.debug( &quot;Exception caught:&quot;);
++            e.printStackTrace();
++        }
++
++      Vm.exit(0);
++    }
++}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002704.html">[Cachewolf-svn] r2718 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="002707.html">[Cachewolf-svn] r2721 - trunk/res_noewe
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2706">[ date ]</a>
+              <a href="thread.html#2706">[ thread ]</a>
+              <a href="subject.html#2706">[ subject ]</a>
+              <a href="author.html#2706">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

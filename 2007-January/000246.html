@@ -1,0 +1,445 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r467 - trunk/src/exp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r467%20-%20trunk/src/exp&In-Reply-To=%3C200701280909.l0S99AaX015511%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000245.html">
+   <LINK REL="Next"  HREF="000247.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r467 - trunk/src/exp</H1>
+    <B>kalli at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r467%20-%20trunk/src/exp&In-Reply-To=%3C200701280909.l0S99AaX015511%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r467 - trunk/src/exp">kalli at mail.berlios.de
+       </A><BR>
+    <I>Sun Jan 28 10:09:10 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000245.html">[Cachewolf-svn] r466 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000247.html">[Cachewolf-svn] r468 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#246">[ date ]</a>
+              <a href="thread.html#246">[ thread ]</a>
+              <a href="subject.html#246">[ subject ]</a>
+              <a href="author.html#246">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: kalli
+Date: 2007-01-28 10:09:07 +0100 (Sun, 28 Jan 2007)
+New Revision: 467
+
+Modified:
+   trunk/src/exp/Exporter.java
+   trunk/src/exp/LocExporter.java
+   trunk/src/exp/OziExporter.java
+Log:
+simplifyString() in die ExporterBasisklasse uebernommen, da dies auch anderen Exportern zugute kommt. 
+OziExporter bereits angepasst.
+
+Modified: trunk/src/exp/Exporter.java
+===================================================================
+--- trunk/src/exp/Exporter.java	2007-01-28 08:07:16 UTC (rev 466)
++++ trunk/src/exp/Exporter.java	2007-01-28 09:09:07 UTC (rev 467)
+@@ -1,7 +1,6 @@
+ package exp;
+ 
+ import CacheWolf.*;
+-import CacheWolf.CWPoint;
+ import ewe.sys.*;
+ import ewe.filechooser.FileChooser;
+ import ewe.io.BufferedWriter;
+@@ -253,5 +252,159 @@
+ 		return null;
+ 	}
+ 
++///////////////////////////////////////////////////
++//  Helper functions for string sanitisation
++///////////////////////////////////////////////////
++	
++	private static Hashtable iso2simpleMappings = new Hashtable(250);
++	static {
++		String[] mappingArray = new String[] {
++				&quot;34&quot;,  &quot;'&quot;,
++				&quot;160&quot;, &quot; &quot;,
++				&quot;161&quot;, &quot;i&quot;,
++				&quot;162&quot;, &quot;c&quot;,
++				&quot;163&quot;, &quot;$&quot;,
++				&quot;164&quot;, &quot;o&quot;,
++				&quot;165&quot;, &quot;$&quot;,
++				&quot;166&quot;, &quot;!&quot;,
++				&quot;167&quot;, &quot;$&quot;,
++				&quot;168&quot;, &quot; &quot;,
++				&quot;169&quot;, &quot; &quot;,
++				&quot;170&quot;, &quot; &quot;,
++				&quot;171&quot;, &quot;&lt;&quot;,
++				&quot;172&quot;, &quot; &quot;,
++				&quot;173&quot;, &quot;-&quot;,
++				&quot;174&quot;, &quot; &quot;,
++				&quot;175&quot;, &quot;-&quot;,
++				&quot;176&quot;, &quot; &quot;,
++				&quot;177&quot;, &quot;+/-&quot;,
++				&quot;178&quot;, &quot;2&quot;,
++				&quot;179&quot;, &quot;3&quot;,
++				&quot;180&quot;, &quot;'&quot;,
++				&quot;181&quot;, &quot; &quot;,
++				&quot;182&quot;, &quot; &quot;,
++				&quot;183&quot;, &quot; &quot;,
++				&quot;184&quot;, &quot;,&quot;,
++				&quot;185&quot;, &quot;1&quot;,
++				&quot;186&quot;, &quot; &quot;,
++				&quot;187&quot;, &quot;&gt;&quot;,
++				&quot;188&quot;, &quot;1/4&quot;,
++				&quot;189&quot;, &quot;1/2&quot;,
++				&quot;190&quot;, &quot;3/4&quot;,
++				&quot;191&quot;, &quot;?&quot;,
++				&quot;192&quot;, &quot;A&quot;,
++				&quot;193&quot;, &quot;A&quot;,
++				&quot;194&quot;, &quot;A&quot;,
++				&quot;195&quot;, &quot;A&quot;,
++				&quot;196&quot;, &quot;Ae&quot;,
++				&quot;197&quot;, &quot;A&quot;,
++				&quot;198&quot;, &quot;AE&quot;,
++				&quot;199&quot;, &quot;C&quot;,
++				&quot;200&quot;, &quot;E&quot;,
++				&quot;201&quot;, &quot;E&quot;,
++				&quot;202&quot;, &quot;E&quot;,
++				&quot;203&quot;, &quot;E&quot;,
++				&quot;204&quot;, &quot;I&quot;,
++				&quot;205&quot;, &quot;I&quot;,
++				&quot;206&quot;, &quot;I&quot;,
++				&quot;207&quot;, &quot;I&quot;,
++				&quot;208&quot;, &quot;D&quot;,
++				&quot;209&quot;, &quot;N&quot;,
++				&quot;210&quot;, &quot;O&quot;,
++				&quot;211&quot;, &quot;O&quot;,
++				&quot;212&quot;, &quot;O&quot;,
++				&quot;213&quot;, &quot;O&quot;,
++				&quot;214&quot;, &quot;Oe&quot;,
++				&quot;215&quot;, &quot;x&quot;,
++				&quot;216&quot;, &quot;O&quot;,
++				&quot;217&quot;, &quot;U&quot;,
++				&quot;218&quot;, &quot;U&quot;,
++				&quot;219&quot;, &quot;U&quot;,
++				&quot;220&quot;, &quot;Ue&quot;,
++				&quot;221&quot;, &quot;Y&quot;,
++				&quot;222&quot;, &quot; &quot;,
++				&quot;223&quot;, &quot;ss&quot;,
++				&quot;224&quot;, &quot;a&quot;,
++				&quot;225&quot;, &quot;a&quot;,
++				&quot;226&quot;, &quot;a&quot;,
++				&quot;227&quot;, &quot;a&quot;,
++				&quot;228&quot;, &quot;ae&quot;,
++				&quot;229&quot;, &quot;a&quot;,
++				&quot;230&quot;, &quot;ae&quot;,
++				&quot;231&quot;, &quot;c&quot;,
++				&quot;232&quot;, &quot;e&quot;,
++				&quot;233&quot;, &quot;e&quot;,
++				&quot;234&quot;, &quot;e&quot;,
++				&quot;235&quot;, &quot;e&quot;,
++				&quot;236&quot;, &quot;i&quot;,
++				&quot;237&quot;, &quot;i&quot;,
++				&quot;238&quot;, &quot;i&quot;,
++				&quot;239&quot;, &quot;i&quot;,
++				&quot;240&quot;, &quot;o&quot;,
++				&quot;241&quot;, &quot;n&quot;,
++				&quot;242&quot;, &quot;o&quot;,
++				&quot;243&quot;, &quot;o&quot;,
++				&quot;244&quot;, &quot;o&quot;,
++				&quot;245&quot;, &quot;o&quot;,
++				&quot;246&quot;, &quot;oe&quot;,
++				&quot;247&quot;, &quot;/&quot;,
++				&quot;248&quot;, &quot;o&quot;,
++				&quot;249&quot;, &quot;u&quot;,
++				&quot;250&quot;, &quot;u&quot;,
++				&quot;251&quot;, &quot;u&quot;,
++				&quot;252&quot;, &quot;ue&quot;,
++				&quot;253&quot;, &quot;y&quot;,
++				&quot;254&quot;, &quot;p&quot;,
++				&quot;255&quot;, &quot;y&quot;
++		};
++		for (int i = 0; i &lt; mappingArray.length; i = i + 2) {
++			iso2simpleMappings.put( Integer.valueOf( mappingArray[i]), mappingArray[i+1]);
++		}
++	}
+ 
++	
++	protected static String char2simpleChar( char c )
++    {
++        if ( c &lt; 127 ) {
++            // leave alone as equivalent string.
++            return null;
++        } else {
++            String s=(String) iso2simpleMappings.get( new Integer(c));
++            if (s==null) // not in table, replace with empty string just to be sure
++            	return &quot;&quot;;
++            else
++            	return s;
++        }
++    } // end charToEntity
++	
++    public static String simplifyString( String text ) {
++        if ( text == null ) return null;
++        int originalTextLength = text.length();
++        StringBuffer sb = new StringBuffer( 50 );
++        int charsToAppend = 0;
++        for ( int i = 0; i &lt; originalTextLength; i++ ) {
++            char c = text.charAt( i );
++            String entity = char2simpleChar( c );
++            if ( entity == null ) {
++                // we could sb.append( c ), but that would be slower
++                // than saving them up for a big append.
++                charsToAppend++;
++            } else {
++                if ( charsToAppend != 0 ) {
++                    sb.append( text.substring( i - charsToAppend, i ) );
++                    charsToAppend = 0;
++                }
++                sb.append( entity );
++            }
++        } // end for
++        // append chars to the right of the last entity.
++        if ( charsToAppend != 0 ) {
++            sb.append( text.substring( originalTextLength - charsToAppend,
++                                       originalTextLength ) );
++        }
++        // if result is not longer, we did not do anything. Save RAM.
++        return ( sb.length() == originalTextLength ) ? text : sb.toString();
++    } // end insertEntities
++
++
+ }
+
+Modified: trunk/src/exp/LocExporter.java
+===================================================================
+--- trunk/src/exp/LocExporter.java	2007-01-28 08:07:16 UTC (rev 466)
++++ trunk/src/exp/LocExporter.java	2007-01-28 09:09:07 UTC (rev 467)
+@@ -40,164 +40,5 @@
+ 	public String trailer(){
+ 		return &quot;&lt;/loc&gt;\r\n&quot;;
+ 	}
+-
+-///////////////////////////////////////////////////
+-//  Helper functions for string sanitisation
+-///////////////////////////////////////////////////
+ 	
+-	private static Hashtable iso2simpleMappings = new Hashtable(250);
+-	static {
+-		String[] mappingArray = new String[] {
+-				&quot;34&quot;,  &quot;'&quot;,
+-				&quot;160&quot;, &quot; &quot;,
+-				&quot;161&quot;, &quot;i&quot;,
+-				&quot;162&quot;, &quot;c&quot;,
+-				&quot;163&quot;, &quot;$&quot;,
+-				&quot;164&quot;, &quot;o&quot;,
+-				&quot;165&quot;, &quot;$&quot;,
+-				&quot;166&quot;, &quot;!&quot;,
+-				&quot;167&quot;, &quot;$&quot;,
+-				&quot;168&quot;, &quot; &quot;,
+-				&quot;169&quot;, &quot; &quot;,
+-				&quot;170&quot;, &quot; &quot;,
+-				&quot;171&quot;, &quot;&lt;&quot;,
+-				&quot;172&quot;, &quot; &quot;,
+-				&quot;173&quot;, &quot;-&quot;,
+-				&quot;174&quot;, &quot; &quot;,
+-				&quot;175&quot;, &quot;-&quot;,
+-				&quot;176&quot;, &quot; &quot;,
+-				&quot;177&quot;, &quot;+/-&quot;,
+-				&quot;178&quot;, &quot;2&quot;,
+-				&quot;179&quot;, &quot;3&quot;,
+-				&quot;180&quot;, &quot;'&quot;,
+-				&quot;181&quot;, &quot; &quot;,
+-				&quot;182&quot;, &quot; &quot;,
+-				&quot;183&quot;, &quot; &quot;,
+-				&quot;184&quot;, &quot;,&quot;,
+-				&quot;185&quot;, &quot;1&quot;,
+-				&quot;186&quot;, &quot; &quot;,
+-				&quot;187&quot;, &quot;&gt;&quot;,
+-				&quot;188&quot;, &quot;1/4&quot;,
+-				&quot;189&quot;, &quot;1/2&quot;,
+-				&quot;190&quot;, &quot;3/4&quot;,
+-				&quot;191&quot;, &quot;?&quot;,
+-				&quot;192&quot;, &quot;A&quot;,
+-				&quot;193&quot;, &quot;A&quot;,
+-				&quot;194&quot;, &quot;A&quot;,
+-				&quot;195&quot;, &quot;A&quot;,
+-				&quot;196&quot;, &quot;Ae&quot;,
+-				&quot;197&quot;, &quot;A&quot;,
+-				&quot;198&quot;, &quot;AE&quot;,
+-				&quot;199&quot;, &quot;C&quot;,
+-				&quot;200&quot;, &quot;E&quot;,
+-				&quot;201&quot;, &quot;E&quot;,
+-				&quot;202&quot;, &quot;E&quot;,
+-				&quot;203&quot;, &quot;E&quot;,
+-				&quot;204&quot;, &quot;I&quot;,
+-				&quot;205&quot;, &quot;I&quot;,
+-				&quot;206&quot;, &quot;I&quot;,
+-				&quot;207&quot;, &quot;I&quot;,
+-				&quot;208&quot;, &quot;D&quot;,
+-				&quot;209&quot;, &quot;N&quot;,
+-				&quot;210&quot;, &quot;O&quot;,
+-				&quot;211&quot;, &quot;O&quot;,
+-				&quot;212&quot;, &quot;O&quot;,
+-				&quot;213&quot;, &quot;O&quot;,
+-				&quot;214&quot;, &quot;Oe&quot;,
+-				&quot;215&quot;, &quot;x&quot;,
+-				&quot;216&quot;, &quot;O&quot;,
+-				&quot;217&quot;, &quot;U&quot;,
+-				&quot;218&quot;, &quot;U&quot;,
+-				&quot;219&quot;, &quot;U&quot;,
+-				&quot;220&quot;, &quot;Ue&quot;,
+-				&quot;221&quot;, &quot;Y&quot;,
+-				&quot;222&quot;, &quot; &quot;,
+-				&quot;223&quot;, &quot;ss&quot;,
+-				&quot;224&quot;, &quot;a&quot;,
+-				&quot;225&quot;, &quot;a&quot;,
+-				&quot;226&quot;, &quot;a&quot;,
+-				&quot;227&quot;, &quot;a&quot;,
+-				&quot;228&quot;, &quot;ae&quot;,
+-				&quot;229&quot;, &quot;a&quot;,
+-				&quot;230&quot;, &quot;ae&quot;,
+-				&quot;231&quot;, &quot;c&quot;,
+-				&quot;232&quot;, &quot;e&quot;,
+-				&quot;233&quot;, &quot;e&quot;,
+-				&quot;234&quot;, &quot;e&quot;,
+-				&quot;235&quot;, &quot;e&quot;,
+-				&quot;236&quot;, &quot;i&quot;,
+-				&quot;237&quot;, &quot;i&quot;,
+-				&quot;238&quot;, &quot;i&quot;,
+-				&quot;239&quot;, &quot;i&quot;,
+-				&quot;240&quot;, &quot;o&quot;,
+-				&quot;241&quot;, &quot;n&quot;,
+-				&quot;242&quot;, &quot;o&quot;,
+-				&quot;243&quot;, &quot;o&quot;,
+-				&quot;244&quot;, &quot;o&quot;,
+-				&quot;245&quot;, &quot;o&quot;,
+-				&quot;246&quot;, &quot;oe&quot;,
+-				&quot;247&quot;, &quot;/&quot;,
+-				&quot;248&quot;, &quot;o&quot;,
+-				&quot;249&quot;, &quot;u&quot;,
+-				&quot;250&quot;, &quot;u&quot;,
+-				&quot;251&quot;, &quot;u&quot;,
+-				&quot;252&quot;, &quot;ue&quot;,
+-				&quot;253&quot;, &quot;y&quot;,
+-				&quot;254&quot;, &quot;p&quot;,
+-				&quot;255&quot;, &quot;y&quot;
+-		};
+-		for (int i = 0; i &lt; mappingArray.length; i = i + 2) {
+-			iso2simpleMappings.put( Integer.valueOf( mappingArray[i]), mappingArray[i+1]);
+-		}
+-	}
+-
+-	
+-	protected static String char2simpleChar( char c )
+-    {
+-        if ( c &lt; 127 ) {
+-            // leave alone as equivalent string.
+-            return null;
+-        } else {
+-            String s=(String) iso2simpleMappings.get( new Integer(c));
+-            if (s==null) // not in table, replace with empty string just to be sure
+-            	return &quot;&quot;;
+-            else
+-            	return s;
+-        }
+-    } // end charToEntity
+-	
+-    public static String simplifyString( String text ) {
+-        if ( text == null ) return null;
+-        int originalTextLength = text.length();
+-        StringBuffer sb = new StringBuffer( 50 );
+-        int charsToAppend = 0;
+-        for ( int i = 0; i &lt; originalTextLength; i++ ) {
+-            char c = text.charAt( i );
+-            String entity = char2simpleChar( c );
+-            if ( entity == null ) {
+-                // we could sb.append( c ), but that would be slower
+-                // than saving them up for a big append.
+-                charsToAppend++;
+-            } else {
+-                if ( charsToAppend != 0 ) {
+-                    sb.append( text.substring( i - charsToAppend, i ) );
+-                    charsToAppend = 0;
+-                }
+-                sb.append( entity );
+-            }
+-        } // end for
+-        // append chars to the right of the last entity.
+-        if ( charsToAppend != 0 ) {
+-            sb.append( text.substring( originalTextLength - charsToAppend,
+-                                       originalTextLength ) );
+-        }
+-        // if result is not longer, we did not do anything. Save RAM.
+-        return ( sb.length() == originalTextLength ) ? text : sb.toString();
+-    } // end insertEntities
+-	
+-	
+-	
+-	
+-	
+-	
+ }
+
+Modified: trunk/src/exp/OziExporter.java
+===================================================================
+--- trunk/src/exp/OziExporter.java	2007-01-28 08:07:16 UTC (rev 466)
++++ trunk/src/exp/OziExporter.java	2007-01-28 09:09:07 UTC (rev 467)
+@@ -25,6 +25,7 @@
+ 
+ 	public String record(CacheHolder ch, String lat, String lon){
+ 		StringBuffer strBuf = new StringBuffer(200);
++		String tmpName;
+ 
+ 		// Field 1 : Number - this is the location in the array (max 1000), must be unique, 
+ 		// usually start at 1 and increment. Can be set to -1 (minus 1) and the number will be auto generated.
+@@ -48,11 +49,12 @@
+ 		// Field 10 : Background Color (RGB value)
+ 		strBuf.append(&quot;16777215,&quot;);
+ 		// Field 11 : Description (max 40), no commas
+-		if (ch.CacheName.length() &lt;= 40){
+-			strBuf.append(ch.CacheName + &quot;,&quot;);
++		tmpName = simplifyString(ch.CacheName);
++		if (tmpName.length() &lt;= 40){
++			strBuf.append(tmpName + &quot;,&quot;);
+ 		}
+ 		else {
+-			strBuf.append(ch.CacheName.substring(0,40) + &quot;,&quot;);
++			strBuf.append(tmpName.substring(0,40) + &quot;,&quot;);
+ 		}
+ 		// Field 12 : Pointer Direction
+ 		strBuf.append(&quot;0,&quot;);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000245.html">[Cachewolf-svn] r466 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000247.html">[Cachewolf-svn] r468 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#246">[ date ]</a>
+              <a href="thread.html#246">[ thread ]</a>
+              <a href="subject.html#246">[ subject ]</a>
+              <a href="author.html#246">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,533 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1861 - in trunk/src: . CacheWolf exp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-May/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1861%20-%20in%20trunk/src%3A%20.%20CacheWolf%20exp&In-Reply-To=%3C200905271453.n4RErQu2024765%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001778.html">
+   <LINK REL="Next"  HREF="001780.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1861 - in trunk/src: . CacheWolf exp</H1>
+    <B>greiol at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1861%20-%20in%20trunk/src%3A%20.%20CacheWolf%20exp&In-Reply-To=%3C200905271453.n4RErQu2024765%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1861 - in trunk/src: . CacheWolf exp">greiol at mail.berlios.de
+       </A><BR>
+    <I>Wed May 27 16:53:26 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001778.html">[Cachewolf-svn] r1860 - trunk/resources
+</A></li>
+        <LI>Next message: <A HREF="001780.html">[Cachewolf-svn] r1862 - in trunk: res_noewe/languages src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1779">[ date ]</a>
+              <a href="thread.html#1779">[ thread ]</a>
+              <a href="subject.html#1779">[ subject ]</a>
+              <a href="author.html#1779">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: greiol
+Date: 2009-05-27 16:53:11 +0200 (Wed, 27 May 2009)
+New Revision: 1861
+
+Removed:
+   trunk/src/io/
+Modified:
+   trunk/src/CacheWolf/CacheHolder.java
+   trunk/src/CacheWolf/CacheSize.java
+   trunk/src/CacheWolf/CacheTerrDiff.java
+   trunk/src/CacheWolf/CacheType.java
+   trunk/src/CacheWolf/DetailsPanel.java
+   trunk/src/CacheWolf/GuiImageBroker.java
+   trunk/src/CacheWolf/SpiderGC.java
+   trunk/src/exp/HTMLExporter.java
+Log:
+removed several try-catch-blocks for speed
+html expoter now handles missing details better
+
+Modified: trunk/src/CacheWolf/CacheHolder.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolder.java	2009-05-26 20:33:06 UTC (rev 1860)
++++ trunk/src/CacheWolf/CacheHolder.java	2009-05-27 14:53:11 UTC (rev 1861)
+@@ -184,7 +184,7 @@
+ 			        start = xmlString.indexOf('&quot;', end + 1);
+ 			        end = xmlString.indexOf('&quot;', start + 1);
+ 			        if (isAddiWpt() || getType() == CacheType.CW_TYPE_CUSTOM) {
+-			        	setHard(CacheTerrDiff.CW_DT_ADDITIONAL);
++			        	setHard(CacheTerrDiff.CW_DT_UNSET);
+ 			        } else {
+ 				        try {
+ 				        	setHard(CacheTerrDiff.v1Converter(xmlString.substring(start + 1, end)));
+@@ -197,7 +197,7 @@
+ 			        start = xmlString.indexOf('&quot;', end + 1);
+ 				    end = xmlString.indexOf('&quot;', start + 1);
+ 				    if (isAddiWpt() || getType() == CacheType.CW_TYPE_CUSTOM) {
+-				    	setTerrain(CacheTerrDiff.CW_DT_ADDITIONAL);
++				    	setTerrain(CacheTerrDiff.CW_DT_UNSET);
+ 				    } else {
+ 					    try {
+ 					    	setTerrain(CacheTerrDiff.v1Converter(xmlString.substring(start + 1, end)));
+@@ -933,8 +933,8 @@
+ 				// Addis don't have their own values for difficulty, terrain and size
+ 				// Custom waypoints can't be updated to remove incomplete flag, so we 
+ 				// have to set reasonable values.
+-				if (getHard() == -1) setHard(CacheTerrDiff.CW_DT_ADDITIONAL);
+-				if (getTerrain() == -1) setTerrain(CacheTerrDiff.CW_DT_ADDITIONAL);
++				if (getHard() == -1) setHard(CacheTerrDiff.CW_DT_UNSET);
++				if (getTerrain() == -1) setTerrain(CacheTerrDiff.CW_DT_UNSET);
+ 				if (getCacheSize() == -1) setCacheSize(CacheSize.CW_SIZE_NONE);
+ 			} else {
+ 				setIncomplete(true);
+
+Modified: trunk/src/CacheWolf/CacheSize.java
+===================================================================
+--- trunk/src/CacheWolf/CacheSize.java	2009-05-26 20:33:06 UTC (rev 1860)
++++ trunk/src/CacheWolf/CacheSize.java	2009-05-27 14:53:11 UTC (rev 1861)
+@@ -525,4 +525,26 @@
+ 		}
+ 
+ 	}
++	
++	/**
++	 * checks if a given size information would be valid for use with CacheWolf.
++	 * takes about 1/20th of the time a try {} catch {} block would need, so use this
++	 * function if you just want to check
++	 * @param size size information to check
++	 * @return true if size is valid, false otherwise
++	 */
++	public static boolean isValidSize(byte size) {
++		switch (size) {
++		case CW_SIZE_NOTCHOSEN: return true;
++		case CW_SIZE_OTHER: return true;
++		case CW_SIZE_MICRO: return true;
++		case CW_SIZE_SMALL: return true;
++		case CW_SIZE_REGULAR: return true;
++		case CW_SIZE_LARGE: return true;
++		case CW_SIZE_VERYLARGE: return true;
++		case CW_SIZE_NONE: return true;
++		case CW_SIZE_VIRTUAL: return true;
++		default: return false;
++		}
++	}
+ }
+
+Modified: trunk/src/CacheWolf/CacheTerrDiff.java
+===================================================================
+--- trunk/src/CacheWolf/CacheTerrDiff.java	2009-05-26 20:33:06 UTC (rev 1860)
++++ trunk/src/CacheWolf/CacheTerrDiff.java	2009-05-27 14:53:11 UTC (rev 1861)
+@@ -29,8 +29,8 @@
+ 	protected static final byte CW_DT_50 = 50;
+ 	/** wrong terrain or difficulty */
+ 	protected static final byte CW_DT_ERROR = -1;
+-	/** terrain or difficulty for additional waypoints */
+-	protected static final byte CW_DT_ADDITIONAL = 0;
++	/** terrain or difficulty for additional/custom waypoints */
++	protected static final byte CW_DT_UNSET = 0;
+ 
+ 	/** constructor dies nothing */
+ 	public CacheTerrDiff() {
+@@ -104,4 +104,26 @@
+ 		default: throw new IllegalArgumentException(&quot;unmapped terrain or diffulty &quot;+td);
+ 		}
+ 	}
++	
++	/**
++	 * check if a given difficulty or terrain is valid
++	 * takes about 1/20th of the time a try {} catch{} block needs
++	 * so use this function instead
++	 * @param td terrain or difficulty to check
++	 * @return true if terrain or difficulty is valid, false otherwise
++	 */
++	public static final boolean isValidTD(byte td) {
++		switch (td) {
++		case CW_DT_10: return true;
++		case CW_DT_15: return true;
++		case CW_DT_20: return true;
++		case CW_DT_25: return true;
++		case CW_DT_30: return true;
++		case CW_DT_35: return true;
++		case CW_DT_40: return true;
++		case CW_DT_45: return true;
++		case CW_DT_50: return true;
++		default: return false;
++		}
++	}
+ }
+
+Modified: trunk/src/CacheWolf/CacheType.java
+===================================================================
+--- trunk/src/CacheWolf/CacheType.java	2009-05-26 20:33:06 UTC (rev 1860)
++++ trunk/src/CacheWolf/CacheType.java	2009-05-27 14:53:11 UTC (rev 1861)
+@@ -291,8 +291,8 @@
+ 		case -74: return CW_TYPE_TRAILHEAD;
+ 		case -73: return CW_TYPE_REFERENCE;
+ 		case 101: return CW_TYPE_MEGA_EVENT;
+-		case -62: return CW_TYPE_WHEREIGO;
+-		case 100: return CW_TYPE_WHEREIGO; // yes, it can be either of those
++		case -62: return CW_TYPE_WHEREIGO; // yes, it can be either of these
++		case 100: return CW_TYPE_WHEREIGO; // yes, it can be either of these
+ 		case 9: return CW_TYPE_EARTH;
+ 		default: throw new IllegalArgumentException(&quot;unmatched argument &quot;+type+&quot; in CacheSize v2Converter()&quot;);
+ 		}
+@@ -557,7 +557,7 @@
+ 		
+ 	}
+ 	
+-	//TODO: do we actually need this one
++	//TODO: do we actually need this one?
+ 	/**
+ 	 * generate human readable type description for exporters
+ 	 * @param id internal type id
+@@ -578,4 +578,35 @@
+ 		}
+ 		return ret;
+ 	}
++	
++	/**
++	 * checks if the given type would be valid for internal use in cachewolf
++	 * @param type type value to be checked
++	 * @return true if &lt;code&gt;type&lt;/code&gt; matches on of the CacheWolf types, false otherwise
++	 */
++	public static final boolean isValidType(byte type) {
++		switch (type) {
++		case CW_TYPE_TRADITIONAL: return true;
++		case CW_TYPE_MULTI: return true;
++		case CW_TYPE_VIRTUAL: return true;
++		case CW_TYPE_LETTERBOX: return true;
++		case CW_TYPE_EVENT: return true;
++		case CW_TYPE_UNKNOWN: return true;
++		case CW_TYPE_WEBCAM: return true;
++		case CW_TYPE_LOCATIONLESS: return true;
++		case CW_TYPE_CITO: return true;
++		case CW_TYPE_EARTH: return true;
++		case CW_TYPE_MEGA_EVENT: return true;
++		case CW_TYPE_WHEREIGO: return true;
++		case CW_TYPE_PARKING: return true;
++		case CW_TYPE_STAGE: return true;
++		case CW_TYPE_QUESTION: return true;
++		case CW_TYPE_FINAL: return true;
++		case CW_TYPE_TRAILHEAD: return true;
++		case CW_TYPE_REFERENCE: return true;
++		case CW_TYPE_MAZE: return true;
++		case CW_TYPE_APE: return true;
++		default: return false;
++		}
++	}
+ }
+
+Modified: trunk/src/CacheWolf/DetailsPanel.java
+===================================================================
+--- trunk/src/CacheWolf/DetailsPanel.java	2009-05-26 20:33:06 UTC (rev 1860)
++++ trunk/src/CacheWolf/DetailsPanel.java	2009-05-27 14:53:11 UTC (rev 1861)
+@@ -213,27 +213,23 @@
+ 		chcSize.setInt(ch.getCacheSize());
+ 
+ 		attV.showImages(ch.getCacheDetails(true).attributes);
+-		if (ch.isAddiWpt()) {
++		if (ch.isAddiWpt() || ch.getType() == CacheType.CW_TYPE_CUSTOM) {
+ 			lblTerr.setText(&quot;&quot;);
+ 			lblDiff.setText(&quot;&quot;);
+ 		} else {
+-			try {
+-				lblTerr.setText((ch.getTerrain() != CacheTerrDiff.CW_DT_ERROR) ? 
+-					(MyLocale.getMsg(1001,&quot;T&quot;)+&quot;: &quot;+CacheTerrDiff.longDT(ch.getTerrain())) : &quot;&quot;);
+-			} catch (IllegalArgumentException ex) {
+-				ch.setTerrain(CacheTerrDiff.CW_DT_ERROR);
+-				ch.setIncomplete(true);
+-				if (Global.getPref().debug) Global.getPref().log(ch.getWayPoint()+&quot; has wrong terrain &quot;, ex);
++			if (CacheTerrDiff.isValidTD(ch.getTerrain())) {
++				lblTerr.setText(MyLocale.getMsg(1001,&quot;T&quot;)+&quot;: &quot;+CacheTerrDiff.longDT(ch.getTerrain()));
++			} else {
+ 				lblTerr.setText(&quot;&quot;);
+-			}
+-			try {
+-				lblDiff.setText((ch.getHard() != CacheTerrDiff.CW_DT_ERROR) ? 
+-					(MyLocale.getMsg(1000,&quot;D&quot;)+&quot;: &quot;+CacheTerrDiff.longDT(ch.getHard())) : &quot;&quot;);
+-			} catch (IllegalArgumentException ex) {
+-				ch.setHard(CacheTerrDiff.CW_DT_ERROR);
+ 				ch.setIncomplete(true);
+-				if (Global.getPref().debug) Global.getPref().log(ch.getWayPoint()+&quot; has wrong difficulty &quot;, ex);
++				if (Global.getPref().debug) Global.getPref().log(ch.getWayPoint()+&quot; has wrong terrain &quot;+ch.getTerrain());
++			}
++			if (CacheTerrDiff.isValidTD(ch.getHard())) {
++				lblDiff.setText(MyLocale.getMsg(1000,&quot;D&quot;)+&quot;: &quot;+CacheTerrDiff.longDT(ch.getHard()));
++			} else {
+ 				lblDiff.setText(&quot;&quot;);
++				ch.setIncomplete(true);
++				if (Global.getPref().debug) Global.getPref().log(ch.getWayPoint()+&quot; has wrong difficulty &quot;+ch.getHard());
+ 			}
+ 		}
+ 
+
+Modified: trunk/src/CacheWolf/GuiImageBroker.java
+===================================================================
+--- trunk/src/CacheWolf/GuiImageBroker.java	2009-05-26 20:33:06 UTC (rev 1860)
++++ trunk/src/CacheWolf/GuiImageBroker.java	2009-05-27 14:53:11 UTC (rev 1861)
+@@ -58,9 +58,8 @@
+ 	 * select image to be displayed for a given cache type
+ 	 * @param id internal cache type id
+ 	 * @return &lt;code&gt;Image&lt;/code&gt; object to be displayed
+-	 * @throws IllegalArgumentException if &lt;code&gt;id&lt;/code&gt; has no associated image
+ 	 */
+-	public static Image getTypeImage(byte id) throws IllegalArgumentException {
++	public static Image getTypeImage(byte id) {
+ 		switch (id) {
+ 		case CacheType.CW_TYPE_CUSTOM: return typeImages[0];
+ 		case CacheType.CW_TYPE_APE: return typeImages[1];
+@@ -84,7 +83,7 @@
+ 		case CacheType.CW_TYPE_VIRTUAL: return typeImages[19];
+ 		case CacheType.CW_TYPE_WEBCAM: return typeImages[20];
+ 		case CacheType.CW_TYPE_WHEREIGO: return typeImages[21];
+-		default: throw new IllegalArgumentException(&quot;unmatched id &quot;+id+&quot; in GuiImageBroker getTypeImage()&quot;);
++		default: return imageError;
+ 		}	
+ 	}
+ }
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2009-05-26 20:33:06 UTC (rev 1860)
++++ trunk/src/CacheWolf/SpiderGC.java	2009-05-27 14:53:11 UTC (rev 1861)
+@@ -1374,8 +1374,8 @@
+ 				hd.getFreshDetails().setLongDescription(descRex.stringMatched(1));
+ 				hd.setFound(is_found);
+ 				hd.setCacheSize(CacheSize.CW_SIZE_NOTCHOSEN);
+-				hd.setHard(CacheTerrDiff.CW_DT_ADDITIONAL);
+-				hd.setTerrain(CacheTerrDiff.CW_DT_ADDITIONAL);
++				hd.setHard(CacheTerrDiff.CW_DT_UNSET);
++				hd.setTerrain(CacheTerrDiff.CW_DT_UNSET);
+ 				if (idx&lt;0){
+ 					cacheDB.add(hd);
+ 					hd.save();
+
+Modified: trunk/src/exp/HTMLExporter.java
+===================================================================
+--- trunk/src/exp/HTMLExporter.java	2009-05-26 20:33:06 UTC (rev 1860)
++++ trunk/src/exp/HTMLExporter.java	2009-05-27 14:53:11 UTC (rev 1861)
+@@ -88,35 +88,17 @@
+ 					varParams.put(&quot;WAYPOINT&quot;, ch.getWayPoint());
+ 					varParams.put(&quot;NAME&quot;, ch.getCacheName());
+ 					varParams.put(&quot;OWNER&quot;, ch.getCacheOwner());
+-					if (ch.isAddiWpt()) {
++					if (ch.isAddiWpt() || CacheType.CW_TYPE_CUSTOM == ch.getType()) {
+ 						varParams.put(&quot;SIZE&quot;, &quot;&quot;);
+ 						varParams.put(&quot;DIFFICULTY&quot;, &quot;&quot;);
+ 						varParams.put(&quot;TERRAIN&quot;, &quot;&quot;);
+ 					} else {
+-						try {
+-							varParams.put(&quot;SIZE&quot;, CacheSize.cw2ExportString(ch.getCacheSize()));
+-						} catch (IllegalArgumentException ex) {
+-							varParams.put(&quot;SIZE&quot;, &quot;&quot;);
+-							if (Global.getPref().debug) {
+-								Global.getPref().log(ch.getWayPoint()+&quot; has wrong size &quot;, ex);
+-							}
+-						}
+-						try {
+-							varParams.put(&quot;DIFFICULTY&quot;, CacheTerrDiff.longDT(ch.getHard()));
+-						} catch (IllegalArgumentException ex) {
+-							varParams.put(&quot;DIFFICULTY&quot;, &quot;&quot;);
+-							if (Global.getPref().debug) {
+-								Global.getPref().log(ch.getWayPoint()+&quot; has wrong difficulty &quot;, ex);
+-							}
+-						}
+-						try {
+-							varParams.put(&quot;TERRAIN&quot;, CacheTerrDiff.longDT(ch.getTerrain()));
+-						} catch (IllegalArgumentException ex) {
+-							varParams.put(&quot;TERRAIN&quot;, &quot;&quot;);
+-							if (Global.getPref().debug) {
+-								Global.getPref().log(ch.getWayPoint()+&quot; has wrong terrain &quot;, ex);
+-							}
+-						}
++						varParams.put(&quot;SIZE&quot;, CacheSize.isValidSize(ch.getCacheSize())?
++								CacheSize.cw2ExportString(ch.getCacheSize()):&quot;&quot;);
++						varParams.put(&quot;DIFFICULTY&quot;, CacheTerrDiff.isValidTD(ch.getHard())? 
++								CacheTerrDiff.longDT(ch.getHard()):&quot;&quot;);
++						varParams.put(&quot;TERRAIN&quot;, CacheTerrDiff.isValidTD(ch.getTerrain())?
++								CacheTerrDiff.longDT(ch.getTerrain()):&quot;&quot;);
+ 					}
+ 					varParams.put(&quot;DISTANCE&quot;, ch.getDistance());
+ 					varParams.put(&quot;BEARING&quot;, ch.bearing);
+@@ -127,57 +109,38 @@
+ 					//We can generate the individual page here!
+ 					try{
+ 						Template page_tpl = new Template(template_init_page);
+-						page_tpl.setParam(&quot;TYPE&quot;, CacheType.cw2ExportString(ch.getType()));
+-						page_tpl.setParam(&quot;SIZE&quot;, CacheSize.cw2ExportString(ch.getCacheSize()));
++						page_tpl.setParam(&quot;TYPE&quot;, varParams.get(&quot;TYPE&quot;).toString());
++						page_tpl.setParam(&quot;SIZE&quot;, varParams.get(&quot;SIZE&quot;).toString());
+ 						page_tpl.setParam(&quot;WAYPOINT&quot;, ch.getWayPoint());
+ 						page_tpl.setParam(&quot;NAME&quot;, ch.getCacheName());
+ 						page_tpl.setParam(&quot;OWNER&quot;, ch.getCacheOwner());
+-						page_tpl.setParam(&quot;DIFFICULTY&quot;, ch.getHard());
+-						page_tpl.setParam(&quot;TERRAIN&quot;, ch.getTerrain());
++						page_tpl.setParam(&quot;DIFFICULTY&quot;, varParams.get(&quot;DIFFICULTY&quot;).toString());
++						page_tpl.setParam(&quot;TERRAIN&quot;, varParams.get(&quot;TERRAIN&quot;).toString());
+ 						page_tpl.setParam(&quot;DISTANCE&quot;, ch.getDistance());
+ 						page_tpl.setParam(&quot;BEARING&quot;, ch.bearing);
+ 						page_tpl.setParam(&quot;LATLON&quot;, ch.LatLon);
+ 						page_tpl.setParam(&quot;STATUS&quot;, ch.getCacheStatus());
+ 						page_tpl.setParam(&quot;DATE&quot;, ch.getDateHidden());
+-						if (ch.is_HTML())
+-							page_tpl.setParam(&quot;DESCRIPTION&quot;, modifyLongDesc(det,targetDir));
+-						else {
+-							String dummyText = new String();
+-							try {
+-							dummyText = STRreplace.replace(det.LongDescription, &quot;\n&quot;, &quot;&lt;br&gt;&quot;);
+-							} catch (NullPointerException e) {
+-								dummyText = &quot;CacheWolf Error: Missing Long Description&quot;;
+-						}
+-							page_tpl.setParam(&quot;DESCRIPTION&quot;,dummyText);
+-						}
+-						try {
++						if (det != null) {
++							if (ch.is_HTML()) {
++								page_tpl.setParam(&quot;DESCRIPTION&quot;, modifyLongDesc(det,targetDir));
++							} else {
++								page_tpl.setParam(&quot;DESCRIPTION&quot;,STRreplace.replace(det.LongDescription, &quot;\n&quot;, &quot;&lt;br&gt;&quot;));
++							}
+ 							page_tpl.setParam(&quot;HINTS&quot;, det.Hints);
+-						} catch (NullPointerException e) { 
+-							page_tpl.setParam(&quot;HINTS&quot;, &quot;CacheWolf Error: Hint information missing&quot;);
+-						}
+-						try {
+ 							page_tpl.setParam(&quot;DECRYPTEDHINTS&quot;, Common.rot13(det.Hints));
+-						} catch (NullPointerException e) { 
+-							page_tpl.setParam(&quot;DECRYPTEDHINTS&quot;, Common.rot13(&quot;CacheWolf Error: Hint information missing&quot;));
+-						}
+-						
+-						StringBuffer sb=new StringBuffer(2000);
+-						try {
++							
++							StringBuffer sb=new StringBuffer(2000);
+ 							for(int j = 0; j&lt;det.CacheLogs.size(); j++){
+ 								sb.append(STRreplace.replace(det.CacheLogs.getLog(j).toHtml(),&quot;<A HREF="http://www.geocaching.com/images/icons/">http://www.geocaching.com/images/icons/</A>&quot;,null));
+ 								sb.append(&quot;&lt;br&gt;&quot;);
+ 								icon=det.CacheLogs.getLog(j).getIcon();
+ 								if (logIcons.find(icon)&lt;0) logIcons.add(icon); // Add the icon to list of icons to copy to dest directory
+ 							}
+-						} catch (Exception e) { Vm.debug(&quot;P &quot;+e); } //TODO: find out what is going wrong and especially why
+-						try {
++							
+ 							page_tpl.setParam(&quot;LOGS&quot;, sb.toString());
+-						} catch (Exception e) { Vm.debug(&quot;Q &quot;+e); } //TODO: find out what is going wrong and especially why
+-						try {
+ 							page_tpl.setParam(&quot;NOTES&quot;, STRreplace.replace(det.getCacheNotes(), &quot;\n&quot;,&quot;&lt;br&gt;&quot;));
+-						} catch (Exception e) { Vm.debug(&quot;R &quot;+e); } //TODO: find out what is going wrong and especially why
+-						// Cache Images
+-						try {
++							
+ 							cacheImg.clear();
+ 							for(int j = 0; j&lt;det.Images.size(); j++){
+ 								imgParams = new Hashtable();
+@@ -190,9 +153,8 @@
+ 								DataMover.copy(profile.dataDir + imgFile,targetDir + imgFile);
+ 								cacheImg.add(imgParams);
+ 							}
+-						} catch (Exception e) { Vm.debug(&quot;S &quot;+e); } //TODO: find out what is going wrong and especially why
+-						try {
+ 							page_tpl.setParam(&quot;cacheImg&quot;, cacheImg);
++							
+ 							// Log images
+ 							logImg.clear();
+ 							for(int j = 0; j&lt;det.LogImages.size(); j++){
+@@ -206,9 +168,8 @@
+ 								DataMover.copy(profile.dataDir + logImgFile,targetDir + logImgFile);
+ 								logImg.add(logImgParams);
+ 							}
+-						} catch (Exception e) { Vm.debug(&quot;T &quot;+e); } //TODO: find out what is going wrong and especially why
+-						try {
+ 							page_tpl.setParam(&quot;logImg&quot;, logImg);
++							
+ 							// User images
+ 							usrImg.clear();
+ 							for(int j = 0; j&lt;det.UserImages.size(); j++){
+@@ -222,18 +183,16 @@
+ 								DataMover.copy(profile.dataDir + usrImgFile,targetDir + usrImgFile);
+ 								usrImg.add(usrImgParams);
+ 							}
+-						} catch (Exception e) { Vm.debug(&quot;U &quot;+e); } //TODO: find out what is going wrong and especially why
+-						
+-						page_tpl.setParam(&quot;userImg&quot;, usrImg);
++							page_tpl.setParam(&quot;userImg&quot;, usrImg);
++							
++							// Map images
++							mapImg.clear();
++							mapImgParams = new Hashtable();
++							
++							String mapImgFile = new String(ch.getWayPoint() + &quot;_map.gif&quot;);
++							// check if map file exists
++							File test = new File(profile.dataDir + mapImgFile);
+ 
+-						// Map images
+-						mapImg.clear();
+-						mapImgParams = new Hashtable();
+-						
+-						String mapImgFile = new String(ch.getWayPoint() + &quot;_map.gif&quot;);
+-						// check if map file exists
+-						File test = new File(profile.dataDir + mapImgFile);
+-						try {
+ 							if (test.exists()) {
+ 								mapImgParams.put(&quot;FILE&quot;, mapImgFile);
+ 								mapImgParams.put(&quot;TEXT&quot;,mapImgFile);
+@@ -249,12 +208,21 @@
+ 		
+ 								page_tpl.setParam(&quot;mapImg&quot;, mapImg);
+ 							}
+-						} catch (Exception e) { Vm.debug(&quot;V &quot;+e); } //TODO: find out what is going wrong and especially why
+-						try {
+-							PrintWriter pagefile = new PrintWriter(new BufferedWriter(new FileWriter(targetDir + ch.getWayPoint()+&quot;.html&quot;)));
+-							pagefile.print(page_tpl.output());
+-							pagefile.close();
+-						} catch (Exception e) { Vm.debug(&quot;W &quot;+e); }  //TODO: find out what is going wrong and especially why
++						} else {
++							page_tpl.setParam(&quot;DESCRIPTION&quot;, &quot;&quot;);
++							page_tpl.setParam(&quot;HINTS&quot;, &quot;&quot;);
++							page_tpl.setParam(&quot;DECRYPTEDHINTS&quot;, &quot;&quot;);
++							page_tpl.setParam(&quot;LOGS&quot;, &quot;&quot;);
++							page_tpl.setParam(&quot;NOTES&quot;, &quot;&quot;);
++							page_tpl.setParam(&quot;cacheImg&quot;, cacheImg);
++							page_tpl.setParam(&quot;logImg&quot;, &quot;&quot;); // ???
++							page_tpl.setParam(&quot;userImg&quot;, &quot;&quot;); // ???
++							page_tpl.setParam(&quot;mapImg&quot;, &quot;&quot;); // ???
++						}
++						
++						PrintWriter pagefile = new PrintWriter(new BufferedWriter(new FileWriter(targetDir + ch.getWayPoint()+&quot;.html&quot;)));
++						pagefile.print(page_tpl.output());
++						pagefile.close();
+ 					}catch(Exception e){
+ 						Vm.debug(&quot;Problem writing waypoint html file&quot;+e);
+ 					}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001778.html">[Cachewolf-svn] r1860 - trunk/resources
+</A></li>
+	<LI>Next message: <A HREF="001780.html">[Cachewolf-svn] r1862 - in trunk: res_noewe/languages src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1779">[ date ]</a>
+              <a href="thread.html#1779">[ thread ]</a>
+              <a href="subject.html#1779">[ subject ]</a>
+              <a href="author.html#1779">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

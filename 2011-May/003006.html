@@ -1,0 +1,1203 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r3015 - in trunk/src/CacheWolf: . exp imp navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2011-May/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r3015%20-%20in%20trunk/src/CacheWolf%3A%20.%20exp%20imp%20navi&In-Reply-To=%3C20110521191346.B650B481401%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003005.html">
+   <LINK REL="Next"  HREF="003007.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r3015 - in trunk/src/CacheWolf: . exp imp navi</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r3015%20-%20in%20trunk/src/CacheWolf%3A%20.%20exp%20imp%20navi&In-Reply-To=%3C20110521191346.B650B481401%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r3015 - in trunk/src/CacheWolf: . exp imp navi">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Sat May 21 09:13:46 CEST 2011</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003005.html">[Cachewolf-svn] r3014 - trunk/src/CacheWolf/imp
+</A></li>
+        <LI>Next message: <A HREF="003007.html">[Cachewolf-svn] r3016 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3006">[ date ]</a>
+              <a href="thread.html#3006">[ thread ]</a>
+              <a href="subject.html#3006">[ subject ]</a>
+              <a href="author.html#3006">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2011-05-21 21:13:46 +0200 (Sat, 21 May 2011)
+New Revision: 3015
+
+Modified:
+   trunk/src/CacheWolf/DateFormat.java
+   trunk/src/CacheWolf/Preferences.java
+   trunk/src/CacheWolf/exp/KMLExporter.java
+   trunk/src/CacheWolf/imp/OCXMLImporterScreen.java
+   trunk/src/CacheWolf/imp/SpiderGC.java
+   trunk/src/CacheWolf/navi/MovingMap.java
+Log:
+1. recognition of Dataformat
+2. option get finds in prefs
+3. selecting selected cache on map
+
+Modified: trunk/src/CacheWolf/DateFormat.java
+===================================================================
+--- trunk/src/CacheWolf/DateFormat.java	2011-05-21 14:52:52 UTC (rev 3014)
++++ trunk/src/CacheWolf/DateFormat.java	2011-05-21 19:13:46 UTC (rev 3015)
+@@ -38,6 +38,8 @@
+ 
+ public class DateFormat {
+ 
++	public static String GCDateFormat = &quot;&quot;;
++
+ 	/** Convert the US Format into a sortable format */
+ 	public static String toYYMMDD(String date) {
+ 		return toYYMMDD(toDate(date));
+@@ -92,9 +94,14 @@
+ 						}
+ 						mm = monthName2int(month);
+ 					} else {
+-						// mm dd yyyy
+-						mm = v0;
+-						dd = v1;
++						// mm dd yyyy (doesn't work for dd mm yyyy)
++						if (GCDateFormat.equals(&quot;dd/MM/yyyy&quot;)) {
++							dd = v0;
++							mm = v1;
++						} else {
++							mm = v0;
++							dd = v1;
++						}
+ 					}
+ 
+ 				}
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2011-05-21 14:52:52 UTC (rev 3014)
++++ trunk/src/CacheWolf/Preferences.java	2011-05-21 19:13:46 UTC (rev 3015)
+@@ -324,6 +324,7 @@
+ 	public boolean sortAutomatic = true;
+ 	//
+ 	public String oldLanguageCtl = &quot;&quot;;
++	public boolean doNotGetFound = true;
+ 
+ 	// ////////////////////////////////////////////
+ 	/**
+@@ -560,6 +561,7 @@
+ 		} else if (name.equals(&quot;gotopanel&quot;)) {
+ 			northCenteredGoto = Boolean.valueOf(atts.getValue(&quot;northcentered&quot;)).booleanValue();
+ 		} else if (name.equals(&quot;spider&quot;)) {
++			doNotGetFound = !Boolean.valueOf(atts.getValue(&quot;getFinds&quot;)).booleanValue();
+ 			forceLogin = Boolean.valueOf(atts.getValue(&quot;forcelogin&quot;)).booleanValue();
+ 			checkLog = Boolean.valueOf(atts.getValue(&quot;checkLog&quot;)).booleanValue();
+ 			tmp = atts.getValue(&quot;checkTBs&quot;);
+@@ -708,37 +710,119 @@
+ 			setPathToConfigFile(null); // this sets the default value
+ 		try {
+ 			PrintWriter outp = new PrintWriter(new BufferedWriter(new FileWriter(pathToConfigFile)));
+-			outp.print(&quot;&lt;?xml version=\&quot;1.0\&quot; encoding=\&quot;UTF-8\&quot;?&gt;\n&quot;);
+-			outp.print(&quot;&lt;preferences&gt;\n&quot;);
+-			outp.print(&quot;    &lt;locale language=\&quot;&quot; + SafeXML.clean(language) + &quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;    &lt;basedir dir = \&quot;&quot; + SafeXML.clean(getBaseDir()) + &quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;    &lt;lastprofile autoreload=\&quot;&quot; + SafeXML.strxmlencode(autoReloadLastProfile) + &quot;\&quot;&gt;&quot; + SafeXML.clean(lastProfile) + &quot;&lt;/lastprofile&gt;\n&quot;); // RB
+-			outp.print(&quot;    &lt;CurrentCentre FromGPSPosition=\&quot;&quot; + SafeXML.clean(Convert.toString(setCurrentCentreFromGPSPosition)) + &quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;    &lt;alias name =\&quot;&quot; + SafeXML.clean(myAlias) + &quot;\&quot; password=\&quot;&quot; + SafeXML.clean(password) + &quot;\&quot; /&gt;\n&quot;);
+-			outp.print(&quot;    &lt;alias2 name =\&quot;&quot; + SafeXML.clean(myAlias2) + &quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;    &lt;gcmemberid name =\&quot;&quot; + SafeXML.clean(gcMemberId) + &quot;\&quot;&quot; + &quot; Premium =\&quot;&quot; + SafeXML.strxmlencode(isPremium) + &quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;    &lt;browser name = \&quot;&quot; + SafeXML.clean(browser) + &quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;    &lt;proxy prx = \&quot;&quot; + SafeXML.clean(myproxy) + &quot;\&quot; prt = \&quot;&quot; + SafeXML.clean(myproxyport) + &quot;\&quot; active = \&quot;&quot; + SafeXML.strxmlencode(proxyActive) + &quot;\&quot; /&gt;\n&quot;);
+-			outp.print(&quot;    &lt;port portname = \&quot;&quot; + SafeXML.clean(mySPO.portName) + &quot;\&quot; baud = \&quot;&quot; + SafeXML.strxmlencode(mySPO.baudRate) + &quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;    &lt;portforward active= \&quot;&quot; + SafeXML.clean(Convert.toString(forwardGPS)) + &quot;\&quot; destinationHost = \&quot;&quot; + SafeXML.clean(forwardGpsHost) + &quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;    &lt;gpsd active= \&quot;&quot; + SafeXML.strxmlencode(useGPSD) + &quot;\&quot; host = \&quot;&quot; + SafeXML.clean(gpsdHost) + &quot;\&quot; port = \&quot;&quot; + SafeXML.strxmlencode(gpsdPort) + &quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;    &lt;portlog active= \&quot;&quot; + SafeXML.clean(Convert.toString(logGPS)) + &quot;\&quot; logTimer = \&quot;&quot; + SafeXML.clean(logGPSTimer) + &quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;    &lt;font name=\&quot;&quot; + fontName + &quot;\&quot; size=\&quot;&quot; + SafeXML.strxmlencode(fontSize) + &quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;    &lt;screen menuattop=\&quot;&quot; + menuAtTop + &quot;\&quot; tabsattop=\&quot;&quot; + tabsAtTop + &quot;\&quot; showstatus=\&quot;&quot; + showStatus + &quot;\&quot; hasclosebutton=\&quot;&quot; + hasCloseButton + &quot;\&quot; h=\&quot;&quot; + myAppHeight + &quot;\&quot; w=\&quot;&quot; + myAppWidth + &quot;\&quot; /&gt;\n&quot;);
+-			outp.print(&quot;    &lt;fixedsip state = \&quot;&quot; + SafeXML.strxmlencode(fixSIP) + &quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;    &lt;listview colmap=\&quot;&quot; + SafeXML.clean(listColMap) + &quot;\&quot; colwidths=\&quot;&quot; + SafeXML.clean(listColWidth) + &quot;\&quot; /&gt;\n&quot;);
+-			outp.print(&quot;    &lt;travelbugs colmap=\&quot;&quot; + SafeXML.clean(travelbugColMap) + &quot;\&quot; colwidths=\&quot;&quot; + SafeXML.clean(travelbugColWidth) + &quot;\&quot; shownonlogged=\&quot;&quot; + SafeXML.strxmlencode(travelbugShowOnlyNonLogged) + &quot;\&quot; /&gt;\n&quot;);
++			outp.print(&quot;&lt;?xml version=\&quot;1.0\&quot; encoding=\&quot;UTF-8\&quot;?&gt;\n&quot; //
++					+ &quot;&lt;preferences&gt;\n&quot; //
++					+ &quot;    &lt;locale language=\&quot;&quot; + SafeXML.clean(language) + &quot;\&quot;/&gt;\n&quot; //
++
++					+ &quot;    &lt;basedir dir=\&quot;&quot; + SafeXML.clean(getBaseDir()) + &quot;\&quot;/&gt;\n&quot;//
++
++					+ &quot;    &lt;lastprofile&quot; //
++					+ &quot; autoreload=\&quot;&quot; + SafeXML.strxmlencode(autoReloadLastProfile) + &quot;\&quot;&quot; //
++					+ &quot;&gt;&quot; //
++					+ SafeXML.clean(lastProfile) + &quot;&lt;/lastprofile&gt;\n&quot; //
++
++					+ &quot;    &lt;CurrentCentre&quot; //
++					+ &quot; FromGPSPosition=\&quot;&quot; + SafeXML.strxmlencode(setCurrentCentreFromGPSPosition) + &quot;\&quot;&quot; //
++					+ &quot;/&gt;\n&quot; //
++
++					+ &quot;    &lt;alias&quot; //
++					+ &quot; name=\&quot;&quot; + SafeXML.clean(myAlias) + &quot;\&quot;&quot; //
++					+ &quot; password=\&quot;&quot; + SafeXML.clean(password) + &quot;\&quot;&quot; //
++					+ &quot;/&gt;\n&quot; //
++
++					+ &quot;    &lt;alias2 name=\&quot;&quot; + SafeXML.clean(myAlias2) + &quot;\&quot;/&gt;\n&quot; //
++
++					+ &quot;    &lt;gcmemberid&quot; //
++					+ &quot; name=\&quot;&quot; + SafeXML.clean(gcMemberId) + &quot;\&quot;&quot; //
++					+ &quot; Premium=\&quot;&quot; + SafeXML.strxmlencode(isPremium) + &quot;\&quot;&quot; //
++					+ &quot;/&gt;\n&quot; //
++
++					+ &quot;    &lt;browser name=\&quot;&quot; + SafeXML.clean(browser) + &quot;\&quot;/&gt;\n&quot; //
++
++					+ &quot;    &lt;proxy&quot; //
++					+ &quot; prx=\&quot;&quot; + SafeXML.clean(myproxy) + &quot;\&quot;&quot; //
++					+ &quot; prt=\&quot;&quot; + SafeXML.clean(myproxyport) + &quot;\&quot;&quot; //
++					+ &quot; active=\&quot;&quot; + SafeXML.strxmlencode(proxyActive) + &quot;\&quot;&quot; //
++					+ &quot;/&gt;\n&quot; //
++
++					+ &quot;    &lt;port&quot; //
++					+ &quot; portname=\&quot;&quot; + SafeXML.clean(mySPO.portName) + &quot;\&quot;&quot; //
++					+ &quot; baud=\&quot;&quot; + SafeXML.strxmlencode(mySPO.baudRate) + &quot;\&quot;&quot; //
++					+ &quot;/&gt;\n&quot; //
++
++					+ &quot;    &lt;portforward&quot; //
++					+ &quot; active=\&quot;&quot; + SafeXML.strxmlencode(forwardGPS) + &quot;\&quot;&quot; //
++					+ &quot; destinationHost=\&quot;&quot; + SafeXML.clean(forwardGpsHost) + &quot;\&quot;&quot; //
++					+ &quot;/&gt;\n&quot; //
++
++					+ &quot;    &lt;gpsd&quot; //
++					+ &quot; active=\&quot;&quot; + SafeXML.strxmlencode(useGPSD) + &quot;\&quot;&quot; //
++					+ &quot; host=\&quot;&quot; + SafeXML.clean(gpsdHost) + &quot;\&quot;&quot; //
++					+ &quot; port=\&quot;&quot; + SafeXML.strxmlencode(gpsdPort) + &quot;\&quot;&quot; //
++					+ &quot;/&gt;\n&quot; //
++
++					+ &quot;    &lt;portlog&quot; //
++					+ &quot; active=\&quot;&quot; + SafeXML.strxmlencode(logGPS) + &quot;\&quot;&quot; //
++					+ &quot; logTimer=\&quot;&quot; + SafeXML.clean(logGPSTimer) + &quot;\&quot;&quot; //
++					+ &quot;/&gt;\n&quot; //
++
++					+ &quot;    &lt;font&quot; //
++					+ &quot; name=\&quot;&quot; + fontName + &quot;\&quot;&quot; //
++					+ &quot; size=\&quot;&quot; + SafeXML.strxmlencode(fontSize) + &quot;\&quot;&quot; //
++					+ &quot;/&gt;\n&quot; //
++
++					+ &quot;    &lt;screen&quot; //
++					+ &quot; menuattop=\&quot;&quot; + menuAtTop + &quot;\&quot;&quot; //
++					+ &quot; tabsattop=\&quot;&quot; + tabsAtTop + &quot;\&quot;&quot; //
++					+ &quot; showstatus=\&quot;&quot; + showStatus + &quot;\&quot;&quot; //
++					+ &quot; hasclosebutton=\&quot;&quot; + hasCloseButton + &quot;\&quot;&quot; //
++					+ &quot; h=\&quot;&quot; + myAppHeight + &quot;\&quot;&quot; //
++					+ &quot; w=\&quot;&quot; + myAppWidth + &quot;\&quot;&quot; //
++					+ &quot;/&gt;\n&quot; //
++
++					+ &quot;    &lt;fixedsip state=\&quot;&quot; + SafeXML.strxmlencode(fixSIP) + &quot;\&quot;/&gt;\n&quot; //
++
++					+ &quot;    &lt;listview&quot; //
++					+ &quot; colmap=\&quot;&quot; + SafeXML.clean(listColMap) + &quot;\&quot;&quot; //
++					+ &quot; colwidths=\&quot;&quot; + SafeXML.clean(listColWidth) + &quot;\&quot;&quot; //
++					+ &quot;/&gt;\n&quot; //
++
++					+ &quot;    &lt;travelbugs&quot; //
++					+ &quot; colmap=\&quot;&quot; + SafeXML.clean(travelbugColMap) + &quot;\&quot;&quot; //
++					+ &quot; colwidths=\&quot;&quot; + SafeXML.clean(travelbugColWidth) + &quot;\&quot;&quot; //
++					+ &quot; shownonlogged=\&quot;&quot; + SafeXML.strxmlencode(travelbugShowOnlyNonLogged) + &quot;\&quot;&quot; //
++					+ &quot;/&gt;\n&quot;);
++
+ 			outp.print(&quot;    &lt;descpanel showimages=\&quot;&quot; + SafeXML.strxmlencode(descShowImg) + &quot;\&quot; /&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;imagepanel showdeletedimages=\&quot;&quot; + SafeXML.strxmlencode(showDeletedImages) + &quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;    &lt;hintlogpanel logsperpage=\&quot;&quot; + SafeXML.strxmlencode(logsPerPage) + &quot;\&quot; initialhintheight=\&quot;&quot; + SafeXML.strxmlencode(initialHintHeight) + &quot;\&quot;  maxspiderlogs=\&quot;&quot; + SafeXML.strxmlencode(maxLogsToSpider) + &quot;\&quot; /&gt;\n&quot;);
++			outp.print(&quot;    &lt;hintlogpanel&quot;//
++					+ &quot; logsperpage=\&quot;&quot; + SafeXML.strxmlencode(logsPerPage) + &quot;\&quot;&quot; //
++					+ &quot; initialhintheight=\&quot;&quot; + SafeXML.strxmlencode(initialHintHeight) + &quot;\&quot;&quot; //
++					+ &quot; maxspiderlogs=\&quot;&quot; + SafeXML.strxmlencode(maxLogsToSpider) + &quot;\&quot;&quot; //
++					+ &quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;solver ignorevariablecase=\&quot;&quot; + SafeXML.strxmlencode(solverIgnoreCase) + &quot;\&quot; degMode=\&quot;&quot; + SafeXML.strxmlencode(solverDegMode) + &quot;\&quot; /&gt;\n&quot;);
+-			outp.print(&quot;    &lt;garmin connection = \&quot;&quot; + SafeXML.clean(garminConn) + &quot;\&quot; GPSBabelOptions = \&quot;&quot; + SafeXML.clean(garminGPSBabelOptions) + &quot;\&quot; MaxWaypointLength = \&quot;&quot; + SafeXML.strxmlencode(garminMaxLen) + &quot;\&quot; addDetailsToWaypoint = \&quot;&quot;
+-					+ SafeXML.strxmlencode(addDetailsToWaypoint) + &quot;\&quot; addDetailsToName = \&quot;&quot; + SafeXML.strxmlencode(addDetailsToName) + &quot;\&quot; /&gt;\n&quot;);
++			outp.print(&quot;    &lt;garmin&quot; //
++					+ &quot; connection=\&quot;&quot; + SafeXML.clean(garminConn) + &quot;\&quot;&quot; //
++					+ &quot; GPSBabelOptions=\&quot;&quot; + SafeXML.clean(garminGPSBabelOptions) + &quot;\&quot;&quot; //
++					+ &quot; MaxWaypointLength=\&quot;&quot; + SafeXML.strxmlencode(garminMaxLen) + &quot;\&quot;&quot; //
++					+ &quot; addDetailsToWaypoint=\&quot;&quot; + SafeXML.strxmlencode(addDetailsToWaypoint) + &quot;\&quot;&quot; //
++					+ &quot; addDetailsToName=\&quot;&quot; + SafeXML.strxmlencode(addDetailsToName) + &quot;\&quot;&quot; //
++					+ &quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;opencaching lastSite=\&quot;&quot; + lastOCSite + &quot;\&quot; downloadMissing=\&quot;&quot; + SafeXML.strxmlencode(downloadAllOC) + &quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;    &lt;location lat = \&quot;&quot; + SafeXML.clean(curCentrePt.getLatDeg(TransformCoordinates.DD)) + &quot;\&quot; long = \&quot;&quot; + SafeXML.clean(curCentrePt.getLonDeg(TransformCoordinates.DD)) + &quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;    &lt;spider&quot; + &quot; forcelogin=\&quot;&quot; + SafeXML.strxmlencode(forceLogin) + &quot;\&quot;&quot; + &quot; spiderUpdates=\&quot;&quot; + SafeXML.strxmlencode(spiderUpdates) + &quot;\&quot;&quot; + &quot; checkLog=\&quot;&quot; + SafeXML.strxmlencode(checkLog) + &quot;\&quot;&quot; + &quot; checkTBs=\&quot;&quot;
+-					+ SafeXML.strxmlencode(checkTBs) + &quot;\&quot;&quot; + &quot; checkDTS=\&quot;&quot; + SafeXML.strxmlencode(checkDTS) + &quot;\&quot;&quot; + &quot; spiderRoute=\&quot;&quot; + SafeXML.strxmlencode(spiderRoute) + &quot;\&quot;&quot; + &quot; maxSpiderNumber=\&quot;&quot; + SafeXML.strxmlencode(maxSpiderNumber) + &quot;\&quot;&quot;
+-					+ &quot; downloadPics=\&quot;&quot; + SafeXML.strxmlencode(downloadPics) + &quot;\&quot;&quot; + &quot; downloadTBs=\&quot;&quot; + SafeXML.strxmlencode(downloadTBs) + &quot;\&quot;&quot; + &quot; UserID=\&quot;&quot; + SafeXML.clean(userID) + &quot;\&quot;&quot; + &quot;/&gt;\n&quot;);
++			outp.print(&quot;    &lt;location lat=\&quot;&quot; + SafeXML.clean(curCentrePt.getLatDeg(TransformCoordinates.DD)) + &quot;\&quot; long=\&quot;&quot; + SafeXML.clean(curCentrePt.getLonDeg(TransformCoordinates.DD)) + &quot;\&quot;/&gt;\n&quot;);
++			outp.print(&quot;    &lt;spider&quot; //
++					+ &quot; forcelogin=\&quot;&quot; + SafeXML.strxmlencode(forceLogin) + &quot;\&quot;&quot; //
++					+ &quot; spiderUpdates=\&quot;&quot; + SafeXML.strxmlencode(spiderUpdates) + &quot;\&quot;&quot; //
++					+ &quot; checkLog=\&quot;&quot; + SafeXML.strxmlencode(checkLog) + &quot;\&quot;&quot; //
++					+ &quot; checkTBs=\&quot;&quot; + SafeXML.strxmlencode(checkTBs) + &quot;\&quot;&quot; //
++					+ &quot; checkDTS=\&quot;&quot; + SafeXML.strxmlencode(checkDTS) + &quot;\&quot;&quot; //
++					+ &quot; spiderRoute=\&quot;&quot; + SafeXML.strxmlencode(spiderRoute) + &quot;\&quot;&quot; //
++					+ &quot; maxSpiderNumber=\&quot;&quot; + SafeXML.strxmlencode(maxSpiderNumber) + &quot;\&quot;&quot; //
++					+ &quot; downloadPics=\&quot;&quot; + SafeXML.strxmlencode(downloadPics) + &quot;\&quot;&quot; //
++					+ &quot; downloadTBs=\&quot;&quot; + SafeXML.strxmlencode(downloadTBs) + &quot;\&quot;&quot; //
++					+ &quot; UserID=\&quot;&quot; + SafeXML.clean(userID) + &quot;\&quot;&quot; //
++					+ &quot; getFinds=\&quot;&quot; + SafeXML.strxmlencode(!doNotGetFound) + &quot;\&quot;&quot; //
++					+ &quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;gotopanel northcentered=\&quot;&quot; + SafeXML.strxmlencode(northCenteredGoto) + &quot;\&quot; /&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;details cacheSize=\&quot;&quot; + SafeXML.strxmlencode(maxDetails) + &quot;\&quot; delete=\&quot;&quot; + SafeXML.strxmlencode(deleteDetails) + &quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;metric type=\&quot;&quot; + SafeXML.strxmlencode(metricSystem) + &quot;\&quot;/&gt;\n&quot;);
+@@ -746,7 +830,7 @@
+ 					+ &quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;datamover processorMode=\&quot;&quot; + SafeXML.strxmlencode(processorMode) + &quot;\&quot; /&gt;\n&quot;);
+ 			if (customMapsPath != null)
+-				outp.print(&quot;    &lt;mapspath dir = \&quot;&quot; + SafeXML.clean(customMapsPath.replace('\\', '/')) + &quot;\&quot;/&gt;\n&quot;);
++				outp.print(&quot;    &lt;mapspath dir=\&quot;&quot; + SafeXML.clean(customMapsPath.replace('\\', '/')) + &quot;\&quot;/&gt;\n&quot;);
+ 			// Saving filters
+ 			String[] filterIDs = this.getFilterIDs();
+ 			for (int i = 0; i &lt; filterIDs.length; i++) {
+
+Modified: trunk/src/CacheWolf/exp/KMLExporter.java
+===================================================================
+--- trunk/src/CacheWolf/exp/KMLExporter.java	2011-05-21 14:52:52 UTC (rev 3014)
++++ trunk/src/CacheWolf/exp/KMLExporter.java	2011-05-21 19:13:46 UTC (rev 3015)
+@@ -1,28 +1,28 @@
+-    /*
+-    GNU General Public License
+-    CacheWolf is a software for PocketPC, Win and Linux that
+-    enables paperless caching.
+-    It supports the sites geocaching.com and opencaching.de
++/*
++GNU General Public License
++CacheWolf is a software for PocketPC, Win and Linux that
++enables paperless caching.
++It supports the sites geocaching.com and opencaching.de
+ 
+-    Copyright (C) 2006  CacheWolf development team
+-    See <A HREF="http://developer.berlios.de/projects/cachewolf/">http://developer.berlios.de/projects/cachewolf/</A>
+-    for more information.
+-    Contact: 	<A HREF="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">bilbowolf at users.berlios.de</A>
+-    			<A HREF="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">kalli at users.berlios.de</A>
++Copyright (C) 2006  CacheWolf development team
++See <A HREF="http://developer.berlios.de/projects/cachewolf/">http://developer.berlios.de/projects/cachewolf/</A>
++for more information.
++Contact: 	<A HREF="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">bilbowolf at users.berlios.de</A>
++			<A HREF="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">kalli at users.berlios.de</A>
+ 
+-    This program is free software; you can redistribute it and/or modify
+-    it under the terms of the GNU General Public License as published by
+-    the Free Software Foundation; version 2 of the License.
++This program is free software; you can redistribute it and/or modify
++it under the terms of the GNU General Public License as published by
++the Free Software Foundation; version 2 of the License.
+ 
+-    This program is distributed in the hope that it will be useful,
+-    but WITHOUT ANY WARRANTY; without even the implied warranty of
+-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-    GNU General Public License for more details.
++This program is distributed in the hope that it will be useful,
++but WITHOUT ANY WARRANTY; without even the implied warranty of
++MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++GNU General Public License for more details.
+ 
+-    You should have received a copy of the GNU General Public License
+-    along with this program; if not, write to the Free Software
+-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+-    */
++You should have received a copy of the GNU General Public License
++along with this program; if not, write to the Free Software
++Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ */
+ package CacheWolf.exp;
+ 
+ import CacheWolf.CWPoint;
+@@ -45,49 +45,40 @@
+ import ewe.ui.ProgressBarForm;
+ import ewe.util.Hashtable;
+ import ewe.util.Iterator;
++import ewe.util.Map.MapEntry;
+ import ewe.util.Vector;
+-import ewe.util.Map.MapEntry;
+ import ewe.util.zip.ZipEntry;
+ import ewe.util.zip.ZipException;
+ import ewe.util.zip.ZipFile;
+ 
+ /**
+-*	Class to export the cache database (index) to an KML-File
+-*	which can be read by Google Earth
+-*
+-*/
++ * Class to export the cache database (index) to an KML-File
++ * which can be read by Google Earth
++ * 
++ */
+ public class KMLExporter extends Exporter {
+ 	private static final String COLOR_FOUND = &quot;ff98fb98&quot;;
+ 	private static final String COLOR_OWNED = &quot;ffffaa55&quot;;
+ 	private static final String COLOR_AVAILABLE = &quot;ffffffff&quot;;
+ 	private static final String COLOR_NOT_AVAILABLE = &quot;ff0000ff&quot;;
+ 
+-
+ 	static final int AVAILABLE = 0;
+ 	static final int FOUND = 1;
+ 	static final int OWNED = 2;
+ 	static final int NOT_AVAILABLE = 3;
+ 	static final int UNKNOWN = 4;
+ 
+-
+-	String []categoryNames = {&quot;Available&quot;,&quot;Found&quot;, &quot;Owned&quot;, &quot;Not Available&quot;, &quot;UNKNOWN&quot;};
+-	Hashtable [] outCacheDB = new Hashtable[categoryNames.length];
++	String[] categoryNames = { &quot;Available&quot;, &quot;Found&quot;, &quot;Owned&quot;, &quot;Not Available&quot;, &quot;UNKNOWN&quot; };
++	Hashtable[] outCacheDB = new Hashtable[categoryNames.length];
+ 	private Profile prof;
+ 
+-	public KMLExporter(){
++	public KMLExporter(Preferences p, Profile _prof) {
+ 		super();
+ 		this.setMask(&quot;*.kml&quot;);
+-		this.setHowManyParams(LAT_LON);
++		prof = _prof;
+ 	}
+ 
+-
+-	public KMLExporter(Preferences p, Profile _prof){
+-			super();
+-			this.setMask(&quot;*.kml&quot;);
+-			prof=_prof;
+-	}
+-
+-	public void doIt(int variant){
++	public void doIt(int variant) {
+ 		File outFile;
+ 		String str;
+ 		CacheHolder ch;
+@@ -97,13 +88,14 @@
+ 
+ 		if (variant == ASK_FILE) {
+ 			outFile = getOutputFile();
+-			if (outFile == null) return;
++			if (outFile == null)
++				return;
+ 		} else {
+ 			outFile = new File(tmpFileName);
+ 		}
+ 
+ 		pbf.showMainTask = false;
+-		pbf.setTask(h,&quot;Exporting ...&quot;);
++		pbf.setTask(h, &quot;Exporting ...&quot;);
+ 		pbf.exec();
+ 
+ 		int counter = cacheDB.countVisible();
+@@ -111,51 +103,55 @@
+ 		copyIcons(outFile.getParent());
+ 		buildOutDB();
+ 
+-		try{
+-			PrintWriter outp =  new PrintWriter(new BufferedWriter(new FileWriter(outFile)));
+-			str = STRreplace.replace(this.header(),&quot;CacheWolf&quot;,prof.name);
+-			if (str != null) outp.print(str);
++		try {
++			PrintWriter outp = new PrintWriter(new BufferedWriter(new FileWriter(outFile)));
++			str = STRreplace.replace(this.header(), &quot;CacheWolf&quot;, prof.name);
++			if (str != null)
++				outp.print(str);
+ 			for (int cat = 0; cat &lt; categoryNames.length; cat++) {
+ 				// skip over empty categories
+-				if (outCacheDB[cat]==null) continue;
++				if (outCacheDB[cat] == null)
++					continue;
+ 
+ 				Iterator outLoop = outCacheDB[cat].entries();
+ 				outp.print(startFolder(categoryNames[cat]));
+ 
+ 				Vector tmp;
+ 				MapEntry entry;
+-				while (outLoop.hasNext()){
++				while (outLoop.hasNext()) {
+ 					entry = (MapEntry) outLoop.next();
+-					tmp = (Vector)entry.getValue();
++					tmp = (Vector) entry.getValue();
+ 					// skip over empty cachetypes
+-					if (tmp.size() == 0) continue;
++					if (tmp.size() == 0)
++						continue;
+ 					outp.print(startFolder(CacheType.type2Gui(Integer.valueOf(entry.getKey().toString()).byteValue())));
+ 
+-					for(int i = 0; i&lt;tmp.size(); i++){
++					for (int i = 0; i &lt; tmp.size(); i++) {
+ 						ch = (CacheHolder) tmp.get(i);
+-						if (ch.isAddiWpt()) continue;
++						if (ch.isAddiWpt())
++							continue;
+ 						expCount++;
+-						h.progress = (float)expCount/(float)counter;
++						h.progress = (float) expCount / (float) counter;
+ 						h.changed();
+ 
+-						if (ch.pos.isValid()){
+-							str = record(ch, ch.pos.getLatDeg(CWPoint.DD).replace('.', this.decimalSeparator),
+-								     ch.pos.getLonDeg(CWPoint.DD).replace('.', this.decimalSeparator));
+-							if (str != null) outp.print(str);
++						if (ch.pos.isValid()) {
++							str = record(ch, ch.pos.getLatDeg(CWPoint.DD).replace('.', this.decimalSeparator), ch.pos.getLonDeg(CWPoint.DD).replace('.', this.decimalSeparator));
++							if (str != null)
++								outp.print(str);
+ 						}
+-						if (ch.hasAddiWpt()){
++						if (ch.hasAddiWpt()) {
+ 							boolean createdAdditionalWaypointsFolder = false;
+-							for(int j = 0; j&lt;ch.addiWpts.size(); j++){
++							for (int j = 0; j &lt; ch.addiWpts.size(); j++) {
+ 								addiWpt = (CacheHolder) ch.addiWpts.get(j);
+ 								expCount++;
+-								if (ch.pos.isValid() &amp;&amp;  addiWpt.isVisible()){
+-									if (! createdAdditionalWaypointsFolder) {
++								if (ch.pos.isValid() &amp;&amp; addiWpt.isVisible()) {
++									if (!createdAdditionalWaypointsFolder) {
+ 										outp.print(startFolder(&quot;Additional Waypoints&quot;, false));
+ 										createdAdditionalWaypointsFolder = true;
+ 									}
+-									str = record(addiWpt, addiWpt.pos.getLatDeg(CWPoint.DD).replace('.', this.decimalSeparator),
+-											addiWpt.pos.getLonDeg(CWPoint.DD).replace('.', this.decimalSeparator));
+-									if (str != null) outp.print(str);
++									str = record(addiWpt, addiWpt.pos.getLatDeg(CWPoint.DD).replace('.', this.decimalSeparator), addiWpt.pos.getLonDeg(CWPoint.DD).replace('.', this.decimalSeparator));
++									if (str != null)
++										outp.print(str);
+ 								}
+ 
+ 							}
+@@ -170,17 +166,18 @@
+ 			}
+ 
+ 			str = trailer();
+-			if (str != null) outp.print(str);
++			if (str != null)
++				outp.print(str);
+ 			outp.close();
+ 			pbf.exit(0);
+-		} catch (IOException ioE){
+-			pref.log(&quot;Error opening &quot; + outFile.getName(),ioE);
++		} catch (IOException ioE) {
++			pref.log(&quot;Error opening &quot; + outFile.getName(), ioE);
+ 		}
+-		//try
++		// try
+ 
+ 	}
+ 
+-	private void buildOutDB(){
++	private void buildOutDB() {
+ 		CacheHolder ch;
+ 		Vector tmp;
+ 		Iterator categoryLoop;
+@@ -197,49 +194,54 @@
+ 		}
+ 
+ 		// fill structure with data from cacheDB
+-		for(int i = 0; i&lt;cacheDB.size(); i++){
+-			ch=cacheDB.get(i);
++		for (int i = 0; i &lt; cacheDB.size(); i++) {
++			ch = cacheDB.get(i);
+ 			// TODO Das Argument nach STring zu casten gef&#239;&#191;&#189;llt mir nicht ganz...
+-			if(ch.isVisible() &amp;&amp; !ch.isAddiWpt()){
+-				if (ch.is_found()) { tmp = (Vector) outCacheDB[FOUND].get(String.valueOf(ch.getType()));}
+-				else if (ch.is_owned()) { tmp = (Vector) outCacheDB[OWNED].get(String.valueOf(ch.getType()));}
+-				else if (ch.is_archived() || !ch.is_available()){ tmp = (Vector) outCacheDB[NOT_AVAILABLE].get(String.valueOf(ch.getType()));}
+-				else if (ch.is_available()){ tmp = (Vector) outCacheDB[AVAILABLE].get(String.valueOf(ch.getType()));}
+-				else { tmp = (Vector) outCacheDB[UNKNOWN].get(String.valueOf(ch.getType()));}
+-
++			if (ch.isVisible() &amp;&amp; !ch.isAddiWpt()) {
++				if (ch.is_found()) {
++					tmp = (Vector) outCacheDB[FOUND].get(String.valueOf(ch.getType()));
++				} else if (ch.is_owned()) {
++					tmp = (Vector) outCacheDB[OWNED].get(String.valueOf(ch.getType()));
++				} else if (ch.is_archived() || !ch.is_available()) {
++					tmp = (Vector) outCacheDB[NOT_AVAILABLE].get(String.valueOf(ch.getType()));
++				} else if (ch.is_available()) {
++					tmp = (Vector) outCacheDB[AVAILABLE].get(String.valueOf(ch.getType()));
++				} else {
++					tmp = (Vector) outCacheDB[UNKNOWN].get(String.valueOf(ch.getType()));
++				}
+ 				tmp.add(ch);
+ 			}
+ 		}
+ 
+-		//eleminate empty categories
++		// eleminate empty categories
+ 		for (int i = 0; i &lt; categoryNames.length; i++) {
+ 			categoryLoop = outCacheDB[i].entries();
+ 			foundOne = false;
+-			//look if all vectors for cachetypes are filled
+-			while (categoryLoop.hasNext()){
++			// look if all vectors for cachetypes are filled
++			while (categoryLoop.hasNext()) {
+ 				entry = (MapEntry) categoryLoop.next();
+-				tmp = (Vector)entry.getValue();
+-				if (tmp.size()&gt; 0){
++				tmp = (Vector) entry.getValue();
++				if (tmp.size() &gt; 0) {
+ 					foundOne = true;
+ 					break;
+ 				}
+ 			}
+ 			// set hashtable for that category to null
+-			if (!foundOne)outCacheDB[i] = null;
++			if (!foundOne)
++				outCacheDB[i] = null;
+ 		}
+ 
+-
+ 	}
+ 
+-	private String startFolder(String name){
++	private String startFolder(String name) {
+ 		return startFolder(name, true);
+ 	}
+ 
+-	private String startFolder(String name, boolean open){
++	private String startFolder(String name, boolean open) {
+ 		StringBuffer strBuf = new StringBuffer(200);
+ 		strBuf.append(&quot;&lt;Folder&gt;\r\n&quot;);
+ 		strBuf.append(&quot;&lt;name&gt;&quot; + name + &quot;&lt;/name&gt;\r\n&quot;);
+-		strBuf.append(&quot;&lt;open&gt;&quot; + (open?&quot;1&quot;:&quot;0&quot;) + &quot;&lt;/open&gt;\r\n&quot;);
++		strBuf.append(&quot;&lt;open&gt;&quot; + (open ? &quot;1&quot; : &quot;0&quot;) + &quot;&lt;/open&gt;\r\n&quot;);
+ 
+ 		return strBuf.toString();
+ 	}
+@@ -249,15 +251,15 @@
+ 		return &quot;&lt;/Folder&gt;\r\n&quot;;
+ 	}
+ 
+-	public void copyIcons(String dir){
+-		ZipFile zif=null;
++	public void copyIcons(String dir) {
++		ZipFile zif = null;
+ 		try {
+-			zif = new ZipFile (FileBase.getProgramDirectory() + FileBase.separator + &quot;exporticons&quot; + FileBase.separator + &quot;GoogleEarth.zip&quot;);
++			zif = new ZipFile(FileBase.getProgramDirectory() + FileBase.separator + &quot;exporticons&quot; + FileBase.separator + &quot;GoogleEarth.zip&quot;);
+ 		} catch (IOException e) {
+ 		}
+ 		try {
+-      if (zif == null) {
+-			  zif = new ZipFile (FileBase.getProgramDirectory() + FileBase.separator + &quot;exporticons&quot; + FileBase.separator + &quot;exporticons&quot; + FileBase.separator + &quot;GoogleEarth.zip&quot;);
++			if (zif == null) {
++				zif = new ZipFile(FileBase.getProgramDirectory() + FileBase.separator + &quot;exporticons&quot; + FileBase.separator + &quot;exporticons&quot; + FileBase.separator + &quot;GoogleEarth.zip&quot;);
+ 			}
+ 			ZipEntry zipEnt;
+ 			int len;
+@@ -266,27 +268,29 @@
+ 			for (int i = 0; i &lt; CacheType.guiTypeStrings().length; i++) {
+ 				fileName = CacheType.typeImageForId(CacheType.guiSelect2Cw(i));
+ 				zipEnt = zif.getEntry(fileName);
+-				if (zipEnt == null) continue;
+-			    byte[] buff = new byte[ zipEnt.getSize() ];
+-			    InputStream  fis = zif.getInputStream(zipEnt);
+-			    FileOutputStream fos = new FileOutputStream( dir + &quot;/&quot; + fileName);
+-			    while( 0 &lt; (len = fis.read( buff )) )
+-			      fos.write( buff, 0, len );
+-			    fos.flush();
+-			    fos.close();
+-			    fis.close();
++				if (zipEnt == null)
++					continue;
++				byte[] buff = new byte[zipEnt.getSize()];
++				InputStream fis = zif.getInputStream(zipEnt);
++				FileOutputStream fos = new FileOutputStream(dir + &quot;/&quot; + fileName);
++				while (0 &lt; (len = fis.read(buff)))
++					fos.write(buff, 0, len);
++				fos.flush();
++				fos.close();
++				fis.close();
+ 			}
+ 
+-			} catch (ZipException e) {
+-				pref.log(&quot;Problem copying Icon&quot;,e,true);
+-			} catch (IOException e) {
+-				pref.log(&quot;Problem copying Icon&quot;,e,true);
+-			}
++		} catch (ZipException e) {
++			pref.log(&quot;Problem copying Icon&quot;, e, true);
++		} catch (IOException e) {
++			pref.log(&quot;Problem copying Icon&quot;, e, true);
++		}
+ 	}
+ 
++	StringBuffer strBuf = new StringBuffer(200);
+ 
+-	public String header () {
+-		StringBuffer strBuf = new StringBuffer(200);
++	public String header() {
++		strBuf.setLength(0);
+ 
+ 		strBuf.append(&quot;&lt;?xml version=\&quot;1.0\&quot; encoding=\&quot;utf-8\&quot;?&gt;\r\n&quot;);
+ 		strBuf.append(&quot;&lt;kml xmlns=\&quot;<A HREF="http://earth.google.com/kml/2.0\">http://earth.google.com/kml/2.0\</A>&quot;&gt;\r\n&quot;);
+@@ -297,29 +301,28 @@
+ 		return strBuf.toString();
+ 	}
+ 
+-
+-	public String record(CacheHolder ch, String lat, String lon){
+-		StringBuffer strBuf = new StringBuffer(200);
++	public String record(CacheHolder ch, String lat, String lon) {
++		strBuf.setLength(0);
+ 		CacheHolderDetail det = ch.getCacheDetails(true);
+ 
+ 		strBuf.append(&quot;   &lt;Placemark&gt;\r\n&quot;);
+-		if (det.URL != null){
+-			strBuf.append(&quot;      &lt;description&gt;&quot;+SafeXML.clean(det.URL)+&quot;&lt;/description&gt;\r\n&quot;);
++		if (det.URL != null) {
++			strBuf.append(&quot;      &lt;description&gt;&quot; + SafeXML.clean(det.URL) + &quot;&lt;/description&gt;\r\n&quot;);
+ 		}
+-		strBuf.append(&quot;      &lt;name&gt;&quot;+ ch.getWayPoint() + &quot; - &quot; + SafeXML.clean(ch.getCacheName()) +&quot;&lt;/name&gt;\r\n&quot;);
++		strBuf.append(&quot;      &lt;name&gt;&quot; + ch.getWayPoint() + &quot; - &quot; + SafeXML.clean(ch.getCacheName()) + &quot;&lt;/name&gt;\r\n&quot;);
+ 		strBuf.append(&quot;      &lt;LookAt&gt;\r\n&quot;);
+ 		strBuf.append(&quot;         &lt;latitude&gt;&quot; + lat + &quot;&lt;/latitude&gt;\r\n&quot;);
+ 		strBuf.append(&quot;         &lt;longitude&gt;&quot; + lon + &quot;&lt;/longitude&gt;\r\n&quot;);
+ 		strBuf.append(&quot;         &lt;range&gt;10000&lt;/range&gt;&lt;tilt&gt;0&lt;/tilt&gt;&lt;heading&gt;0&lt;/heading&gt;\r\n&quot;);
+ 		strBuf.append(&quot;      &lt;/LookAt&gt;\r\n&quot;);
+ 		strBuf.append(&quot;      &lt;Point&gt;\r\n&quot;);
+-		strBuf.append(&quot;         &lt;coordinates&gt;&quot;  + lon + &quot;,&quot; + lat + &quot;&lt;/coordinates&gt;\r\n&quot;);
++		strBuf.append(&quot;         &lt;coordinates&gt;&quot; + lon + &quot;,&quot; + lat + &quot;&lt;/coordinates&gt;\r\n&quot;);
+ 		strBuf.append(&quot;      &lt;/Point&gt;\r\n&quot;);
+ 		strBuf.append(&quot;      &lt;Style&gt;\r\n&quot;);
+ 		strBuf.append(&quot;      &lt;IconStyle&gt;\r\n&quot;);
+ 		strBuf.append(&quot;         &lt;Icon&gt;\r\n&quot;);
+-//		strBuf.append(&quot;            &lt;href&gt;&quot;+ File.getProgramDirectory()+ &quot;/&quot; + CacheType.type2pic(Convert.parseInt(ch.type))+ &quot;&lt;/href&gt;\r\n&quot;);
+-		strBuf.append(&quot;            &lt;href&gt;&quot;+ CacheType.typeImageForId(ch.getType())+ &quot;&lt;/href&gt;\r\n&quot;);
++		// strBuf.append(&quot;            &lt;href&gt;&quot;+ File.getProgramDirectory()+ &quot;/&quot; + CacheType.type2pic(Convert.parseInt(ch.type))+ &quot;&lt;/href&gt;\r\n&quot;);
++		strBuf.append(&quot;            &lt;href&gt;&quot; + CacheType.typeImageForId(ch.getType()) + &quot;&lt;/href&gt;\r\n&quot;);
+ 		strBuf.append(&quot;         &lt;/Icon&gt;\r\n&quot;);
+ 		strBuf.append(&quot;      &lt;/IconStyle&gt;\r\n&quot;);
+ 		strBuf.append(&quot;      &lt;LabelStyle&gt;\r\n&quot;);
+@@ -331,8 +334,8 @@
+ 		return strBuf.toString();
+ 	}
+ 
+-	public String trailer(){
+-		StringBuffer strBuf = new StringBuffer(50);
++	public String trailer() {
++		strBuf.setLength(0);
+ 
+ 		strBuf.append(&quot;&lt;/Folder&gt;\r\n&quot;);
+ 		strBuf.append(&quot;&lt;/kml&gt;\r\n&quot;);
+@@ -340,10 +343,13 @@
+ 		return strBuf.toString();
+ 	}
+ 
+-	private String getColor(CacheHolder ch){
+-		if (ch.is_found()) return COLOR_FOUND;
+-		if (ch.is_owned()) return COLOR_OWNED;
+-		if (ch.is_archived() || !ch.is_available()) return COLOR_NOT_AVAILABLE;
++	private String getColor(CacheHolder ch) {
++		if (ch.is_found())
++			return COLOR_FOUND;
++		if (ch.is_owned())
++			return COLOR_OWNED;
++		if (ch.is_archived() || !ch.is_available())
++			return COLOR_NOT_AVAILABLE;
+ 
+ 		return COLOR_AVAILABLE;
+ 	}
+
+Modified: trunk/src/CacheWolf/imp/OCXMLImporterScreen.java
+===================================================================
+--- trunk/src/CacheWolf/imp/OCXMLImporterScreen.java	2011-05-21 14:52:52 UTC (rev 3014)
++++ trunk/src/CacheWolf/imp/OCXMLImporterScreen.java	2011-05-21 19:13:46 UTC (rev 3015)
+@@ -1,28 +1,28 @@
+-    /*
+-    GNU General Public License
+-    CacheWolf is a software for PocketPC, Win and Linux that
+-    enables paperless caching.
+-    It supports the sites geocaching.com and opencaching.de
++/*
++GNU General Public License
++CacheWolf is a software for PocketPC, Win and Linux that
++enables paperless caching.
++It supports the sites geocaching.com and opencaching.de
+ 
+-    Copyright (C) 2006  CacheWolf development team
+-    See <A HREF="http://developer.berlios.de/projects/cachewolf/">http://developer.berlios.de/projects/cachewolf/</A>
+-    for more information.
+-    Contact: 	<A HREF="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">bilbowolf at users.berlios.de</A>
+-    			<A HREF="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">kalli at users.berlios.de</A>
++Copyright (C) 2006  CacheWolf development team
++See <A HREF="http://developer.berlios.de/projects/cachewolf/">http://developer.berlios.de/projects/cachewolf/</A>
++for more information.
++Contact: 	<A HREF="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">bilbowolf at users.berlios.de</A>
++			<A HREF="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">kalli at users.berlios.de</A>
+ 
+-    This program is free software; you can redistribute it and/or modify
+-    it under the terms of the GNU General Public License as published by
+-    the Free Software Foundation; version 2 of the License.
++This program is free software; you can redistribute it and/or modify
++it under the terms of the GNU General Public License as published by
++the Free Software Foundation; version 2 of the License.
+ 
+-    This program is distributed in the hope that it will be useful,
+-    but WITHOUT ANY WARRANTY; without even the implied warranty of
+-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-    GNU General Public License for more details.
++This program is distributed in the hope that it will be useful,
++but WITHOUT ANY WARRANTY; without even the implied warranty of
++MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++GNU General Public License for more details.
+ 
+-    You should have received a copy of the GNU General Public License
+-    along with this program; if not, write to the Free Software
+-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+-    */
++You should have received a copy of the GNU General Public License
++along with this program; if not, write to the Free Software
++Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ */
+ package CacheWolf.imp;
+ 
+ import CacheWolf.CacheType;
+@@ -49,9 +49,9 @@
+ 
+ /**
+  * @author pfeffer
+- * This Class is the Dialog for Download from Opencaching.de
+- * is called from OCXMLImporter
+- * 20061209 Bugfix: Checking for uninitialised missingCheckBox
++ *         This Class is the Dialog for Download from Opencaching.de
++ *         is called from OCXMLImporter
++ *         20061209 Bugfix: Checking for uninitialised missingCheckBox
+  */
+ public class OCXMLImporterScreen extends Form {
+ 	mButton cancelB, okB;
+@@ -63,7 +63,7 @@
+ 	mInput maxNumberInput;
+ 	mInput maxNumberUpdates;
+ 	mInput maxLogsInput;
+-	mCheckBox imagesCheckBox, /*mapsCheckBox, */ missingCheckBox, foundCheckBox, travelbugsCheckBox;
++	mCheckBox imagesCheckBox, /* mapsCheckBox, */missingCheckBox, foundCheckBox, travelbugsCheckBox;
+ 	ewe.ui.mChoice domains;
+ 	String fileName;
+ 
+@@ -86,7 +86,6 @@
+ 	public static final int MAXUPDATE = 4096;
+ 	public static final int FILENAME = 8192; // track or route gpx
+ 
+-
+ 	public OCXMLImporterScreen(String title, int options) {
+ 		super();
+ 		pref = Global.getPref(); // myPreferences sollte sp&#228;ter auch diese Einstellungen speichern
+@@ -95,39 +94,28 @@
+ 
+ 		this.title = title;
+ 
+-		if((options &amp; HOST) &gt; 0){
+-			domains = new mChoice(OC.OCHostNames(),OC.getSiteIndex(pref.lastOCSite));
++		if ((options &amp; HOST) &gt; 0) {
++			domains = new mChoice(OC.OCHostNames(), OC.getSiteIndex(pref.lastOCSite));
+ 			domains.setTextSize(25, 1);
+-			this.addLast(domains, CellConstants.DONTSTRETCH, CellConstants.DONTFILL|CellConstants.WEST);
++			this.addLast(domains, CellConstants.DONTSTRETCH, CellConstants.DONTFILL | CellConstants.WEST);
+ 		}
+ 
+ 		if ((options &amp; TYPE) &gt; 0) {
+-			this.addLast( chcType = new mChoice(new String[] {
+-					MyLocale.getMsg(1627,&quot;All caches&quot;),
+-					MyLocale.getMsg(2,&quot;Tradi&quot;),
+-					MyLocale.getMsg(3,&quot;Multi&quot;),
+-					MyLocale.getMsg(4,&quot;Virtual&quot;),
+-					MyLocale.getMsg(5,&quot;Letterbox&quot;),
+-					MyLocale.getMsg(6,&quot;Event&quot;),
+-					MyLocale.getMsg(14,&quot;Mega Event&quot;),
+-					MyLocale.getMsg(11,&quot;Webcam&quot;),
+-					MyLocale.getMsg(8,&quot;Mysterie&quot;),
+-					MyLocale.getMsg(13,&quot;CITO&quot;),
+-					MyLocale.getMsg(18,&quot;Earth&quot;),
+-					MyLocale.getMsg(15,&quot;WhereIGo&quot;),
+-				},0), CellConstants.STRETCH, (CellConstants.FILL|CellConstants.WEST));
++			this.addLast(chcType = new mChoice(new String[] { MyLocale.getMsg(1627, &quot;All caches&quot;), MyLocale.getMsg(2, &quot;Tradi&quot;), MyLocale.getMsg(3, &quot;Multi&quot;), MyLocale.getMsg(4, &quot;Virtual&quot;), MyLocale.getMsg(5, &quot;Letterbox&quot;), MyLocale.getMsg(6, &quot;Event&quot;),
++					MyLocale.getMsg(14, &quot;Mega Event&quot;), MyLocale.getMsg(11, &quot;Webcam&quot;), MyLocale.getMsg(8, &quot;Mysterie&quot;), MyLocale.getMsg(13, &quot;CITO&quot;), MyLocale.getMsg(18, &quot;Earth&quot;), MyLocale.getMsg(15, &quot;WhereIGo&quot;), }, 0), CellConstants.STRETCH,
++					(CellConstants.FILL | CellConstants.WEST));
+ 		}
+ 
+ 		if ((options &amp; MINDIST) &gt; 0) {
+-			this.addNext(distLbl = new mLabel(MyLocale.getMsg(1628,&quot;min. Distance:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++			this.addNext(distLbl = new mLabel(MyLocale.getMsg(1628, &quot;min. Distance:&quot;)), CellConstants.DONTSTRETCH, (CellConstants.DONTFILL | CellConstants.WEST));
+ 			minDistanceInput = new mInput();
+ 			minDistanceInput.setText(Global.getProfile().getMinDistGC());
+-			this.addNext(minDistanceInput,CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-			this.addLast(new mLabel(&quot; km/mi.&quot;),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++			this.addNext(minDistanceInput, CellConstants.DONTSTRETCH, (CellConstants.DONTFILL | CellConstants.WEST));
++			this.addLast(new mLabel(&quot; km/mi.&quot;), CellConstants.DONTSTRETCH, (CellConstants.DONTFILL | CellConstants.WEST));
+ 		}
+ 
+ 		if ((options &amp; DIST) &gt; 0) {
+-			this.addNext(distLbl = new mLabel(MyLocale.getMsg(1601,&quot;Distance:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++			this.addNext(distLbl = new mLabel(MyLocale.getMsg(1601, &quot;Distance:&quot;)), CellConstants.DONTSTRETCH, (CellConstants.DONTFILL | CellConstants.WEST));
+ 			maxDistanceInput = new mInput();
+ 			String dist1;
+ 			String dist2;
+@@ -138,150 +126,154 @@
+ 				dist1 = Global.getProfile().getDistOC();
+ 				dist2 = Global.getProfile().getDistGC();
+ 			}
+-			if ( dist1.equals(&quot;&quot;) || dist1.equals(&quot;0&quot;) || dist1.equals(&quot;0.0&quot;) ) {
++			if (dist1.equals(&quot;&quot;) || dist1.equals(&quot;0&quot;) || dist1.equals(&quot;0.0&quot;)) {
+ 				dist1 = dist2;
+ 			}
+ 			maxDistanceInput.setText(dist1);
+-			this.addNext(maxDistanceInput,CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-			this.addLast(distUnit = new mLabel(&quot; km/mi.&quot;),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++			this.addNext(maxDistanceInput, CellConstants.DONTSTRETCH, (CellConstants.DONTFILL | CellConstants.WEST));
++			this.addLast(distUnit = new mLabel(&quot; km/mi.&quot;), CellConstants.DONTSTRETCH, (CellConstants.DONTFILL | CellConstants.WEST));
+ 		}
+ 
+ 		if ((options &amp; DIRECTION) &gt; 0) {
+-			this.addNext(new mLabel(MyLocale.getMsg(1629,&quot;Richtung:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++			this.addNext(new mLabel(MyLocale.getMsg(1629, &quot;Richtung:&quot;)), CellConstants.DONTSTRETCH, (CellConstants.DONTFILL | CellConstants.WEST));
+ 			directionInput = new mInput();
+ 			directionInput.setText(Global.getProfile().getDirectionGC());
+-			directionInput.toolTip=MyLocale.getMsg(1630,&quot;z.B. leer oder von-bis (Grad)&quot;);
+-			this.addLast(directionInput,CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++			directionInput.toolTip = MyLocale.getMsg(1630, &quot;z.B. leer oder von-bis (Grad)&quot;);
++			this.addLast(directionInput, CellConstants.DONTSTRETCH, (CellConstants.DONTFILL | CellConstants.WEST));
+ 		}
+ 
+ 		if ((options &amp; MAXNUMBER) &gt; 0) {
+-			this.addNext(maxNumberLbl = new mLabel(MyLocale.getMsg(1623,&quot;Max. number:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++			this.addNext(maxNumberLbl = new mLabel(MyLocale.getMsg(1623, &quot;Max. number:&quot;)), CellConstants.DONTSTRETCH, (CellConstants.DONTFILL | CellConstants.WEST));
+ 			maxNumberInput = new mInput();
+-			if ( pref.maxSpiderNumber &lt; 0 || pref.maxSpiderNumber == Integer.MAX_VALUE) {
++			if (pref.maxSpiderNumber &lt; 0 || pref.maxSpiderNumber == Integer.MAX_VALUE) {
+ 				maxNumberInput.setText(&quot;&quot;);
+ 			} else {
+ 				maxNumberInput.setText(Integer.toString(pref.maxSpiderNumber));
+ 			}
+-			this.addNext(maxNumberInput,CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-			this.addLast( new mLabel(MyLocale.getMsg(1624,&quot; caches&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++			this.addNext(maxNumberInput, CellConstants.DONTSTRETCH, (CellConstants.DONTFILL | CellConstants.WEST));
++			this.addLast(new mLabel(MyLocale.getMsg(1624, &quot; caches&quot;)), CellConstants.DONTSTRETCH, (CellConstants.DONTFILL | CellConstants.WEST));
+ 		}
+ 
+ 		if ((options &amp; MAXUPDATE) &gt; 0) {
+-			this.addNext(new mLabel(MyLocale.getMsg(1631,&quot;Max. Updates:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++			this.addNext(new mLabel(MyLocale.getMsg(1631, &quot;Max. Updates:&quot;)), CellConstants.DONTSTRETCH, (CellConstants.DONTFILL | CellConstants.WEST));
+ 			maxNumberUpdates = new mInput();
+ 			maxNumberUpdates.setText(&quot;&quot;);
+-			this.addNext(maxNumberUpdates,CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-			this.addLast( new mLabel(MyLocale.getMsg(1624,&quot; caches&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++			this.addNext(maxNumberUpdates, CellConstants.DONTSTRETCH, (CellConstants.DONTFILL | CellConstants.WEST));
++			this.addLast(new mLabel(MyLocale.getMsg(1624, &quot; caches&quot;)), CellConstants.DONTSTRETCH, (CellConstants.DONTFILL | CellConstants.WEST));
+ 		}
+ 
+ 		if ((options &amp; MAXLOGS) &gt; 0) {
+-			this.addNext(new mLabel(MyLocale.getMsg(1626,&quot;Max. logs:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++			this.addNext(new mLabel(MyLocale.getMsg(1626, &quot;Max. logs:&quot;)), CellConstants.DONTSTRETCH, (CellConstants.DONTFILL | CellConstants.WEST));
+ 			maxLogsInput = new mInput();
+ 			maxLogsInput.setText(Convert.toString(pref.maxLogsToSpider));
+-			this.addLast(maxLogsInput,CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++			this.addLast(maxLogsInput, CellConstants.DONTSTRETCH, (CellConstants.DONTFILL | CellConstants.WEST));
+ 		}
+ 
+ 		if ((options &amp; IMAGES) &gt; 0) {
+ 			imagesCheckBox = new mCheckBox();
+-			imagesCheckBox.setText(MyLocale.getMsg(1602,&quot;Download Images&quot;));
++			imagesCheckBox.setText(MyLocale.getMsg(1602, &quot;Download Images&quot;));
+ 			imagesCheckBox.setState(pref.downloadPics);
+-			this.addLast(imagesCheckBox, CellConstants.DONTSTRETCH, CellConstants.DONTFILL|CellConstants.WEST);
++			this.addLast(imagesCheckBox, CellConstants.DONTSTRETCH, CellConstants.DONTFILL | CellConstants.WEST);
+ 		}
+ 
+ 		if ((options &amp; TRAVELBUGS) &gt; 0) {
+ 			travelbugsCheckBox = new mCheckBox();
+-			travelbugsCheckBox.setText(MyLocale.getMsg(1625,&quot;Download TBs&quot;));
++			travelbugsCheckBox.setText(MyLocale.getMsg(1625, &quot;Download TBs&quot;));
+ 			travelbugsCheckBox.setState(pref.downloadTBs);
+-			this.addLast(travelbugsCheckBox, CellConstants.DONTSTRETCH, CellConstants.DONTFILL|CellConstants.WEST);
++			this.addLast(travelbugsCheckBox, CellConstants.DONTSTRETCH, CellConstants.DONTFILL | CellConstants.WEST);
+ 		}
+ 
+-		if((options &amp; INCLUDEFOUND) &gt; 0){
++		if ((options &amp; INCLUDEFOUND) &gt; 0) {
+ 			foundCheckBox = new mCheckBox();
+-			foundCheckBox.setText(MyLocale.getMsg(1622,&quot;Exclude found caches&quot;));
+-			foundCheckBox.setState(true);
+-			this.addLast(foundCheckBox, CellConstants.DONTSTRETCH, CellConstants.DONTFILL|CellConstants.WEST);
++			foundCheckBox.setText(MyLocale.getMsg(1622, &quot;Exclude found caches&quot;));
++			foundCheckBox.setState(pref.doNotGetFound);
++			this.addLast(foundCheckBox, CellConstants.DONTSTRETCH, CellConstants.DONTFILL | CellConstants.WEST);
+ 		}
+ 
+-		if((options &amp; ALL) &gt; 0){
++		if ((options &amp; ALL) &gt; 0) {
+ 			missingCheckBox = new mCheckBox();
+-			missingCheckBox.setText(MyLocale.getMsg(1606,&quot;Alle erneut downloaden&quot;));
++			missingCheckBox.setText(MyLocale.getMsg(1606, &quot;Alle erneut downloaden&quot;));
+ 			missingCheckBox.setState(pref.downloadAllOC);
+-			this.addLast(missingCheckBox, CellConstants.DONTSTRETCH, CellConstants.DONTFILL|CellConstants.WEST);
++			this.addLast(missingCheckBox, CellConstants.DONTSTRETCH, CellConstants.DONTFILL | CellConstants.WEST);
+ 		}
+ 
+ 		if ((options &amp; FILENAME) &gt; 0) {
+ 			String dir = pref.getImporterPath(&quot;LocGpxImporter&quot;);
+ 			FileChooser fc = new FileChooser(FileChooserBase.OPEN, dir);
+ 			fc.addMask(&quot;*.gpx&quot;);
+-			fc.setTitle(MyLocale.getMsg(909,&quot;Select file(s)&quot;));
+-			if(fc.execute() != FormBase.IDCANCEL){
++			fc.setTitle(MyLocale.getMsg(909, &quot;Select file(s)&quot;));
++			if (fc.execute() != FormBase.IDCANCEL) {
+ 				dir = fc.getChosenDirectory().toString();
+ 				pref.setImporterPath(&quot;LocGpxImporter&quot;, dir);
+-				//String files[] = fc.getAllChosen();
+-				fileName=fc.file;
++				// String files[] = fc.getAllChosen();
++				fileName = fc.file;
++			} else {
++				fileName = &quot;&quot;;
+ 			}
+-			else {
+-				fileName=&quot;&quot;;
+-			}
+ 		}
+ 
+-		cancelB = new mButton(MyLocale.getMsg(1604,&quot;Cancel&quot;));
++		cancelB = new mButton(MyLocale.getMsg(1604, &quot;Cancel&quot;));
+ 		cancelB.setHotKey(0, IKeys.ESCAPE);
+-		this.addNext(cancelB,CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		okB = new mButton(MyLocale.getMsg(1605,&quot;OK&quot;));
++		this.addNext(cancelB, CellConstants.DONTSTRETCH, (CellConstants.DONTFILL | CellConstants.WEST));
++		okB = new mButton(MyLocale.getMsg(1605, &quot;OK&quot;));
+ 		okB.setHotKey(0, IKeys.ACTION);
+ 		okB.setHotKey(0, IKeys.ENTER);
+-		this.addLast(okB,CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		this.addLast(okB, CellConstants.DONTSTRETCH, (CellConstants.DONTFILL | CellConstants.WEST));
+ 	}
+-	public void onEvent(Event ev){
+-		if (ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.PRESSED){
+-			if (ev.target == cancelB){
++
++	public void onEvent(Event ev) {
++		if (ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.PRESSED) {
++			if (ev.target == cancelB) {
+ 				this.close(FormBase.IDCANCEL);
+ 			}
+-			if (ev.target == okB){
+-				    // distOC wird hier noch nicht in Pref eingetragen, damit noch gepr&#252;ft werden kann, ob es gr&#246;&#223;er oder kleiner ist als vorher
+-					if (missingCheckBox!=null) pref.downloadAllOC = missingCheckBox.state;
+-					if (imagesCheckBox!=null) pref.downloadPics = imagesCheckBox.state;
+-					if (travelbugsCheckBox!=null) pref.downloadTBs = travelbugsCheckBox.state;
+-					if (maxLogsInput!=null) pref.maxLogsToSpider=Common.parseInt(maxLogsInput.getText());
+-					pref.savePreferences();
++			if (ev.target == okB) {
++				// distOC wird hier noch nicht in Pref eingetragen, damit noch gepr&#252;ft werden kann, ob es gr&#246;&#223;er oder kleiner ist als vorher
++				if (missingCheckBox != null)
++					pref.downloadAllOC = missingCheckBox.state;
++				if (imagesCheckBox != null)
++					pref.downloadPics = imagesCheckBox.state;
++				if (travelbugsCheckBox != null)
++					pref.downloadTBs = travelbugsCheckBox.state;
++				if (maxLogsInput != null)
++					pref.maxLogsToSpider = Common.parseInt(maxLogsInput.getText());
++				pref.savePreferences();
+ 				this.close(FormBase.IDOK);
+-				}
++			}
+ 		}
+ 		super.onEvent(ev);
+ 	}
+ 
+-	public String getCacheTypeRestriction(SpiderProperties p){
++	public String getCacheTypeRestriction(SpiderProperties p) {
+ 		String cacheTypeRestriction = &quot;&quot;;
+ 
+-		if (chcType!=null){
++		if (chcType != null) {
+ 			try {
+ 				switch (chcType.getInt()) {
+-				case  0:
++				case 0:
+ 					cacheTypeRestriction = &quot;&quot;;
+ 					break;
+-				case  1:
++				case 1:
+ 					cacheTypeRestriction = p.getProp(&quot;onlyTraditional&quot;);
+ 					break;
+-				case  2:
++				case 2:
+ 					cacheTypeRestriction = p.getProp(&quot;onlyMulti&quot;);
+ 					break;
+-				case  3:
+-					cacheTypeRestriction = p.getProp(&quot;onlyVirtual&quot;) ;
++				case 3:
++					cacheTypeRestriction = p.getProp(&quot;onlyVirtual&quot;);
+ 					break;
+-				case  4:
++				case 4:
+ 					cacheTypeRestriction = p.getProp(&quot;onlyLetterboxHybrid&quot;);
+ 					break;
+-				case  5:
++				case 5:
+ 					cacheTypeRestriction = p.getProp(&quot;onlyEvent&quot;);
+ 					break;
+-				case  6:
++				case 6:
+ 					cacheTypeRestriction = p.getProp(&quot;onlyMegaEvent&quot;);
+ 					break;
+-				case  7:
++				case 7:
+ 					cacheTypeRestriction = p.getProp(&quot;onlyWebcam&quot;);
+ 					break;
+-				case  8:
++				case 8:
+ 					cacheTypeRestriction = p.getProp(&quot;onlyUnknown&quot;);
+ 					break;
+ 				case 9:
+@@ -296,43 +288,43 @@
+ 				default:
+ 					cacheTypeRestriction = &quot;&quot;;
+ 				}
+-			}catch (Exception ex) { // Some tag missing from spider.def
++			} catch (Exception ex) { // Some tag missing from spider.def
+ 			}
+ 		}
+ 		return cacheTypeRestriction;
+ 	}
+ 
+-	public byte getRestrictedCacheType(SpiderProperties p){
++	public byte getRestrictedCacheType(SpiderProperties p) {
+ 		byte RestrictedType = CacheType.CW_TYPE_ERROR;
+ 
+-		if (chcType!=null){
++		if (chcType != null) {
+ 			try {
+ 				switch (chcType.getInt()) {
+-				case  0:
++				case 0:
+ 					RestrictedType = CacheType.CW_TYPE_ERROR;
+ 					break;
+-				case  1:
++				case 1:
+ 					RestrictedType = CacheType.CW_TYPE_TRADITIONAL;
+ 					break;
+-				case  2:
++				case 2:
+ 					RestrictedType = CacheType.CW_TYPE_MULTI;
+ 					break;
+-				case  3:
++				case 3:
+ 					RestrictedType = CacheType.CW_TYPE_VIRTUAL;
+ 					break;
+-				case  4:
++				case 4:
+ 					RestrictedType = CacheType.CW_TYPE_LETTERBOX;
+ 					break;
+-				case  5:
++				case 5:
+ 					RestrictedType = CacheType.CW_TYPE_EVENT;
+ 					break;
+-				case  6:
++				case 6:
+ 					RestrictedType = CacheType.CW_TYPE_MEGA_EVENT;
+ 					break;
+-				case  7:
++				case 7:
+ 					RestrictedType = CacheType.CW_TYPE_WEBCAM;
+ 					break;
+-				case  8:
++				case 8:
+ 					RestrictedType = CacheType.CW_TYPE_UNKNOWN;
+ 					break;
+ 				case 9:
+@@ -347,7 +339,7 @@
+ 				default:
+ 					RestrictedType = CacheType.CW_TYPE_ERROR;
+ 				}
+-			}catch (Exception ex) { // Some tag missing from spider.def
++			} catch (Exception ex) { // Some tag missing from spider.def
+ 			}
+ 		}
+ 		return RestrictedType;
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2011-05-21 14:52:52 UTC (rev 3014)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2011-05-21 19:13:46 UTC (rev 3015)
+@@ -724,7 +724,7 @@
+ 			}
+ 			doNotgetFound = options.foundCheckBox.getState();
+ 		}
+-
++		pref.doNotGetFound = doNotgetFound;
+ 		if (menu == 0) {
+ 
+ 			int maxNew = -1;
+@@ -1273,7 +1273,7 @@
+ 
+ 	private boolean switchToEnglish() {
+ 		// change language to EN , further operations relay on English
+-		String url = &quot;<A HREF="http://www.geocaching.com/default.aspx">http://www.geocaching.com/default.aspx</A>&quot;;
++		String url = &quot;<A HREF="http://www.geocaching.com/account/ManagePreferences.aspx">http://www.geocaching.com/account/ManagePreferences.aspx</A>&quot;;
+ 		String page = &quot;&quot;;
+ 		String userID = &quot;userid=&quot; + pref.userID;
+ 		try {
+@@ -1308,7 +1308,13 @@
+ 		} catch (IOException e) {
+ 			return false;
+ 		}
+-		Extractor ext = new Extractor(page, &quot;&lt;a href=\&quot;#\&quot;&gt;&quot;, &quot;&#9660;&lt;/a&gt;&quot;, 0, true);
++		Extractor ext = new Extractor(page, &quot;ctl00$ContentBody$uxLanguagePreference&quot;, &quot;&lt;/select&gt;&quot;, 0, true);
++		String languageBlock = ext.findNext();
++		ext.set(ext.findNext(&quot;ctl00$ContentBody$uxDateTimeFormat&quot;), &quot;selected\&quot; value=\&quot;&quot;, &quot;\&quot;&gt;&quot;, 0, true);
++		DateFormat.GCDateFormat = ext.findNext();
++		// &lt;option selected=&quot;selected&quot; value=&quot;de-DE&quot;&gt;Deutsch&lt;/option&gt;
++		ext.set(languageBlock, &quot;&lt;option selected=&quot;, &quot;/option&gt;&quot;, 0, true);
++		ext.set(ext.findNext(), &quot;&gt;&quot;, &quot;&lt;&quot;, 0, true);
+ 		String oldLanguage = ext.findNext();
+ 		if (oldLanguage.equals(&quot;English&quot;)) {
+ 			pref.log(&quot;already English&quot;);
+@@ -1332,6 +1338,7 @@
+ 		url += &quot;?__EVENTTARGET=&quot; + UrlFetcher.encodeURL(strEnglishPage, false);
+ 		try {
+ 			page = UrlFetcher.fetch(url);
++			ext.set(page, &quot;&lt;a href=\&quot;#\&quot;&gt;&quot;, &quot;&#9660;&quot;, 0, true);
+ 			if (ext.findFirst(page).equals(&quot;English&quot;)) {
+ 				pref.log(&quot;Switched to English&quot;);
+ 				return true;
+
+Modified: trunk/src/CacheWolf/navi/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MovingMap.java	2011-05-21 14:52:52 UTC (rev 3014)
++++ trunk/src/CacheWolf/navi/MovingMap.java	2011-05-21 19:13:46 UTC (rev 3015)
+@@ -1100,7 +1100,7 @@
+ 							addSymbol(ch.getWayPoint(), ch, CacheType.getMapImage(ch), ch.pos);
+ 						}
+ 					} else {
+-						if (ch.is_Checked || ch == Global.mainTab.ch) {
++						if (ch.is_Checked || ch == cacheDB.get(Global.mainTab.tbP.getSelectedCache())) {
+ 							if (addSymbolIsNecessary(ch.getWayPoint())) {
+ 								addSymbol(ch.getWayPoint(), ch, CacheType.getMapImage(ch), ch.pos);
+ 							}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003005.html">[Cachewolf-svn] r3014 - trunk/src/CacheWolf/imp
+</A></li>
+	<LI>Next message: <A HREF="003007.html">[Cachewolf-svn] r3016 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3006">[ date ]</a>
+              <a href="thread.html#3006">[ thread ]</a>
+              <a href="subject.html#3006">[ subject ]</a>
+              <a href="author.html#3006">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

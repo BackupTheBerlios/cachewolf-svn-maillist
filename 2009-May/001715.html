@@ -1,0 +1,360 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1797 - in trunk: resources src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-May/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1797%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200905112212.n4BMCcGh013112%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001714.html">
+   <LINK REL="Next"  HREF="001716.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1797 - in trunk: resources src/CacheWolf</H1>
+    <B>greiol at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1797%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200905112212.n4BMCcGh013112%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1797 - in trunk: resources src/CacheWolf">greiol at mail.berlios.de
+       </A><BR>
+    <I>Tue May 12 00:12:38 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001714.html">[Cachewolf-svn] r1796 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001716.html">[Cachewolf-svn] r1798 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1715">[ date ]</a>
+              <a href="thread.html#1715">[ thread ]</a>
+              <a href="subject.html#1715">[ subject ]</a>
+              <a href="author.html#1715">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: greiol
+Date: 2009-05-12 00:12:36 +0200 (Tue, 12 May 2009)
+New Revision: 1797
+
+Added:
+   trunk/resources/sizeNonPhysical.png
+Modified:
+   trunk/src/CacheWolf/CacheSize.java
+Log:
+added string representation for very large
+added size image for non physical caches
+added terracaching mappings
+added bitmasks for filter function
+fixed javadoc
+changed methods to static
+removed unused html export image mappings
+added one letter size information for compact exporters
+
+
+Added: trunk/resources/sizeNonPhysical.png
+===================================================================
+(Binary files differ)
+
+
+Property changes on: trunk/resources/sizeNonPhysical.png
+___________________________________________________________________
+Name: svn:mime-type
+   + application/octet-stream
+
+Modified: trunk/src/CacheWolf/CacheSize.java
+===================================================================
+--- trunk/src/CacheWolf/CacheSize.java	2009-05-11 18:57:11 UTC (rev 1796)
++++ trunk/src/CacheWolf/CacheSize.java	2009-05-11 22:12:36 UTC (rev 1797)
+@@ -18,6 +18,7 @@
+ 
+ 	/*
+ 	 * geocaching.com size string as found by analyzing GPX files
++	 * plus OC/TC Very large
+ 	 */
+ 	static final protected String GC_SIZE_MICRO = &quot;Micro&quot;;
+ 	static final protected String GC_SIZE_SMALL = &quot;Small&quot;;
+@@ -26,6 +27,7 @@
+ 	static final protected String GC_SIZE_NOTCHOSEN = &quot;Not chosen&quot;;
+ 	static final protected String GC_SIZE_OTHER = &quot;Other&quot;;
+ 	static final protected String GC_SIZE_VIRTUAL = &quot;Virtual&quot;;
++	static final protected String OCTC_SIZE_VERYLARGE = &quot;Very large&quot;;
+ 
+ 	/*
+ 	 * OpenCaching Size IDs
+@@ -38,6 +40,16 @@
+ 	static final protected String OC_SIZE_LARGE = &quot;5&quot;;
+ 	static final protected String OC_SIZE_VERYLARGE = &quot;6&quot;;
+ 	static final protected String OC_SIZE_NONE = &quot;7&quot;;
++	
++	/*
++	 * TerraCaching Size IDs
++	 * taken from old GPXimporter (?? reliable source ??)
++	 */
++	static final protected String TC_SIZE_MICRO = &quot;1&quot;;
++	static final protected String TC_SIZE_MEDIUM = &quot;2&quot;;
++	static final protected String TC_SIZE_REGULAR = &quot;3&quot;;
++	static final protected String TC_SIZE_LARGE = &quot;4&quot;;
++	static final protected String TC_SIZE_VERYLARGE = &quot;4&quot;;
+ 
+ 	/*
+ 	 * images to show in CW index panel we use less images than sizes since all
+@@ -47,23 +59,19 @@
+ 	static final protected String CW_GUIIMG_SMALL = &quot;sizeSmall.png&quot;;
+ 	static final protected String CW_GUIIMG_NORMAL = &quot;sizeReg.png&quot;;
+ 	static final protected String CW_GUIIMG_LARGE = &quot;sizeLarge.png&quot;;
+-	static final protected String CW_GUIIMG_NONPHYSICAL = &quot;&quot;; // TODO: create image for nonphysical caches
++	static final protected String CW_GUIIMG_NONPHYSICAL = &quot;sizeNonPhysical.png&quot;; 
+ 	static final protected String CW_GUIIMG_VERYLARGE = &quot;sizeVLarge.png&quot;;
+-
++	
+ 	/*
+-	 * images to use in exports (notably HTML export)
++	 * bit masks to be used with the filter function
+ 	 */
+-/*	// do not compile until needed (also see below exportSizeImage())
+-	// when needed make sure to add appropriate images to resources
+-	static final protected String CW_EXPIMG_MICRO = &quot;dummy.png&quot;;
+-	static final protected String CW_EXPIMG_SMALL = &quot;dummy.png&quot;; 
+-	static final protected String CW_EXPIMG_NORMAL = &quot;dummy.png&quot;;
+-	static final protected String CW_EXPIMG_LARGE = &quot;dummy.png&quot;;
+-	static final protected String CW_EXPIMG_VIRTUAL = &quot;dummy.png&quot;;
+-	static final protected String CW_EXPIMG_NOTCHOSEN = &quot;dummy.png&quot;;
+-	static final protected String CW_EXPIMG_OTHER = &quot;dummy.png&quot;;
+-	static final protected String CW_EXPIMG_VERYLARGE = &quot;dummy.png&quot;;
+-	static final protected String CW_EXPIMG_NONE = &quot;dummy.png&quot;;*/
++	static final protected byte CW_FILTER_MICRO = 0x01&lt;&lt;0;
++	static final protected byte CW_FILTER_SMALL = 0x01&lt;&lt;1;
++	static final protected byte CW_FILTER_NORMAL = 0x01&lt;&lt;2;
++	static final protected byte CW_FILTER_LARGE = 0x01&lt;&lt;3;
++	static final protected byte CW_FILTER_VERYLARGE = 0x01&lt;&lt;4;
++	static final protected byte CW_FILTER_NONPHYSICAL = 0x01&lt;&lt;5;
++	static final protected byte CW_FILTER_ALL = CW_FILTER_MICRO|CW_FILTER_SMALL|CW_FILTER_NORMAL|CW_FILTER_LARGE|CW_FILTER_NONPHYSICAL|CW_FILTER_VERYLARGE;
+ 
+ 	/**
+ 	 * the constructor does nothing
+@@ -76,14 +84,14 @@
+ 	 * convert the size info from a CacheHolder to a string suitable for GPX
+ 	 * export
+ 	 * 
+-	 * @param cwsize
++	 * @param size
+ 	 *            CW internal representation of cache size
+ 	 * @return string representation of CacheWolf internal cache size
+ 	 * @throws IllegalArgumentException
+ 	 *             if cwsize can not be mapped to a CW_SIZE constant
+ 	 */
+-	public String cw2GcString(byte cwsize) {
+-		switch (cwsize) {
++	public static String cw2ExportString(byte size) {
++		switch (size) {
+ 		case CW_SIZE_MICRO:
+ 			return GC_SIZE_MICRO;
+ 		case CW_SIZE_SMALL:
+@@ -98,16 +106,45 @@
+ 			return GC_SIZE_OTHER;
+ 		case CW_SIZE_VIRTUAL:
+ 			return GC_SIZE_VIRTUAL;
++		case CW_SIZE_VERYLARGE:
++			return OCTC_SIZE_VERYLARGE;
+ 		default:
+-			throw (new IllegalArgumentException(&quot;unmatched argument &quot; + cwsize
++			throw (new IllegalArgumentException(&quot;unmatched argument &quot; + size
+ 					+ &quot; in CacheSize cw2GcString()&quot;));
+ 		}
+ 	}
+ 
+ 	/**
+-	 * convert the cache size information from a GPX import to internal
+-	 * representation
++	 * convert the cache size information from a TerraCaching GPX import to internal representation
+ 	 * 
++	 * @param tcstring
++	 *            size information extracted from a TC GPX inport
++	 * @return CacheWolf internal representation of size information
++	 * @throws IllegalArgumentException
++	 *             if tcstring can not be mapped to internal representation
++	 *             (CW_SIZE_*)
++	 */
++
++	public static byte tcGpxString2Cw(String tcstring) {
++		if (tcstring.equals(TC_SIZE_MICRO)) {
++			return CW_SIZE_MICRO;
++		} else if (tcstring.equals(TC_SIZE_MEDIUM)) {
++			return CW_SIZE_SMALL;
++		} else if (tcstring.equals(TC_SIZE_REGULAR)) {
++			return CW_SIZE_REGULAR;
++		} else if (tcstring.equals(TC_SIZE_LARGE)) {
++			return CW_SIZE_LARGE;
++		} else if (tcstring.equals(TC_SIZE_VERYLARGE)) {
++			return CW_SIZE_VERYLARGE;
++		} else {
++			throw (new IllegalArgumentException(&quot;unmatched argument &quot;
++					+ tcstring + &quot; in CacheSize tcGpxString2Cw()&quot;));
++		}
++	}
++	
++	/**
++	 * convert the cache size information from a GC GPX import to internal representation
++	 * 
+ 	 * @param gcstring
+ 	 *            size information extracted from a GPX inport
+ 	 * @return CacheWolf internal representation of size information
+@@ -116,7 +153,7 @@
+ 	 *             (CW_SIZE_*)
+ 	 */
+ 
+-	public byte gcGpxString2Cw(String gcstring) {
++	public static byte gcGpxString2Cw(String gcstring) {
+ 		if (gcstring.equals(GC_SIZE_MICRO)) {
+ 			return CW_SIZE_MICRO;
+ 		} else if (gcstring.equals(GC_SIZE_SMALL)) {
+@@ -148,7 +185,7 @@
+ 	 *             if spiderstring can not be mapped to internal representation
+ 	 *             (CW_SIZE_*)
+ 	 */
+-	public byte gcSpiderString2Cw(String spiderstring) {
++	public static byte gcSpiderString2Cw(String spiderstring) {
+ 		// at the moment both sources use the same strings
+ 		return gcGpxString2Cw(spiderstring);
+ 	}
+@@ -163,7 +200,7 @@
+ 	 * @trows IllegalArgumentException if ocxmlstring can not be mapped to a
+ 	 *        CW_SIZE_*
+ 	 */
+-	public byte ocXmlString2Cw(String ocxmlstring) {
++	public static byte ocXmlString2Cw(String ocxmlstring) {
+ 		if (ocxmlstring.equals(OC_SIZE_OTHER)) {
+ 			return CW_SIZE_OTHER;
+ 		} else if (ocxmlstring.equals(OC_SIZE_MICRO)) {
+@@ -187,12 +224,12 @@
+ 	/**
+ 	 * get name of the image to be displayed in CW index panel
+ 	 * 
+-	 * @param size
+-	 * @return
++	 * @param size CW internal representation of cache size
++	 * @return filename of image to be displayed in main panel as size icon
+ 	 * @throws IllegalArgumentException
+ 	 *             if size can not be mapped
+ 	 */
+-	public String guiSizeImage(byte size) {
++	public static String guiSizeImage(byte size) {
+ 		switch (size) {
+ 		case CW_SIZE_MICRO:
+ 			return CW_GUIIMG_MICRO;
+@@ -217,32 +254,72 @@
+ 					+ size + &quot; in CacheSize guiSizeImage()&quot;));
+ 		}
+ 	}
+-
+-/*	// do not compile until there is an expoter that can make use of this
+-	public String exportSizeImage(byte size) {
++	
++	/**
++	 * return a bit mask representing the caches size for use in the Filter
++	 * 
++	 * @param size CW internal representation of cache size
++	 * @return a bit mask for the filter function
++	 * @throws IllegalArgumentException if size can not be mapped to a bit mask
++	 */
++	
++	public static byte getFilterPattern(byte size) {
+ 		switch (size) {
+ 		case CW_SIZE_MICRO:
+-			return CW_EXPIMG_MICRO;
++			return CW_FILTER_MICRO;
+ 		case CW_SIZE_SMALL:
+-			return CW_EXPIMG_SMALL;
++			return CW_FILTER_SMALL;
+ 		case CW_SIZE_REGULAR:
+-			return CW_EXPIMG_NORMAL;
++			return CW_FILTER_NORMAL;
+ 		case CW_SIZE_LARGE:
+-			return CW_EXPIMG_LARGE;
++			return CW_FILTER_LARGE;
+ 		case CW_SIZE_NOTCHOSEN:
+-			return CW_EXPIMG_NOTCHOSEN;
++			return CW_FILTER_NONPHYSICAL;
+ 		case CW_SIZE_OTHER:
+-			return CW_EXPIMG_OTHER;
++			return CW_FILTER_NONPHYSICAL;
+ 		case CW_SIZE_VIRTUAL:
+-			return CW_EXPIMG_VIRTUAL;
++			return CW_FILTER_NONPHYSICAL;
+ 		case CW_SIZE_VERYLARGE:
+-			return CW_EXPIMG_VERYLARGE;
++			return CW_FILTER_VERYLARGE;
+ 		case CW_SIZE_NONE:
+-			return CW_EXPIMG_NONE;
++			return CW_FILTER_NONPHYSICAL;
+ 		default:
+ 			throw (new IllegalArgumentException(&quot;unmatched argument &quot; 
+-				+ size + &quot; in CacheSize exportSizeImage()&quot;));
++					+ size + &quot; in CacheSize getFilterPattern()&quot;));
+ 		}
+-	}*/
+-
++	}
++	
++	/**
++	 * provides abbreviated representations of CacheSize for compact exporters
++	 * 
++	 * @param size CW internal representation of cache size
++	 * @return a one letter String for cache size 
++	 * @throws IllegalArgumentException  if size can not be mapped
++	 */
++	
++	public static String getExportShortId(byte size) {
++		switch (size) {
++		case CW_SIZE_MICRO:
++			return &quot;m&quot;;
++		case CW_SIZE_SMALL:
++			return &quot;s&quot;;
++		case CW_SIZE_REGULAR:
++			return &quot;r&quot;;
++		case CW_SIZE_LARGE:
++			return &quot;l&quot;;
++		case CW_SIZE_NOTCHOSEN:
++			return &quot;n&quot;;
++		case CW_SIZE_OTHER:
++			return &quot;n&quot;;
++		case CW_SIZE_VIRTUAL:
++			return &quot;n&quot;;
++		case CW_SIZE_VERYLARGE:
++			return &quot;v&quot;;
++		case CW_SIZE_NONE:
++			return &quot;n&quot;;
++		default:
++			throw (new IllegalArgumentException(&quot;unmatched argument &quot; 
++					+ size + &quot; in CacheSize getExportShortId()&quot;));
++		}
++	}
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001714.html">[Cachewolf-svn] r1796 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001716.html">[Cachewolf-svn] r1798 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1715">[ date ]</a>
+              <a href="thread.html#1715">[ thread ]</a>
+              <a href="subject.html#1715">[ subject ]</a>
+              <a href="author.html#1715">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

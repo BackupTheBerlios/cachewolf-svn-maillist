@@ -1,0 +1,141 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1277 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-March/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1277%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200803221958.m2MJw490013583%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001170.html">
+   <LINK REL="Next"  HREF="001172.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1277 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1277%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200803221958.m2MJw490013583%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1277 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sat Mar 22 20:58:04 CET 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001170.html">[Cachewolf-svn] r1276 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001172.html">[Cachewolf-svn] r1278 - in trunk: res_noewe src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1171">[ date ]</a>
+              <a href="thread.html#1171">[ thread ]</a>
+              <a href="subject.html#1171">[ subject ]</a>
+              <a href="author.html#1171">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2008-03-22 20:58:00 +0100 (Sat, 22 Mar 2008)
+New Revision: 1277
+
+Modified:
+   trunk/src/CacheWolf/SpiderGC.java
+Log:
+SpiderGC: Bugfix: Images containing urlencoded characters (e.g. %20) were not spidered correctly.
+   Images contained in href links are now also downloaded
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2008-03-21 10:00:09 UTC (rev 1276)
++++ trunk/src/CacheWolf/SpiderGC.java	2008-03-22 19:58:00 UTC (rev 1277)
+@@ -928,6 +928,7 @@
+ 					// imgType is now max 4 chars, starting with .
+ 					if(!imgType.startsWith(&quot;.com&quot;) &amp;&amp; !imgType.startsWith(&quot;.php&quot;) &amp;&amp; !imgType.startsWith(&quot;.exe&quot;)){
+ 						// Check whether image was already spidered for this cache
++						if (imgUrl.indexOf('%')&gt;=0) imgUrl=URL.decodeURL(imgUrl);
+ 						idxUrl=spideredUrls.find(imgUrl);
+ 						imgName = chD.wayPoint + &quot;_&quot; + Convert.toString(imgCounter);
+ 						if (idxUrl&lt;0) { // New image
+@@ -972,6 +973,7 @@
+ 					// imgType is now max 4 chars, starting with .
+ 					if(!imgType.startsWith(&quot;.com&quot;) &amp;&amp; !imgType.startsWith(&quot;.php&quot;) &amp;&amp; !imgType.startsWith(&quot;.exe&quot;)){
+ 						// Check whether image was already spidered for this cache
++						if (imgUrl.indexOf('%')&gt;=0) imgUrl=URL.decodeURL(imgUrl);
+ 						idxUrl=spideredUrls.find(imgUrl);
+ 						imgName = chD.wayPoint + &quot;_&quot; + Convert.toString(imgCounter);
+ 						if (idxUrl&lt;0) { // New image
+@@ -991,8 +993,39 @@
+ 				}
+ 			}
+ 		}
++		//========
++		//Final sweep to check for images in hrefs
++		//========
++		Extractor exFinal = new Extractor(longDesc, &quot;<A HREF="http://">http://</A>&quot;, &quot;\&quot;&quot;, 0, true);
++		while(exFinal.endOfSearch() == false){
++			imgUrl = exFinal.findNext();
++			if(imgUrl.length()&gt;0){
++				imgUrl = &quot;<A HREF="http://">http://</A>&quot; + imgUrl;
++				try{
++					imgType = (imgUrl.substring(imgUrl.lastIndexOf(&quot;.&quot;)).toLowerCase()+&quot;    &quot;).substring(0,4).trim();
++					// imgType is now max 4 chars, starting with .
++					if( imgType.startsWith(&quot;.jpg&quot;) || imgType.startsWith(&quot;.bmp&quot;) || imgType.startsWith(&quot;.png&quot;) || imgType.startsWith(&quot;.gif&quot;)){
++						// Check whether image was already spidered for this cache
++						if (imgUrl.indexOf('%')&gt;=0) imgUrl=URL.decodeURL(imgUrl);
++						idxUrl=spideredUrls.find(imgUrl);
++						if (idxUrl&lt;0) { // New image
++							imgName = chD.wayPoint + &quot;_&quot; + Convert.toString(imgCounter);
++							pref.log(&quot;Loading image: &quot; + imgUrl+&quot; as &quot;+imgName);
++							spiderImage(imgUrl, imgName+imgType);
++							chD.Images.add(imgName+imgType);
++							spideredUrls.add(imgUrl);
++							chD.ImagesText.add(imgName); // Keep the image name
++							imgCounter++;
++						}
++					}
++				} catch (IndexOutOfBoundsException e) {
++					pref.log(&quot;Problem loading image. imgURL:&quot;+imgUrl);
++				}
++			}
++		}
+ 	}
+ 
++	
+ 	/**
+ 	 * Read an image from the server
+ 	 * @param imgUrl The Url of the image
+@@ -1010,6 +1043,8 @@
+ 		datei = profile.dataDir + target;
+ 		connImg = new HttpConnection(imgUrl);
+ 		connImg.setRequestorProperty(&quot;Connection&quot;, &quot;close&quot;);
++		//connImg.setRequestorProperty(&quot;User-Agent&quot;,&quot;Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1.12) Gecko/20080201 Firefox/2.0.0.12&quot;);
++		//connImg.setRequestorProperty(&quot;Accept&quot;,&quot;text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5&quot;);
+ 		try{
+ 			pref.log(&quot;Trying to fetch image from: &quot; + imgUrl);
+ 			String redirect=null;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001170.html">[Cachewolf-svn] r1276 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001172.html">[Cachewolf-svn] r1278 - in trunk: res_noewe src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1171">[ date ]</a>
+              <a href="thread.html#1171">[ thread ]</a>
+              <a href="subject.html#1171">[ subject ]</a>
+              <a href="author.html#1171">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

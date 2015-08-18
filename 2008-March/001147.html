@@ -1,0 +1,154 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1253 - in trunk: res_noewe/languages	src/CacheWolf/navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-March/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1253%20-%20in%20trunk%3A%20res_noewe/languages%0A%09src/CacheWolf/navi&In-Reply-To=%3C200803161910.m2GJAqom023415%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001146.html">
+   <LINK REL="Next"  HREF="001148.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1253 - in trunk: res_noewe/languages	src/CacheWolf/navi</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1253%20-%20in%20trunk%3A%20res_noewe/languages%0A%09src/CacheWolf/navi&In-Reply-To=%3C200803161910.m2GJAqom023415%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1253 - in trunk: res_noewe/languages	src/CacheWolf/navi">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Sun Mar 16 20:10:52 CET 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001146.html">[Cachewolf-svn] r1252 - trunk/res_noewe/webmapservices
+</A></li>
+        <LI>Next message: <A HREF="001148.html">[Cachewolf-svn] r1254 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1147">[ date ]</a>
+              <a href="thread.html#1147">[ thread ]</a>
+              <a href="subject.html#1147">[ subject ]</a>
+              <a href="author.html#1147">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2008-03-16 20:10:49 +0100 (Sun, 16 Mar 2008)
+New Revision: 1253
+
+Modified:
+   trunk/res_noewe/languages/DE.cfg
+   trunk/res_noewe/languages/EN.cfg
+   trunk/src/CacheWolf/navi/GotoPanel.java
+   trunk/src/CacheWolf/navi/MovingMap.java
+Log:
+MovingMap: Buf fixed: when no valid coordinates were available far the map ti center on, it could crash. Maybe this fixes: <A HREF="http://www.geoclub.de/ftopic23003.html">http://www.geoclub.de/ftopic23003.html</A>
+
+Modified: trunk/res_noewe/languages/DE.cfg
+===================================================================
+--- trunk/res_noewe/languages/DE.cfg	2008-03-16 18:41:01 UTC (rev 1252)
++++ trunk/res_noewe/languages/DE.cfg	2008-03-16 19:10:49 UTC (rev 1253)
+@@ -337,6 +337,7 @@
+ 		1510=Keine Daten vom GPS%0aVerbindung zum seriellen Port geschlossen
+ 		1511=Kann Daten vom GPS nicht interpretieren%0a M%f6gliche Gr%fcnde:%0afalscher Port,%0afalsche Baudrate,%0akein NMEA-Protokoll%0aVerbindung zum seriellen Port geschlossen%0aLetzter String:%0a 
+ 		1512=Wegpunkt
++		1513=Kann Karte nicht ohne g%fcltige Koordinaten anzeigen - Bitte Koordinaten als Ziel, Zentrum oder im gew%e4hlten Cache eingeben oder GPS starten
+ 		1600=Opencaching.de Download
+ 		1601=max. Abstand:
+ 		1602=Bilder downloaden
+
+Modified: trunk/res_noewe/languages/EN.cfg
+===================================================================
+--- trunk/res_noewe/languages/EN.cfg	2008-03-16 18:41:01 UTC (rev 1252)
++++ trunk/res_noewe/languages/EN.cfg	2008-03-16 19:10:49 UTC (rev 1253)
+@@ -338,6 +338,7 @@
+ 		1510=No data from GPS%0aConnection to serial port closed
+ 		1511=Cannot interpret data from GPS%0a possible reasons:%0a wrong Port,%0a wrong Baudrate,%0a not NMEA-Protocol%0aConnection to serial port closed%0aLast String tried to interprete:%0a 
+ 		1512=Waypoint
++		1513=Cannot start moving map without valid coordinates. Please enter coordinates as destination as center or in selected cache, or start GPS
+ 		1600=Opencahing.de Download
+ 		1601=Distance:
+ 		1602=Download Images
+
+Modified: trunk/src/CacheWolf/navi/GotoPanel.java
+===================================================================
+--- trunk/src/CacheWolf/navi/GotoPanel.java	2008-03-16 18:41:01 UTC (rev 1252)
++++ trunk/src/CacheWolf/navi/GotoPanel.java	2008-03-16 19:10:49 UTC (rev 1253)
+@@ -295,15 +295,25 @@
+ 	}
+ 	
+ 	public void switchToMovingMap() {
+-		CWPoint centerTo;
++		CWPoint centerTo = null;
+ 		if (myNavigation.isGpsPosValid()) centerTo = new CWPoint(myNavigation.gpsPos); // set gps-pos if gps is on
+ 		else {
+ 			// setze Zielpunkt als Ausgangspunkt, wenn GPS aus ist und lade entsprechende Karte
+ 			//centerTo = new CWPoint(myNavigation.destination);
+ 			if (myNavigation.destination.isValid())	centerTo = new CWPoint(myNavigation.destination);
+-			else centerTo = new CWPoint(pref.curCentrePt); // if not goto-point defined move map to centere point
+-		}  
+-		mainT.SwitchToMovingMap(centerTo, false);
++			else {
++				if (mainT.ch != null &amp;&amp; mainT.ch.pos.isValid()) centerTo = new CWPoint(mainT.ch.pos);
++				else {
++					if (pref.curCentrePt.isValid()) centerTo = new CWPoint(pref.curCentrePt);
++					else {
++					}
++				}
++			}
++		}
++		if (centerTo != null &amp;&amp; centerTo.isValid())
++			mainT.SwitchToMovingMap(centerTo, false);
++		else
++		(new MessageBox(MyLocale.getMsg(321, &quot;Error&quot;), MyLocale.getMsg(1513, &quot;Cannot start moving map without valid coordinates. Please enter coordinates as destination, as center, in selected cache or start GPS&quot;), MessageBox.OKB)).execute(); 
+ 	}
+ 	
+ 	/**
+
+Modified: trunk/src/CacheWolf/navi/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MovingMap.java	2008-03-16 18:41:01 UTC (rev 1252)
++++ trunk/src/CacheWolf/navi/MovingMap.java	2008-03-16 19:10:49 UTC (rev 1253)
+@@ -164,9 +164,11 @@
+ 		if (mmp.mapImage != null) mmp.mapImage.screenDimChanged(); 
+ 		if (posCircle != null) posCircle.screenDimChanged();
+ 		if (tracks != null) rebuildOverlaySet();
+-		for (int i = symbols.size() -1; i &gt;= 0; i-- ) {
+-			((MapSymbol)symbols.get(i)).screenDimChanged();
+-		}
++		if (symbols != null) { // TODO: see if the rest of the code works with symbols = null
++			for (int i = symbols.size() -1; i &gt;= 0; i-- ) {
++				((MapSymbol)symbols.get(i)).screenDimChanged();
++			}
++}
+ 	}
+ 
+ 	boolean loadingMapList = false;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001146.html">[Cachewolf-svn] r1252 - trunk/res_noewe/webmapservices
+</A></li>
+	<LI>Next message: <A HREF="001148.html">[Cachewolf-svn] r1254 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1147">[ date ]</a>
+              <a href="thread.html#1147">[ thread ]</a>
+              <a href="subject.html#1147">[ subject ]</a>
+              <a href="author.html#1147">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

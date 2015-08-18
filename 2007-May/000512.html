@@ -1,0 +1,325 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r686 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-May/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r686%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200705222009.l4MK9lUR003889%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000511.html">
+   <LINK REL="Next"  HREF="000513.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r686 - trunk/src/CacheWolf</H1>
+    <B>kalli at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r686%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200705222009.l4MK9lUR003889%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r686 - trunk/src/CacheWolf">kalli at mail.berlios.de
+       </A><BR>
+    <I>Tue May 22 22:09:47 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000511.html">[Cachewolf-svn] r685 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000513.html">[Cachewolf-svn] r687 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#512">[ date ]</a>
+              <a href="thread.html#512">[ thread ]</a>
+              <a href="subject.html#512">[ subject ]</a>
+              <a href="author.html#512">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: kalli
+Date: 2007-05-22 22:08:54 +0200 (Tue, 22 May 2007)
+New Revision: 686
+
+Modified:
+   trunk/src/CacheWolf/GPXImporter.java
+   trunk/src/CacheWolf/ImagePanel.java
+   trunk/src/CacheWolf/SpiderGC.java
+Log:
+Laden von Bildern beim GPX-Import geht wieder, es werden die Methoden von SpiderGC genutzt.
+Kleiner Hack, damit die ?\195?\156berschrift &quot;Eigene Bilder&quot; nicht den Titel &quot;Cachebilder&quot; ?\195?\188berschreibt.
+
+Modified: trunk/src/CacheWolf/GPXImporter.java
+===================================================================
+--- trunk/src/CacheWolf/GPXImporter.java	2007-05-22 16:11:40 UTC (rev 685)
++++ trunk/src/CacheWolf/GPXImporter.java	2007-05-22 20:08:54 UTC (rev 686)
+@@ -37,6 +37,7 @@
+ 	public static final int DOIT_NOSPOILER = 1;
+ 	public static final int DOIT_WITHSPOILER = 2;
+ 	boolean getMaps = false;
++	SpiderGC imgSpider;
+ 		
+ 	public GPXImporter(Preferences p, Profile prof, String f )
+ 	{
+@@ -99,7 +100,10 @@
+ 			//getMaps = options.mapsCheckBox.getState();
+ 			boolean getImages = options.imagesCheckBox.getState();
+ 			doSpider = false;
+-			if(getImages){doSpider = true;}
++			if(getImages){
++				doSpider = true;
++				imgSpider = new SpiderGC(pref, profile, false);
++			}
+ 			options.close(0);
+ 			
+ 			//Vm.debug(&quot;State of: &quot; + doSpider);
+@@ -287,7 +291,8 @@
+ 							}
+ 						}
+ 					if(holder.wayPoint.startsWith(&quot;GC&quot;)) {
+-						spiderImages();
++						//spiderImages();
++						spiderImagesUsingSpider();
+ 						//Rename image sources
+ 						String text = new String();
+ 						String orig = new String();
+@@ -548,172 +553,19 @@
+ 			return INTR.intValue();
+ 		} else return -1;
+ 	}
+-	
+-	private void spiderImages(){
+-		//Vm.debug(&quot;Spider now: &quot; + holder.wayPoint);
+-		Extractor cacheEx;
++	private void spiderImagesUsingSpider(){
+ 		String addr = new String();
+-		String longDesc = new String();
+-		String dummy = new String();
+-		String dummy2 = new String();
+-		String imageType = new String();
+-		String datei = new String();
+-		int imgCounter = 0;
+-		HttpConnection connImg;
+-		Socket sockImg;
+-		//InputStream is;
+-		FileOutputStream fos;
+-		//int bytes_read;
+-		//byte[] buffer = new byte[9000];
+-		ByteArray daten;
+ 		String cacheText = new String();
+ 		
++		// just to be sure to have a spider object
++		if (imgSpider == null) imgSpider = new SpiderGC(pref, profile, false);
++		
+ 		addr = &quot;<A HREF="http://www.geocaching.com/seek/cache_details.aspx?wp=">http://www.geocaching.com/seek/cache_details.aspx?wp=</A>&quot; + holder.wayPoint ;
+-		try{
+ 			//Vm.debug(addr + &quot;|&quot;);
+-			cacheText = fetch(addr);
+-		}catch(IOException iox){
+-			Vm.debug(&quot;Error fetching cache page from gc.com&quot;);
+-			Vm.debug(iox.toString());
+-			spiderOK = false;
+-			cacheText = &quot;&quot;;
+-		}
+-		cacheText = replace(cacheText, &quot;&lt;strong&gt;&quot;, &quot;&lt;STRONG&gt;&quot;);
+-		// Images in the cache long description
+-		cacheEx = new Extractor(cacheText, &quot;&lt;span id=\&quot;ShortDescription\&quot;&gt;&quot;, &quot;&lt;STRONG&gt;Additional Hints&nbsp;&quot;,0,true);
+-		longDesc = cacheEx.findNext();
+-		//Vm.debug(longDesc);
+-		if(longDesc.length() == 0) {
+-			cacheEx = new Extractor(cacheText, &quot;&lt;span id=\&quot;LongDescription\&quot;&gt;&quot;, &quot;&lt;STRONG&gt;Additional Hints&nbsp;&quot;,0,true);
+-			longDesc = cacheEx.findNext();
+-		}
+-		longDesc = STRreplace.replace(longDesc, &quot;IMG&quot;, &quot;img&quot;);
+-		longDesc = STRreplace.replace(longDesc, &quot;SRC&quot;, &quot;src&quot;);
+-		cacheEx = new Extractor(longDesc, &quot;&lt;img&quot;, &quot;&gt;&quot;, 0, true);
+-		String dummySrc = new String();
+-		dummySrc = cacheEx.findNext();
+-		dummySrc = replace(dummySrc, &quot;SRC&quot;, &quot;src&quot;);
+-		dummySrc =dummySrc.replace('\'', '\&quot;');
+-		Extractor dummySrcExt;
+-		while(cacheEx.endOfSearch() == false){
+-			dummySrcExt = new Extractor(dummySrc, &quot;src=\&quot;&quot;, &quot;\&quot;&quot;,0,true);
+-			dummy = dummySrcExt.findNext();
+-			if(dummy.length() == 0){
+-				dummySrcExt = new Extractor(dummySrc, &quot;src = \&quot;&quot;, &quot;\&quot;&quot;,0,true);
+-				dummy = dummySrcExt.findNext();
+-			}
+-			//Vm.debug(&quot;Trying for: &quot; + holder.wayPoint + &quot; / &quot; + dummySrc);
+-			//Vm.debug(&quot;Url = &quot; + dummy);
+-			if(dummy.length()&gt;0){
+-				if(pref.myproxy.length()&gt;0){
+-					connImg = new HttpConnection(pref.myproxy, Convert.parseInt(pref.myproxyport), dummy);
+-				}else{
+-					connImg = new HttpConnection(dummy);
+-				}
+-				connImg.setRequestorProperty(&quot;Connection&quot;, &quot;close&quot;);
+-				imageType = dummy.substring(dummy.lastIndexOf(&quot;.&quot;), dummy.lastIndexOf(&quot;.&quot;)+4);
+-				if(!imageType.equals(&quot;com&quot;) &amp;&amp; !imageType.equals(&quot;php&quot;) &amp;&amp; !imageType.equals(&quot;exe&quot;)){
+-					datei = profile.dataDir + holder.wayPoint + &quot;_&quot; + Convert.toString(imgCounter)+ imageType;
+-					//if(imageType.equals(&quot;.png&quot;) || imageType.equals(&quot;.gif&quot;) || imageType.equals(&quot;.tif&quot;) || imageType.equals(&quot;.jpg&quot;)){
+-						try{
+-							sockImg = connImg.connect();
+-							daten = connImg.readData(connImg.connect());
+-							fos = new FileOutputStream(new File(datei));
+-							fos.write(daten.toBytes());
+-							fos.close();
+-							sockImg.close();
+-							holder.Images.add(holder.wayPoint + &quot;_&quot; + Convert.toString(imgCounter)+ imageType);
+-							//Vm.debug(holder.wayPoint + &quot;_&quot; + Convert.toString(imgCounter)+ imageType);
+-							holder.ImagesText.add(dummy.substring(dummy.lastIndexOf(&quot;/&quot;)+1, dummy.lastIndexOf(&quot;/&quot;)+1+dummy.length()-dummy.lastIndexOf(&quot;/&quot;)-1));
+-							//Vm.debug(&quot;adding....&quot; +dummy.substring(dummy.lastIndexOf(&quot;/&quot;)+1, dummy.lastIndexOf(&quot;/&quot;)+1+dummy.length()-dummy.lastIndexOf(&quot;/&quot;)-1));
+-						} catch (UnknownHostException e) { 
+-							Vm.debug(&quot;Host not there...&quot;);
+-						}catch(IOException ioex){
+-							Vm.debug(&quot;File not found!&quot;);
+-						} catch (Exception ex){
+-							Vm.debug(&quot;Some kind of problem!&quot;);
+-						} finally {
+-							//Vm.debug(&quot;This is stupid!!&quot;);
+-						}
+-						imgCounter++;
+-				}
+-			}
+-			dummySrc = cacheEx.findNext();
+-			//Vm.debug(&quot;Dummy SRC = &quot; + dummySrc);
+-			dummySrc = replace(dummySrc, &quot;SRC&quot;, &quot;src&quot;);
+-			dummySrc =dummySrc.replace('\'', '\&quot;');
+-		}
+-		
+-		// Images in the image span
+-		cacheEx = new Extractor(cacheText, &quot;&lt;span id=\&quot;Images\&quot;&quot;, &quot;&lt;/span&gt;&quot;,0,true);
+-		longDesc = cacheEx.findNext();
+-		//Vm.debug(&quot;In image span: &quot; + longDesc);
+-		cacheEx = new Extractor(longDesc, &quot;;&lt;A HREF='<A HREF="http://img.geocaching.com/cache/">http://img.geocaching.com/cache/</A>&quot;, &quot;' target='_blank'&quot;, 0, true);
+-		dummy = cacheEx.findNext();
+-		//Vm.debug(&quot;And this is the target: &quot; + dummy);
+-		Extractor imgEx = new Extractor(longDesc, &quot;style='text-decoration: underline;'&gt;&quot;,&quot;&lt;/A&gt;&quot;,0,true);
+-		dummy2 = imgEx.findNext();
+-		while(cacheEx.endOfSearch() == false){
+-			dummy = &quot;<A HREF="http://img.geocaching.com/cache/">http://img.geocaching.com/cache/</A>&quot;+dummy;
+-			//Vm.debug(&quot;Target= &quot; +dummy);
+-			if(pref.myproxy.length()&gt;0){
+-				connImg = new HttpConnection(pref.myproxy, Convert.parseInt(pref.myproxyport), dummy);
+-			}else{
+-				connImg = new HttpConnection(dummy);
+-			}
+-			connImg.setRequestorProperty(&quot;Connection&quot;, &quot;close&quot;);
+-			imageType = dummy.substring(dummy.lastIndexOf(&quot;.&quot;), dummy.lastIndexOf(&quot;.&quot;)+4);
+-			if(!imageType.equals(&quot;com&quot;) &amp;&amp; !imageType.equals(&quot;php&quot;) &amp;&amp; !imageType.equals(&quot;exe&quot;)){
+-				datei = profile.dataDir + holder.wayPoint + &quot;_&quot; + Convert.toString(imgCounter)+ imageType;
+-				try{
+-					sockImg = connImg.connect();
+-					daten = connImg.readData(sockImg);
+-					fos = new FileOutputStream(new File(datei));
+-					fos.write(daten.toBytes());
+-					fos.close();
+-					sockImg.close();
+-					holder.Images.add(holder.wayPoint + &quot;_&quot; + Convert.toString(imgCounter)+ imageType);
+-					holder.ImagesText.add(dummy2);
+-					//Vm.debug(holder.wayPoint + &quot;_&quot; + Convert.toString(imgCounter)+ imageType);
+-					//Vm.debug(dummy2);
+-				}catch(IOException ioex){
+-					Vm.debug(&quot;File not found!&quot;);
+-				}
+-				imgCounter++;
+-			}
+-			dummy = cacheEx.findNext();
+-			dummy2 = imgEx.findNext();
+-		}
+-		
++		cacheText = SpiderGC.fetch(addr);
++		imgSpider.getImages(cacheText, holder);
+ 	}
+ 	
+-	private static String fetch(String address) throws IOException
+-	   	{
+-			HttpConnection conn;
+-			if(pref.myproxy.length() &gt; 0){
+-				conn = new HttpConnection(pref.myproxy, Convert.parseInt(pref.myproxyport), address);
+-				//Vm.debug(address);
+-			} else {
+-				conn = new HttpConnection(address);
+-			}
+-			
+-			conn.setRequestorProperty(&quot;USER_AGENT&quot;, &quot;Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.7.5) Gecko/20041107 Firefox/1.0&quot;);
+-			
+-			conn.setRequestorProperty(&quot;Connection&quot;, &quot;close&quot;);
+-			
+-			conn.documentIsEncoded = true;
+-			
+-			Socket sock = conn.connect();
+-			
+-			ByteArray daten = conn.readData(sock);
+-			
+-			JavaUtf8Codec codec = new JavaUtf8Codec();
+-			CharArray c_data = codec.decodeText(daten.data, 0, daten.length, true, null);
+-			//Vm.debug(c_data.toString());
+-			sock.close();
+-			return c_data.toString();
+-		}
+-	
+ 	public static String replace(String source, String pattern, String replace){
+ 		if (source!=null)
+ 		{
+
+Modified: trunk/src/CacheWolf/ImagePanel.java
+===================================================================
+--- trunk/src/CacheWolf/ImagePanel.java	2007-05-22 16:11:40 UTC (rev 685)
++++ trunk/src/CacheWolf/ImagePanel.java	2007-05-22 20:08:54 UTC (rev 686)
+@@ -63,11 +63,13 @@
+ 		if(locCounter==1 || locCounter ==2) locY = locY + thumb_size;
+ 		//Vm.debug(&quot;thumb_size: &quot; + Convert.toString(thumb_size));
+ 		//Vm.debug(&quot;locy after: &quot; + Convert.toString(locY));
+-		addTitle(MyLocale.getMsg(341,&quot;User Images:&quot;));
+-		locY = locY + 20;
+-		locX = padding;
+-		locCounter = 0;
+-		addImages(cache.UserImages,cache.UserImagesText);
++		if (cache.UserImages.getCount()&gt; 0){
++			addTitle(MyLocale.getMsg(341,&quot;User Images:&quot;));
++			locY = locY + 20;
++			locX = padding;
++			locCounter = 0;
++			addImages(cache.UserImages,cache.UserImagesText);
++		}
+ 		
+ 		this.refresh();
+ 		Vm.showWait(false);
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2007-05-22 16:11:40 UTC (rev 685)
++++ trunk/src/CacheWolf/SpiderGC.java	2007-05-22 20:08:54 UTC (rev 686)
+@@ -884,7 +884,7 @@
+ 	*	it will be a gc.com address. This method is used to obtain
+ 	*	the result of a search for caches screen.
+ 	*/
+-	private static String fetch(String address)
++	public static String fetch(String address)
+ 	   	{	
+ 			CharArray c_data;
+ 			String data = new String();
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000511.html">[Cachewolf-svn] r685 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000513.html">[Cachewolf-svn] r687 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#512">[ date ]</a>
+              <a href="thread.html#512">[ thread ]</a>
+              <a href="subject.html#512">[ subject ]</a>
+              <a href="author.html#512">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

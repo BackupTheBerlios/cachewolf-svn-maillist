@@ -1,0 +1,179 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2786 - trunk/src/CacheWolf/navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-September/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2786%20-%20trunk/src/CacheWolf/navi&In-Reply-To=%3C20100920144851.9E9B4480F2D%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002773.html">
+   <LINK REL="Next"  HREF="002775.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2786 - trunk/src/CacheWolf/navi</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2786%20-%20trunk/src/CacheWolf/navi&In-Reply-To=%3C20100920144851.9E9B4480F2D%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2786 - trunk/src/CacheWolf/navi">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Mon Sep 20 04:48:51 CEST 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002773.html">[Cachewolf-svn] r2785 - in trunk: . res_noewe/languages	src/CacheWolf src/CacheWolf/exp src/CacheWolf/imp src/CacheWolf/navi
+</A></li>
+        <LI>Next message: <A HREF="002775.html">[Cachewolf-svn] r2787 - trunk/src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2774">[ date ]</a>
+              <a href="thread.html#2774">[ thread ]</a>
+              <a href="subject.html#2774">[ subject ]</a>
+              <a href="author.html#2774">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2010-09-20 16:48:51 +0200 (Mon, 20 Sep 2010)
+New Revision: 2786
+
+Modified:
+   trunk/src/CacheWolf/navi/MovingMap.java
+Log:
+1. MM klick on cache does context menu
+2. MM tooltip for cache (different infos)
+
+Modified: trunk/src/CacheWolf/navi/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MovingMap.java	2010-09-20 11:07:12 UTC (rev 2785)
++++ trunk/src/CacheWolf/navi/MovingMap.java	2010-09-20 14:48:51 UTC (rev 2786)
+@@ -28,6 +28,9 @@
+ import CacheWolf.CWPoint;
+ import CacheWolf.CacheDB;
+ import CacheWolf.CacheHolder;
++import CacheWolf.CacheSize;
++import CacheWolf.CacheTerrDiff;
++import CacheWolf.Common;
+ import CacheWolf.Global;
+ import CacheWolf.GuiImageBroker;
+ import CacheWolf.InfoBox;
+@@ -73,6 +76,7 @@
+ import ewe.ui.MenuItem;
+ import ewe.ui.MessageBox;
+ import ewe.ui.PenEvent;
++import ewe.ui.ToolTip;
+ import ewe.ui.WindowConstants;
+ import ewe.ui.WindowEvent;
+ import ewe.ui.mButton;
+@@ -2115,6 +2119,7 @@
+ 	int lastZoomWidth , lastZoomHeight;
+ 	
+ 	boolean ignoreNextDrag=false;
++	boolean onlyIfCache=false;
+ 	
+ 	public MovingMapPanel(MovingMap f){
+ 		this.mm = f;
+@@ -2176,6 +2181,11 @@
+ 					// but not on PC (Java) , therefor it is here
+ 					penHeld(new Point (ev.x, ev.y));
+ 				}
++				else {
++					// do it even on left klick
++					onlyIfCache=true;
++					penHeld(new Point (ev.x, ev.y));
++				}
+ 			}
+ 		}
+ 		else {
+@@ -2296,18 +2306,21 @@
+ 		ignoreNextDrag=true;
+ 		if (!mm.zoomingMode) {
+ 			kontextMenu = new Menu();
+-			kontextMenu.addItem(gotoMenuItem);
+-			kontextMenu.addItem(newWayPointMenuItem);
++			if (!onlyIfCache) {
++				kontextMenu.addItem(gotoMenuItem);
++				kontextMenu.addItem(newWayPointMenuItem);
++			}
+ 			AniImage clickedOnImage = images.findHotImage(p);
+ 			if (clickedOnImage != null &amp;&amp; clickedOnImage instanceof MapSymbol) {
+ 				if ( ((MapSymbol)clickedOnImage).mapObject instanceof CacheHolder) {
+ 					clickedCache = (CacheHolder)( ((MapSymbol)clickedOnImage).mapObject);
++					// clickedCache == null can happen if clicked on the goto-symbol
+ 					if (clickedCache != null) {
+-						openCacheDescMenuItem = new MenuItem(MyLocale.getMsg(201, &quot;Open Desctiption&quot;)+&quot; '&quot;+(clickedCache.getCacheName().length()&gt;0 ? clickedCache.getCacheName() : clickedCache.getWayPoint())+&quot;'$o&quot;); // clickedCache == null can happen if clicked on the goto-symbol
++						openCacheDescMenuItem = new MenuItem(MyLocale.getMsg(201, &quot;Open Desctiption&quot;)+&quot; '&quot;+(clickedCache.getCacheName().length()&gt;0 ? clickedCache.getCacheName() : clickedCache.getWayPoint())+&quot;'$o&quot;);
+ 						kontextMenu.addItem(openCacheDescMenuItem);
+-						openCacheDetailMenuItem = new MenuItem(MyLocale.getMsg(200, &quot;Open Details&quot;)+&quot; '&quot;+(clickedCache.getCacheName().length()&gt;0 ? clickedCache.getCacheName() : clickedCache.getWayPoint())+&quot;'$o&quot;); // clickedCache == null can happen if clicked on the goto-symbol
++						openCacheDetailMenuItem = new MenuItem(MyLocale.getMsg(200, &quot;Open Details&quot;)+&quot; '&quot;+(clickedCache.getCacheName().length()&gt;0 ? clickedCache.getCacheName() : clickedCache.getWayPoint())+&quot;'$e&quot;);
+ 						kontextMenu.addItem(openCacheDetailMenuItem);
+-						gotoCacheMenuItem = new MenuItem(MyLocale.getMsg(4279, &quot;Goto&quot;)+ &quot; '&quot;+(clickedCache.getCacheName().length()&gt;0 ? clickedCache.getCacheName() : clickedCache.getWayPoint())+&quot;'$g&quot;); // clickedCache == null can happen if clicked on the goto-symbol
++						gotoCacheMenuItem = new MenuItem(MyLocale.getMsg(4279, &quot;Goto&quot;)+ &quot; '&quot;+(clickedCache.getCacheName().length()&gt;0 ? clickedCache.getCacheName() : clickedCache.getWayPoint())+&quot;'$g&quot;); 
+ 						kontextMenu.addItem(gotoCacheMenuItem);
+ 						if (Global.mainForm.cacheListVisible) {
+ 							addCachetoListMenuItem = new MenuItem(MyLocale.getMsg(199,&quot;Add to cachetour&quot;));
+@@ -2329,9 +2342,36 @@
+ 				}
+ 			}
+ 			*/
+-			kontextMenu.exec(this, new Point(p.x, p.y), this);
++			onlyIfCache=false;
++			if (kontextMenu.items.size()&gt;0) {
++				kontextMenu.exec(this, new Point(p.x, p.y), this);
++			}
++			else kontextMenu=null;
+ 		}
+ 	}
++	
++	public boolean imageMovedOn(AniImage which) {
++		if (which instanceof MapSymbol) {
++			if ( ((MapSymbol)which).mapObject instanceof CacheHolder) {
++				CacheHolder ch = (CacheHolder) ((MapSymbol) which).mapObject;
++				this.toolTip=ch.getWayPoint()+&quot;\n&quot;
++							+ ch.cacheName+&quot;\n&quot;
++							+ &quot;Difficulty: &quot;+CacheTerrDiff.longDT(ch.getHard())+&quot;\n&quot;
++							+ &quot;Terrain: &quot;+CacheTerrDiff.longDT(ch.getTerrain())+&quot;\n&quot;
++							+ &quot;Size: &quot;+CacheSize.cw2ExportString(ch.getCacheSize())+&quot;\n&quot;
++							+ &quot;Hint: &quot;+Common.rot13(ch.getCacheDetails(false).Hints);
++			}
++		}
++		return true;
++	}
++	public boolean imageMovedOff(AniImage which) {
++		if (which instanceof MapSymbol) {
++			if ( ((MapSymbol)which).mapObject instanceof CacheHolder) {
++				this.toolTip=null;
++			}
++		}
++		return true;
++	}
+ 
+ 	public void onEvent(Event ev){
+ 		// nothing selected in kontext
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002773.html">[Cachewolf-svn] r2785 - in trunk: . res_noewe/languages	src/CacheWolf src/CacheWolf/exp src/CacheWolf/imp src/CacheWolf/navi
+</A></li>
+	<LI>Next message: <A HREF="002775.html">[Cachewolf-svn] r2787 - trunk/src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2774">[ date ]</a>
+              <a href="thread.html#2774">[ thread ]</a>
+              <a href="subject.html#2774">[ subject ]</a>
+              <a href="author.html#2774">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

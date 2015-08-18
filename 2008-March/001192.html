@@ -1,0 +1,177 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1298 - in trunk: res_noewe/languages	src/CacheWolf/navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-March/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1298%20-%20in%20trunk%3A%20res_noewe/languages%0A%09src/CacheWolf/navi&In-Reply-To=%3C200803262349.m2QNnUJe006230%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001191.html">
+   <LINK REL="Next"  HREF="001193.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1298 - in trunk: res_noewe/languages	src/CacheWolf/navi</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1298%20-%20in%20trunk%3A%20res_noewe/languages%0A%09src/CacheWolf/navi&In-Reply-To=%3C200803262349.m2QNnUJe006230%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1298 - in trunk: res_noewe/languages	src/CacheWolf/navi">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Thu Mar 27 00:49:30 CET 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001191.html">[Cachewolf-svn] r1297 - trunk/src/CacheWolf/navi
+</A></li>
+        <LI>Next message: <A HREF="001193.html">[Cachewolf-svn] r1299 - in trunk: res_noewe/languages src/CacheWolf	src/exp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1192">[ date ]</a>
+              <a href="thread.html#1192">[ thread ]</a>
+              <a href="subject.html#1192">[ subject ]</a>
+              <a href="author.html#1192">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2008-03-27 00:49:24 +0100 (Thu, 27 Mar 2008)
+New Revision: 1298
+
+Modified:
+   trunk/res_noewe/languages/DE.cfg
+   trunk/res_noewe/languages/EN.cfg
+   trunk/src/CacheWolf/navi/MapInfoObject.java
+   trunk/src/CacheWolf/navi/MapLoader.java
+   trunk/src/CacheWolf/navi/MapsList.java
+Log:
+MovingMap: Bug hopefully fixed: in case of invalid .wfl files ignore the according files. See <A HREF="http://www.geoclub.de/viewtopic.php?p=367176">http://www.geoclub.de/viewtopic.php?p=367176</A>
+MovingMap: wrong mapping of message-numbers in the code to the language file (obvously a copy-and-paste-bug)
+MovingMap: Another instantiation avoided
+
+Modified: trunk/res_noewe/languages/DE.cfg
+===================================================================
+--- trunk/res_noewe/languages/DE.cfg	2008-03-26 21:51:46 UTC (rev 1297)
++++ trunk/res_noewe/languages/DE.cfg	2008-03-26 23:49:24 UTC (rev 1298)
+@@ -642,7 +642,8 @@
+ 		4704=%0aUmbenennen der Datei:
+ 		4705=Fehler beim Umbenennen:%0a
+ 		4706=%0anach:%0an
+-		4707=Fehler beim Lesen von: 
++		4707=E/A-Fehler beim Lesen von: 
++		4708=Fehler beim Lesen von: 
+ 		4800=Lade Onlinekartendienste
+ 		4801=Ignoriere Fehler beim %0a Lesen der Web Map Service Definitionsdatei %0a
+ 		4802=Lade kalibriertes (georeferenziertes) %0a Kartenbild %0a '
+
+Modified: trunk/res_noewe/languages/EN.cfg
+===================================================================
+--- trunk/res_noewe/languages/EN.cfg	2008-03-26 21:51:46 UTC (rev 1297)
++++ trunk/res_noewe/languages/EN.cfg	2008-03-26 23:49:24 UTC (rev 1298)
+@@ -628,7 +628,8 @@
+ 		4704=%0aRenaming file:
+ 		4705=Failed to rename:%0a
+ 		4706=%0ato:%0an
+-		4707=Error while reading: 
++		4707=I/O-Error while reading: 
++		4708=Error while reading: 
+ 		4800=Loading online map services
+ 		4801=Ignoring error while %0a reading web map service definition file %0a
+ 		4802=Downloading calibrated (georeferenced) %0a map image %0a '
+
+Modified: trunk/src/CacheWolf/navi/MapInfoObject.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MapInfoObject.java	2008-03-26 21:51:46 UTC (rev 1297)
++++ trunk/src/CacheWolf/navi/MapInfoObject.java	2008-03-26 23:49:24 UTC (rev 1298)
+@@ -390,11 +390,11 @@
+ 		if (coordTrans != 0) t = TransformCoordinatesProperties.fromWgs84(ll, coordTrans);
+ 		else t = ll;
+ 		Point coords = new Point();
+-		double b[] = new double[2];
+-		b[0] = t.latDec - affineTopleft.latDec;
+-		b[1] = t.lonDec - affineTopleft.lonDec;
+-		double mapx = transLatX* b[0] + transLonX*b[1];
+-		double mapy = transLatY* b[0] + transLonY*b[1];
++		double b0, b1;
++		b0 = t.latDec - affineTopleft.latDec;
++		b1 = t.lonDec - affineTopleft.lonDec;
++		double mapx = transLatX * b0 + transLonX * b1;
++		double mapy = transLatY * b0 + transLonY * b1;
+ 		coords.x = (int)Math.round(mapx);
+ 		coords.y = (int)Math.round(mapy);
+ 		//Vm.debug(&quot;mapX=mapx2: &quot;+mapx+&quot;=&quot;+mapx2+&quot;; mapy=mapy2: &quot;+mapy+&quot;=&quot;+mapy2);
+
+Modified: trunk/src/CacheWolf/navi/MapLoader.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MapLoader.java	2008-03-26 21:51:46 UTC (rev 1297)
++++ trunk/src/CacheWolf/navi/MapLoader.java	2008-03-26 23:49:24 UTC (rev 1298)
+@@ -231,7 +231,7 @@
+ 	 * @param datei path and name of file to save to
+ 	 */
+ 	public void downloadImage(String url, String datei) throws IOException {
+-		HttpConnection connImg; // TODO move proxy-handling in a global http-class
++		HttpConnection connImg; // TODO implement this in UrlFetcher class
+ 		Socket sockImg;
+ 		FileOutputStream fos;
+ 		ByteArray daten;
+
+Modified: trunk/src/CacheWolf/navi/MapsList.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MapsList.java	2008-03-26 21:51:46 UTC (rev 1297)
++++ trunk/src/CacheWolf/navi/MapsList.java	2008-03-26 23:49:24 UTC (rev 1298)
+@@ -2,6 +2,7 @@
+ 
+ import CacheWolf.CWPoint;
+ import CacheWolf.Common;
++import CacheWolf.Global;
+ import CacheWolf.InfoBox;
+ import CacheWolf.MyLocale;
+ import utils.FileBugfix;
+@@ -54,7 +55,7 @@
+ 					if (dirs.get(j).equals(&quot;.&quot;)) // the notation dir/./filename doesn't work on all platforms anyhow
+ 						tempMIO = new MapListEntry(mapsPath+&quot;/&quot;, rawFileName);
+ 					else tempMIO = new MapListEntry(mapsPath+&quot;/&quot;+dirs.get(j)+&quot;/&quot;, rawFileName);
+-					add(tempMIO);
++					if (tempMIO.sortEntryBBox != null) add(tempMIO);
+ 					//ewe.sys.Vm.debug(tempMIO.getEasyFindString() + tempMIO.mapName);
+ 				}catch(Exception ex){ // TODO exception ist, glaub ich evtl &#252;berfl&#252;ssig 
+ 					if (f == null) (f=new MessageBox(MyLocale.getMsg(144, &quot;Warning&quot;), MyLocale.getMsg(4700, &quot;Ignoring error while \n reading calibration file \n&quot;)+ex.toString(), FormBase.OKB)).exec();
+@@ -463,7 +464,11 @@
+ 					map.fileNameWFL = path + filename + &quot;.wfl&quot;;
+ 				}
+ 			} catch (IOException ioex) { // this should not happen
+-				(new MessageBox(MyLocale.getMsg(321,&quot;Error&quot;), MyLocale.getMsg(4706,&quot;Error while reading:&quot;)+&quot; &quot;+path+filename+&quot;: &quot;+ ioex.getMessage(), FormBase.OKB)).exec();
++				(new MessageBox(MyLocale.getMsg(321,&quot;Error&quot;), MyLocale.getMsg(4707,&quot;I/O-Error while reading:&quot;)+&quot; &quot;+path+filename+&quot;: &quot;+ ioex.getMessage(), FormBase.OKB)).exec();
++				Global.getPref().log(&quot;MapListEntry (String pathi, String filenamei): I/O-Error while reading: &quot;+path+filename+&quot;: &quot;, ioex);
++			} catch (Exception ex) {
++				(new MessageBox(MyLocale.getMsg(321,&quot;Error&quot;), MyLocale.getMsg(4706,&quot;Error while reading:&quot;)+&quot; &quot;+path+filename+&quot;: &quot;+ ex.getMessage(), FormBase.OKB)).exec();
++				Global.getPref().log(&quot;MapListEntry (String pathi, String filenamei): Error while reading: &quot;+path+filename+&quot;: &quot;, ex);
+ 			}
+ 		}
+ 	}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001191.html">[Cachewolf-svn] r1297 - trunk/src/CacheWolf/navi
+</A></li>
+	<LI>Next message: <A HREF="001193.html">[Cachewolf-svn] r1299 - in trunk: res_noewe/languages src/CacheWolf	src/exp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1192">[ date ]</a>
+              <a href="thread.html#1192">[ thread ]</a>
+              <a href="subject.html#1192">[ subject ]</a>
+              <a href="author.html#1192">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,228 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1516 - in trunk/src: CacheWolf utils
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-June/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1516%20-%20in%20trunk/src%3A%20CacheWolf%20utils&In-Reply-To=%3C200806112232.m5BMWvaY025174%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001409.html">
+   <LINK REL="Next"  HREF="001411.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1516 - in trunk/src: CacheWolf utils</H1>
+    <B>mirabilos at BerliOS</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1516%20-%20in%20trunk/src%3A%20CacheWolf%20utils&In-Reply-To=%3C200806112232.m5BMWvaY025174%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1516 - in trunk/src: CacheWolf utils">mirabilos at mail.berlios.de
+       </A><BR>
+    <I>Thu Jun 12 00:32:57 CEST 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001409.html">[Cachewolf-svn] r1515 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001411.html">[Cachewolf-svn] r1517 - in trunk: res_noewe resources
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1410">[ date ]</a>
+              <a href="thread.html#1410">[ thread ]</a>
+              <a href="subject.html#1410">[ subject ]</a>
+              <a href="author.html#1410">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mirabilos
+Date: 2008-06-12 00:32:56 +0200 (Thu, 12 Jun 2008)
+New Revision: 1516
+
+Added:
+   trunk/src/utils/MessageBoxFixed.java
+Removed:
+   trunk/src/CacheWolf/MessageBoxFixed.java
+Log:
+move MessageBoxFixed to utils
+
+pfeffer agreed
+
+
+Deleted: trunk/src/CacheWolf/MessageBoxFixed.java
+===================================================================
+--- trunk/src/CacheWolf/MessageBoxFixed.java	2008-06-11 22:08:36 UTC (rev 1515)
++++ trunk/src/CacheWolf/MessageBoxFixed.java	2008-06-11 22:32:56 UTC (rev 1516)
+@@ -1,65 +0,0 @@
+-package CacheWolf;
+-
+-import ewe.sys.Vm;
+-import ewe.sys.mThread;
+-import ewe.ui.MessageBox;
+-/**
+- * this class can be needed, because ewe v1.49 cannot display messageBoxes
+- * in some special threds &lt;br&gt;
+- * &lt;br&gt; but as of CacheWolf v1.0 this class is not used &lt;br&gt;
+- * &lt;br&gt; It is included in order to have it available and to include the 
+- * knowledge about ewe-threading problems, described in comments here &lt;br&gt;
+- * This class is not mature -&gt; make it mature or use it only when
+- * you get in the ewe-vm the exception: ewe.sys Event Direction Exception: This Task cannot be done within a timer tick &lt;br&gt;
+- * when you use the normal MessageBox
+- * @author pfeffer
+- *
+- */
+-public class MessageBoxFixed {
+-	String title, text;
+-	int type;
+-	int ret;
+-	boolean done;
+-	static int debug = 0;
+-	public MessageBoxFixed(String title_, String text_, int type_) {
+-		set(title_, text_, type_);
+-	}
+-	public void set(String title_, String text_, int type_) {
+-		title = title_;
+-		text = text_;
+-		type = type_;
+-	}
+-
+-	public int execute() {
+-		//Vm.debug(&quot;aufruf: &quot; + debug);
+-		//debug++;
+-/*	// this code is a beginning of code to determine, if a new mThread is needed 	
+- 		Vm.debug(&quot;t .&quot; + mThread.inThread());
+-		MessageBox mb = new MessageBox(title,  text, type);
+-		ret = mb.execute();
+-*/
+-		MBThread t = new MBThread();  // start a new thread is necessary because the simple ewe v1.49 threading model doesn't allow displaying of a messageBox in this kind of thread
+-		t.start();
+-		done = false;
+-		while (!done) {
+-			//Vm.debug(&quot;A&quot;);
+-			//mThread.yield(100); // this seem to be without effect in ewe-vm v1.49
+-			try { mThread.sleep(100); } catch (InterruptedException e) {
+-		//		Vm.debug(&quot;interrupted&quot;); // never reached, even if interrupted is explicitly called
+-			} 
+-		}
+-		return ret;
+-	}
+-
+-	class MBThread extends mThread {
+-		public MessageBox mb;
+-		public void run() {
+-			mb = new MessageBox(title,  text, type);
+-			mb.show();
+-			done = false;
+-			mb.waitUntilClosed();
+-			done = true;
+-			// interrupt(); this doesn't work at all, neither in sun-vm nor in ewe-vm v1.49
+-		}
+-	}
+-}
+\ No newline at end of file
+
+Copied: trunk/src/utils/MessageBoxFixed.java (from rev 1515, trunk/src/CacheWolf/MessageBoxFixed.java)
+===================================================================
+--- trunk/src/CacheWolf/MessageBoxFixed.java	2008-06-11 22:08:36 UTC (rev 1515)
++++ trunk/src/utils/MessageBoxFixed.java	2008-06-11 22:32:56 UTC (rev 1516)
+@@ -0,0 +1,67 @@
++/* $Id$ */
++
++package utils;
++
++import ewe.sys.Vm;
++import ewe.sys.mThread;
++import ewe.ui.MessageBox;
++/**
++ * this class can be needed, because ewe v1.49 cannot display messageBoxes
++ * in some special threds &lt;br&gt;
++ * &lt;br&gt; but as of CacheWolf v1.0 this class is not used &lt;br&gt;
++ * &lt;br&gt; It is included in order to have it available and to include the
++ * knowledge about ewe-threading problems, described in comments here &lt;br&gt;
++ * This class is not mature -&gt; make it mature or use it only when
++ * you get in the ewe-vm the exception: ewe.sys Event Direction Exception: This Task cannot be done within a timer tick &lt;br&gt;
++ * when you use the normal MessageBox
++ * @author pfeffer
++ *
++ */
++public class MessageBoxFixed {
++	String title, text;
++	int type;
++	int ret;
++	boolean done;
++	static int debug = 0;
++	public MessageBoxFixed(String title_, String text_, int type_) {
++		set(title_, text_, type_);
++	}
++	public void set(String title_, String text_, int type_) {
++		title = title_;
++		text = text_;
++		type = type_;
++	}
++
++	public int execute() {
++		//Vm.debug(&quot;aufruf: &quot; + debug);
++		//debug++;
++/*	// this code is a beginning of code to determine, if a new mThread is needed
++ 		Vm.debug(&quot;t .&quot; + mThread.inThread());
++		MessageBox mb = new MessageBox(title,  text, type);
++		ret = mb.execute();
++*/
++		MBThread t = new MBThread();  // start a new thread is necessary because the simple ewe v1.49 threading model doesn't allow displaying of a messageBox in this kind of thread
++		t.start();
++		done = false;
++		while (!done) {
++			//Vm.debug(&quot;A&quot;);
++			//mThread.yield(100); // this seem to be without effect in ewe-vm v1.49
++			try { mThread.sleep(100); } catch (InterruptedException e) {
++		//		Vm.debug(&quot;interrupted&quot;); // never reached, even if interrupted is explicitly called
++			}
++		}
++		return ret;
++	}
++
++	class MBThread extends mThread {
++		public MessageBox mb;
++		public void run() {
++			mb = new MessageBox(title,  text, type);
++			mb.show();
++			done = false;
++			mb.waitUntilClosed();
++			done = true;
++			// interrupt(); this doesn't work at all, neither in sun-vm nor in ewe-vm v1.49
++		}
++	}
++}
+
+
+Property changes on: trunk/src/utils/MessageBoxFixed.java
+___________________________________________________________________
+Name: svn:keywords
+   + Id
+Name: svn:eol-style
+   + native
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001409.html">[Cachewolf-svn] r1515 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001411.html">[Cachewolf-svn] r1517 - in trunk: res_noewe resources
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1410">[ date ]</a>
+              <a href="thread.html#1410">[ thread ]</a>
+              <a href="subject.html#1410">[ subject ]</a>
+              <a href="author.html#1410">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

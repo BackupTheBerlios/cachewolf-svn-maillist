@@ -1,0 +1,366 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2259 - in trunk/tools/MakeWMSFile/capxml2wms: .	bin/Debug
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-October/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2259%20-%20in%20trunk/tools/MakeWMSFile/capxml2wms%3A%20.%0A%09bin/Debug&In-Reply-To=%3C200910101629.n9AGT6AG015827%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002182.html">
+   <LINK REL="Next"  HREF="002184.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2259 - in trunk/tools/MakeWMSFile/capxml2wms: .	bin/Debug</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2259%20-%20in%20trunk/tools/MakeWMSFile/capxml2wms%3A%20.%0A%09bin/Debug&In-Reply-To=%3C200910101629.n9AGT6AG015827%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2259 - in trunk/tools/MakeWMSFile/capxml2wms: .	bin/Debug">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Sat Oct 10 18:29:06 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002182.html">[Cachewolf-svn] r2258 - trunk
+</A></li>
+        <LI>Next message: <A HREF="002184.html">[Cachewolf-svn] r2260 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2183">[ date ]</a>
+              <a href="thread.html#2183">[ thread ]</a>
+              <a href="subject.html#2183">[ subject ]</a>
+              <a href="author.html#2183">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2009-10-10 18:28:59 +0200 (Sat, 10 Oct 2009)
+New Revision: 2259
+
+Modified:
+   trunk/tools/MakeWMSFile/capxml2wms/Map.vb
+   trunk/tools/MakeWMSFile/capxml2wms/bin/Debug/capxml2wms.exe
+   trunk/tools/MakeWMSFile/capxml2wms/capxml2wms.vb
+Log:
+does not close the map window anymore
+disabling and enabling buttons when necessary
+
+Modified: trunk/tools/MakeWMSFile/capxml2wms/Map.vb
+===================================================================
+--- trunk/tools/MakeWMSFile/capxml2wms/Map.vb	2009-10-10 10:26:43 UTC (rev 2258)
++++ trunk/tools/MakeWMSFile/capxml2wms/Map.vb	2009-10-10 16:28:59 UTC (rev 2259)
+@@ -3,9 +3,11 @@
+     Dim GetMapUrl As String
+     Dim pngFileName As String
+     Dim i As Image
+-    Dim scale_ As Double
++    Dim sf As Double
++    Dim center As capxml2wms.point
+     Public exitcode As Integer
+     Public clickedAt As Point
++    Dim scaleLowerLimit, scaleUpperLimit As Double
+ 
+ 
+     Private Sub Map_FormClosing(ByVal sender As Object, ByVal e As System.Windows.Forms.FormClosingEventArgs) Handles Me.FormClosing
+@@ -18,7 +20,31 @@
+     End Sub
+ 
+     Private Sub Map_Load(ByVal sender As Object, ByVal e As System.EventArgs) Handles Me.Load
+-        Me.Text = GetMapUrl
++        _MapLoad()
++    End Sub
++
++    Friend Sub New(ByVal _GetMapUrl As String, ByVal _scale As Double, ByVal _sfmin As Double, ByVal _sfmax As Double, ByVal _center As capxml2wms.point)
++
++        ' Dieser Aufruf ist f&#252;r den Windows Form-Designer erforderlich.
++        InitializeComponent()
++
++        ' F&#252;gen Sie Initialisierungen nach dem InitializeComponent()-Aufruf hinzu.
++        GetMapUrl = _GetMapUrl
++        sf = _scale
++        scaleLowerLimit = _sfmin
++        scaleUpperLimit = _sfmax
++        center = _center
++        LabelScaleVertical.Text = &quot;Vertical scale m/pixel: &quot; &amp; sf
++        LabelScaleDiagonal.Text = &quot;Diagonal scale m/pixel: &quot; &amp; sf * Math.Sqrt(2)
++        ButtonUseAsMaxScale.Enabled = True
++        ButtonUseAsMinScale.Enabled = False
++        ButtonAddToRecommendedScale.Enabled = False
++    End Sub
++
++    Private Sub _MapLoad()
++        sf = (scaleLowerLimit + scaleUpperLimit) / 2
++        Dim BBoxString As String = capxml2wms.ToBBox(center, capxml2wms._srs, capxml2wms._pixelwidth * sf)
++        GetMapUrl = capxml2wms.makeGetMapUrlFromBBox(BBoxString)
+         Try
+             Dim wc As New WebClient()
+             pngFileName = IO.Path.GetTempFileName
+@@ -33,28 +59,18 @@
+             MsgBox(&quot;Tut mir leid, das mag der wms-Server wohl so nicht&quot;, MsgBoxStyle.Exclamation)
+             Close()
+         End Try
++        LabelScaleVertical.Text = &quot;Vertical scale m/pixel: &quot; &amp; sf
++        LabelScaleDiagonal.Text = &quot;Diagonal scale m/pixel: &quot; &amp; sf * Math.Sqrt(2)
+     End Sub
+ 
+-    Public Sub New(ByVal _GetMapUrl As String, ByVal scale As Double)
+-
+-        ' Dieser Aufruf ist f&#252;r den Windows Form-Designer erforderlich.
+-        InitializeComponent()
+-
+-        ' F&#252;gen Sie Initialisierungen nach dem InitializeComponent()-Aufruf hinzu.
+-        GetMapUrl = _GetMapUrl
+-        scale_ = scale
+-        LabelScaleVertical.Text = &quot;Vertical scale m/pixel: &quot; &amp; scale
+-        LabelScaleDiagonal.Text = &quot;Diagonal scale m/pixel: &quot; &amp; scale * Math.Sqrt(2)
+-    End Sub
+-
+     Private Sub ButtonScaleUp_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles ButtonScaleUp.Click
+-        exitcode = +1
+-        Close()
++        scaleLowerLimit = sf
++        _MapLoad()
+     End Sub
+ 
+     Private Sub ButtonScaleDown_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles ButtonScaleDown.Click
+-        exitcode = -1
+-        Close()
++        scaleUpperLimit = sf
++        _MapLoad()
+     End Sub
+ 
+     Private Sub PictureBox_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles PictureBox.Click
+@@ -65,23 +81,44 @@
+         clickedAt = New Point
+         clickedAt.X = mev.X - (Width - im.Width) / 2 - im.Width / 2
+         clickedAt.Y = mev.Y - (Height - im.Height) / 2 - im.Height / 2
+-        exitcode = 5
+-        Close()
++        ' shift center to the clicked pos
++        center.x = center.x + clickedAt.X * sf * capxml2wms.metersToBBoxHorizontal(capxml2wms._srs, center)
++        center.y = center.y - clickedAt.Y * sf * capxml2wms.metersToBBoxVertical(capxml2wms._srs)
++        _MapLoad()
+     End Sub
+ 
+     Private Sub ButtonUseAsMaxScale_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles ButtonUseAsMaxScale.Click
+-        exitcode = 101
+-        Close()
++        capxml2wms.maxScale = sf * Math.Sqrt(2)
++        scaleUpperLimit = sf
++        scaleLowerLimit = capxml2wms.minScale / Math.Sqrt(2)
++        _MapLoad()
++        ButtonUseAsMaxScale.Enabled = False
++        ButtonUseAsMinScale.Enabled = True
++        AddToRecommendedScale()
+     End Sub
+ 
+     Private Sub ButtonAddToRecommendedScale_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles ButtonAddToRecommendedScale.Click
+-        exitcode = 100
+-        Close()
++        AddToRecommendedScale()
+     End Sub
+ 
++    Private Sub AddToRecommendedScale()
++        If capxml2wms.recScale Is Nothing Then
++            capxml2wms.recScale = New ArrayList
++        End If
++        capxml2wms.recScale.Add(sf)
++        scaleLowerLimit = capxml2wms.minScale / Math.Sqrt(2)
++        scaleUpperLimit = capxml2wms.maxScale / Math.Sqrt(2)
++        _MapLoad()
++    End Sub
++
+     Private Sub ButtonUseAsMinScale_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles ButtonUseAsMinScale.Click
+-        exitcode = 99
+-        Close()
++        capxml2wms.minScale = sf * Math.Sqrt(2)
++        scaleLowerLimit = sf
++        scaleUpperLimit = capxml2wms.maxScale / Math.Sqrt(2)
++        _MapLoad()
++        ButtonUseAsMinScale.Enabled = False
++        ButtonAddToRecommendedScale.Enabled = True
++        AddToRecommendedScale()
+     End Sub
+ 
+     Private Sub Button1_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles ButtonHelp.Click
+
+Modified: trunk/tools/MakeWMSFile/capxml2wms/bin/Debug/capxml2wms.exe
+===================================================================
+(Binary files differ)
+
+Modified: trunk/tools/MakeWMSFile/capxml2wms/capxml2wms.vb
+===================================================================
+--- trunk/tools/MakeWMSFile/capxml2wms/capxml2wms.vb	2009-10-10 10:26:43 UTC (rev 2258)
++++ trunk/tools/MakeWMSFile/capxml2wms/capxml2wms.vb	2009-10-10 16:28:59 UTC (rev 2259)
+@@ -42,9 +42,9 @@
+ 
+     Dim WGS84 As Ellipsoid
+     Dim OBBoxes As Dictionary(Of String, XmlElement)
+-    Dim minScale As Double = 0
+-    Dim maxScale As Double = 1000
+-    Dim recScale As ArrayList
++    Friend minScale As Double = 0
++    Friend maxScale As Double = 1000
++    Friend recScale As ArrayList
+ 
+ 
+     Private Sub capxml2wms_FormClosing(ByVal sender As Object, ByVal e As System.Windows.Forms.FormClosingEventArgs) Handles Me.FormClosing
+@@ -99,7 +99,10 @@
+         Dim MeineSkalierung As Double
+         MeineSkalierung = 2.0 * Me.HScrollBar1.Value
+         mapUrl = makeGetMapUrl(MeineSkalierung)
+-        Dim SM As New Map(mapUrl, 0)
++        Dim center As point
++        center.x = 0
++        center.y = 0
++        Dim SM As New Map(mapUrl, 0, 0, 0, center)
+         'MsgBox(&quot;Noch nicht vorhanden!&quot;, MsgBoxStyle.Information, &quot;Hinweis!&quot;)
+         SM.ButtonAddToRecommendedScale.Visible = False
+         SM.ButtonHelp.Visible = False
+@@ -111,11 +114,12 @@
+         SM.LabelScaleVertical.Visible = False
+         SM.ShowDialog()
+     End Sub
++    Friend _srs As Integer
++    Friend _pixelwidth As Integer
+     Private Sub ButtonFindScale_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles ButtonFindScale.Click
+         Dim BBoxString As String
+ 
+-        Dim srs As Integer
+-        srs = Me.ComboBoxEPSG.SelectedItem
++        _srs = Me.ComboBoxEPSG.SelectedItem
+ 
+         Dim center As point
+         ' find center
+@@ -142,8 +146,7 @@
+         center.y = rymitte
+ 
+         Dim scale_ll, scale_ul, scale_m As Double
+-        Dim pixelwidth As Integer
+-        pixelwidth = 500
++        _pixelwidth = 500
+ 
+         scale_ll = minScale
+         scale_ul = maxScale
+@@ -152,51 +155,13 @@
+         Dim mapUrl As String
+         Do
+             scale_m = (scale_ll + scale_ul) / 2
+-            BBoxString = ToBBox(center, srs, pixelwidth * scale_m)
++            BBoxString = ToBBox(center, _srs, _pixelwidth * scale_m)
+             mapUrl = makeGetMapUrlFromBBox(BBoxString)
+-            SM = New Map(mapUrl, scale_m)
++            SM = New Map(mapUrl, scale_m, minScale, maxScale, center)
+             SM.ShowDialog()
+-            Select Case SM.exitcode
+-                Case -1
+-                    scale_ul = scale_m
+-                Case 1
+-                    scale_ll = scale_m
+-                Case 5
+-                    ' shift center to the clicked pos
+-                    center.x = center.x + SM.clickedAt.X * scale_m * metersToBBoxHorizontal(srs, center)
+-                    center.y = center.y - SM.clickedAt.Y * scale_m * metersToBBoxVertical(srs)
+-                Case 99
+-                    Me.minScale = scale_m * Math.Sqrt(2)
+-                    scale_ll = scale_m
+-                    scale_ul = Me.maxScale / Math.Sqrt(2)
+-                Case 100
+-                    If recScale Is Nothing Then
+-                        recScale = New ArrayList
+-                    End If
+-                    recScale.Add(scale_m)
+-                    scale_ll = Me.minScale / Math.Sqrt(2)
+-                    scale_ul = Me.maxScale / Math.Sqrt(2)
+-                Case 101
+-                    Me.maxScale = scale_m * Math.Sqrt(2)
+-                    scale_ul = scale_m
+-                    scale_ll = Me.minScale / Math.Sqrt(2)
+-            End Select
+-
+         Loop Until SM.exitcode = 0
+     End Sub
+-    Private Function metersToBBoxVertical(ByVal epsg As Integer) As Double
+-        If epsg = 4326 Then
+-            metersToBBoxVertical = 360 / (WGS84.a * Math.PI * 2)
+-        Else : metersToBBoxVertical = 1
+-        End If
+-    End Function
+-    Private Function metersToBBoxHorizontal(ByVal epsg As Integer, ByRef center As point) As Double
+-        If epsg = 4326 Then
+-            metersToBBoxHorizontal = (360 / (WGS84.a * Math.PI * 2)) / Math.Cos(center.y / 180 * Math.PI)
+-        Else : metersToBBoxHorizontal = 1
+-        End If
+-    End Function
+-    Private Function makeGetMapUrlFromBBox(ByVal bb As String) As String
++    Friend Function makeGetMapUrlFromBBox(ByVal bb As String) As String
+         '<A HREF="http://">http://</A> www.lv-bw.de/dv/service/getrds2.asp?login=dv&amp;pw=anonymous
+         '&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetMap
+         '&amp;SRS=EPSG:31467
+@@ -303,7 +268,20 @@
+         makeGetMapUrl = mapUrl
+     End Function
+ 
+-    Private Function ToBBox(ByRef center As point, ByVal srs As Integer, ByVal meter As Double) As String
++    Friend Function metersToBBoxVertical(ByVal epsg As Integer) As Double
++        If epsg = 4326 Then
++            metersToBBoxVertical = 360 / (WGS84.a * Math.PI * 2)
++        Else : metersToBBoxVertical = 1
++        End If
++    End Function
++    Friend Function metersToBBoxHorizontal(ByVal epsg As Integer, ByRef center As capxml2wms.point) As Double
++        If epsg = 4326 Then
++            metersToBBoxHorizontal = (360 / (WGS84.a * Math.PI * 2)) / Math.Cos(center.Y / 180 * Math.PI)
++        Else : metersToBBoxHorizontal = 1
++        End If
++    End Function
++
++    Friend Function ToBBox(ByRef center As point, ByVal srs As Integer, ByVal meter As Double) As String
+         Dim tl As point
+         Dim br As point
+         Dim diff_v, diff_h As Double
+@@ -708,7 +686,7 @@
+                 If n.NodeType = XmlNodeType.Element Then
+                     Dim e As XmlElement = n
+                     Dim stmp As String = e.GetAttribute(&quot;SRS&quot;)
+-                    If Not OBBoxes.ContainsKey(stmp) Then
++                    If Not stmp = &quot;&quot; And Not OBBoxes.ContainsKey(stmp) Then
+                         OBBoxes.Add(&quot;EPSG:4326&quot;, e)
+                     End If
+                 End If
+@@ -786,7 +764,7 @@
+ 
+     End Sub
+ 
+-    Private Structure point
++    Friend Structure point
+         Dim x As Double
+         Dim y As Double
+     End Structure
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002182.html">[Cachewolf-svn] r2258 - trunk
+</A></li>
+	<LI>Next message: <A HREF="002184.html">[Cachewolf-svn] r2260 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2183">[ date ]</a>
+              <a href="thread.html#2183">[ thread ]</a>
+              <a href="subject.html#2183">[ subject ]</a>
+              <a href="author.html#2183">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

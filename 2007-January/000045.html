@@ -1,0 +1,484 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r362 - in trunk: resources src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r362%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200701072038.l07Kcr3e007246%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000044.html">
+   <LINK REL="Next"  HREF="000046.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r362 - in trunk: resources src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r362%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200701072038.l07Kcr3e007246%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r362 - in trunk: resources src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Sun Jan  7 21:38:53 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000044.html">[Cachewolf-svn] r361 - in trunk: resources src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000046.html">[Cachewolf-svn] r363 - in trunk: resources src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#45">[ date ]</a>
+              <a href="thread.html#45">[ thread ]</a>
+              <a href="subject.html#45">[ subject ]</a>
+              <a href="author.html#45">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-01-07 21:38:50 +0100 (Sun, 07 Jan 2007)
+New Revision: 362
+
+Modified:
+   trunk/resources/cachewolf.Languages.cfg
+   trunk/src/CacheWolf/GotoPanel.java
+   trunk/src/CacheWolf/MapInfoObject.java
+   trunk/src/CacheWolf/MovingMap.java
+Log:
+in der MovingMap k?\195?\182nnen jetzt leere Karten mit unterschiedlichen Massstaeben gewaehlt werden
+
+Modified: trunk/resources/cachewolf.Languages.cfg
+===================================================================
+--- trunk/resources/cachewolf.Languages.cfg	2007-01-07 19:40:51 UTC (rev 361)
++++ trunk/resources/cachewolf.Languages.cfg	2007-01-07 20:38:50 UTC (rev 362)
+@@ -88,6 +88,7 @@
+ 		324= - neu versuchen?
+ 		325=Zuwenige Referenzpunkte, Karte nicht kalibriert
+ 		326=Es steht keine kalibrierte Karte zur Verf%fcgung
++		327=Information
+ 		340=Cachebilder:
+ 		341=Eigene Bilder:
+ 		342=Gel%f6scht
+@@ -233,6 +234,7 @@
+ 		1618=Ignoriere Fehler in Cache:+
+ 		1619=: konnte Bild von folgender URL nicht downloaden:+
+ 		1620=download eingebundener Bilder:+
++		1621=Fehler beim Interpretieren\n der Update-Datei,\nDies ist vermutlich ein Fehler bei Opencaching.de\nSp&#228;ter erneut versuchen\n Status:
+ 		2000=GPX Export
+ 		2001=von
+ 		3000=Schlie%dfen
+@@ -338,6 +340,7 @@
+ 		324= - retry?
+ 		325=Not enough reference points, map not calibrated
+ 		326=No calibrated map available
++		327=Information
+ 		340=Cache Images:
+ 		341=User Images:
+ 		342=Deleted
+@@ -482,6 +485,7 @@
+ 		1618=Ignoring error in Cache:+
+ 		1619=: could not download image from URL:+
+ 		1620=downloading embedded images:+
++		1621=Error while interpreting data\n from Opencaching.de,\nThis is most probaly a bug at Opencaching.de\nRetry later\n Status:
+ 		2000=GPX Export
+ 		2001=of
+ 		3000=Close
+
+Modified: trunk/src/CacheWolf/GotoPanel.java
+===================================================================
+--- trunk/src/CacheWolf/GotoPanel.java	2007-01-07 19:40:51 UTC (rev 361)
++++ trunk/src/CacheWolf/GotoPanel.java	2007-01-07 20:38:50 UTC (rev 362)
+@@ -168,8 +168,6 @@
+ 
+ 	boolean mapsLoaded = false;
+ 	public boolean runMovingMap = false;
+-	Vector availableMaps = new Vector();
+-	MapInfoObject tempMIO = new MapInfoObject();
+ 	MovingMap mmp;
+ 	Track currTrack;
+ 
+@@ -595,54 +593,17 @@
+ 			//Start moving map
+ 			if (ev.target == btnMap){
+ 				runMovingMap = true;
+-				if (mmp != null &amp;&amp; mmp.mmp.mapImage != null) {
+-					if (serThread == null || !serThread.isAlive() ) {
+-						// setze Zielpunkt als Ausgangspunkt, wenn GPS aus ist und lade entsprechende Karte
+-						mmp.ignoreGps = false;
+-						mmp.updatePosition(toPoint.latDec, toPoint.lonDec);
+-						mmp.ignoreGps = true;
+-					}
+-					if (currTrack != null) mmp.addTrack(currTrack);
+-					mmp.setGotoPosition(toPoint.latDec, toPoint.lonDec);
+-					mmp.exec();
++				if (mmp == null) mmp = new MovingMap(pref, this, cacheDB); // this also loads the list of maps
++				if (serThread == null || !serThread.isAlive() ) {
++					// setze Zielpunkt als Ausgangspunkt, wenn GPS aus ist und lade entsprechende Karte
++					mmp.ignoreGps = false;
++					mmp.updatePosition(toPoint.latDec, toPoint.lonDec);
++					mmp.ignoreGps = true;
+ 				}
+-				else {
+-					if(mapsLoaded == false){
+-						Vm.showWait(true);
+-						InfoBox inf = new InfoBox(&quot;Info&quot;, &quot;Loading list of maps...&quot;);
+-						inf.exec();
+-						String dateien[];
+-						String mapsPath = new String();
+-						mapsPath = File.getProgramDirectory() + &quot;/maps/&quot;;
+-						File files = new File(mapsPath);
+-						Extractor ext;
+-						String rawFileName = new String();
+-						dateien = files.list(&quot;*.png&quot;, File.LIST_FILES_ONLY);
+-						for(int i = 0; i &lt; dateien.length;i++){
+-							ext = new Extractor(dateien[i], &quot;&quot;, &quot;.&quot;, 0, true);
+-							rawFileName = ext.findNext();
+-							try {
+-								tempMIO = new MapInfoObject();
+-								tempMIO.loadwfl(mapsPath, rawFileName);
+-								availableMaps.add(tempMIO);
+-								mapsLoaded = true;
+-							}catch(IOException ex){ } // TODO etwas genauer auch Fehlermeldung ausgeben? Bei vorhandenen .wfl-Datei mit ung&#252;ltigen Werten Fehler ausgeben oder wie jetz einfach ignorieren?
+-						}
+-						inf.close(0);
+-					} // if(mapsLoaded == false)
+-					mmp = new MovingMap(pref, availableMaps, this, cacheDB);
+-					Vm.showWait(false);
+-					if (serThread == null || !serThread.isAlive() ) {
+-						// setze Zielpunkt als Ausgangspunkt, wenn GPS aus ist und lade entsprechende Karte
+-						mmp.loadMap(toPoint.latDec, toPoint.lonDec);
+-					} else
+-						mmp.loadMap(gpsPosition.latDec, gpsPosition.lonDec);
+-					if (currTrack != null) mmp.addTrack(currTrack);
+-					mmp.setGotoPosition(toPoint.latDec, toPoint.lonDec);
+-					mmp.exec();
+-				}
+-
+-			} // if (ev.target == btnMap
++				if (currTrack != null) mmp.addTrack(currTrack);
++				mmp.setGotoPosition(toPoint.latDec, toPoint.lonDec);
++				mmp.exec();
++			} 
+ 			// create new waypoint with current GPS-position
+ 			if (ev.target == btnSave){
+ 				CacheHolder ch = new CacheHolder();
+
+Modified: trunk/src/CacheWolf/MapInfoObject.java
+===================================================================
+--- trunk/src/CacheWolf/MapInfoObject.java	2007-01-07 19:40:51 UTC (rev 361)
++++ trunk/src/CacheWolf/MapInfoObject.java	2007-01-07 20:38:50 UTC (rev 362)
+@@ -45,9 +45,31 @@
+  */	
+ 	
+ 	public MapInfoObject() {
+-		double testA = Convert.toDouble(&quot;1,50&quot;) + Convert.toDouble(&quot;3,00&quot;);
+-		if(testA == 4.5) digSep = &quot;,&quot;; else digSep = &quot;.&quot;;
++		digSep = MyLocale.getDigSeparator();
++		//double testA = Convert.toDouble(&quot;1,50&quot;) + Convert.toDouble(&quot;3,00&quot;);
++		//if(testA == 4.5) digSep = &quot;,&quot;; else digSep = &quot;.&quot;;
+ 	}
++	
++	/*
++	 * constructes an MapInfoObject without an associated map
++	 * but with 1 Pixel = scale meters
++	 */
++	public MapInfoObject(double scale) {
++		digSep = MyLocale.getDigSeparator();
++		mapName=&quot;empty 1 Pixel = &quot;+scale+&quot;meters&quot;;
++		double meters2deg = 1/(1000*(new CWPoint(0,0)).getDistance(new CWPoint(1,0)));
++		double pixel2deg = meters2deg * scale;
++		affine[0]=0; //x2lat
++		affine[1]=pixel2deg; //x2lon
++		affine[2]=-pixel2deg; //y2lat
++		affine[3]=0; //y2lon
++		affine[4]=0; //left
++		affine[5]=1; //top
++		lowlat = 0; //bottom 
++		lowlon = 1; //right
++		doCalculations();
++	}
++	
+ 	/**
+ 	 * Method to load a .wfl-file
+ 	 * @throws IOException when there was a problem reading .wfl-file
+
+Modified: trunk/src/CacheWolf/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/MovingMap.java	2007-01-07 19:40:51 UTC (rev 361)
++++ trunk/src/CacheWolf/MovingMap.java	2007-01-07 20:38:50 UTC (rev 362)
+@@ -2,6 +2,8 @@
+ 
+ import ewe.ui.*;
+ import ewe.graphics.*;
++import ewe.io.File;
++import ewe.io.IOException;
+ import ewe.sys.*;
+ import ewe.fx.*;
+ import ewe.util.Vector;
+@@ -44,18 +46,81 @@
+ 	boolean ignoreGps = false;
+ 	boolean ignoreGpsStatutsChanges = false;
+ 	boolean autoSelectMap = true;
++	boolean forceMapLoad = false; // only needed to force updateposition to try to load the best map again after OutOfMemoryError after an repeated click on snap-to-gps
+ 	
+-	public MovingMap(Preferences pref, Vector maps, GotoPanel gP, Vector cacheDB){
++	public MovingMap(Preferences pref, GotoPanel gP, Vector cacheDB){
+ 		this.cacheDB = cacheDB;
+ 		gotoPanel = gP;
+-		this.maps = maps;
+ 		this.pref = pref;
+ 		this.setPreferredSize(pref.myAppWidth, pref.myAppHeight);
+ 		this.title = &quot;Moving Map&quot;;
++		this.backGround = Color.Black;
+ 		currentMap = new MapInfoObject();
+-		mmp = new MovingMapPanel(this, maps, gotoPanel, cacheDB);
++		mmp = new MovingMapPanel(this);
+ 		this.addLast(mmp);
++		mmp.addImage(posCircle);
++		setGpsStatus(noGPS);
++		ButtonImageChooseMap.setLocation(10,10);
++		ButtonImageChooseMap.properties = AniImage.AlwaysOnTop;
++		ButtonImageGpsOn.setLocation(pref.myAppWidth-25, 10);
++		ButtonImageGpsOn.properties = AniImage.AlwaysOnTop;
++		arrowUp.setLocation(pref.myAppWidth/2, 10);
++		arrowDown.setLocation(pref.myAppWidth/2, pref.myAppHeight-20);
++		arrowLeft.setLocation(10, pref.myAppHeight/2+7);
++		arrowRight.setLocation(pref.myAppWidth-25, pref.myAppHeight/2+7);
++		arrowUp.properties = AniImage.AlwaysOnTop;
++		arrowDown.properties = AniImage.AlwaysOnTop;
++		arrowLeft.properties = AniImage.AlwaysOnTop;
++		arrowRight.properties = AniImage.AlwaysOnTop;
++		mmp.addImage(arrowUp);
++		mmp.addImage(arrowDown);
++		mmp.addImage(arrowLeft);
++		mmp.addImage(arrowRight);
++		mmp.addImage(ButtonImageChooseMap);
++		mmp.addImage(ButtonImageGpsOn);
++		posCircle.properties = AniImage.AlwaysOnTop;
++		loadMaps();
+ 	}
++
++	/**
++	 * loads the list of maps
++	 *
++	 */
++	public void loadMaps(){
++		Vm.showWait(true);
++		resetCenterOfMap();
++		InfoBox inf = new InfoBox(&quot;Info&quot;, &quot;Loading list of maps...&quot;);
++		inf.exec();
++		maps = new Vector();
++		String dateien[];
++		String mapsPath = new String();
++		mapsPath = File.getProgramDirectory() + &quot;/maps/&quot;;
++		File files = new File(mapsPath);
++		Extractor ext;
++		String rawFileName = new String();
++		dateien = files.list(&quot;*.png&quot;, File.LIST_FILES_ONLY);
++		MapInfoObject tempMIO;
++		for(int i = 0; i &lt; dateien.length;i++){
++			ext = new Extractor(dateien[i], &quot;&quot;, &quot;.&quot;, 0, true);
++			rawFileName = ext.findNext();
++			try {
++				tempMIO = new MapInfoObject();
++				tempMIO.loadwfl(mapsPath, rawFileName);
++				maps.add(tempMIO);
++			}catch(IOException ex){ } // TODO etwas genauer auch Fehlermeldung ausgeben? Bei vorhandenen .wfl-Datei mit ung&#252;ltigen Werten Fehler ausgeben oder wie jetz einfach ignorieren?
++		}
++		if (maps.isEmpty())
++			(new MessageBox(MyLocale.getMsg(327, &quot;Information&quot;), MyLocale.getMsg(326, &quot;Es steht keine kalibrierte Karte zur Verf&#252;gung&quot;), MessageBox.OKB)).execute();
++		tempMIO = new MapInfoObject(1.0);
++		maps.add(tempMIO);
++		tempMIO = new MapInfoObject(5.0);
++		maps.add(tempMIO);
++		tempMIO = new MapInfoObject(50.0);
++		maps.add(tempMIO);
++		inf.close(0);
++		Vm.showWait(false);
++	}
++
+ 	public void addTrack(Track tr) {
+ 		if (tr == null) return;
+ 		if (tracks == null) tracks = new Vector();
+@@ -239,7 +304,7 @@
+ 	}
+ 	
+ 	public void updateOverlayPos() {
+-//		if (TrackOverlays == null) return;
++		if (TrackOverlays == null) return;
+ 		updateOverlayOnlyPos();
+ 		if (TrackOverlays[0].location.x&gt;pref.myAppWidth || TrackOverlays[0].location.x + 3*pref.myAppWidth &lt; 0 || // testForNeedToRearange
+ 				TrackOverlays[0].location.y&gt;pref.myAppHeight || TrackOverlays[0].location.y + 3*pref.myAppHeight &lt;0) {
+@@ -280,50 +345,6 @@
+ 	}
+ 	
+ 	
+-	/**
+-	 * Constructs the map panel and initializes everything that is neccessary
+-	 *
+-	 */
+-	public void loadMap(double lat, double lon){
+-		resetCenterOfMap();
+-		posCircleLat = lat;
+-		posCircleLon = lon;
+-		if (!maps.isEmpty()){
+-			posCircle.properties = AniImage.AlwaysOnTop;
+-			try {
+-				int bestmap = getBestMap(posCircleLat, posCircleLon);
+-				setMap((MapInfoObject)maps.get(bestmap), posCircleLat, posCircleLon);
+-			} catch (IndexOutOfBoundsException ex) { // wird von maps.get geworfen, wenn die Liste der Maps leer ist, sollte eigentlich nicht vorkommen, solange bestmaps immer eine g&#252;ltige Antwort liefert
+-				LocalResource lr = Vm.getLocale().getLocalResource(&quot;cachewolf.Languages&quot;,true);
+-				(new MessageBox((String)lr.get(321, &quot;Error&quot;), (String)lr.get(326, &quot;Es steht keine kalibrierte Karte zur Verf&#252;gung&quot;), MessageBox.OKB)).execute();
+-			}
+-		//	addOverlays(); // map must be known and must be added after map
+-			mmp.addImage(posCircle);
+-			setGpsStatus(noGPS);
+-			ButtonImageChooseMap.setLocation(10,10);
+-			ButtonImageChooseMap.properties = AniImage.AlwaysOnTop;
+-			ButtonImageGpsOn.setLocation(pref.myAppWidth-25, 10);
+-			ButtonImageGpsOn.properties = AniImage.AlwaysOnTop;
+-			arrowUp.setLocation(pref.myAppWidth/2, 10);
+-			arrowDown.setLocation(pref.myAppWidth/2, pref.myAppHeight-20);
+-			arrowLeft.setLocation(10, pref.myAppHeight/2+7);
+-			arrowRight.setLocation(pref.myAppWidth-25, pref.myAppHeight/2+7);
+-			arrowUp.properties = AniImage.AlwaysOnTop;
+-			arrowDown.properties = AniImage.AlwaysOnTop;
+-			arrowLeft.properties = AniImage.AlwaysOnTop;
+-			arrowRight.properties = AniImage.AlwaysOnTop;
+-			mmp.addImage(arrowUp);
+-			mmp.addImage(arrowDown);
+-			mmp.addImage(arrowLeft);
+-			mmp.addImage(arrowRight);
+-			mmp.addImage(ButtonImageChooseMap);
+-			mmp.addImage(ButtonImageGpsOn);
+-		} else { // catch (IndexOutOfBoundsException ex) { // wird von maps.get geworfen, wenn die Liste der Maps leer ist
+-			LocalResource lr = Vm.getLocale().getLocalResource(&quot;cachewolf.Languages&quot;,true);
+-			(new MessageBox((String)lr.get(321, &quot;Error&quot;), (String)lr.get(326, &quot;Es steht keine kalibrierte Karte zur Verf&#252;gung&quot;), MessageBox.OKB)).execute();
+-			throw new IndexOutOfBoundsException(&quot;no calibrated maps available&quot;); 
+-		}
+-	}
+ 	
+ 	public void resetCenterOfMap() {
+ 		posCircleX = pref.myAppWidth/2; // maybe this could /should be repleced to windows size
+@@ -431,7 +452,7 @@
+ 			updateSymbolPositions();
+ 			if (updateOverlay &amp;&amp; TrackOverlays != null) updateOverlayPos();
+ 		//}
+-		mmp.repaintNow();
++		mmp.repaintNow(); // TODO test if the &quot;if&quot; above can be used
+ 		//Vm.debug(&quot;update only position&quot;);			
+ 	}
+ 	/**
+@@ -442,8 +463,9 @@
+ 			updateOnlyPosition(lat, lon, true);
+ 			if (autoSelectMap) {
+ 				Point mapPos = getMapXYPosition();
+-				if (mmp.mapImage != null &amp;&amp; ( mapPos.y &gt; 0 || mapPos.x &gt; 0 || mapPos.y+mmp.mapImage.getHeight()&lt;this.height	|| mapPos.x+mmp.mapImage.getWidth()&lt;this.width) 
+-					|| 	mmp.mapImage == null ) 	{
++				if (forceMapLoad || (mmp.mapImage != null &amp;&amp; ( mapPos.y &gt; 0 || mapPos.x &gt; 0 || mapPos.y+mmp.mapImage.getHeight()&lt;this.height	|| mapPos.x+mmp.mapImage.getWidth()&lt;this.width) 
++					|| 	mmp.mapImage == null )) 	{
++					forceMapLoad = false;
+ 					//Vm.debug(&quot;Screen not completly covered by map&quot;);
+ 					if (java.lang.Math.abs(lastCompareX-mapPos.x) &gt; MyLocale.getScreenWidth()/10 || java.lang.Math.abs(lastCompareY-mapPos.y) &gt; MyLocale.getScreenHeight()/10) {
+ 						// more then 1/10 of screen moved since last time we tried to find a better map
+@@ -484,6 +506,7 @@
+ 		lastCompareX = Integer.MAX_VALUE; // neccessary to make updateposition to test if the current map is the best one for the GPS-Position
+ 		lastCompareY = Integer.MAX_VALUE;
+ 		autoSelectMap = true;
++		forceMapLoad = true;
+ //		updatePosition(gotoPanel.gpsPosition.latDec, gotoPanel.gpsPosition.latDec); is called from GotoPanel.ticked
+ 	}
+ 
+@@ -518,7 +541,8 @@
+ 				//Vm.debug(&quot;free: &quot;+Vm.getUsedMemory(false)+&quot;classMemory: &quot;+Vm.getClassMemory()+ &quot;after garbage collection: &quot;+Vm.getUsedMemory(false));
+ 				Vm.getUsedMemory(true); // calls the garbage collection
+ 				} // give memory free before loading the new map to avoid out of memory error  
+-			mmp.mapImage = new AniImage(currentMap.fileName); // attention: when running in native java-vm, no exception will be thrown, not even OutOfMemeoryError
++			if (currentMap.fileName.length()&gt;0) mmp.mapImage = new AniImage(currentMap.fileName); // attention: when running in native java-vm, no exception will be thrown, not even OutOfMemeoryError
++			else mmp.mapImage = new AniImage();
+ 			mmp.mapImage.setLocation(0,0);
+ 			mmp.addImage(mmp.mapImage);
+ 			mmp.images.moveToBack(mmp.mapImage);
+@@ -583,16 +607,9 @@
+ */
+ class MovingMapPanel extends InteractivePanel{
+ 	MovingMap mm;
+-	Vector maps;
+-	CellPanel gotoPanel;
+ 	AniImage mapImage;
+-	Vector cacheDB;
+-	Vector imageLayers;
+-	public MovingMapPanel(MovingMap f, Vector maps, GotoPanel gP, Vector cacheDB){
+-		this.cacheDB = cacheDB;
+-		gotoPanel = gP;
++	public MovingMapPanel(MovingMap f){
+ 		this.mm = f;
+-		this.maps = maps;
+ 	}
+ 	
+ 	/*public void addAniImage(AniImage ai, int layer) {
+@@ -616,18 +633,17 @@
+ 		mm.updateSymbolPositions();
+ 		mm.updateOverlayPos();
+ 		this.repaintNow();
+-
+ 	}
+ 
+ 	public void chooseMap() {
+ 		CWPoint gpspos;
+ 		if (mm.gotoPanel.gpsPosition.Fix &gt; 0) gpspos = new CWPoint(mm.gotoPanel.gpsPosition.latDec, mm.gotoPanel.gpsPosition.lonDec);
+ 		else gpspos = null;
+-		ListBox l = new ListBox(maps, gpspos, mm.getGotoPos());
++		ListBox l = new ListBox(mm.maps, gpspos, mm.getGotoPos());
+ 		if(l.execute() == FormBase.IDOK){
+ //			Vm.debug(&quot;Trying map: &quot; + l.selectedMap.fileName);
+ 			mm.autoSelectMap = false;
+-			if (l.selectedMap.inBound(mm.posCircleLat, mm.posCircleLon)) {
++			if (l.selectedMap.inBound(mm.posCircleLat, mm.posCircleLon) || l.selectedMap.fileName.length()==0) {
+ 				mm.setMap(l.selectedMap, mm.posCircleLat, mm.posCircleLon);
+ 				mm.ignoreGpsStatutsChanges = false;
+ 			} else {
+@@ -668,8 +684,8 @@
+ 			if (mm.gotoPanel.serThread == null || !mm.gotoPanel.serThread.isAlive()) {
+ 				mm.gotoPanel.startGps();
+ 				mm.addTrack(mm.gotoPanel.currTrack); // use new track when gps now started
+-			} else mm.addOverlaySet(); // use existing tracks if gps was already running
+-			mm.SnapToGps();
++			} //else mm.addOverlaySet(); // use existing tracks if gps was already running
++			mm.SnapToGps(); // TODO es w&#228;re sch&#246;n, wenn klick auf SnapToGPS nach einem OutOfMemoryError erneut versuchen w&#252;rde, die map zu laden
+ 		}
+ 		if (which == mm.arrowRight)	{	moveMap(-10,0);	}
+ 		if (which == mm.arrowLeft)	{	moveMap(+10,0);	}
+@@ -765,7 +781,6 @@
+ 	public int myExecute() {
+ 		if (this.maps.size()==1) {
+ 			//this.selectedMap = 1;
+-			this.selectedMap = new MapInfoObject();
+ 			this.selectedMap = (MapInfoObject) maps.get(0);
+ 			return FormBase.IDOK;
+ 		}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000044.html">[Cachewolf-svn] r361 - in trunk: resources src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000046.html">[Cachewolf-svn] r363 - in trunk: resources src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#45">[ date ]</a>
+              <a href="thread.html#45">[ thread ]</a>
+              <a href="subject.html#45">[ subject ]</a>
+              <a href="author.html#45">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

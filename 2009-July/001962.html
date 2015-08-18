@@ -1,0 +1,187 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2040 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-July/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2040%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200907191942.n6JJg0qr024582%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001961.html">
+   <LINK REL="Next"  HREF="001963.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2040 - trunk/src/CacheWolf</H1>
+    <B>greiol at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2040%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200907191942.n6JJg0qr024582%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2040 - trunk/src/CacheWolf">greiol at mail.berlios.de
+       </A><BR>
+    <I>Sun Jul 19 21:42:00 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001961.html">[Cachewolf-svn] r2039 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001963.html">[Cachewolf-svn] r2041 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1962">[ date ]</a>
+              <a href="thread.html#1962">[ thread ]</a>
+              <a href="subject.html#1962">[ subject ]</a>
+              <a href="author.html#1962">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: greiol
+Date: 2009-07-19 21:41:58 +0200 (Sun, 19 Jul 2009)
+New Revision: 2040
+
+Modified:
+   trunk/src/CacheWolf/DetailsPanel.java
+Log:
+roadmap for detail panel changes, mainly FIXMEs
+
+Modified: trunk/src/CacheWolf/DetailsPanel.java
+===================================================================
+--- trunk/src/CacheWolf/DetailsPanel.java	2009-07-19 09:40:15 UTC (rev 2039)
++++ trunk/src/CacheWolf/DetailsPanel.java	2009-07-19 19:41:58 UTC (rev 2040)
+@@ -240,10 +240,10 @@
+ 
+ 		attV.showImages(ch.getCacheDetails(true).attributes);
+ 		if (ch.isAddiWpt() || ch.isCustomWpt()) {
+-			btnTerr.setText(&quot;T: -.-&quot;);
+-			btnDiff.setText(&quot;D: -.-&quot;);
+-			deactivatControl(btnTerr);
+-			deactivatControl(btnDiff);
++			btnTerr.setText(MyLocale.getMsg(1001, &quot;T&quot;)+&quot;: -.-&quot;);
++			btnDiff.setText(MyLocale.getMsg(1000, &quot;D&quot;)+&quot;: -.-&quot;);
++			deactivateControl(btnTerr);
++			deactivateControl(btnDiff);
+ 		} else {
+ 			activateControl(btnTerr);
+ 			activateControl(btnDiff);
+@@ -308,19 +308,30 @@
+ 			if (ev.target == inpWaypoint) {
+ 				// If user used lower case -&gt; convert directly to upper case
+ 				inpWaypoint.setText(inpWaypoint.getText().toUpperCase());
++				//FIXME: if name was changed, we should rename the waypoint.xml file. how? where?
++			} else if (ev.target == chcType) {
++				createWptName();
++				if (CacheType.isCacheWpt(CacheType.guiSelect2Cw(chcType.selectedIndex))) {
++					activateControl(btnTerr);
++					activateControl(btnDiff);
++					activateControl(chcSize);
++				} else {
++					deactivateControl(btnTerr);
++					deactivateControl(btnDiff);
++					deactivateControl(chcSize);
++					chcSize.select(0);
++					btnTerr.setText(MyLocale.getMsg(1001, &quot;T&quot;)+&quot;: -.-&quot;);
++					btnDiff.setText(MyLocale.getMsg(1000, &quot;D&quot;)+&quot;: -.-&quot;);
++				}
+ 			}
++			//FIXME: check if something was actually changed, since datacachnge events also occur if you just hop through the fileds with the tab key (Why? don't know!)
+ 			dirty_details = true;
+ 			needsTableUpdate = true;
+-			// profile.hasUnsavedChanges=true;
+-			if (ev.target == chcType) {
+-				createWptName();
+-			}
+ 		}
+ 		if (ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.PRESSED) {
+ 			if (ev.target == btnNotes) {
+ 				dirty_notes = true; // TODO I think this is redundant, because
+-									// the notes are saved
+-				// seperately by the notes screen itself
++									// the notes are saved separately by the notes screen itself
+ 				NotesScreen nsc = new NotesScreen(thisCache
+ 						.getCacheDetails(true));
+ 				nsc.execute(this.getFrame(), Gui.CENTER_FRAME);
+@@ -367,6 +378,7 @@
+ 					note = note + dtm.toString();
+ 				note = note + &quot;\n&quot;;
+ 				thisCache.getCacheDetails(true).setCacheNotes(note);
++				//FIXME: better use saveDirtyWaypoint()?
+ 				thisCache.save();
+ 			} else if (ev.target == btnAddPicture) {
+ 				thisCache.getCacheDetails(true).addUserImage(profile);
+@@ -393,7 +405,7 @@
+ 				ch.setCacheSize(CacheSize.CW_SIZE_NOTCHOSEN);
+ 				Global.mainTab.newWaypoint(ch);
+ 			} else if (ev.target == btnGoto) {
+-				// TODO if something changed saveWpt();
++				// FIXME: if something changed saveDirtyWaypoint();
+ 				Global.mainTab.gotoP.setDestinationAndSwitch(thisCache);
+ 			} else if (ev.target == btnWayLoc) {
+ 				CWPoint coords = new CWPoint(btnWayLoc.getText(), CWPoint.CW);
+@@ -468,6 +480,7 @@
+ 						.getTerrain());
+ 				returnValue = tdf.execute();
+ 				if (returnValue == 1 &amp;&amp; tdf.getDT() != thisCache.getTerrain()) {
++					//FIXME: do this when waypoint is checked for saving
+ 					thisCache.setTerrain(tdf.getDT());
+ 					btnTerr.setText(MyLocale.getMsg(1001, &quot;T&quot;) + &quot;: &quot;
+ 							+ CacheTerrDiff.longDT(thisCache.getTerrain()));
+@@ -478,6 +491,7 @@
+ 				TerrDiffForm tdf = new TerrDiffForm(false, thisCache.getHard());
+ 				returnValue = tdf.execute();
+ 				if (returnValue == 1 &amp;&amp; tdf.getDT() != thisCache.getHard()) {
++					//FIXME: do this when waypoint is checked for saving
+ 					thisCache.setHard(tdf.getDT());
+ 					btnDiff.setText(MyLocale.getMsg(1000, &quot;D&quot;) + &quot;: &quot;
+ 							+ CacheTerrDiff.longDT(thisCache.getHard()));
+@@ -488,17 +502,24 @@
+ 		}
+ 	}
+ 	
++	/** allow user input on control item */
+ 	private void activateControl(Control ctrl) {
+ 		if (ctrl.change(0, ControlConstants.Disabled))
+ 			ctrl.repaint();
+ 	}
+-	
+-	private void deactivatControl(Control ctrl) {
++
++	/** block user input on control item */
++	private void deactivateControl(Control ctrl) {
+ 		if (ctrl.change(ControlConstants.Disabled, 0))
+ 			ctrl.repaint();
+ 	}
+ 
+ 	public void saveDirtyWaypoint() {
++		//FIXME: here we should check if the data is now different from what it used to be when calling the details panel instead of relying on dirty flags
++		//FIXME: take care of renaming waypoints
++		//FIXME: add method to convert back text of difficulty &amp; terrain buttons
++		//FIXME: check if manual changes have converted a cache from incomplete to complete
++		
+ 		// We have to update two objects: thisCache (a CacheHolderDetail) which
+ 		// contains
+ 		// the full cache which will be written to the cache.xml file AND
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001961.html">[Cachewolf-svn] r2039 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001963.html">[Cachewolf-svn] r2041 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1962">[ date ]</a>
+              <a href="thread.html#1962">[ thread ]</a>
+              <a href="subject.html#1962">[ subject ]</a>
+              <a href="author.html#1962">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

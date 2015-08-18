@@ -1,0 +1,156 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2716 - in branches/bugfix_1.0: . res_noewe	src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-August/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2716%20-%20in%20branches/bugfix_1.0%3A%20.%20res_noewe%0A%09src/CacheWolf&In-Reply-To=%3C20100803081855.407EE480883%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002703.html">
+   <LINK REL="Next"  HREF="002704.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2716 - in branches/bugfix_1.0: . res_noewe	src/CacheWolf</H1>
+    <B>mik77 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2716%20-%20in%20branches/bugfix_1.0%3A%20.%20res_noewe%0A%09src/CacheWolf&In-Reply-To=%3C20100803081855.407EE480883%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2716 - in branches/bugfix_1.0: . res_noewe	src/CacheWolf">mik77 at mail.berlios.de
+       </A><BR>
+    <I>Tue Aug  3 10:18:55 CEST 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002703.html">[Cachewolf-svn] r2717 - trunk
+</A></li>
+        <LI>Next message: <A HREF="002704.html">[Cachewolf-svn] r2718 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2702">[ date ]</a>
+              <a href="thread.html#2702">[ thread ]</a>
+              <a href="subject.html#2702">[ subject ]</a>
+              <a href="author.html#2702">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mik77
+Date: 2010-08-03 10:18:55 +0200 (Tue, 03 Aug 2010)
+New Revision: 2716
+
+Modified:
+   branches/bugfix_1.0/
+   branches/bugfix_1.0/res_noewe/spider.def
+   branches/bugfix_1.0/src/CacheWolf/SpiderGC.java
+Log:
+Changes from trunk for new GC design
+
+
+Property changes on: branches/bugfix_1.0
+___________________________________________________________________
+Modified: svn:mergeinfo
+   - /trunk:2652
+   + /trunk:2652,2712
+
+Modified: branches/bugfix_1.0/res_noewe/spider.def
+===================================================================
+--- branches/bugfix_1.0/res_noewe/spider.def	2010-07-29 19:54:10 UTC (rev 2715)
++++ branches/bugfix_1.0/res_noewe/spider.def	2010-08-03 08:18:55 UTC (rev 2716)
+@@ -30,6 +30,7 @@
+ # Version 7.1 - 20100528 better description recognition
+ # Version 8.0 - 20100604 adaption to new GC-design
+ # Version 9.0 - 20100630 adaption to new GC-design
++# Version 10.0 - 20100729 adaption to new GC-design DateHiddenrex , optimized cacheOwnerRex araber95
+ #============================================================
+ # A suffix of Rex indicates a regular expression
+ # A suffix of ExStart indicates the start of an Extractor search pattern
+@@ -70,8 +71,8 @@
+ shortDescRex       = &lt;span\ id=&quot;ctl00_ContentBody_ShortDescription&quot;&gt;((?s).*?)&lt;/span&gt;
+ longDescRex        = tentBody_LongDescription&quot;&gt;((?s).*?)&lt;td\ valign=&quot;top&quot;\ width=&quot;10%&quot;&gt;\\s*&nbsp;\\s*&lt;/td
+ cacheNameRex       = &lt;span\ id=&quot;ctl00_ContentBody_CacheName&quot;&gt;((?s).*?)&lt;/span&gt;
+-cacheOwnerRex      = &lt;strong&gt;\\s*A.*\\s*cache\\s*&lt;/strong&gt;\\s*by\ &lt;a\ href=(?:(?s).*?)&gt;((?s).*?)&lt;/a&gt;\\s*&lt;/td&gt;
+-dateHiddenRex      = &lt;td&gt;\\s*&lt;strong&gt;\\s*(?:Hidden|Event\ Date)\\s*:&lt;/strong&gt;\\s*((?s).*?)\\s*(?:&lt;/td&gt;|&lt;a href=)
++cacheOwnerRex      = &amp;wid(?:(?s).*?)&gt;((?s).*?)&lt;
++dateHiddenRex      = (?:Hidden|Event\ Date)\\s*:\ &lt;/strong&gt;\\s*((?s).*?)\\s*&lt;
+ hintsRex           = &lt;div id=&quot;div_hint&quot; class=&quot;HalfLeft&quot;&gt;\\s*((?s).*?)\\s*&lt;/div&gt;
+ sizeRex            = alt=&quot;Size:\ ((?s).*?)&quot;\ /&gt;&amp;nbsp&lt;small&gt;
+ difficultyRex      = &lt;td&gt;\\s*&lt;strong&gt;\\s*Difficulty:&lt;/strong&gt;\\s*&lt;img src=.*?alt=&quot;(.*?)\ out\ of
+
+Modified: branches/bugfix_1.0/src/CacheWolf/SpiderGC.java
+===================================================================
+--- branches/bugfix_1.0/src/CacheWolf/SpiderGC.java	2010-07-29 19:54:10 UTC (rev 2715)
++++ branches/bugfix_1.0/src/CacheWolf/SpiderGC.java	2010-08-03 08:18:55 UTC (rev 2716)
+@@ -192,6 +192,40 @@
+ 			} else
+ 				cookieSession = rexCookieSession.stringMatched(1);
+ 			//Vm.debug(&quot;cookieSession = &quot; + cookieSession);
++
++			/*
++			String viewstate1;
++			rexViewstate1.search(loginPage);
++			if(rexViewstate1.didMatch()){
++				viewstate1 = rexViewstate1.stringMatched(1);
++			} else {
++				viewstate1 = &quot;&quot;;
++				pref.log(&quot;[login]:check rexViewstate1 in SpiderGC.java --&gt; not found after login\n&quot;+loginPage);
++			}
++			*/
++						
++			/*
++			rexEventvalidation.search(htmlPage);
++			if(rexEventvalidation.didMatch()){
++				eventvalidation = rexEventvalidation.stringMatched(1);
++			} else {
++				eventvalidation = &quot;&quot;;
++			}
++			*/
++
++			String strEnglishPage = &quot;ctl00$uxLocaleList$uxLocaleList$ctl01$uxLocaleItem&quot;;
++			String postStr = URL.encodeURL(&quot;__EVENTTARGET&quot;,false) +&quot;=&quot;+ URL.encodeURL(strEnglishPage,false)
++		    + &quot;&amp;&quot; + URL.encodeURL(&quot;__EVENTARGUMENT&quot;,false) +&quot;=&quot;+ URL.encodeURL(&quot;&quot;,false)
++//		    + &quot;&amp;&quot; + URL.encodeURL(&quot;__VIEWSTATEFIELDCOUNT&quot;,false) +&quot;=2&quot;
++		    + &quot;&amp;&quot; + URL.encodeURL(&quot;__VIEWSTATE&quot;,false) +&quot;=&quot;+ URL.encodeURL(viewstate,false);
++//		    + &quot;&amp;&quot; + URL.encodeURL(&quot;__VIEWSTATE1&quot;,false) +&quot;=&quot;+ URL.encodeURL(viewstate1,false);
++//		    + &quot;&amp;&quot; + URL.encodeURL(&quot;__EVENTVALIDATION&quot;,false) +&quot;=&quot;+ URL.encodeURL(eventvalidation,false);
++			try{
++				pref.log(&quot;Switching to English:&quot; + postStr);
++				loginPage = fetch_post(loginPage, postStr, nextPage);
++			}catch(Exception ex){
++				pref.log(&quot;Error switching to English&quot;);
++			}
+ 		}
+ 		boolean loginAborted=infB.isClosed;
+ 		infB.close(0);
+
+
+Property changes on: branches/bugfix_1.0/src/CacheWolf/SpiderGC.java
+___________________________________________________________________
+Added: svn:mergeinfo
+   + /trunk/src/CacheWolf/SpiderGC.java:2652,2712
+/trunk/src/CacheWolf/imp/SpiderGC.java:2666
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002703.html">[Cachewolf-svn] r2717 - trunk
+</A></li>
+	<LI>Next message: <A HREF="002704.html">[Cachewolf-svn] r2718 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2702">[ date ]</a>
+              <a href="thread.html#2702">[ thread ]</a>
+              <a href="subject.html#2702">[ subject ]</a>
+              <a href="author.html#2702">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

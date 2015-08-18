@@ -1,0 +1,250 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2414 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2414%20-%20trunk/src/CacheWolf&In-Reply-To=%3C201001171829.o0HITBcd015154%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002337.html">
+   <LINK REL="Next"  HREF="002339.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2414 - trunk/src/CacheWolf</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2414%20-%20trunk/src/CacheWolf&In-Reply-To=%3C201001171829.o0HITBcd015154%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2414 - trunk/src/CacheWolf">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Sun Jan 17 19:29:11 CET 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002337.html">[Cachewolf-svn] r2413 - in trunk: res_noewe/languages src/CacheWolf	src/CacheWolf/exp
+</A></li>
+        <LI>Next message: <A HREF="002339.html">[Cachewolf-svn] r2415 - in trunk: res_noewe src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2338">[ date ]</a>
+              <a href="thread.html#2338">[ thread ]</a>
+              <a href="subject.html#2338">[ subject ]</a>
+              <a href="author.html#2338">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2010-01-17 19:29:05 +0100 (Sun, 17 Jan 2010)
+New Revision: 2414
+
+Modified:
+   trunk/src/CacheWolf/DataMover.java
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/Profile.java
+   trunk/src/CacheWolf/myTableControl.java
+Log:
+some more info for longer lasting actions
+
+Modified: trunk/src/CacheWolf/DataMover.java
+===================================================================
+--- trunk/src/CacheWolf/DataMover.java	2010-01-17 16:16:23 UTC (rev 2413)
++++ trunk/src/CacheWolf/DataMover.java	2010-01-17 18:29:05 UTC (rev 2414)
+@@ -3,10 +3,15 @@
+ import CacheWolf.utils.FileBugfix;
+ import ewe.filechooser.FileChooser;
+ import ewe.filechooser.FileChooserBase;
+-import ewe.io.*;
+-import ewe.ui.*;
++import ewe.io.File;
++import ewe.io.FileBase;
++import ewe.io.FileInputStream;
++import ewe.io.FileOutputStream;
++import ewe.sys.Handle;
++import ewe.ui.FormBase;
++import ewe.ui.Gui;
++import ewe.ui.ProgressBarForm;
+ import ewe.util.Iterator;
+-import ewe.sys.*;
+ 
+ 
+ /**
+@@ -33,7 +38,7 @@
+ 
+ 		processCaches(new Deleter(MyLocale.getMsg(143, &quot;Delete&quot;)), mode);
+ 		// write indexfiles
+-		profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
++		profile.saveIndex(pref,Profile.SHOW_PROGRESS_BAR);
+ 	}
+ 
+ 	public void copyCaches(){
+@@ -57,7 +62,7 @@
+ 		}
+ 		processCaches(new Copier(MyLocale.getMsg(141, &quot;Copy&quot;),dstProfile), mode);
+ 		// write indexfiles and keep the filter status
+-		dstProfile.saveIndex(pref, Profile.NO_SHOW_PROGRESS_BAR);
++		dstProfile.saveIndex(pref, Profile.SHOW_PROGRESS_BAR);
+ 		//Now repair the cache-Vector:
+ 		for(int i =0; i &lt; srcDB.size();i++){
+ 			CacheHolder holder = srcDB.get(i);
+@@ -161,8 +166,8 @@
+ 		}
+ 		processCaches(new Mover(MyLocale.getMsg(142, &quot;Move&quot;),dstProfile), mode);
+ 		// write indexfiles
+-		dstProfile.saveIndex(pref, Profile.NO_SHOW_PROGRESS_BAR);
+-		profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
++		dstProfile.saveIndex(pref, Profile.SHOW_PROGRESS_BAR);
++		profile.saveIndex(pref,Profile.SHOW_PROGRESS_BAR);
+ 	}
+ 
+ 	 /**
+@@ -319,8 +324,15 @@
+ 	private class Deleter extends Executor {
+ 		 Deleter(String title) {
+ 			 this.title=title;
++			 myProgressBarForm pbf = new myProgressBarForm();
++			 Handle h = new Handle();
++			 pbf.setTask(h,&quot;Be patient. Reading Source Directory&quot;);
++			 pbf.exec();
++			 h.progress=(float) 0.5;
++			 h.changed();
+ 			 FileBugfix destPath=new FileBugfix(profile.dataDir);
+ 			 destFileList= destPath.list(null,FileBase.LIST_FILES_ONLY|FileBase.LIST_DONT_SORT);
++			 pbf.exit(0);
+ 		 }
+ 		 public void doIt(int i,CacheHolder srcHolder) {
+ 			 srcDB.removeElementAt(i);
+@@ -332,10 +344,20 @@
+ 		 Copier(String title, Profile dstProfile) {
+ 			 this.title=title;
+ 			 this.dstProfile=dstProfile;
++			 myProgressBarForm pbf = new myProgressBarForm();
++			 Handle h = new Handle();
++			 pbf.setTask(h,&quot;Be patient. Reading Source Directory&quot;);
++			 pbf.exec();
++			 h.progress=(float) 0.33;
++			 h.changed();
+ 			 FileBugfix srcPath=new FileBugfix(profile.dataDir);
+ 			 srcFileList= srcPath.list(null,FileBase.LIST_FILES_ONLY|FileBase.LIST_DONT_SORT);
++			 pbf.setTask(h,&quot;Be patient. Reading Destination Directory&quot;);
++			 h.progress=(float) 0.66;
++			 h.changed();
+ 			 FileBugfix destPath=new FileBugfix(dstProfile.dataDir);
+ 			 destFileList= destPath.list(null,FileBase.LIST_FILES_ONLY|FileBase.LIST_DONT_SORT);
++			 pbf.exit(0);
+ 		 }
+ 		 public void doIt(int i,CacheHolder srcHolder) {
+ 			srcHolder.save();
+@@ -368,10 +390,20 @@
+ 		 Mover(String title, Profile dstProfile) {
+ 			 this.title=title;
+ 			 this.dstProfile=dstProfile;
++			 myProgressBarForm pbf = new myProgressBarForm();
++			 Handle h = new Handle();
++			 pbf.setTask(h,&quot;Be patient. Reading Source Directory&quot;);
++			 pbf.exec();
++			 h.progress=(float) 0.33;
++			 h.changed();
+ 			 FileBugfix srcPath=new FileBugfix(profile.dataDir);
+ 			 srcFileList= srcPath.list(null,FileBase.LIST_FILES_ONLY|FileBase.LIST_DONT_SORT);
++			 pbf.setTask(h,&quot;Be patient. Reading Destination Directory&quot;);
++			 h.progress=(float) 0.66;
++			 h.changed();
+ 			 FileBugfix destPath=new FileBugfix(dstProfile.dataDir);
+ 			 destFileList= destPath.list(null,FileBase.LIST_FILES_ONLY|FileBase.LIST_DONT_SORT);
++			 pbf.exit(0);
+ 		 }
+ 		 public void doIt(int i,CacheHolder srcHolder) {
+ 			 srcDB.removeElementAt(i);
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2010-01-17 16:16:23 UTC (rev 2413)
++++ trunk/src/CacheWolf/MainMenu.java	2010-01-17 18:29:05 UTC (rev 2414)
+@@ -634,21 +634,21 @@
+ 			}
+ 
+ 			if(mev.selectedItem == orgCopy){
+-				profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
++				profile.saveIndex(pref,Profile.SHOW_PROGRESS_BAR);
+ 				DataMover dm = new DataMover();
+ 				dm.copyCaches();
+ 				tbp.refreshTable();
+ 			}
+ 
+ 			if(mev.selectedItem == orgMove){
+-				profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
++				profile.saveIndex(pref,Profile.SHOW_PROGRESS_BAR);
+ 				DataMover dm = new DataMover();
+ 				dm.moveCaches();
+ 				tbp.refreshTable();
+ 			}
+ 
+ 			if(mev.selectedItem == orgDelete){
+-				profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
++				profile.saveIndex(pref,Profile.SHOW_PROGRESS_BAR);
+ 				DataMover dm = new DataMover();
+ 				dm.deleteCaches();
+ 				tbp.refreshTable();
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2010-01-17 16:16:23 UTC (rev 2413)
++++ trunk/src/CacheWolf/Profile.java	2010-01-17 18:29:05 UTC (rev 2414)
+@@ -156,7 +156,7 @@
+ 		Handle h = new Handle();
+ 		int updFrequ=Vm.isMobile()?10:40; // Number of caches between screen updates
+ 		if(showprogress){
+-			pbf.showMainTask = false;
++			pbf.showMainTask = true;//false;
+ 			pbf.setTask(h,&quot;Saving Index&quot;);
+ 			pbf.exec();
+ 		}
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2010-01-17 16:16:23 UTC (rev 2413)
++++ trunk/src/CacheWolf/myTableControl.java	2010-01-17 18:29:05 UTC (rev 2414)
+@@ -201,11 +201,14 @@
+ 					DataMover dm=new DataMover();
+ 					myProgressBarForm pbf = new myProgressBarForm();
+ 					Handle h = new Handle();
+-					pbf.setTask(h,MyLocale.getMsg(1012, &quot;Delete selected&quot;));
+-					pbf.exec();
+ 					int nDeleted=0;
+ 					int size=cacheDB.size();
++					pbf.setTask(h,&quot;Be patient. Reading directory&quot;);
++					pbf.exec();
++					h.progress = (float)0.5;
++					h.changed();
+ 					String[] CacheFiles = new FileBugfix(profile.dataDir).list(null, FileBase.LIST_FILES_ONLY|FileBase.LIST_DONT_SORT);
++					pbf.setTask(h,MyLocale.getMsg(1012, &quot;Delete selected&quot;));
+ 					for(int i = size-1; i &gt;=0; i--){// Start Counting down, as the size decreases with each deleted cache
+ 						ch = cacheDB.get(i);
+ 						if(ch.is_Checked &amp;&amp; (ch.isVisible() || deleteFiltered)) {
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002337.html">[Cachewolf-svn] r2413 - in trunk: res_noewe/languages src/CacheWolf	src/CacheWolf/exp
+</A></li>
+	<LI>Next message: <A HREF="002339.html">[Cachewolf-svn] r2415 - in trunk: res_noewe src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2338">[ date ]</a>
+              <a href="thread.html#2338">[ thread ]</a>
+              <a href="subject.html#2338">[ subject ]</a>
+              <a href="author.html#2338">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

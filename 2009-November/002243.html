@@ -1,0 +1,159 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2319 - in branches/bugfix_1.0: res_noewe	src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-November/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2319%20-%20in%20branches/bugfix_1.0%3A%20res_noewe%0A%09src/CacheWolf&In-Reply-To=%3C200911051959.nA5Jxoij005517%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002242.html">
+   <LINK REL="Next"  HREF="002244.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2319 - in branches/bugfix_1.0: res_noewe	src/CacheWolf</H1>
+    <B>mik77 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2319%20-%20in%20branches/bugfix_1.0%3A%20res_noewe%0A%09src/CacheWolf&In-Reply-To=%3C200911051959.nA5Jxoij005517%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2319 - in branches/bugfix_1.0: res_noewe	src/CacheWolf">mik77 at mail.berlios.de
+       </A><BR>
+    <I>Thu Nov  5 20:59:50 CET 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002242.html">[Cachewolf-svn] r2318 - in trunk: res_noewe src/CacheWolf/imp
+</A></li>
+        <LI>Next message: <A HREF="002244.html">[Cachewolf-svn] r2320 - branches/bugfix_1.0/res_noewe
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2243">[ date ]</a>
+              <a href="thread.html#2243">[ thread ]</a>
+              <a href="subject.html#2243">[ subject ]</a>
+              <a href="author.html#2243">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mik77
+Date: 2009-11-05 20:59:47 +0100 (Thu, 05 Nov 2009)
+New Revision: 2319
+
+Modified:
+   branches/bugfix_1.0/res_noewe/spider.def
+   branches/bugfix_1.0/src/CacheWolf/SpiderGC.java
+Log:
+Changes for new GC-Design
+
+Modified: branches/bugfix_1.0/res_noewe/spider.def
+===================================================================
+--- branches/bugfix_1.0/res_noewe/spider.def	2009-11-05 19:36:57 UTC (rev 2318)
++++ branches/bugfix_1.0/res_noewe/spider.def	2009-11-05 19:59:47 UTC (rev 2319)
+@@ -23,6 +23,7 @@
+ # Version 3.7 - 20080613 Some lines generalized for proxies replacing the images.
+ # Version 4.0 - 20080725 adaption to new GC-design
+ # Version 4.1 - 20080725 adaption to new GC-design (images and travelbugs)
++# Version 5.0 - 20091105 adaption to new GC-design
+ #============================================================
+ # A suffix of Rex indicates a regular expression
+ # A suffix of ExStart indicates the start of an Extractor search pattern
+@@ -40,14 +41,15 @@
+ #Section1: First page with list of caches
+ #--------------------------------------
+ firstPage          = <A HREF="http://www.geocaching.com/seek/nearest.aspx?lat=">http://www.geocaching.com/seek/nearest.aspx?lat=</A>
+-firstPage2         = &amp;lon=
++firstPage2         = &amp;lng=
+ # Regex to search for cachenames 
+ listBlockRex       = &lt;table id=&quot;ctl00_ContentBody_dlResults&quot;((?s).*?)&lt;/table&gt;
+ lineRex            = &lt;tr\ bgcolor='#.{6}'&gt;(?:(?s).*?)&lt;td\ valign=&quot;top&quot;\ align=&quot;left&quot;&gt;((?s).*?)&lt;/tr&gt;
+ distRex            = &lt;br\ /&gt;(.*?)(?:km|mi)(?:\\s*)&lt;/td&gt;
+ waypointRex        = \\(GC(.*?)\\)&lt;br\ /&gt;
+ showOnlyFound      = &amp;f=1
+-firstLine          = <A HREF="http://www.geocaching.com/seek/nearest.aspx?">http://www.geocaching.com/seek/nearest.aspx?</A>
++firstLine          = <A HREF="http://www.geocaching.com/seek/nearest.aspx?lat=">http://www.geocaching.com/seek/nearest.aspx?lat=</A>
++firstLine2         = &amp;lng=
+ nextListPage       = /seek/nearest.aspx
+ 
+ #--------------------------------------
+@@ -99,7 +101,7 @@
+ #--------------------------------------
+ # blockEx extrahiert zun&#228;chst den Bugbereich aus der gesamten Seite
+ blockExStart       = &gt;&nbsp;&lt;b&gt;Inventory&lt;/b&gt;
+-blockExEnd         = What\ is\ a\ Travel\ Bug?
++blockExEnd         = What\ are\ Trackable\ Items?
+ # bugEx extrahiert die Namen der einzelnen Bugs aus dem Bugbereich
+ bugExStart         = &lt;a\ href='
+ bugExEnd           = &lt;/a&gt;&lt;/strong&gt;&lt;/td&gt;
+
+Modified: branches/bugfix_1.0/src/CacheWolf/SpiderGC.java
+===================================================================
+--- branches/bugfix_1.0/src/CacheWolf/SpiderGC.java	2009-11-05 19:36:57 UTC (rev 2318)
++++ branches/bugfix_1.0/src/CacheWolf/SpiderGC.java	2009-11-05 19:59:47 UTC (rev 2319)
+@@ -346,7 +346,7 @@
+ 		}
+ 		dummy = &quot;&quot;;
+ 		//String lineBlck = &quot;&quot;;
+-		int page_number = 4;
++		int page_number = 1;
+ 		try  {
+ 			lineRex = new Regex(p.getProp(&quot;lineRex&quot;)); //&quot;&lt;tr bgcolor=((?s).*?)&lt;/tr&gt;&quot;
+ 		} catch (Exception ex) {
+@@ -424,22 +424,28 @@
+ 				}
+ 				infB.setInfo(MyLocale.getMsg(5511,&quot;Found &quot;) + cachesToLoad.size() + MyLocale.getMsg(5512,&quot; caches&quot;));
+ 				if(found_on_page &lt; 20) distance = 0;
+-				postStr = p.getProp(&quot;firstLine&quot;) + origin.getLatDeg(CWPoint.DD) + &quot;&amp;&quot; + origin.getLonDeg(CWPoint.DD);
++				postStr = p.getProp(&quot;firstLine&quot;) + origin.getLatDeg(CWPoint.DD) + p.getProp(&quot;firstLine2&quot;) + origin.getLonDeg(CWPoint.DD);
++
+ 				if(doNotgetFound) postStr = postStr + p.getProp(&quot;showOnlyFound&quot;);
+ 				if(distance &gt; 0){
+ 					page_number++;
++					String strNextPage;
++					/*
+ 					if(page_number &gt;= 15) page_number = 5;
+-					String strNextPage;
+ 					if (page_number &lt; 10) {
+ 						strNextPage = &quot;ctl00$ContentBody$pgrTop$ctl0&quot; + page_number;
+ 					} else {
+ 						strNextPage = &quot;ctl00$ContentBody$pgrTop$ctl&quot; + page_number;
+ 					}
++					*/
++					strNextPage = &quot;ctl00$ContentBody$pgrTop$ctl08&quot;;
++					
+ 					doc = URL.encodeURL(&quot;__EVENTTARGET&quot;,false) +&quot;=&quot;+ URL.encodeURL(strNextPage,false)
+ 					    + &quot;&amp;&quot; + URL.encodeURL(&quot;__EVENTARGUMENT&quot;,false) +&quot;=&quot;+ URL.encodeURL(&quot;&quot;,false)
+-					    + &quot;&amp;&quot; + URL.encodeURL(&quot;__VIEWSTATEFIELDCOUNT&quot;,false) +&quot;=2&quot;
+-					    + &quot;&amp;&quot; + URL.encodeURL(&quot;__VIEWSTATE&quot;,false) +&quot;=&quot;+ URL.encodeURL(viewstate,false)
+-					    + &quot;&amp;&quot; + URL.encodeURL(&quot;__VIEWSTATE1&quot;,false) +&quot;=&quot;+ URL.encodeURL(viewstate1,false);
++//					    + &quot;&amp;&quot; + URL.encodeURL(&quot;__VIEWSTATEFIELDCOUNT&quot;,false) +&quot;=2&quot;
++					    + &quot;&amp;&quot; + URL.encodeURL(&quot;__VIEWSTATE&quot;,false) +&quot;=&quot;+ URL.encodeURL(viewstate,false);
++//					    + &quot;&amp;&quot; + URL.encodeURL(&quot;__VIEWSTATE1&quot;,false) +&quot;=&quot;+ URL.encodeURL(viewstate1,false);
++//					    + &quot;&amp;&quot; + URL.encodeURL(&quot;__EVENTVALIDATION&quot;,false) +&quot;=&quot;+ URL.encodeURL(eventvalidation,false);
+ 					try{
+ 						start = &quot;&quot;;
+ 						pref.log(&quot;Fetching next list page:&quot; + doc);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002242.html">[Cachewolf-svn] r2318 - in trunk: res_noewe src/CacheWolf/imp
+</A></li>
+	<LI>Next message: <A HREF="002244.html">[Cachewolf-svn] r2320 - branches/bugfix_1.0/res_noewe
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2243">[ date ]</a>
+              <a href="thread.html#2243">[ thread ]</a>
+              <a href="subject.html#2243">[ subject ]</a>
+              <a href="author.html#2243">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

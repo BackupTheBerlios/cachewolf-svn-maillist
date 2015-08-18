@@ -1,0 +1,300 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2937 - trunk/src/CacheWolf/imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2011-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2937%20-%20trunk/src/CacheWolf/imp&In-Reply-To=%3C20110218215248.8B7EC4813EC%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002927.html">
+   <LINK REL="Next"  HREF="002930.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2937 - trunk/src/CacheWolf/imp</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2937%20-%20trunk/src/CacheWolf/imp&In-Reply-To=%3C20110218215248.8B7EC4813EC%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2937 - trunk/src/CacheWolf/imp">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Fri Feb 18 10:52:48 CET 2011</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002927.html">[Cachewolf-svn] r2936 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="002930.html">[Cachewolf-svn] r2939 - trunk/src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2928">[ date ]</a>
+              <a href="thread.html#2928">[ thread ]</a>
+              <a href="subject.html#2928">[ subject ]</a>
+              <a href="author.html#2928">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2011-02-18 22:52:48 +0100 (Fri, 18 Feb 2011)
+New Revision: 2937
+
+Modified:
+   trunk/src/CacheWolf/imp/OCXMLImporter.java
+Log:
+first version for oc - import without loading archived  or found caches.
+
+Modified: trunk/src/CacheWolf/imp/OCXMLImporter.java
+===================================================================
+--- trunk/src/CacheWolf/imp/OCXMLImporter.java	2011-02-16 20:30:17 UTC (rev 2936)
++++ trunk/src/CacheWolf/imp/OCXMLImporter.java	2011-02-18 21:52:48 UTC (rev 2937)
+@@ -100,6 +100,7 @@
+ 	String strData = &quot;&quot;;
+ 	int picCnt;
+ 	boolean incUpdate = true; // complete or incremental Update
++	boolean incFinds = false;
+ 	Hashtable DBindexID = new Hashtable();
+ 
+ 	String picUrl = &quot;&quot;;
+@@ -206,13 +207,17 @@
+ 			(new MessageBox(&quot;Error&quot;, &quot;Coordinates for centre must be set&quot;, FormBase.OKB)).execute();
+ 			return;
+ 		}
+-		OCXMLImporterScreen importOpt = new OCXMLImporterScreen( MyLocale.getMsg(130,&quot;Download from opencaching&quot;),
+-																 OCXMLImporterScreen.ALL | OCXMLImporterScreen.DIST | OCXMLImporterScreen.IMAGES
+-																 | OCXMLImporterScreen.HOST);
++		OCXMLImporterScreen importOpt = new OCXMLImporterScreen(
++				MyLocale.getMsg(130,&quot;Download from opencaching&quot;),
++				OCXMLImporterScreen.ALL |
++				OCXMLImporterScreen.DIST |
++				OCXMLImporterScreen.IMAGES|
++				OCXMLImporterScreen.INCLUDEFOUND|
++				OCXMLImporterScreen.HOST);
+ 		if (importOpt.execute() == FormBase.IDCANCEL) {	return; }
+ 		Vm.showWait(true);
+ 		String dist = importOpt.maxDistanceInput.getText();
+-
++		incFinds = !importOpt.foundCheckBox.getState();
+ 		if (importOpt.domains.getSelectedItem()!=null) {
+ 			hostname = (String)importOpt.domains.getSelectedItem();
+ 			pref.lastOCSite=hostname;
+@@ -409,10 +414,11 @@
+ 	}
+ 
+ 	private void startCache(String name, AttributeList atts){
+-		inf.setInfo(MyLocale.getMsg(1609,&quot;Importing Cache:&quot;)+&quot; &quot; + numCacheImported + &quot;\n&quot;);
+ 		if(name.equals(&quot;id&quot;)){
+ 			cacheID = atts.getValue(&quot;id&quot;);
+ 		}
++		if (holder==null) return;
++		inf.setInfo(MyLocale.getMsg(1609,&quot;Importing Cache:&quot;)+&quot; &quot; + numCacheImported + &quot;\n&quot;);
+ 		if(name.equals(&quot;type&quot;)){
+ 			holder.setType(CacheType.ocType2CwType(atts.getValue(&quot;id&quot;)));
+ 			holder.getCacheDetails(false).attributes.clear();
+@@ -432,7 +438,7 @@
+ 			} else {
+ 				holder.setAvailable(false);
+ 				if( (atts.getValue(&quot;id&quot;).equals(&quot;3&quot;)) || (atts.getValue(&quot;id&quot;).equals(&quot;6&quot;)) ) {
+-					holder.setArchived(true);
++					holder=null; // holder.setArchived(true);
+ 				}
+ 			}
+ 			return;
+@@ -469,6 +475,7 @@
+ 
+ 
+ 	private void startCacheDesc(String name, AttributeList atts){
++		if (holder==null) return;
+ 		inf.setInfo(MyLocale.getMsg(1611,&quot;Importing cache description:&quot;)+&quot; &quot; + numDescImported);
+ 		if (name.equals(&quot;cacheid&quot;)){
+ 			String ocCacheID = new String(atts.getValue(&quot;id&quot;));
+@@ -485,12 +492,10 @@
+ 	}
+ 
+ 	private void startPicture(String name, AttributeList atts){
+-		if(name.equals(&quot;picture&quot;)){
+-			inf.setInfo(MyLocale.getMsg(1613,&quot;Pictures:&quot;)+&quot; &quot; + ++picCnt);
+-		}
+ 	}
+ 
+ 	private void startCacheLog(String name, AttributeList atts){
++		if (holder==null) return;
+ 		inf.setInfo(MyLocale.getMsg(1612,&quot;Importing Cachlog:&quot;)+&quot; &quot; + numLogImported);
+ 		if (name.equals(&quot;logtype&quot;)){
+ 			logtype = Convert.toInt(atts.getValue(&quot;id&quot;));
+@@ -515,6 +520,14 @@
+ 	}
+ 
+ 	private void endCache(String name){
++		if(name.equals(&quot;id&quot;)){ // &lt;/id&gt;
++			holder = getHolder(strData, true); // Allocate a new CacheHolder object
++			holder.setOcCacheID(strData);
++			String ocSeekUrl = new String(&quot;<A HREF="http://">http://</A>&quot; + hostname + &quot;/viewcache.php?cacheid=&quot;);
++			holder.getCacheDetails(false).URL = ocSeekUrl + cacheID;
++			return;
++		}
++		if (holder == null) return; // id should always be the first for a &lt;cache&gt;
+ 		if (name.equals(&quot;cache&quot;)){
+ 			holder.setLastSync(dateOfthisSync.format(&quot;yyyyMMddHHmmss&quot;));
+ 			int index;
+@@ -543,15 +556,10 @@
+ 			holder.getCacheDetails(false).hasUnsavedChanges = true; // this makes CachHolder save the details in case that they are unloaded from memory
+ 			// chD.saveCacheDetails(profile.dataDir);
+ 			// profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR); // this is done after .xml is completly processed
++
++			holder=null;
+ 			return;
+ 		}
+-		if(name.equals(&quot;id&quot;)){ // &lt;/id&gt;
+-			holder = getHolder(strData); // Allocate a new CacheHolder object
+-			holder.setOcCacheID(strData);
+-			String ocSeekUrl = new String(&quot;<A HREF="http://">http://</A>&quot; + hostname + &quot;/viewcache.php?cacheid=&quot;);
+-			holder.getCacheDetails(false).URL = ocSeekUrl + cacheID;
+-			return;
+-		}
+ 
+ 		if(name.equals(&quot;name&quot;)){
+ 			holder.setCacheName(strData);
+@@ -591,6 +599,12 @@
+ 	}
+ 
+ 	private void endCacheDesc(String name){
++		if (name.equals(&quot;cacheid&quot;)){
++			// load cachedata
++			holder = getHolder(strData, false);
++			return;
++		}
++		if (holder == null) return;
+ 		if (name.equals(&quot;cachedesc&quot;)){
+ 			if (pref.downloadPics &amp;&amp; holder.is_HTML()) {
+ 				String fetchUrl, imgTag, imgAltText;
+@@ -626,13 +640,6 @@
+ 			return;
+ 		}
+ 
+-
+-		if (name.equals(&quot;cacheid&quot;)){
+-			// load cachedata
+-			holder = getHolder(strData);
+-			return;
+-		}
+-
+ 		if (name.equals(&quot;shortdesc&quot;)){
+ 			String linebraek;
+ 
+@@ -718,6 +725,12 @@
+ 
+ 
+ 	private void endPicture(String name){
++		if(name.equals(&quot;object&quot;)){
++			// get cachedata
++			holder = getHolder(strData, false);
++			return;
++		}
++		if (holder == null) return;
+ 
+ 		if(name.equals(&quot;id&quot;)){
+ 			picID = strData;
+@@ -732,12 +745,8 @@
+ 			picTitle = strData;
+ 			return;
+ 		}
+-		if(name.equals(&quot;object&quot;)){
+-			// get cachedata
+-			holder = getHolder(strData);
+-			return;
+-		}
+ 		if(name.equals(&quot;picture&quot;)){
++			inf.setInfo(MyLocale.getMsg(1613,&quot;Pictures:&quot;)+&quot; &quot; + ++picCnt);
+ 			//String fileName = holder.wayPoint + &quot;_&quot; + picUrl.substring(picUrl.lastIndexOf(&quot;/&quot;)+1);
+ 			getPic(picUrl,picTitle);
+ 			holder.getCacheDetails(false).hasUnsavedChanges = true; //saveCacheDetails(profile.dataDir);
+@@ -746,24 +755,34 @@
+ 	}
+ 
+ 	private void endCacheLog(String name){
++		if (name.equals(&quot;cacheid&quot;)){ // &lt;/cacheid&gt;
++			// load cachedata
++			holder = getHolder(strData, false);
++			return;
++		}
++		if (holder == null) return;
+ 		if (name.equals(&quot;cachelog&quot;)){ // &lt;/cachelog&gt;
+ 			holder.getCacheDetails(false).CacheLogs.merge(new Log(logIcon, logDate, logFinder, logData, loggerRecommended));
++			holder.getCacheDetails(false).hasUnsavedChanges = true; //chD.saveCacheDetails(profile.dataDir);
+ 			if((logFinder.toLowerCase().compareTo(user) == 0 || logFinder.equalsIgnoreCase(pref.myAlias2)) &amp;&amp; logtype == 1) {
+-						holder.setCacheStatus(logDate);
+-						holder.setFound(true);
+-						holder.getCacheDetails(false).OwnLogId = logId;
+-						holder.getCacheDetails(false).OwnLog = new Log(logIcon, logDate, logFinder, logData, loggerRecommended);
++				if (incFinds) {
++					holder.setCacheStatus(logDate);
++					holder.setFound(true);
++					holder.getCacheDetails(false).OwnLogId = logId;
++					holder.getCacheDetails(false).OwnLog = new Log(logIcon, logDate, logFinder, logData, loggerRecommended);
++				}
++				else {
++					int index;
++					index = cacheDB.getIndex(holder);
++					cacheDB.removeElementAt(index);
++					File tmpFile = new File(profile.dataDir + holder.getWayPoint()+&quot;.xml&quot;);
++					tmpFile.delete();
++					holder = null;
++				}
+ 			}
+-			holder.getCacheDetails(false).hasUnsavedChanges = true; //chD.saveCacheDetails(profile.dataDir);
+ 			return;
+ 		}
+ 
+-		if (name.equals(&quot;cacheid&quot;)){ // &lt;/cacheid&gt;
+-			// load cachedata
+-			holder = getHolder(strData);
+-			return;
+-		}
+-
+ 		if (name.equals(&quot;date&quot;))  {
+ 			logDate = new String(strData);
+ 			return;
+@@ -802,14 +821,14 @@
+ 	}
+ 
+ 
+-	private CacheHolder getHolder(String wpt){// See also LOCXMLImporter
+-		CacheHolder chx;
++	private CacheHolder getHolder(String wpt, boolean create){// See also LOCXMLImporter
++		CacheHolder chx = null;
+ 		int index;
+ 
+ 		index = cacheDB.getIndex(wpt);
+ 		if (index == -1) index = searchID(wpt);
+ 		if (index == -1) {
+-			chx = new CacheHolder();
++			if (create) chx = new CacheHolder();
+ 		} else {
+ 			chx = cacheDB.get(index);
+ 		}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002927.html">[Cachewolf-svn] r2936 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="002930.html">[Cachewolf-svn] r2939 - trunk/src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2928">[ date ]</a>
+              <a href="thread.html#2928">[ thread ]</a>
+              <a href="subject.html#2928">[ subject ]</a>
+              <a href="author.html#2928">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

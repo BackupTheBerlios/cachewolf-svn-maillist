@@ -1,0 +1,1800 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r387 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r387%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701132318.l0DNIOkg002600%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000115.html">
+   <LINK REL="Next"  HREF="000116.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r387 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r387%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701132318.l0DNIOkg002600%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r387 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sun Jan 14 00:18:24 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000115.html">[Cachewolf-svn] r386 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000116.html">[Cachewolf-svn] r388 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#117">[ date ]</a>
+              <a href="thread.html#117">[ thread ]</a>
+              <a href="subject.html#117">[ subject ]</a>
+              <a href="author.html#117">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-01-14 00:18:06 +0100 (Sun, 14 Jan 2007)
+New Revision: 387
+
+Modified:
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/Parser.java
+   trunk/src/CacheWolf/Preferences.java
+   trunk/src/CacheWolf/SolverPanel.java
+   trunk/src/CacheWolf/TokenObj.java
+   trunk/src/CacheWolf/Tokenizer.java
+Log:
+Neuer Solver (Infos in Parser.java)
+(noch ohne deutsche Fehlermeldungen)
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2007-01-13 22:07:59 UTC (rev 386)
++++ trunk/src/CacheWolf/MainTab.java	2007-01-13 23:18:06 UTC (rev 387)
+@@ -30,6 +30,7 @@
+ 	MainMenu mnuMain;
+ 	
+ 	public MainTab(MainMenu mainMenu,StatusBar statBar){
++		Global.mainTab=this;
+ 		mnuMain=mainMenu;
+ 		pref = Global.getPref();
+ 		profile=Global.getProfile();
+
+Modified: trunk/src/CacheWolf/Parser.java
+===================================================================
+--- trunk/src/CacheWolf/Parser.java	2007-01-13 22:07:59 UTC (rev 386)
++++ trunk/src/CacheWolf/Parser.java	2007-01-13 23:18:06 UTC (rev 387)
+@@ -1,601 +1,702 @@
+-/*
+-A parser that parses and interprets the following grammer:
+-program -&gt; command | assign
+-command -&gt; 	   show(var) | 
+-		   (*) show(expr) |
+-		   ( ) project(varN,varE,deg,distance,varNN,varNE) |
+-		   (*)  &quot;...text...&quot;
+-assign -&gt; 	string = expr | 
+-		( ) string = distance(N,E,N,E) | 
+-		( ) string = bearing(N,E,N,E) | 
+-		( ) string = coord([N|S|E|W DD MM SS] | [N|S|E|W DD MM.mmm] | [N|S|E|W DD.ddd]) // North,East = &quot;+&quot; South,West = &quot;-&quot;
+-		( ) string = coordUTM(???) |
+-		( ) string = convert2UTM(var) |
+-		( ) string = convert2Deg(var)
+-expr -&gt; expr + term | 
+-		expr - term | 
+-		term
+-term -&gt; term * factor | 
+-		term / factor | 
+-		factor
+-factor -&gt; number | 
+-		  string | 
+-		  ( expr ) | 
+-		  (*) sqrt ( expr ) | 
+-		  (*) ^ expr |
+-		  (*) cos() |
+-		  (*) sin() |
+-		  (*) tan() |
+-		  (*) acos() |
+-		  (*) asin() |
+-		  (*) atan() |
++/* A parser that parses the following grammar:
++  EBNF Meta-Symbols: 
++    {xx}        xx can occur any number of times incl 0
++    [xx]        xx or empty
++    |           or
++    &quot;x&quot;         x is terminal symbol
++
++command -&gt; if |
++           simplecommand
++
++simplecommand -&gt; &quot;stop&quot; | &quot;st&quot; | 
++		   assign
++           stringexp | 
++
++if -&gt; &quot;IF&quot; stringexpr compop stringexpr &quot;THEN&quot; simplecommand { &quot;;&quot; simplecommand } &quot;ENDIF&quot;          // Nested IF's not allowed
++
++compop -&gt; &quot;=&quot; | &quot;&lt;&quot; | &quot;&gt;&quot; | &quot;&lt;=&quot; | &quot;==&quot; | &quot;&gt;=&quot; | &quot;&lt;&gt;&quot; | &quot;!=&quot; | &quot;&gt;&lt;&quot;
++
++assign -&gt; ident = [ stringexpr ]
++
++stringexp -&gt; (string | expr ) {string | tailexp }
++
++expr -&gt; [&quot;+&quot; | &quot;-&quot;] tailexp [ formatstring ]
++
++tailexp -&gt; term { (&quot;+&quot; | &quot;-&quot;) term } 
+ 		 
++term -&gt; factor { (&quot;*&quot; | &quot;/&quot;) factor }
++
++factor -&gt; expfactor { &quot;^&quot; expfactor }
++
++expfactor -&gt; ident | 
++          number | 
++          &quot;(&quot; stringexpr &quot;)&quot; |
++          function &quot;(&quot; stringexpr { &quot;,&quot; stringexpr }&quot;)&quot;
++          
++function -&gt; &quot;sin&quot; | &quot;cos&quot; | &quot;tan&quot; | &quot;asin&quot; | &quot;acos&quot; | &quot;atan&quot; | &quot;goto&quot; | &quot;project&quot; | &quot;show&quot;  | &quot;crosstotal&quot; | 
++            &quot;rot13&quot; | &quot;len&quot; | &quot;mid&quot;         
++
++ident -&gt; valid identifier
++number -&gt; valid number
++
++
+ */
++
+ package CacheWolf;
+ 
+ import ewe.util.*;
+ import ewe.sys.*;
++import java.lang.Double;
+ 
+ /**
+-*	The wolf language parser. This class needs thorough documentation!
++*	The wolf language parser. New version - January 2007
++*   
++*   New features:
++*   - Improved error handling
++*   - Strings and doubles can be freely mixed as appropriate. Depending on context a conversion is performed,
++*   - Variables can store strings or doubles
++*   - Global variables (starting with $) are remembered across multiple calls to parser
++*   - Global variables are initialised with &quot;&quot;, local variables result in error if used before setting value
++*   - IF statement added
++*   - Many new functions (encode,format,goto,len,mid,substring,ucase,lcase,val,sval,reverse,project)
++*   - less typing
++*   	- Function aliases
++*   	- Function names can be flexibly abbreviated, i.e. instead of crosstotal write cr or cross or crosst ...
++*   	- show no longer needed
++*   	- Command terminator ; no longer compulsory (only between multiple commands on same line)
++*   - New functions can easily be added
++*   - Can select whether variable names are case sensitive
++*   
++*   To add a new function:
++*     1) Add its name and alias and allowed number of args to array functions
++*     2) Add a new private method in the &quot;functions&quot; section
++*     3) Add call to private method in executeFunction 
++*   @author salzkammergut January 2007
+ */ 
+ public class Parser{
+ 
++	private class fnType { 
++		public String funcName;
++		public String alias;
++		public int nargs;  // bitmap for number of args, i.e. 14 = 1 or 2 or 3 args; 5 = 0 or 2 args
++		fnType(String funcName, String alias, int nargs) {
++			this.funcName=funcName; this.alias=alias; this.nargs=nargs;
++		}
++		boolean nargsValid(int testNargs){
++			return ((1&lt;&lt;testNargs)&amp;this.nargs)!=0;
++		}
++	}
++    fnType[] functions=new fnType[]{ // in alphabetical order
++    	new fnType(&quot;acos&quot;,&quot;acos&quot;,2),
++    	new fnType(&quot;asin&quot;,&quot;asin&quot;,2),
++    	new fnType(&quot;atan&quot;,&quot;atan&quot;,2),
++    	new fnType(&quot;cos&quot;,&quot;cos&quot;,2),
++    	new fnType(&quot;crosstotal&quot;,&quot;ct&quot;,2),
++    	new fnType(&quot;ct&quot;,&quot;ct&quot;,2),
++    	new fnType(&quot;encode&quot;,&quot;encode&quot;,8),
++    	new fnType(&quot;format&quot;,&quot;format&quot;,6),
++    	new fnType(&quot;goto&quot;,&quot;goto&quot;,6),
++    	new fnType(&quot;ic&quot;,&quot;ic&quot;,3),
++    	new fnType(&quot;ignorecase&quot;,&quot;ic&quot;,3),
++    	new fnType(&quot;lcase&quot;,&quot;lc&quot;,2),
++    	new fnType(&quot;len&quot;,&quot;len&quot;,2),
++    	new fnType(&quot;length&quot;,&quot;len&quot;,2),
++    	new fnType(&quot;mid&quot;,&quot;mid&quot;,12),
++    	new fnType(&quot;project&quot;,&quot;project&quot;,8),
++    	new fnType(&quot;quersumme&quot;,&quot;ct&quot;,2),
++//    	new fnType(&quot;requiresemicolon&quot;,&quot;rs&quot;,3),
++    	new fnType(&quot;reverse&quot;,&quot;reverse&quot;,2),
++    	new fnType(&quot;rot13&quot;,&quot;rot13&quot;,2),
++//    	new fnType(&quot;rs&quot;,&quot;rs&quot;,3),
++    	new fnType(&quot;show&quot;,&quot;show&quot;,2),
++    	new fnType(&quot;sin&quot;,&quot;sin&quot;,2),
++    	new fnType(&quot;substring&quot;,&quot;substring&quot;,12),
++    	new fnType(&quot;sval&quot;,&quot;sval&quot;,2),
++    	new fnType(&quot;tolowercase&quot;,&quot;lc&quot;,2),
++    	new fnType(&quot;touppercase&quot;,&quot;uc&quot;,2),
++    	new fnType(&quot;tan&quot;,&quot;tan&quot;,2),
++    	new fnType(&quot;ucase&quot;,&quot;uc&quot;,2),
++    	new fnType(&quot;val&quot;,&quot;val&quot;,2)
++    	};
+ 	private static int scanpos = 0;
+-	Vector TokenStack = new Vector();
+-	Vector CalcStack = new Vector();
+-	Vector MessageStack = new Vector();
++	CWPoint cwPt=new CWPoint();
++	Vector calcStack=new Vector();
+ 	Hashtable symbolTable = new Hashtable(50);
+ 	TokenObj thisToken = new TokenObj();
+-	boolean runFlag = true;
+-	String emit_buffer = new String();
++	Vector tokenStack;
++	Vector messageStack;
+ 	
+ 	public Parser(){
+-		
+ 	}
+ 
+-	public Parser(Vector tck){
+-		TokenStack = tck;
++///////////////////////////////////////////
++//  Utility functions
++///////////////////////////////////////////
++	
++	/* All errors are handled via function 'err'. Rather than creating many different Exceptions,
++	 * only the standard Exception is used. err raises this exception and thereby causes the stack to be
++	 * unwound until 'parse' eventually catches the exception and returns to SolverPanel, which displays
++	 * the messageStack containing the error message.
++	 */
++	
++	/** 
++     * Add an error message to the message stack and raise an Exception.
++    */
++	private void err(String str) throws Exception {
++    	messageStack.add(&quot;Error on line: &quot; + thisToken.line + &quot; position: &quot; + thisToken.position);
++    	messageStack.add(str);
++    	throw new Exception(&quot;Error &quot;+str);
++    }
++    
++    /** Clears the symbol table of all non-global symbols (those not starting with $) */
++    private void clearLocalSymbols() {
++    	Iterator it=symbolTable.entries();
++    	while (it.hasNext()) {
++    		if (((String)((ewe.util.Map.MapEntry) it.next()).getKey()).startsWith(&quot;$&quot;)) 
++    			symbolTable.remove(it);
++    	}
++    }
++    
++	private boolean isVariable(String varName) {
++		return varName.startsWith(&quot;$&quot;) ||  // Global variables exist per default 
++		       symbolTable.containsKey(Global.getPref().solverIgnoreCase?varName.toUpperCase():varName);
+ 	}
+-
+-	public void setTockenStack(Vector tck){
+-		TokenStack = new Vector();
+-		CalcStack = new Vector();
+-		MessageStack = new Vector();
+-		symbolTable = new Hashtable(50);
+-		thisToken = new TokenObj();
+-		scanpos = 0;
+-		runFlag = true;
+-		TokenStack = tck;
+-	}
+ 	
+-	public void testSymbolTable(){
+-		symbolTable.put(&quot;A&quot;, &quot;12&quot;);
+-		symbolTable.put(&quot;B&quot;, &quot;13&quot;);
+-		symbolTable.put(&quot;C&quot;, &quot;14&quot;);
++	private boolean isInteger(double d) {
++		return java.lang.Math.ceil(d)==d &amp;&amp; java.lang.Math.floor(d)==d;
+ 	}
+ 	
+-	public void parse(){
+-		try{
+-		  parseprogram();
+-		}catch(Exception ex){
+-			////Vm.debug(ex.toString());
++    private boolean isValidCoord(String coord) {
++    	cwPt.set(coord);
++    	return cwPt.isValid();
++    }
++    
++	private Object getVariable(String varName) throws Exception {
++		Object result = symbolTable.get(Global.getPref().solverIgnoreCase?varName.toUpperCase():varName);
++		if(result == null) {
++			// If it is a global variable, add it with a default value
++			if (varName.startsWith(&quot;$&quot;)) {
++				result=&quot;&quot;;
++				symbolTable.put(varName,&quot;&quot;);
++			} else
++				err (&quot;Variable not defined: &quot;+varName);
+ 		}
++		return result;
+ 	}
+ 	
+-	public Vector getMessages(){
+-		return MessageStack;
++	private Double getNumber(String str) throws Exception {
++		java.lang.Double ret=null;
++		try {
++			if (Global.getPref().digSeparator.equals(&quot;,&quot;))	str = str.replace('.', ',');
++			ret=new java.lang.Double(java.lang.Double.parseDouble(str));
++		} catch (NumberFormatException e) {
++			err(&quot;Not a valid number: &quot; + str);
++		}
++		return ret;
+ 	}
+ 	
+-	private void getToken(){
+-		if(scanpos &lt; TokenStack.size() &amp;&amp; runFlag == true){
+-			thisToken = (TokenObj)TokenStack.get(scanpos);
+-			////Vm.debug(thisToken.token);
+-			scanpos++;
+-		}
+-	}
+-		
+-	private boolean match(String str){
+-		getToken();
+-		////Vm.debug(&quot;Matching: &quot; + str + &quot; with &quot; +thisToken.token);
+-		if(thisToken.token.equals(str)){
+-			////Vm.debug(&quot;Match ok!&quot;);
+-			return true;
++	/** Get the top element of the calculation stack and try and convert it to a number if it is a string */
++	private double popCalcStackAsNumber(double defaultForEmptyString) throws Exception {
++		double num;
++		if (calcStack.get(calcStack.size()-1) instanceof String) {
++			if (((String)calcStack.get(calcStack.size()-1)).equals(&quot;&quot;))
++				num=defaultForEmptyString;
++			else	
++				num = getNumber((String)calcStack.get(calcStack.size()-1)).doubleValue();
+ 		} else {
+-			if(str.equals(&quot;;&quot;)) str = &quot;;&quot;;
+-			////Vm.debug(&quot;Error&quot;);
+-			err(&quot;# Error: expected &quot; + str + &quot; on line: &quot; + thisToken.line + &quot; position: &quot; + thisToken.position);
+-			return false;
++			num = ((java.lang.Double)calcStack.get(calcStack.size()-1)).doubleValue();
+ 		}
++		calcStack.removeElementAt(calcStack.size()-1);
++		return num;	
+ 	}
+ 	
+-	private void err(String str){
+-		emit(str);
+-		runFlag = false;
++	private String popCalcStackAsString() {
++		String s;
++		if (calcStack.get(calcStack.size()-1) instanceof Double) {
++			s = ((java.lang.Double)calcStack.get(calcStack.size()-1)).toString();
++			if (Global.getPref().digSeparator==&quot;,&quot;) s.replace(',','.'); // always show numbers with decimal point
++			if (s.endsWith(&quot;.0&quot;)) s=s.substring(0,s.length()-2);
++		} else
++			s = (String)calcStack.get(calcStack.size()-1);
++		calcStack.removeElementAt(calcStack.size()-1);
++		return s;	
+ 	}
+ 	
+-	private void emit(String str){
+-		MessageStack.add(str);
++	private void getToken() throws Exception {
++		if(scanpos &lt; tokenStack.size()){
++			thisToken = (TokenObj)tokenStack.get(scanpos);
++			//Vm.debug(thisToken.token);
++			scanpos++;
++		} else err(&quot;Unexpected end of source&quot;);
+ 	}
++
++	private void getNextTokenOtherThanSemi() throws Exception {
++		do {
++			getToken();
++		} while (thisToken.token.equals(&quot;;&quot;));	
++	}
++
++	private void skipPastEndif() throws Exception {
++		while(scanpos &lt; tokenStack.size()){
++			thisToken = (TokenObj)tokenStack.get(scanpos);
++			scanpos++;
++			if (thisToken.tt==TokenObj.TT_ENDIF) {
++				getToken();
++				return;
++			}
++		}
++		err(&quot;Missing ENDIF&quot;);
++	}
++	private TokenObj lookAheadToken() {
++		return (TokenObj)tokenStack.get(scanpos);
++	}
+ 	
+-	private void parseCommand(){
+-		boolean foundCommand = false;
+-		////Vm.debug(&quot;In command&quot;);
+-		getToken();
+-//Vm.debug(thisToken.token);
+-		if(thisToken.token.equals(&quot;project&quot;)){
+-			foundCommand = true;
+-			if(runFlag) match(&quot;(&quot;);
+-			
+-			if(runFlag) match(&quot;)&quot;);
++	private boolean checkNextSymIs(String str) throws Exception {
++		if(thisToken.token.toUpperCase().equals(str)){
++			return true;
++		} else {
++			err(&quot;Expected &quot; + str + &quot;  Found: &quot;+thisToken.token);
++			return false; //Dummy as err does not return
+ 		}
+-		if(thisToken.token.equals(&quot;st&quot;)){
+-			foundCommand = true;
+-			runFlag = false;
++	}
++
++	private fnType getFunctionDefinition(String str) throws Exception {
++    	fnType fnd=null;
++    	for (int i=functions.length-1; i&gt;=0; i--) {
++    		if (functions[i].funcName.startsWith(str)) {
++    			if (fnd!=null) err(&quot;Ambiguous function name: &quot;+str);
++    			fnd=functions[i];
++    		}
++    	}
++    	if (fnd==null) err(&quot;Unknown function: &quot;+str);
++    	return fnd;
++    }
++
++///////////////////////////////////////////
++//  FUNCTIONS
++///////////////////////////////////////////
++    
++    private double funcCrossTotal(double a) {
++		// Cross total = Quersumme berechnen
++		String aString = Convert.toString(a); // 
++		// bei 1.8e2 nur 1.8 verwenden 
++		if (aString.toLowerCase().indexOf(&quot;e&quot;) &gt; 0) aString = aString.substring(0, aString.toLowerCase().indexOf(&quot;e&quot;));
++		a=0;
++		for (int i=0; i&lt;aString.length(); i++) {
++		 a += Convert.toDouble(Convert.toString(aString.charAt(i)));	
+ 		}
+-		if(thisToken.token.equals(&quot;stop&quot;)){
+-			foundCommand = true;
+-			runFlag = false;
+-		}
+-		if(thisToken.token.equals(&quot;rot&quot;)){
+-			foundCommand=true;
+-			if(runFlag) match(&quot;13&quot;);
+-			if(runFlag) match(&quot;(&quot;);
+-			if(runFlag) match(&quot;\&quot;&quot;);
+-			getToken(); // Empty why
++   	    return a;
++    }
++    
++    /**
++     * Encode a string by replacing all characters in a string with their corresponding characters in
++     * another string
++     * @throws Exception
++     */
++    private String funcEncode() throws Exception {
++    	String newChars=popCalcStackAsString();
++    	String oldChars=popCalcStackAsString();
++    	if (newChars.length()!=oldChars.length()) err(&quot;Replacement characters strings must be of equal length&quot;);
++    	String s=popCalcStackAsString();
++    	String encodedStr=&quot;&quot;;
++    	for (int i=0; i&lt;s.length(); i++) {
++    		int pos;
++    		if ((pos=oldChars.indexOf(s.charAt(i)))!=-1) {
++    			encodedStr+=newChars.charAt(pos);
++    		} else 
++    			encodedStr+=s.charAt(i);
++    	}
++    	 return encodedStr;
++    }
++    
++    /** Format a valid coordinate 
++     *  If called with one args, format the argument on the stack to CW standard
++     *  The optional second argument is one of these strings &quot;UTM&quot;,&quot;DMS&quot;,&quot;DD&quot;,&quot;DMM&quot; or &quot;CW&quot;
++     * @param nargs 1 or 2 args
++     */
++    private String funcFormat(int nargs) throws Exception {
++    	String fmtStr=&quot;&quot;;
++    	if (nargs==2)fmtStr=popCalcStackAsString().toLowerCase();
++    	String coord=popCalcStackAsString();
++		if (!isValidCoord(coord)) err(&quot;Invalid coordinate: &quot;+coord);
++    	cwPt.set(coord);
++    	int fmt=CWPoint.CW;
++    	if (fmtStr.equals(&quot;dd&quot;)) fmt=CWPoint.DD;
++    	else if (fmtStr.equals(&quot;dmm&quot;)) fmt=CWPoint.DMM;
++    	else if (fmtStr.equals(&quot;dms&quot;)) fmt=CWPoint.DMS;
++    	else if (fmtStr.equals(&quot;utm&quot;)) fmt=CWPoint.UTM;
++    	else if (!fmtStr.equals(&quot;cw&quot;)) err(&quot;Invalid coordinate format. Allowed are CW/DD/DMM/DMS/UTM&quot;);
++    	return cwPt.toString(fmt);
++    }
++    
++    /** Implements a goto command goto(coordinate,optionalWaypointName).
++     */
++    private void funcGoto(int nargs) throws Exception {
++    	GotoPanel gotoP=Global.mainTab.gotoP;
++		String waypointName=null;
++        if (nargs==2) waypointName=popCalcStackAsString();  
++		String coord=popCalcStackAsString();
++		if (!isValidCoord(coord)) err(&quot;Invalid coordinate: &quot;+coord);
++		// Don't want to switch to goto panel, just set the values
++		gotoP.toPoint.set(coord);
++		gotoP.btnGoto.setText(gotoP.toPoint.toString(gotoP.currFormat));
++		if (nargs==2) { // Now set the value of the addi waypoint (it must exist already)
++    		int i=Global.getProfile().getCacheIndex(waypointName);
++    		if (i&lt;0) err(&quot;Goto: Waypoint does not exist: &quot;+waypointName);
++    		cwPt.set(coord);
++    		((CacheHolder)Global.getProfile().cacheDB.get(i)).LatLon=cwPt.toString(CWPoint.CW);
++    	}
++    }
++    
++    private void funcIgnoreVariableCase(int nargs) throws Exception {
++    	if (nargs==0) 
++    		calcStack.add(&quot;&quot;+Global.getPref().solverIgnoreCase);
++    	else {
++    		Global.getPref().solverIgnoreCase=(popCalcStackAsNumber(0)!=0)?true:false;
++    	}
++    }
++    
++    private String funcMid(int nargs) throws Exception {
++    	if (nargs==2) {
++        	double start=popCalcStackAsNumber(0);
++    		String s=popCalcStackAsString();
++    		if (!isInteger(start)) err(&quot;mid: Integer argument expected&quot;);
++    		if (start&lt;1 || start&gt;s.length()) err(&quot;mid: Argument out of range&quot;);
++    		return s.substring((int)start-1);
++    	} else {
++        	double len=popCalcStackAsNumber(0);
++        	double start=popCalcStackAsNumber(0);
++    		String s=popCalcStackAsString();
++    		if (!isInteger(start) || !isInteger(len)) err(&quot;mid: Integer argument expected&quot;);
++    		int end=(int)(start+len-1);
++    		if (start&gt;s.length() || start&lt;1 || end&gt;s.length()) err(&quot;mid: Argument out of range&quot;);
++    		return s.substring((int)start-1,end);
++    	}
++    }
++    
++    /** Project a waypoint at some angle and some distance */
++    private String funcProject() throws Exception {
++    	double distance=popCalcStackAsNumber(0);
++    	if (distance&lt;0) err(&quot;Cannot project a negative distance&quot;);
++    	double degrees=popCalcStackAsNumber(0);
++    	if (degrees&lt;0 || degrees&gt;360) err(&quot;Projection degrees must be in interval [0;360]&quot;);
++    	String coord=popCalcStackAsString();
++		if (!isValidCoord(coord)) err(&quot;Invalid coordinate: &quot;+coord);
++    	cwPt.set(coord);
++    	return cwPt.project(degrees,distance/1000.0).toString();
++    }
++
++    private String funcReverse(String s) {
++    	String res=&quot;&quot;;
++    	for (int i=s.length()-1; i&gt;=0; i--) res+=s.charAt(i);
++    	return res;
++    }
++    
++    /*   private void funcRequireSemicolon(int nargs) throws Exception {
++	if (nargs==0) 
++		calcStack.add(&quot;&quot;+Global.getPref().solverRequireSemicolon);
++	else {
++		Global.getPref().solverRequireSemicolon=(popCalcStackAsNumber(0)!=0)?true:false;
++	}
++}
++*/    
++    private String funcSubstring(int nargs) throws Exception {
++    	if (nargs==2) {
++        	double start=popCalcStackAsNumber(0);
++    		String s=popCalcStackAsString();
++    		if (!isInteger(start)) err(&quot;substring: Integer argument expected&quot;);
++    		if (start&lt;0 || start&gt;s.length()) err(&quot;substring: Argument out of range&quot;);
++    		return s.substring((int)start);
++    	} else {
++        	double end=popCalcStackAsNumber(0);
++        	double start=popCalcStackAsNumber(0);
++    		String s=popCalcStackAsString();
++    		if (!isInteger(start) || !isInteger(end)) err(&quot;substring: Integer argument expected&quot;);
++    		if (start&lt;0 || start&gt;s.length() || start&gt;end || end&gt;s.length()) err(&quot;substring: Argument out of range&quot;);
++    		return s.substring((int)start,(int)end);
++    	}
++    }
++    
++    private String funcSval(String s) {
++       	s=s.toLowerCase();
++    	String res=&quot;&quot;;
++       	for (int i=0; i&lt;s.length(); i++) {
++    		int pos=&quot;abcdefghijklmnopqrstuvwxyz&quot;.indexOf(s.charAt(i));
++    		if (pos&gt;=0) 
++    			res+=(res==&quot;&quot;?&quot;&quot;:&quot; &quot;)+MyLocale.formatLong(pos+1,&quot;00&quot;);
++    	}
++    	return res;
++    }
++    
++    private double funcVal(String s) {
++    	s=s.toLowerCase();
++    	int sum=0;
++    	for (int i=0; i&lt;s.length(); i++) {
++    		sum+=&quot;abcdefghijklmnopqrstuvwxyz&quot;.indexOf(s.charAt(i))+1;
++    	}
++    	return sum;
++    }
++    
++///////////////////////////////////////////
++//  PARSER
++///////////////////////////////////////////
++   
++    
++    /** The following methods implement a recursive descent parser.
++     * Each method is called with 'thisToken' containing a valid token. It must return with 'thisToken' again containing
++     * a valid token.
++     */
++ 
++	private void parseCommand()  throws Exception {
++		while(scanpos &lt; tokenStack.size()) {
+ 			getToken();
+-//ewe.sys.Vm.debug(thisToken.token);	
+-			emit_buffer = emit_buffer + Common.rot13(thisToken.token);
+-			getToken();
+-			if(runFlag) match(&quot;)&quot;);
+-			getToken();
+-			if(thisToken.token.equals(&quot;;&quot;)) {
+-				////Vm.debug(&quot;In thing: &quot; + emit_buffer);
+-				emit(emit_buffer);
+-				emit_buffer = &quot;# &quot;;
+-			} else scanpos--;
+-			////Vm.debug(&quot;!&quot; + &quot;)&quot;);
++			if (thisToken.token.equals(&quot;;&quot;)) continue;  // skip an empty command
++			if (thisToken.tt==TokenObj.TT_IF) 
++				parseIf();
++			else 
++				parseSimpleCommand();
++			checkNextSymIs(&quot;;&quot;);
++			while (calcStack.size()&gt;0) messageStack.add(popCalcStackAsString());
+ 		}
++	}
+ 
+-		if(thisToken.token.equals(&quot;show&quot;)){
+-			foundCommand = true;
+-			////Vm.debug(&quot;Got a show&quot;);
+-			////Vm.sleep(1500);
+-			if(runFlag) match(&quot;(&quot;);
+-			String result = new String();
+-			getToken(); // gettin the '(';
+-			// do a lookahead for a ')'
+-			getToken();
+-			////Vm.debug(&quot;--&gt;: &quot; + thisToken.token);
+-			if(thisToken.token.equals(&quot;)&quot;)){ // ok we have a variable
+-				//reset to old position
+-				scanpos--;
+-				scanpos--;
+-				getToken();
+-				if(runFlag) result = (String)symbolTable.get(thisToken.token);
+-				if(result != null){
+-					result.trim();
+-					result = STRreplace.replace(result, &quot;.0&quot;, &quot;&quot;);
+-					result = STRreplace.replace(result, &quot;,0&quot;, &quot;&quot;);
+-					emit_buffer = emit_buffer + result;
+-				} else {
+-					err(&quot;# Error: Variable &quot; +thisToken.token+ &quot; not defined&quot;);
+-				}
+-				
+-			} else { // not a variable, we should have an expression
+-				////Vm.debug(&quot;Going to parse expression!&quot;);
+-				
+-				scanpos--;
+-				scanpos--;
+-				////Vm.debug(&quot;**&quot; + thisToken.token);
+-				////Vm.debug(&quot;runflag: &quot; + Convert.toString(runFlag));
+-				//////Vm.sleep(500);
+-				////Vm.debug(&quot;in the show and parsexpr&quot;);
+-				////Vm.sleep(1500);
+-				if(runFlag) parseExpr();
+-				
+-				
+-				java.lang.Double a = new java.lang.Double(0);
+-				if(runFlag) {
+-					a = (java.lang.Double)(CalcStack.get(CalcStack.size()-1));
+-					CalcStack.removeElementAt(CalcStack.size()-1);
+-				}
+-				String stra = a.toString();
+-				stra.trim();
+-				stra = STRreplace.replace(stra, &quot;,0&quot;, &quot;&quot;);
+-				stra = STRreplace.replace(stra, &quot;.0&quot;, &quot;&quot;);
+-				emit_buffer = emit_buffer + stra;
+-				
++	private void parseSimpleCommand() throws Exception{
++		if (thisToken.tt==TokenObj.TT_STOP) throw new Exception(&quot;STOP&quot;);  // Terminate without error message
++		if (thisToken.tt==TokenObj.TT_VARIABLE &amp;&amp; lookAheadToken().tt==TokenObj.TT_EQ) 
++			parseAssign();
++		else 
++			parseStringExp();		
++	}
++	
++	private void parseIf() throws Exception{
++		int compOp;
++		boolean compRes=false;
++		getToken();
++		parseStringExp();
++		compOp=thisToken.tt;
++		if (compOp&lt;TokenObj.TT_LT || compOp&gt;TokenObj.TT_NE) err(&quot;Comparison operator expected&quot;);
++		getToken();
++		parseStringExp();
++		checkNextSymIs(&quot;THEN&quot;);
++		getNextTokenOtherThanSemi();
++		// If the first expression is a string, compare as string.
++		if (calcStack.get(calcStack.size()-2) instanceof String) {
++			String b=popCalcStackAsString();
++			String a=popCalcStackAsString();
++			switch (compOp) {
++				case TokenObj.TT_EQ: compRes=a.equals(b); break;
++				case TokenObj.TT_NE: compRes=!a.equals(b); break;
++				case TokenObj.TT_LT: compRes=a.compareTo(b)&lt;0; break;
++				case TokenObj.TT_GT: compRes=a.compareTo(b)&gt;0; break;
++				case TokenObj.TT_LE: compRes=a.compareTo(b)&lt;=0; break;
++				case TokenObj.TT_GE: compRes=a.compareTo(b)&gt;=0; break;
+ 			}
+-			if(runFlag) match(&quot;)&quot;);
+-			getToken();
+-			if(thisToken.token.equals(&quot;;&quot;)){
+-				////Vm.debug(&quot;In show: &quot; + emit_buffer);
+-				emit(emit_buffer);
+-				emit_buffer = &quot;# &quot;;
+-				scanpos--;
+-				match(&quot;;&quot;);
+-			} else scanpos--;
++		} else { // First expression is a number, compare as numbers
++			double b=popCalcStackAsNumber(0);
++			double a=popCalcStackAsNumber(0);
++			switch (compOp) {
++				case TokenObj.TT_EQ: compRes=a==b; break;
++				case TokenObj.TT_NE: compRes=a!=b; break;
++				case TokenObj.TT_LT: compRes=a&lt;b; break;
++				case TokenObj.TT_GT: compRes=a&gt;b; break;
++				case TokenObj.TT_LE: compRes=a&lt;=b; break;
++				case TokenObj.TT_GE: compRes=a&gt;=b; break;
++			}
+ 		}
+-		if(thisToken.token.equals(&quot;\&quot;&quot;) &amp;&amp; foundCommand == false){
+-			foundCommand = true;
+-			getToken();
+-			while(!thisToken.token.equals(&quot;\&quot;&quot;)){
+-				emit_buffer = emit_buffer + thisToken.token;
+-				getToken();
++		if (compRes) { // comparison resulted in TRUE
++			if (thisToken.tt!=TokenObj.TT_ENDIF) {
++				parseSimpleCommand();
++				while (thisToken.token.equals(&quot;;&quot;)) {
++					getNextTokenOtherThanSemi(); // Now we have either an ENDIF or the start of a simpleexpression
++					if (thisToken.tt==TokenObj.TT_ENDIF) break;
++					parseSimpleCommand();
++				}
++				checkNextSymIs(&quot;ENDIF&quot;);
+ 			}
+ 			getToken();
+-			if(thisToken.token.equals(&quot;;&quot;)) {
+-				////Vm.debug(&quot;In thing: &quot; + emit_buffer);
+-				emit(emit_buffer);
+-				emit_buffer = &quot;# &quot;;
+-			} else scanpos--;
+-		}
+-		if(foundCommand == false) scanpos--;
+-	}	
++		} else // comparison failed
++			skipPastEndif();
++	}
+ 	
+-	public boolean IsAlpha(String c){
+-		//check for reserved words
+-		if(c.equals(&quot;show&quot;)) c = &quot;-1&quot;;
+-		if(c.equals(&quot;st&quot;)) c = &quot;-1&quot;;
+-		if(c.equals(&quot;stop&quot;)) c = &quot;-1&quot;;
+-		if(c.equals(&quot;rot&quot;)) c = &quot;-1&quot;;
+-		c = c.toUpperCase();
+-		char ch = c.charAt(0);
+-		if(&quot;ABCDEFGHIJKLMNOPQRSTUVWXYZ&quot;.indexOf(ch) != -1) return true;
+-		else return false;
++	private void parseAssign() throws Exception  {
++		String varName=new String(thisToken.token);
++		getToken(); //=
++		getToken();
++		// Assigns of the format A=; are ignored so that they can stay as placeholders and 
++		// we can fill the data progressively during a multicache
++		if (thisToken.tt==TokenObj.TT_ENDIF || thisToken.token.equals(&quot;;&quot;)) return;
++		parseStringExp();
++		symbolTable.put(varName, popCalcStackAsString());
+ 	}
+ 	
+-	public boolean IsDigit(String c){
+-		//java.lang.Double test;
+-		boolean code = false;
+-		try {
+-			//Vm.debug(&quot;&quot;+c);
+-			//Vm.sleep(500);
+-			//test = java.lang.Double.valueOf(c);
+-			Convert.parseDouble(c);
+-			code = true;
+-		} catch (NumberFormatException e){
+-			////Vm.debug(&quot;Throwing an exeption&quot;);
+-			//////Vm.sleep(500);
+-			code = false;
++	private void parseStringExp()throws Exception {
++		if (thisToken.tt==TokenObj.TT_STRING) {
++			calcStack.add(thisToken.token);
++			getToken();
++		} else {
++			parseExp();
+ 		}
+-		return code;
++		//calcStack.add(popCalcStackAsString());
++		while (thisToken.tt==TokenObj.TT_STRING || 
++			   thisToken.tt==TokenObj.TT_NUMBER || 
++			   thisToken.tt==TokenObj.TT_VARIABLE ||
++			   thisToken.tt==TokenObj.TT_SYMBOL &amp;&amp; thisToken.token.equals(&quot;(&quot;)) {
++			if (thisToken.tt==TokenObj.TT_STRING) {
++				calcStack.add(thisToken.token);
++				getToken();
++			} else {
++				parseTailExp('+');
++			}
++			String b=popCalcStackAsString();
++			String a=popCalcStackAsString();
++			calcStack.add(a+b);
++		}
+ 	}
+ 	
+-	private void parseAssign(){
+-		////Vm.debug(&quot;In assign&quot;);
+-		java.lang.Double a = new java.lang.Double(0);
+-		boolean foundAssign = false;
+-		getToken();
+-		if(IsAlpha(thisToken.token)){
+-			foundAssign = true;
+-			String thisVar = new String();
+-			thisVar = thisToken.token;
+-			////Vm.debug(&quot;pos: &quot; + scanpos);
+-			if(runFlag) match(&quot;=&quot;);
++	private void parseExp()throws Exception {
++		char unaryOp='+';
++		if (thisToken.token.equals(&quot;+&quot;) || thisToken.token.equals(&quot;-&quot;) ) {
++			unaryOp=thisToken.token.charAt(0);
+ 			getToken();
+-				scanpos--; // because of the getToken above!
+-				if(runFlag) parseExpr();
+-				if(runFlag){
+-					//Vm.debug(&quot;This should be the crack!&quot;);
+-					//Vm.sleep(1500);
+-					a = (java.lang.Double)(CalcStack.get(CalcStack.size()-1));
+-					CalcStack.removeElementAt(CalcStack.size()-1);
+-				}
+-				//Vm.debug(&quot;This should be a: &quot; + a);
+-				symbolTable.put(thisVar, a.toString());
+-			//}
+-			if(runFlag) match(&quot;;&quot;);
+ 		}
+-		if(foundAssign == false) scanpos--;
++		parseTailExp(unaryOp);
+ 	}
+-	
+-	private void parseExpr(){
+-		//Vm.debug(&quot;in parseexpr&quot;);
+-		////Vm.sleep(1500);
+-		boolean foundExpr = false;
+-		boolean doit = true;
++
++	private void parseTailExp(char unaryOp)throws Exception {
+ 		parseTerm();
+-		////Vm.debug(&quot;Back from term&quot;);
+-		//////Vm.sleep(500);
+-		while(doit){
++		if (unaryOp=='-') { // Unary minus, negate the first term
++			calcStack.add(new java.lang.Double(-popCalcStackAsNumber(0)));
++		}
++		while (thisToken.token.equals(&quot;+&quot;) || thisToken.token.equals(&quot;-&quot;) ) {
++			char op=thisToken.token.charAt(0);
+ 			getToken();
+-			doit = false;	
+-			foundExpr = false;
+-			/*
+-			for(int i = 0; i&lt; CalcStack.size(); i++){
+-					////Vm.debug(&quot;Calcstack: &quot; + CalcStack.get(i));
+-				}*/
+-			if(thisToken.token.equals(&quot;+&quot;)){
+-				foundExpr = true;
+-				parseTerm();
+-				java.lang.Double a = new java.lang.Double(0);
+-				java.lang.Double b = new java.lang.Double(0);
+-				double c;
+-				//Vm.debug(&quot;We are here!&quot;);
+-				////Vm.sleep(1500);
+-				a = (java.lang.Double)CalcStack.get(CalcStack.size()-1);
+-				//Vm.debug(&quot;first var: &quot; + a.toString());
+-				////Vm.sleep(1500);
+-				CalcStack.removeElementAt(CalcStack.size()-1);
+-				b = (java.lang.Double)CalcStack.get(CalcStack.size()-1);
+-				//Vm.debug(&quot;second var: &quot; + b.toString());
+-				////Vm.sleep(1500);
+-				CalcStack.removeElementAt(CalcStack.size()-1);
+-				c = a.doubleValue() + b.doubleValue();
+-				//Vm.debug(&quot;A:: &quot; + c);
+-				//Vm.sleep(1500);
+-				CalcStack.add(new java.lang.Double(c));
+-				//Vm.debug(&quot;!&quot; + &quot;+&quot;);
+-				//Vm.sleep(1500);
+-				doit = true;
+-				
+-			}
+-			if(thisToken.token.equals(&quot;-&quot;) &amp;&amp; foundExpr == false){
+-				foundExpr = true;
+-				parseTerm();
+-				java.lang.Double a = new java.lang.Double(0);
+-				java.lang.Double b = new java.lang.Double(0);
+-				double c;
+-				b = (java.lang.Double)CalcStack.get(CalcStack.size()-1);
+-				CalcStack.removeElementAt(CalcStack.size()-1);
+-				a = (java.lang.Double)CalcStack.get(CalcStack.size()-1);
+-				CalcStack.removeElementAt(CalcStack.size()-1);
+-				c = a.doubleValue() - b.doubleValue();
+-				//Vm.debug(&quot;B:: &quot; + c);
+-				//Vm.sleep(1500);
+-				CalcStack.add(new java.lang.Double(c));
+-				doit = true;
+-			}
++			parseTerm();
++			double b=popCalcStackAsNumber(0);
++			double a=popCalcStackAsNumber(0);
++			if (op=='+')
++				calcStack.add(new java.lang.Double(a+b));
++			else
++				calcStack.add(new java.lang.Double(a-b));
+ 		}
+-		if(foundExpr == false) scanpos--;
+-	}	
++		// If expression is followed by a formatstring, format it
++		if (thisToken.tt==TokenObj.TT_FORMATSTR) {
++			calcStack.add(MyLocale.formatDouble(popCalcStackAsNumber(0),thisToken.token).replace(',','.'));
++			getToken();
++		}
++	}
+ 	
+-	private void parseTerm(){
+-		//Vm.debug(&quot;In parseterm&quot;);
+-		////Vm.sleep(1500);
+-		boolean foundTerm = false;
+-		boolean doit = true;
++	private void parseTerm() throws Exception{
+ 		parseFactor();
+-		//Vm.debug(&quot;Back from factor&quot;);
+-		//Vm.sleep(500);
+-		while(doit){
+-			doit = false;
+-			foundTerm = false;
++		while (thisToken.token.equals(&quot;*&quot;) || thisToken.token.equals(&quot;/&quot;) ) {
++			char op=thisToken.token.charAt(0);
+ 			getToken();
+-			if(thisToken.token.equals(&quot;*&quot;)){
+-				foundTerm = true;
+-				parseFactor();
+-				java.lang.Double a = new java.lang.Double(0);
+-				java.lang.Double b = new java.lang.Double(0);
+-				double c;
+-				a = (java.lang.Double)CalcStack.get(CalcStack.size()-1);
+-				CalcStack.removeElementAt(CalcStack.size()-1);
+-				b = (java.lang.Double)CalcStack.get(CalcStack.size()-1);
+-				CalcStack.removeElementAt(CalcStack.size()-1);
+-				c = a.doubleValue() * b.doubleValue();
+-				//Vm.debug(&quot;D:: &quot; + c);
+-				//Vm.sleep(1500);
+-				CalcStack.add(new java.lang.Double(c));
+-				////Vm.debug(&quot;!&quot; + &quot;*&quot;);
+-				doit = true;
+-			}
+-			if(thisToken.token.equals(&quot;/&quot;) &amp;&amp; foundTerm == false){
+-				foundTerm = true;
+-				parseFactor();
+-				java.lang.Double a = new java.lang.Double(0);
+-				java.lang.Double b = new java.lang.Double(0);
+-				double c;
+-				b = (java.lang.Double)CalcStack.get(CalcStack.size()-1);
+-				CalcStack.removeElementAt(CalcStack.size()-1);
+-				a = (java.lang.Double)CalcStack.get(CalcStack.size()-1);
+-				CalcStack.removeElementAt(CalcStack.size()-1);
+-				c = a.doubleValue() / b.doubleValue();
+-				//Vm.debug(&quot;D:: &quot; + c);
+-				//Vm.sleep(1500);
+-				CalcStack.add(new java.lang.Double(c));
+-				////Vm.debug(&quot;!&quot; + &quot;/&quot;);
+-				doit = true;
+-			}
+-			if(thisToken.token.equals(&quot;^&quot;) &amp;&amp; foundTerm == false){
+-				foundTerm = true;
+-				parseFactor();
+-				double a,b,c;
+-				b = ((java.lang.Double)CalcStack.get(CalcStack.size()-1)).doubleValue();
+-				CalcStack.removeElementAt(CalcStack.size()-1);
+-				a = ((java.lang.Double)CalcStack.get(CalcStack.size()-1)).doubleValue();
+-				CalcStack.removeElementAt(CalcStack.size()-1);
+-				c = java.lang.Math.pow(a,b);
+-				//Vm.debug(&quot;E:: &quot; + c);
+-				//Vm.sleep(1500);
+-				CalcStack.add(new java.lang.Double(c));
+-				////Vm.debug(&quot;!&quot; + &quot;/&quot;);
+-				doit = true;
+-			}
++			parseFactor();
++			double b=popCalcStackAsNumber(1);
++			double a=popCalcStackAsNumber(1);
++			if (op=='*')
++				calcStack.add(new java.lang.Double(a*b));
++			else
++				if (b==0.0) 
++					err(&quot;Division by 0&quot;);
++				else 
++					calcStack.add(new java.lang.Double(a/b));
+ 		}
+-		if(foundTerm == false) scanpos--;
+ 	}
+ 	
+-	private void parseFactor(){
+-		//Vm.debug(&quot;In parsefactor&quot;);
+-		boolean foundFactor = false;
+-		getToken();
+-		//Vm.debug(&quot;**&quot; + thisToken.token);
+-		////Vm.sleep(1500);
+-		if(thisToken.token.equals(&quot;sqrt&quot;)){
+-			foundFactor = true;
+-			if(runFlag) match(&quot;(&quot;);
+-			parseExpr();
+-			double a;
+-			a = ((java.lang.Double)CalcStack.get(CalcStack.size()-1)).doubleValue();
+-			CalcStack.removeElementAt(CalcStack.size()-1);
+-			a = java.lang.Math.sqrt(a);
+-			//Vm.debug(&quot;F:: &quot; + a);
+-			//Vm.sleep(1500);
+-			CalcStack.add(new java.lang.Double(a));
+-			if(runFlag) match(&quot;)&quot;);
+-			////Vm.debug(&quot;!&quot; + &quot;)&quot;);
++	private void parseFactor() throws Exception{
++		parseExpFactor();
++		while (thisToken.token.equals(&quot;^&quot;)) {
++			getToken();
++			parseExpFactor();
++			double exp=popCalcStackAsNumber(0);
++			double base=popCalcStackAsNumber(0);
++			calcStack.add(new java.lang.Double(java.lang.Math.pow(base,exp)));
+ 		}
+-		if(thisToken.token.equals(&quot;cos&quot;) &amp;&amp; foundFactor == false){
+-			foundFactor = true;
+-			if(runFlag) match(&quot;(&quot;);
+-			parseExpr();
+-			double a;
+-			a = ((java.lang.Double)CalcStack.get(CalcStack.size()-1)).doubleValue();
+-			CalcStack.removeElementAt(CalcStack.size()-1);
+-			a = java.lang.Math.cos(a);
+-			//Vm.debug(&quot;G:: &quot; + a);
+-			//Vm.sleep(1500);
+-			CalcStack.add(new java.lang.Double(a));
+-			if(runFlag) match(&quot;)&quot;);
+-			////Vm.debug(&quot;!&quot; + &quot;)&quot;);
+-		}
+-		if(thisToken.token.equals(&quot;sin&quot;) &amp;&amp; foundFactor == false){
+-			foundFactor = true;
+-			if(runFlag) match(&quot;(&quot;);
+-			parseExpr();
+-			double a;
+-			a = ((java.lang.Double)CalcStack.get(CalcStack.size()-1)).doubleValue();
+-			CalcStack.removeElementAt(CalcStack.size()-1);
+-			a = java.lang.Math.sin(a);
+-			//Vm.debug(&quot;H:: &quot; + a);
+-			//Vm.sleep(1500);
+-			CalcStack.add(new java.lang.Double(a));
+-			if(runFlag) match(&quot;)&quot;);
+-			////Vm.debug(&quot;!&quot; + &quot;)&quot;);
+-		}
+-		if(thisToken.token.equals(&quot;tan&quot;) &amp;&amp; foundFactor == false){
+-			foundFactor = true;
+-			if(runFlag) match(&quot;(&quot;);
+-			parseExpr();
+-			double a;
+-			a = ((java.lang.Double)CalcStack.get(CalcStack.size()-1)).doubleValue();
+-			CalcStack.removeElementAt(CalcStack.size()-1);
+-			a = java.lang.Math.tan(a);
+-			//Vm.debug(&quot;i:: &quot; + a);
+-			//Vm.sleep(1500);
+-			CalcStack.add(new java.lang.Double(a));
+-			if(runFlag) match(&quot;)&quot;);
+-			////Vm.debug(&quot;!&quot; + &quot;)&quot;);
+-		}		
+-		if(thisToken.token.equals(&quot;asin&quot;) &amp;&amp; foundFactor == false){
+-			foundFactor = true;
+-			if(runFlag) match(&quot;(&quot;);
+-			parseExpr();
+-			double a;
+-			a = ((java.lang.Double)CalcStack.get(CalcStack.size()-1)).doubleValue();
+-			CalcStack.removeElementAt(CalcStack.size()-1);
+-			a = java.lang.Math.asin(a);
+-			//Vm.debug(&quot;J:: &quot; + a);
+-			//Vm.sleep(1500);
+-			CalcStack.add(new java.lang.Double(a));
+-			if(runFlag) match(&quot;)&quot;);
+-			////Vm.debug(&quot;!&quot; + &quot;)&quot;);
+-		}
+-		if(thisToken.token.equals(&quot;acos&quot;) &amp;&amp; foundFactor == false){
+-			foundFactor = true;
+-			if(runFlag) match(&quot;(&quot;);
+-			parseExpr();
+-			double a;
+-			a = ((java.lang.Double)CalcStack.get(CalcStack.size()-1)).doubleValue();
+-			CalcStack.removeElementAt(CalcStack.size()-1);
+-			a = java.lang.Math.acos(a);
+-			//Vm.debug(&quot;K:: &quot; + a);
+-			//Vm.sleep(1500);
+-			CalcStack.add(new java.lang.Double(a));
+-			if(runFlag) match(&quot;)&quot;);
+-			////Vm.debug(&quot;!&quot; + &quot;)&quot;);
+-		}
+-		if(thisToken.token.equals(&quot;atan&quot;) &amp;&amp; foundFactor == false){
+-			foundFactor = true;
+-			if(runFlag) match(&quot;(&quot;);
+-			parseExpr();
+-			double a;
+-			a = ((java.lang.Double)CalcStack.get(CalcStack.size()-1)).doubleValue();
+-			CalcStack.removeElementAt(CalcStack.size()-1);
+-			a = java.lang.Math.atan(a);
+-			CalcStack.add(new java.lang.Double(a));
+-			if(runFlag) match(&quot;)&quot;);
+-			////Vm.debug(&quot;!&quot; + &quot;)&quot;);
+-		}
++	}
+ 
+-		if(thisToken.token.equals(&quot;crosstotal&quot;) &amp;&amp; foundFactor == false){
+-			foundFactor = true;
+-			if(runFlag) match(&quot;(&quot;);
+-			parseExpr();
+-			double a;
+-			a = ((java.lang.Double)CalcStack.get(CalcStack.size()-1)).doubleValue();
+-			CalcStack.removeElementAt(CalcStack.size()-1);
+-			// Cross total = Quersumme berechnen
+-			String aString = Convert.toString(a); // 
+-			// bei 1.8e2 nur 1.8 verwenden 
+-			if (aString.toLowerCase().indexOf(&quot;e&quot;) &gt; 0) aString = aString.substring(0, aString.toLowerCase().indexOf(&quot;e&quot;));
+-			a=0;
+-			for (int i=0; i&lt;aString.length(); i++) {
+-			 a += Convert.toDouble(Convert.toString(aString.charAt(i)));	
+-			}
+-			CalcStack.add(new java.lang.Double(a));
+-			if(runFlag) match(&quot;)&quot;);
+-			////Vm.debug(&quot;!&quot; + &quot;)&quot;);
++	private void parseExpFactor() throws Exception {
++		fnType funcDef;
++		if (thisToken.tt==TokenObj.TT_VARIABLE) {
++			if (isVariable(thisToken.token))
++				calcStack.add(getVariable(thisToken.token));
++			else if (!lookAheadToken().token.equals(&quot;(&quot;)) err(&quot;Variable not set: &quot;+thisToken.token);
++			else {// Must be a function definition
++				funcDef=getFunctionDefinition(thisToken.token); // Does not return if function not defined or ambiguous
++				parseFunction(funcDef);
++			} 
++		} else if (thisToken.tt==TokenObj.TT_NUMBER) {
++			calcStack.add(getNumber(thisToken.token));
++		} else if (thisToken.tt==TokenObj.TT_STRING) {
++			calcStack.add(thisToken.token);
++		} else if (thisToken.token.equals(&quot;(&quot;)) {
++			getToken();
++			parseStringExp();
++			checkNextSymIs(&quot;)&quot;);
+ 		}
+-		
+-		if(thisToken.token.equals(&quot;(&quot;) &amp;&amp; foundFactor == false){
+-			foundFactor = true;
+-			parseExpr();
+-			if(runFlag) match(&quot;)&quot;);
+-			////Vm.debug(&quot;!&quot; + &quot;)&quot;);
+-		}
+-		if(IsAlpha(thisToken.token) &amp;&amp; foundFactor == false){
+-			String result = new String();
+-			foundFactor = true;
+-			result = (String)symbolTable.get(thisToken.token);
+-			if(result != null){
+-				try {
+-					java.lang.Double test;
+-					//result = replace(result, &quot;.&quot;, &quot;,&quot;);
+-					////Vm.debug(&quot;testing var&quot; + result);
+-					////Vm.sleep(1500);
+-					test = java.lang.Double.valueOf(result);
+-					////Vm.debug(&quot;going to add var&quot; + result);
+-					////Vm.sleep(1500);
+-					//Vm.debug(&quot;l:: &quot; + test);
+-					//Vm.sleep(1500);
+-					CalcStack.add(test);
+-					//Vm.debug(&quot;test good&quot;);
+-					//Vm.sleep(1500);
+-				} catch (NumberFormatException e){}
+-			} else {
+-				err(&quot;# Error: Variable &quot; +thisToken.token+ &quot; not defined&quot;);
++		else err(&quot;Unexpected character(s): &quot;+thisToken.token);
++		getToken();
++	}
++	
++	private void parseFunction(fnType funcDef) throws Exception {
++		String funcName=new String(thisToken.token);
++        int nargs=0;
++		getToken();
++		checkNextSymIs(&quot;(&quot;);
++		getToken();
++		if (!thisToken.token.equals(&quot;)&quot;)) { // at least one argument
++			parseStringExp();
++			nargs=1;
++			while (thisToken.token.equals(&quot;,&quot;)) {
++				if (nargs==4) err(&quot;Too many arguments for function &quot;+funcName);
++				getToken();
++				parseStringExp(); 
++				nargs++;
+ 			}
+-			
++			checkNextSymIs(&quot;)&quot;);
+ 		}
+-		////Vm.debug(&quot;going to test if digit?&quot;);
+-		////Vm.sleep(1500);
+-		if(IsDigit(thisToken.token) &amp;&amp; foundFactor == false){
+-			java.lang.Double test;
+-			try {
+-				////Vm.debug(&quot;testing isdigit: &quot; +thisToken.token);
+-				////Vm.sleep(1500);
+-				test = java.lang.Double.valueOf(thisToken.token);
+-				//Vm.debug(&quot;m:: &quot; + test);
+-				//Vm.sleep(1500);
+-				CalcStack.add(test);
+-			} catch (NumberFormatException e){}
+-			foundFactor = true;
+-		}
+-		if(foundFactor == false) err(&quot;# Error: Expected a number,variable or function function on line: &quot; + thisToken.line + &quot; position: &quot; + thisToken.position);
+-		//Vm.debug(&quot;And out of parsfactor...&quot;);
+-		//Vm.sleep(500);
++		//getToken(); done in parseFactor
++		executeFunction(funcName,nargs,funcDef);
+ 	}
+-		
+-	private void parseprogram(){
+-		emit_buffer = &quot;# &quot;;
+-		while(scanpos &lt; TokenStack.size() &amp;&amp; runFlag == true){
+-			////Vm.debug(&quot;In PP: &quot; + scanpos);
+-			if(runFlag) parseCommand();
+-			if(runFlag) parseAssign();
+-			if(scanpos == TokenStack.size()-1) runFlag = false;
++	
++	private void executeFunction(String funcName, int nargs, fnType funcDef) throws Exception {
++		if (!funcDef.nargsValid(nargs)) err(&quot;Invalid number of arguments&quot;);
++	         if (funcDef.alias.equals(&quot;asin&quot;)) calcStack.add(new java.lang.Double(java.lang.Math.asin(popCalcStackAsNumber(0))));
++	    else if (funcDef.alias.equals(&quot;acos&quot;)) calcStack.add(new java.lang.Double(java.lang.Math.acos(popCalcStackAsNumber(0))));
++	    else if (funcDef.alias.equals(&quot;atan&quot;)) calcStack.add(new java.lang.Double(java.lang.Math.atan(popCalcStackAsNumber(0))));
++	    else if (funcDef.alias.equals(&quot;cos&quot;)) calcStack.add(new java.lang.Double(java.lang.Math.cos(popCalcStackAsNumber(0))));
++	    else if (funcDef.alias.equals(&quot;ct&quot;)) calcStack.add(new java.lang.Double(funcCrossTotal(popCalcStackAsNumber(0))));
++	    else if (funcDef.alias.equals(&quot;encode&quot;)) calcStack.add(funcEncode());
++	    else if (funcDef.alias.equals(&quot;format&quot;)) calcStack.add(funcFormat(nargs));
++	    else if (funcDef.alias.equals(&quot;goto&quot;)) funcGoto(nargs);
++	    else if (funcDef.alias.equals(&quot;ic&quot;)) funcIgnoreVariableCase(nargs);
++	    else if (funcDef.alias.equals(&quot;lc&quot;)) calcStack.add(popCalcStackAsString().toLowerCase());
++	    else if (funcDef.alias.equals(&quot;len&quot;)) calcStack.add(new Double(popCalcStackAsString().length()));
++	    else if (funcDef.alias.equals(&quot;mid&quot;)) calcStack.add(funcMid(nargs));
++	    else if (funcDef.alias.equals(&quot;project&quot;)) calcStack.add(funcProject());     
++	    else if (funcDef.alias.equals(&quot;reverse&quot;)) calcStack.add(funcReverse(popCalcStackAsString()));
++	    else if (funcDef.alias.equals(&quot;rot13&quot;)) calcStack.add(Common.rot13(popCalcStackAsString()));
++//	    else if (funcDef.alias.equals(&quot;rs&quot;)) funcRequireSemicolon(nargs);
++	    else if (funcDef.alias.equals(&quot;show&quot;));
++	    else if (funcDef.alias.equals(&quot;sin&quot;)) calcStack.add(new java.lang.Double(java.lang.Math.sin(popCalcStackAsNumber(0))));
++	    else if (funcDef.alias.equals(&quot;substring&quot;)) calcStack.add(funcSubstring(nargs)); 
++	    else if (funcDef.alias.equals(&quot;sval&quot;)) calcStack.add(funcSval(popCalcStackAsString()));
++	    else if (funcDef.alias.equals(&quot;tan&quot;)) calcStack.add(new java.lang.Double(java.lang.Math.tan(popCalcStackAsNumber(0))));
++	    else if (funcDef.alias.equals(&quot;uc&quot;)) calcStack.add(popCalcStackAsString().toUpperCase());
++	    else if (funcDef.alias.equals(&quot;val&quot;)) calcStack.add(new java.lang.Double(funcVal(popCalcStackAsString())));
++	    else err(&quot;Function not yet implemented: &quot;+funcName);
++	}
++	
++	public void parse(Vector tck, Vector msgStack){
++		calcStack.clear();
++		clearLocalSymbols();
++		tokenStack = tck;
++		messageStack = msgStack;
++		scanpos = 0;
++		try{
++			parseCommand();
++		}catch(Exception ex){
++			//Vm.debug(ex.toString());
+ 		}
+ 	}
++	
+ }
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2007-01-13 22:07:59 UTC (rev 386)
++++ trunk/src/CacheWolf/Preferences.java	2007-01-13 23:18:06 UTC (rev 387)
+@@ -41,6 +41,7 @@
+ 	/** The path to the browser */
+ 	public String browser = new String();
+ 	public boolean showDeletedImages=true; /* Used in ImagePanel */
++	public boolean solverIgnoreCase=false;
+ 		
+ 	public int myAppHeight = 0;
+ 	public int myAppWidth = 0;
+@@ -363,6 +364,9 @@
+ 		if (name.equals(&quot;hintlogpanel&quot;)) {
+ 			logsPerPage = Convert.parseInt(atts.getValue(&quot;logsperpage&quot;));
+ 		}
++		if (name.equals(&quot;solver&quot;)) {
++			solverIgnoreCase=Boolean.valueOf(atts.getValue(&quot;ignorevariablecase&quot;)).booleanValue();
++		}
+ 	}
+ 
+ 	public void characters( char ch[], int start, int length )
+@@ -433,6 +437,7 @@
+ 			outp.print(&quot;    &lt;screen menuattop=\&quot;&quot;+menuAtTop+&quot;\&quot; tabsattop=\&quot;&quot;+tabsAtTop+&quot;\&quot; showstatus=\&quot;&quot;+showStatus+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;imagepanel showdeletedimages=\&quot;&quot;+showDeletedImages+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;hintlogpanel logsperpage=\&quot;&quot;+logsPerPage+&quot;\&quot;/&gt;\n&quot;);
++			outp.print(&quot;    &lt;solver ignorevariablecase=\&quot;&quot;+solverIgnoreCase+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;opencaching downloadPicsOC=\&quot;&quot;+downloadPicsOC+&quot;\&quot; downloadMaps=\&quot;&quot;+downloadMapsOC+&quot;\&quot; downloadMissing=\&quot;&quot;+downloadmissingOC+&quot;\&quot;/&gt;\n&quot;);
+ 			// Obsolete data kept for backward compatibility
+ 			//outp.print(&quot;	&lt;syncOC date = \&quot;&quot; + last_sync_opencaching + &quot;\&quot; dist = \&quot;&quot; + distOC +  &quot;\&quot;/&gt;\n&quot;);
+
+Modified: trunk/src/CacheWolf/SolverPanel.java
+===================================================================
+--- trunk/src/CacheWolf/SolverPanel.java	2007-01-13 22:07:59 UTC (rev 386)
++++ trunk/src/CacheWolf/SolverPanel.java	2007-01-13 23:18:06 UTC (rev 387)
+@@ -1,5 +1,6 @@
+ package CacheWolf;
+ 
++
+ import ewe.ui.*;
+ import ewe.io.*;
+ import ewe.filechooser.FileChooser;
+@@ -21,6 +22,9 @@
+ 	Profile profile;
+ 	String currFile;
+ 	CacheHolder currCh;
++	Tokenizer tokenizer = new Tokenizer();
++	Parser parser = new Parser();
++	Vector msgFIFO = new Vector();
+ 	
+ 	
+ 	public SolverPanel (Preferences p, Profile prof){
+@@ -34,30 +38,20 @@
+ 		this.addLast(btnSaveAs= new mButton(&quot;SaveAs&quot;),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 	}
+ 	
+-	public void setCh(CacheHolder ch){
+-		currCh = ch;
++	public void setCh(CacheHolder ch) {
++		currCh=ch;
+ 	}
+-	
++
+ 	public void onEvent(Event ev){
+ 		if(ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.PRESSED){
+ 			if(ev.target == mBtSolve){
+-				Tokenizer tk = new Tokenizer();
+-				Parser myP = new Parser();
+-				String src = new String();
+-				src = mText.getText();
+-				src = src + &quot;\n&quot;;
+-				if (pref.digSeparator.equals(&quot;,&quot;))	src = src.replace('.', ',');
+-				else src = src.replace(',', '.');
+-				tk.setSource(src);
+-				tk.TokenIt();
+-				myP.setTockenStack(tk.getStack());
+-				//Vm.debug(&quot;Going inot parsing&quot;);
+-				myP.parse();
+-				Vector msg = new Vector();
+-				msg = myP.getMessages();
++				msgFIFO.clear();
++				String src = mText.getText()+&quot;\n&quot;;
++				tokenizer.tokenizeSource(src, msgFIFO); // Tokenizer sets message if an error occurred
++				if (msgFIFO.size()==0) parser.parse(tokenizer.TokenStack, msgFIFO);
+ 				String msgStr = new String();
+-				for(int i = 0; i &lt; msg.size(); i++){
+-					msgStr = msgStr + msg.get(i) + &quot;\n&quot;;
++				for(int i = 0; i &lt; msgFIFO.size(); i++){
++					msgStr = msgStr + &quot;# &quot;+msgFIFO.get(i) + &quot;\n&quot;;
+ 				}
+ 				src = src +&quot;#----Output----------\n&quot;+ msgStr + &quot;#----------------------&quot;;
+ 				mText.setText(src);
+
+Modified: trunk/src/CacheWolf/TokenObj.java
+===================================================================
+--- trunk/src/CacheWolf/TokenObj.java	2007-01-13 22:07:59 UTC (rev 386)
++++ trunk/src/CacheWolf/TokenObj.java	2007-01-13 23:18:06 UTC (rev 387)
+@@ -1,11 +1,33 @@
+ package CacheWolf;
+ 
++
++
+ /**
+ *	Class to hold a token object.
+ *	@see Tokenizer
+ *	@see Parser
+ */
+ public class TokenObj{
++	/** Token types */
++	public static final int TT_VARIABLE=0;
++	public static final int TT_STRING=1;
++	public static final int TT_NUMBER=2;
++	public static final int TT_SYMBOL=3;
++	public static final int TT_FORMATSTR=4;
++	public static final int TT_IF=5;
++	public static final int TT_THEN=6;
++	public static final int TT_ENDIF=7;
++	public static final int TT_STOP=8;
++	public static final int TT_OPENBRACKET=9;
++	public static final int TT_CLOSEBRACKET=10;
++	public static final int TT_LT=20;   // Don't change the sequence from LT to NT 
++	public static final int TT_GT=21;
++	public static final int TT_LE=22;
++	public static final int TT_GE=23;
++	public static final int TT_EQ=24;
++	public static final int TT_NE=25;
++	
++	int tt; // Tokentype
+ 	String token;
+ 	int line, position;
+ }
+
+Modified: trunk/src/CacheWolf/Tokenizer.java
+===================================================================
+--- trunk/src/CacheWolf/Tokenizer.java	2007-01-13 22:07:59 UTC (rev 386)
++++ trunk/src/CacheWolf/Tokenizer.java	2007-01-13 23:18:06 UTC (rev 387)
+@@ -1,5 +1,6 @@
+ package CacheWolf;
+ 
++
+ import ewe.util.*;
+ 
+ /**
+@@ -9,152 +10,217 @@
+ */
+ public class Tokenizer{
+ 
+-	String mySource = new String();
+-	char Look;
+-	int SourcePointer = 0;
+-	String CurrentStream = new String();
++	/** Normally only a semicolon (;) can be used to separate commands. If this variable is set to true,
++	 * newlines also terminate a command. If a newline is preceded with a backslash (=line continuation character),
++	 * the newline does not terminate the command even if this variable is true.
++	 */
++	public boolean newLineIsSeparator=true;
++	/** instructions to tokenize */
++	String mySource;
++	/** source character */
++	char look;
++	/** pointer to next character to read */
++	int sourcePointer = 0;
++	/** (partial) token */
++	String currentStream;
+ 	Vector TokenStack = new Vector();
+-	int CurrentLine, CurrentPos;
++	/** position of token */
++	int currentLine, currentPos;
+ 	TokenObj thisToken;
++	Vector messageStack;
+ 	
+-	public Vector getStack(){
+-		/*TokenObj to = new TokenObj();
+-		
+-		for(int i = 0; i &lt; TokenStack.size(); i++){
+-			to = (TokenObj)TokenStack.get(i);
+-			//Vm.debug(&quot;Tock: &quot; + to.token);
+-		}
+-		*/
+-		return TokenStack;
+-	}
+-	
+ 	public Tokenizer(){
+ 	}
+ 
+-	public void setSource(String src){
+-		mySource = src;
+-		mySource = mySource + &quot;\n&quot;;
+-		SourcePointer = 0;
+-		TokenStack = new Vector();
+-		//System.out.println(&quot;Source set to: &quot; + mySource);
++    private void err(String str) throws Exception {
++    	messageStack.add(&quot;Error on line: &quot; + currentLine + &quot; position: &quot; + currentPos);
++    	messageStack.add(str);
++    	throw new Exception(&quot;Error &quot;+str);
++    }
++
++	private boolean isAlpha(char c){
++		return  &quot;ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz&quot;.indexOf(c)!=-1;
+ 	}
+ 	
+-	private boolean IsAlpha(char c){
+-		String t = new String();
+-		t = t + c;
+-		t = t.toUpperCase();
+-		if(&quot;ABCDEFGHIJKLMNOPQRSTUVWXYZ&quot;.indexOf(t) != -1) return true;
+-		else return false;
++	private boolean isDigit(char c){
++		return &quot;0123456789&quot;.indexOf(c)!=-1;
+ 	}
+ 	
+-	private boolean IsDigit(char c){
+-		String t = new String();
+-		t = t + c;
+-		t = t.toUpperCase();
+-		if(&quot;0123456789.,&quot;.indexOf(t) != -1) return true;
+-		else return false;
++	private boolean isSymbol(char c){
++		return &quot;!&lt;&gt;(){}*/,;^+-=&quot;.indexOf(look)!=-1;
+ 	}
+-	
++
+ 	private boolean getChar(){
+-		Look = mySource.charAt(SourcePointer);
+-		SourcePointer++;
+-		if(SourcePointer &gt;= mySource.length()) return true; // final reached
+-		else return false;
++		if(sourcePointer &gt;= mySource.length()) return false; 
++		look = mySource.charAt(sourcePointer++);
++		currentPos++;
++		return true;
+ 	}
+ 	
+-	private boolean IsSymbol(char c){
+-		boolean retval = false;
+-		if(c == '+') retval = true;
+-		if(c == '-') retval = true;
+-		if(c == '=') retval = true;
+-		return retval;
++	private char lookAhead() {
++		if(sourcePointer &gt;= mySource.length())
++			return '\n';
++		else
++			return mySource.charAt(sourcePointer);
+ 	}
+ 	
+-	private void emit(){
+-		//System.out.println(CurrentStream);
++	private void backUp() {
++		sourcePointer--;
++		currentPos--;
++	}
++	
++	/** Create a new token object and remember the place where it started. 
++	 *  String tokens could span several lines, so we need to remember the starting line and position.
++	 */
++	private void startToken() {
+ 		thisToken = new TokenObj();
+-		thisToken.token = CurrentStream;
+-		thisToken.line = CurrentLine;
+-		thisToken.position = CurrentPos;
++		thisToken.line = currentLine;
++		thisToken.position = currentPos;
++	}
++	
++	/** Add the previously started token to the token stack */
++	private void emitToken(int tt){
++//		ewe.sys.Vm.debug(currentStream);
++		thisToken.token = currentStream;
++		thisToken.tt=tt;
+ 		TokenStack.add(thisToken);
+-		CurrentStream = &quot;&quot;;
++		currentStream = &quot;&quot;;
+ 	}
+ 
+ 	private void streamAlphas(){
+-		
+-		while(getChar() == false){
+-			CurrentPos++;
+-			if(IsAlpha(Look) == false) break;
+-			else CurrentStream += Look;
++		startToken();
++		while(getChar()){
++			if(isAlpha(look) || isDigit(look)) 
++				currentStream += look;
++			else 
++				break;
+ 		} 
+-		SourcePointer--;
+-		CurrentPos--;
+-		Look = ' ';
++		String s=currentStream.toUpperCase();
++		if (s.equals(&quot;STOP&quot;) || s.equals(&quot;ST&quot;))
++			emitToken(TokenObj.TT_STOP);
++		if (s.equals(&quot;IF&quot;))
++			emitToken(TokenObj.TT_IF);
++		else if (s.equals(&quot;THEN&quot;))
++			emitToken(TokenObj.TT_THEN);
++		else if (s.equals(&quot;ENDIF&quot;) || s.equals(&quot;FI&quot;))
++			{ currentStream=&quot;ENDIF&quot;; emitToken(TokenObj.TT_ENDIF); }
++		else
++			emitToken(TokenObj.TT_VARIABLE);
++		// We have read one character too far, so back off
++		backUp();
+ 	}
+ 	
+ 	private void streamDigits(){
+-		while(getChar() == false){
+-			CurrentPos++;
+-			if(IsDigit(Look) == false) break;
+-			CurrentStream += Look;
++		boolean foundDecSep=false; // To check that only one decimal point is allowed in a number
++		startToken();
++		while(getChar()){
++			if(isDigit(look) || (look=='.' &amp;&amp; !foundDecSep)) {
++				currentStream += look;
++				if (look=='.') foundDecSep=true;
++			} else
++				break;
+ 		}
+-		SourcePointer--;
+-		CurrentPos--;
+-		Look = ' ';
++		emitToken(TokenObj.TT_NUMBER);
++		// We have read one character too far, so back off
++		backUp();
+ 	}
+ 	
+-	private void streamSymbols(){
+-		while(getChar() == false){
+-			CurrentPos++;
+-			if(IsSymbol(Look) == false) break;
+-			CurrentStream += Look;
++	private void streamString() throws Exception {
++		startToken();
++		currentStream=&quot;&quot;;
++		do {
++			while(getChar() &amp;&amp; look != '\&quot;'){
++				currentStream += look;
++				// Need to count newlines inside a string spanning multiple lines so that we don't loose track
++				if (look=='\n') {
++					currentLine++;
++					currentPos=0;
++				}
++			}
++			if (lookAhead()=='&quot;') 
++				currentStream+=&quot;\&quot;&quot;; // Two &quot; following each other are replaced by &quot;
++		} while (currentStream.endsWith(&quot;\&quot;&quot;));
++		if (look!='&quot;') {
++			// Restore start position of string for correct indication of error
++			currentLine=thisToken.line;
++			currentPos=thisToken.position;
++			err(&quot;Unterminated string&quot;);
+ 		}
+-		SourcePointer--;
+-		CurrentPos--;
+-		Look = ' ';
++		emitToken(TokenObj.TT_STRING);
++		
+ 	}
++	
++	private void streamSymbol() {
++		startToken(); 
++		// Check for == != &lt;= &gt;= &lt;&gt; &gt;&lt; 
++		if (look=='=' || look=='!' || look=='&lt;' || look=='&gt;') {
++			getChar();
++			currentStream+=look;
++			if (currentStream.equals(&quot;==&quot;))  { emitToken(TokenObj.TT_EQ); return;}
++			if (currentStream.equals(&quot;!=&quot;) || currentStream.equals(&quot;&gt;&lt;&quot;) || currentStream.equals(&quot;&lt;&gt;&quot;)) 
++											{ emitToken(TokenObj.TT_NE); ; return;}
++			if (currentStream.equals(&quot;&lt;=&quot;)) { emitToken(TokenObj.TT_LE); return; }
++			if (currentStream.equals(&quot;&gt;=&quot;)) { emitToken(TokenObj.TT_GE); return; }
++			backUp(); // Not a valid comparison symbol, forget the last character
++			currentStream=currentStream.substring(0,1);
++			if (currentStream.equals(&quot;=&quot;)) emitToken(TokenObj.TT_EQ);
++			else if (currentStream.equals(&quot;&lt;&quot;)) emitToken(TokenObj.TT_LT);
++			else if (currentStream.equals(&quot;&gt;&quot;)) emitToken(TokenObj.TT_LT);
++			else emitToken(TokenObj.TT_SYMBOL);
++		} else
++			emitToken(TokenObj.TT_SYMBOL); 		
++	}
+ 
+-	private void streamString(){
+-		while(getChar() == false &amp;&amp; Look != '\&quot;'){
+-			CurrentPos++;
+-			CurrentStream += Look;
++	/** Eat up all characters until next newline as we are in a comment */
++	private void eatUpComment() {
++		while (getChar() &amp;&amp; look !='\n');
++		currentStream=&quot;;&quot;; // Insert a dummy ;
++		startToken(); 
++		emitToken(TokenObj.TT_SYMBOL);
++		currentStream=&quot;&quot;;
++		currentLine++;
++		currentPos=0;
++	}
++
++	private void formatString() throws Exception {
++		currentStream=&quot;&quot;;
++		startToken();
++		while (getChar() &amp;&amp; look!=':') {
++			currentStream += look;
++			if (look!='.' &amp;&amp; look!='0' &amp;&amp; look!='#') err(&quot;Invalid format character&quot;);
+ 		}
++		emitToken(TokenObj.TT_FORMATSTR);
+ 	}
+ 	
+-	public void TokenIt(){
+-		boolean inComment = false;
+-		CurrentLine = 1;
+-		CurrentPos = 0;
+-		while(getChar() == false){
+-			CurrentStream += Look;
+-			CurrentPos++;
+-			if(inComment == false){	
+-				if(IsAlpha(Look)) {streamAlphas();emit();}
+-				if(IsDigit(Look)) {streamDigits();emit();}
+-				if(Look == ')') emit();
+-				if(Look == '(') emit();
+-				if(Look == '{') emit();
+-				if(Look == '}') emit();
+-				if(Look == '*') emit();
+-				if(Look == '/') emit();
+-				if(Look == ';') emit();
+-				if(Look == '\&quot;') emit();
+-				if(Look == '^') emit();
+-				if(Look == '+') {streamSymbols();emit();}
+-				if(Look == '-') {streamSymbols();emit();}
+-				if(Look == '=') {streamSymbols();emit();}
+-				if(Look == ' ') {CurrentStream = &quot;&quot;;}
+-				if(Look == '\&quot;') {
+-					emit();
+-					streamString();
+-					emit();
+-					CurrentStream += Look;
+-					emit();
+-					Look = ' ';
++	public void tokenizeSource(String src, Vector msg){
++		mySource = src+&quot;\n&quot;;
++		sourcePointer = 0;
++		TokenStack.clear();
++		messageStack=msg;
++		currentLine = 1;
++		currentPos = 0;
++		currentStream=&quot;&quot;;
++		try {
++			while(getChar()){
++				if (look==' ') continue;
++				currentStream += look;
++				if(isAlpha(look) || look=='$') streamAlphas();
++				else if(isDigit(look)) streamDigits();
++				else if(isSymbol(look)) streamSymbol();
++				else if(look == '\&quot;') streamString();  
++				else if(look == '\n') {
++					if (newLineIsSeparator &amp;&amp; !currentStream.equals(&quot;\\\n&quot;) &amp;&amp; !currentStream.equals(&quot;_\n&quot;)) { 
++						currentStream=&quot;;&quot;;
++						startToken();
++						emitToken(TokenObj.TT_SYMBOL);
++					}
++					currentStream = &quot;&quot;; currentLine++; currentPos=0; 
+ 				}
++				else if(look == '#') eatUpComment();	// Ignore characters until EOL
++				else if(look == ':') formatString();
++				else if (newLineIsSeparator &amp;&amp; (look=='\\' || look=='_')) ;
++				else err(&quot;Invalid character&quot;); 
+ 			}
+-			if(Look == '\n') {CurrentStream = &quot;&quot;;CurrentPos = 0; CurrentLine++; inComment = false;}
+-			if(Look == '#') {inComment = true;}			
+-		}
++		} catch (Exception e) {}
+ 	}
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000115.html">[Cachewolf-svn] r386 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000116.html">[Cachewolf-svn] r388 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#117">[ date ]</a>
+              <a href="thread.html#117">[ thread ]</a>
+              <a href="subject.html#117">[ subject ]</a>
+              <a href="author.html#117">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

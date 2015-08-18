@@ -1,0 +1,183 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2888 - in trunk: res_noewe src/CacheWolf/imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-December/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2888%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf/imp&In-Reply-To=%3C20101223232323.6928648026C%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002879.html">
+   <LINK REL="Next"  HREF="002878.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2888 - in trunk: res_noewe src/CacheWolf/imp</H1>
+    <B>mik77 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2888%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf/imp&In-Reply-To=%3C20101223232323.6928648026C%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2888 - in trunk: res_noewe src/CacheWolf/imp">mik77 at mail.berlios.de
+       </A><BR>
+    <I>Fri Dec 24 12:23:23 CET 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002879.html">[Cachewolf-svn] r2890 - in trunk: res_noewe src/CacheWolf/imp
+</A></li>
+        <LI>Next message: <A HREF="002878.html">[Cachewolf-svn] r2889 - trunk/src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2877">[ date ]</a>
+              <a href="thread.html#2877">[ thread ]</a>
+              <a href="subject.html#2877">[ subject ]</a>
+              <a href="author.html#2877">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mik77
+Date: 2010-12-24 00:23:23 +0100 (Fri, 24 Dec 2010)
+New Revision: 2888
+
+Modified:
+   trunk/res_noewe/spider.def
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+some strings extracted to spider.def
+TODO added for decoding direction from image code
+
+Modified: trunk/res_noewe/spider.def
+===================================================================
+--- trunk/res_noewe/spider.def	2010-12-23 22:09:10 UTC (rev 2887)
++++ trunk/res_noewe/spider.def	2010-12-23 23:23:23 UTC (rev 2888)
+@@ -43,6 +43,7 @@
+ # Version 10.0 - 20100729 adaption to new GC-design DateHiddenrex , optimized cacheOwnerRex araber95
+ # Version 11.0 - 20101110 adaption to new GC-design (maybe not complete)
+ # Version 12.0 - 20101223 first little adaption to new GC-design (logs)
++# Version 12.0 - 20101224 adaption to new GC-design (decode distance)
+ #============================================================
+ # A suffix of Rex indicates a regular expression
+ # A suffix of ExStart indicates the start of an Extractor search pattern
+@@ -73,6 +74,8 @@
+ availableRex       = &lt;span\ class=&quot;Strike&quot;&gt;
+ archivedRex        = &lt;span\ class=&quot;OldWarning\ Strike&quot;&gt;
+ PMRex              = small_profile.gif
++distCodeRex        = k=(.*?)&quot;\ style=
++distCodeKey        = groundspeak
+ distRex            = (.*?)(?:km|mi)
+ waypointRex        = \\(GC(.*?)\\)&lt;br\ /&gt;
+ TypeRex            = k&quot;&gt;\\s*&lt;img\ src=&quot;/images/WptTypes/(.*?)\\.gif
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2010-12-23 22:09:10 UTC (rev 2887)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2010-12-23 23:23:23 UTC (rev 2888)
+@@ -155,6 +155,8 @@
+ 	private static String propPM;
+ 	private static Regex RexPropDirection;
+ 	private static Regex RexPropDistance;
++	private static Regex RexPropDistanceCode;
++	private static String DistanceCodeKey;
+ 	private static Regex RexPropWaypoint;
+ 	private static Regex RexPropType;
+ 	private static Regex RexPropSize;
+@@ -1425,6 +1427,8 @@
+ 			propPM = p.getProp(&quot;PMRex&quot;);
+ 			RexPropDirection = new Regex(p.getProp(&quot;directionRex&quot;));
+ 			RexPropDistance = new Regex(p.getProp(&quot;distRex&quot;));
++			RexPropDistanceCode = new Regex(p.getProp(&quot;distCodeRex&quot;));
++			DistanceCodeKey = p.getProp(&quot;distCodeKey&quot;);
+ 			RexPropWaypoint = new Regex(p.getProp(&quot;waypointRex&quot;));
+ 			RexPropType = new Regex(p.getProp(&quot;TypeRex&quot;));
+ 			RexPropSize = new Regex(p.getProp(&quot;SizeRex&quot;));
+@@ -1725,25 +1729,22 @@
+ 	 * @return Distance
+ 	 */
+ 	private double getDistGC(String doc) throws Exception {
+-		Regex RexDistance = new Regex(&quot;k=(.*?)\&quot;&quot;);
+-		RexDistance.search(doc);
+-		if (!RexDistance.didMatch()) {
++		RexPropDistanceCode.search(doc);
++		if (!RexPropDistanceCode.didMatch()) {
+ 			pref.log(&quot;check distRex&quot; + Preferences.NEWLINE + doc);
+ 			return 0;
+ 		}
+-		String stmp = ewe.net.URL.decodeURL(RexDistance.stringMatched(1));
++		String stmp = ewe.net.URL.decodeURL(RexPropDistanceCode.stringMatched(1));
+ 		byte ctmp[] = stmp.getBytes();
+-		ctmp[0]^='g';
+-		ctmp[1]^='r';
+-		ctmp[2]^='o';
+-		ctmp[3]^='u';
+-		ctmp[4]^='n';
+-		ctmp[5]^='d';
+-		ctmp[6]^='s';
++		byte ckey[] = DistanceCodeKey.getBytes();
++		int maxDecodeLength = java.lang.Math.min(stmp.length(), DistanceCodeKey.length());
++		for (int i=0; i&lt;maxDecodeLength; i++) {
++		  ctmp[i]^=ckey[i];
++    }
+ 		stmp = new String(ctmp);
+ 		RexPropDistance.search(stmp); // km oder mi
+-		pref.log(RexDistance.stringMatched(1)+&quot; : &quot;+stmp,null);
+-		if (RexDistance.didMatch()) {
++		pref.log(RexPropDistanceCode.stringMatched(1)+&quot; : &quot;+stmp,null);
++		if (RexPropDistance.didMatch()) {
+ 			if (MyLocale.getDigSeparator().equals(&quot;,&quot;))
+ 				return Convert.toDouble(RexPropDistance.stringMatched(1)
+ 						.replace('.', ','));
+@@ -1855,6 +1856,10 @@
+ 	 * @return direction String
+ 	 */
+ 	private String getDirection(String doc) throws Exception {
++	  //TODO decode direction from image cache code
++	  return &quot;&quot;;
++	  
++	  /*
+ 		RexPropDirection.search(doc);
+ 		if (!RexPropDirection.didMatch()) {
+ 			pref.log(&quot;check directionRex in spider.def&quot; 
+@@ -1862,6 +1867,7 @@
+ 			return &quot;&quot;;
+ 		}
+ 		return RexPropDirection.stringMatched(1);
++		*/
+ 	}
+ 
+ 	/*
+@@ -2232,8 +2238,8 @@
+ 		shortDescRex.search(doc);
+ 		if (!shortDescRex.didMatch()) {
+ 			if (shortDescRex_not_yet_found)
+-				pref.log(&quot;no shortDesc or check shortDescRex in spider.def&quot;
+-						+ Preferences.NEWLINE + doc);
++				pref.log(&quot;no shortDesc or check shortDescRex in spider.def&quot;);
++				//		+ Preferences.NEWLINE + doc);
+ 		} else {
+ 			res = shortDescRex.stringMatched(1);
+ 			shortDescRex_not_yet_found = false;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002879.html">[Cachewolf-svn] r2890 - in trunk: res_noewe src/CacheWolf/imp
+</A></li>
+	<LI>Next message: <A HREF="002878.html">[Cachewolf-svn] r2889 - trunk/src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2877">[ date ]</a>
+              <a href="thread.html#2877">[ thread ]</a>
+              <a href="subject.html#2877">[ subject ]</a>
+              <a href="author.html#2877">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

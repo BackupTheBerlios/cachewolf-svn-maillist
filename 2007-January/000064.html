@@ -1,0 +1,280 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r368 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r368%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701090217.l092HxxL024605%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000063.html">
+   <LINK REL="Next"  HREF="000065.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r368 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r368%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701090217.l092HxxL024605%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r368 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Tue Jan  9 03:17:59 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000063.html">[Cachewolf-svn] [Feature #3031] Doppelklick in der Cacheliste
+</A></li>
+        <LI>Next message: <A HREF="000065.html">[Cachewolf-svn] [Feature #3031] Doppelklick in der Cacheliste
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#64">[ date ]</a>
+              <a href="thread.html#64">[ thread ]</a>
+              <a href="subject.html#64">[ subject ]</a>
+              <a href="author.html#64">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-01-09 03:17:55 +0100 (Tue, 09 Jan 2007)
+New Revision: 368
+
+Modified:
+   trunk/src/CacheWolf/GotoPanel.java
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/MovingMap.java
+   trunk/src/CacheWolf/TablePanel.java
+   trunk/src/CacheWolf/myTableControl.java
+Log:
+[ Feature Request #3031 ] Doppelklick in der Cacheliste (nur teilweise: wenn Browserstart nicht geklappt hat, Descption-Panel ?\195?\182ffnen)
+kleiner Bug-fix in MovingMap
+
+Modified: trunk/src/CacheWolf/GotoPanel.java
+===================================================================
+--- trunk/src/CacheWolf/GotoPanel.java	2007-01-08 02:25:38 UTC (rev 367)
++++ trunk/src/CacheWolf/GotoPanel.java	2007-01-09 02:17:55 UTC (rev 368)
+@@ -446,10 +446,10 @@
+ 		// In moving map mode
+ 		if (mmp != null &amp;&amp; runMovingMap ) { // neccessary in case of multi-threaded Java-VM: ticked could be called during load of mmp 
+ 			if ((fix &gt; 0) &amp;&amp; (gpsPosition.getSats()&gt;= 0)) {
++				mmp.updatePosition(gpsPosition.latDec, gpsPosition.lonDec);
+ 				Vm.debug(&quot;ShowLastAddedPoint: voher&quot;);
+ 				mmp.ShowLastAddedPoint(currTrack);
+ 				Vm.debug(&quot;ShowLastAddedPoint: nachher&quot;);
+-				mmp.updatePosition(gpsPosition.latDec, gpsPosition.lonDec);
+ 				mmp.setGpsStatus(MovingMap.gotFix);
+ 			}
+ 			if ((fix == 0) &amp;&amp; (gpsPosition.getSats()== 0)) {
+@@ -615,7 +615,7 @@
+ 						}
+ 					}
+ 				}
+-				mmp.exec();
++				mmp.myExec();
+ 			} 
+ 			// create new waypoint with current GPS-position
+ 			if (ev.target == btnSave){
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2007-01-08 02:25:38 UTC (rev 367)
++++ trunk/src/CacheWolf/MainTab.java	2007-01-09 02:17:55 UTC (rev 368)
+@@ -59,7 +59,7 @@
+ 		
+ 		c = this.addCard(gotoP = new GotoPanel(pref, profile, this, detP), &quot;Goto&quot;, null);
+ 		c.iconize(new Image(&quot;goto.gif&quot;),true);
+-		tbP.setGotoPanel(gotoP);
++		tbP.setPanels(gotoP, this);
+ 		
+ 		c = this.addCard(solverP = new SolverPanel(pref, profile), MyLocale.getMsg(1205,&quot;Solver&quot;), null);
+ 		c.iconize(new Image(&quot;solver.gif&quot;),true);
+@@ -158,12 +158,7 @@
+ 				  detP.setDetails(ch, this,pref, profile);
+ 			  }
+ 			  if(this.getSelectedItem() == 2) { // Description Panel
+-				  MyLocale.setSIPOff();
+-				  descP.setText(ch);
+-				  if(detP.dirty_newOrDelete) {
+-					  tbP.refreshTable();
+-					  detP.dirty_newOrDelete = false;
+-				  }
++				  openDesciptionPanel(ch);
+ 			  }
+ 			  if(this.getSelectedItem() == 3) { // Picture Panel
+ 				  MyLocale.setSIPOff();
+@@ -220,4 +215,13 @@
+ 			////Vm.debug(Convert.toString(w));
+ 		}
+ 		*/
++	public void openDesciptionPanel(CacheHolder chi) {
++		MyLocale.setSIPOff();
++		descP.setText(chi);
++		if(detP.dirty_newOrDelete) {
++			tbP.refreshTable();
++			detP.dirty_newOrDelete = false;
++		}
++	}
+ }
++
+
+Modified: trunk/src/CacheWolf/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/MovingMap.java	2007-01-08 02:25:38 UTC (rev 367)
++++ trunk/src/CacheWolf/MovingMap.java	2007-01-09 02:17:55 UTC (rev 368)
+@@ -35,10 +35,10 @@
+ 	
+ 	AniImage ButtonImageChooseMap = new AniImage(&quot;choose_map.gif&quot;); 
+ 	AniImage ButtonImageGpsOn = new AniImage(&quot;snap2gps.gif&quot;); 
+-	AniImage arrowUp = new AniImage(&quot;arrow_up.png&quot;);
++	/*AniImage arrowUp = new AniImage(&quot;arrow_up.png&quot;);
+ 	AniImage arrowDown = new AniImage(&quot;arrow_down.png&quot;);
+ 	AniImage arrowLeft = new AniImage(&quot;arrow_left.png&quot;);
+-	AniImage arrowRight = new AniImage(&quot;arrow_right.png&quot;);
++	AniImage arrowRight = new AniImage(&quot;arrow_right.png&quot;); */
+ 	AniImage posCircle = new AniImage(&quot;position_green.png&quot;);
+ 	int posCircleX = 0, posCircleY = 0, lastCompareX = Integer.MAX_VALUE, lastCompareY = Integer.MAX_VALUE;
+ 	double posCircleLat, posCircleLon;
+@@ -64,7 +64,7 @@
+ 		ButtonImageChooseMap.properties = AniImage.AlwaysOnTop;
+ 		ButtonImageGpsOn.setLocation(pref.myAppWidth-25, 10);
+ 		ButtonImageGpsOn.properties = AniImage.AlwaysOnTop;
+-		arrowUp.setLocation(pref.myAppWidth/2, 10);
++/*		arrowUp.setLocation(pref.myAppWidth/2, 10);
+ 		arrowDown.setLocation(pref.myAppWidth/2, pref.myAppHeight-20);
+ 		arrowLeft.setLocation(10, pref.myAppHeight/2+7);
+ 		arrowRight.setLocation(pref.myAppWidth-25, pref.myAppHeight/2+7);
+@@ -76,7 +76,7 @@
+ 		mmp.addImage(arrowDown);
+ 		mmp.addImage(arrowLeft);
+ 		mmp.addImage(arrowRight);
+-		mmp.addImage(ButtonImageChooseMap);
++*/		mmp.addImage(ButtonImageChooseMap);
+ 		mmp.addImage(ButtonImageGpsOn);
+ 		posCircle.properties = AniImage.AlwaysOnTop;
+ 		loadMaps();
+@@ -124,7 +124,10 @@
+ 		inf.close(0);
+ 		Vm.showWait(false);
+ 	}
+-
++	public final FormFrame myExec() {
++		addOverlaySet(); // neccessary to draw points which were added when the MovingMap was not running, so that these pixels are not stored in the not-immediately-drawing-work-around
++		return exec();
++	}
+ 	public void addTrack(Track tr) {
+ 		if (tr == null) return;
+ 		if (tracks == null) tracks = new Vector();
+@@ -460,12 +463,13 @@
+ 		}
+ 		//Vm.debug(&quot;mapx = &quot; + mapx);
+ 		//Vm.debug(&quot;mapy = &quot; + mapy);
+-		//if (java.lang.Math.abs(oldMapPos.x - mapPos.x) &gt; 1 || java.lang.Math.abs(oldMapPos.y - mapPos.y) &gt; 1) {
++		if (java.lang.Math.abs(oldMapPos.x - mapPos.x) &gt; 1 || java.lang.Math.abs(oldMapPos.y - mapPos.y) &gt; 1) {
+ 			if (mmp.mapImage != null) 	mmp.mapImage.move(mapPos.x,mapPos.y);
+ 			updateSymbolPositions();
+ 			if (updateOverlay &amp;&amp; TrackOverlays != null) updateOverlayPos();
+ 		//}
+ 		mmp.repaintNow(); // TODO test if the &quot;if&quot; above can be used
++		}
+ 		//Vm.debug(&quot;update only position&quot;);			
+ 	}
+ 	/**
+@@ -696,10 +700,10 @@
+ 			} 
+ 			mm.SnapToGps();
+ 		}
+-		if (which == mm.arrowRight)	{	moveMap(-10,0);	}
++		/*if (which == mm.arrowRight)	{	moveMap(-10,0);	}
+ 		if (which == mm.arrowLeft)	{	moveMap(+10,0);	}
+ 		if (which == mm.arrowDown)	{	moveMap(0,-10);	}
+-		if (which == mm.arrowUp)	{	moveMap(0,+10);	}
++		if (which == mm.arrowUp)	{	moveMap(0,+10);	} */
+ 	}
+ }
+ 
+
+Modified: trunk/src/CacheWolf/TablePanel.java
+===================================================================
+--- trunk/src/CacheWolf/TablePanel.java	2007-01-08 02:25:38 UTC (rev 367)
++++ trunk/src/CacheWolf/TablePanel.java	2007-01-09 02:17:55 UTC (rev 368)
+@@ -20,6 +20,7 @@
+ 	Preferences pref;
+ 	Vector cacheDB;
+ 	GotoPanel myGotoPanel;
++	MainTab myMaintab;
+ 	StatusBar statBar;
+ 	
+ 	public TablePanel(Preferences p, Profile profile, StatusBar statBar){
+@@ -61,8 +62,9 @@
+ 		tc.setTableModel(myMod);
+ 	}
+ 	
+-	public void setGotoPanel(GotoPanel gp) {
++	public void setPanels(GotoPanel gp, MainTab mt) {
+ 		myGotoPanel = gp;
++		myMaintab = mt;
+ 	}
+ 	
+ 	public int getSelectedCache(){
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2007-01-08 02:25:38 UTC (rev 367)
++++ trunk/src/CacheWolf/myTableControl.java	2007-01-09 02:17:55 UTC (rev 368)
+@@ -15,6 +15,7 @@
+ 	public Vector db;
+ 	public Preferences pref;
+ 	public TablePanel tbp;
++	public MainTab mainTabs;
+ 	
+ 	public void penRightReleased(Point p){
+ 		menuState.doShowMenu(p,true,null); // direct call (not through doMenu) is neccesary because it will exclude the whole table
+@@ -115,15 +116,19 @@
+ 		try{
+ 			//String cmd = &quot;\&quot;&quot;+pref.browser+ &quot;\&quot;&quot; + &quot; \&quot;<A HREF="http://www.geocaching.com/seek/cache_details.aspx?wp=">http://www.geocaching.com/seek/cache_details.aspx?wp=</A>&quot;+ch.wayPoint+&quot;&amp;Submit6=Find&amp;log=y\&quot;&quot;;
+ 			ch.readCache(profile.dataDir);
++		}catch(IOException ex){	(new MessageBox(&quot;Error&quot;, &quot;Cannot read cache data\n&quot;+ex.toString()+&quot;\n in cache: &quot;+ch.wayPoint,MessageBox.OKB)).execute(); }
++		try {
+ 			String cmd = &quot;\&quot;&quot;+pref.browser+ &quot;\&quot; &quot; + ch.URL;
+ 			//String cmd = &quot;\&quot;&quot;+pref.browser+ &quot;.exe\&quot;&quot; + &quot; www.aragorn.de&quot;;
+ 			//Vm.debug(cmd);
+-			//ewe.sys.Process p = 
++			//ewe.sys.Process p =
++			
+ 			Vm.exec(cmd);
+ 			//p.waitFor();
+-		}catch(IOException ex){
+-			(new MessageBox(&quot;Error&quot;, &quot;Cannot start browser!\n&quot;+ex.toString()+&quot;\nThe are two possible reasons:\n * path to internet browser in \npreferences not correct\n * An bug in ewe VM, please be \npatient for an update&quot;,MessageBox.OKB)).execute();
+-			Vm.debug(&quot;Cannot start browser! &quot; +ex.toString());
++		} catch (IOException ex) {
++			Vm.debug(&quot;Cannot start browser - opening description panel instead (&quot; +ex.toString()+&quot;)&quot;);
++			//(new MessageBox(&quot;Error&quot;, &quot;Cannot start browser!\n&quot;+ex.toString()+&quot;\nThe are two possible reasons:\n * path to internet browser in \npreferences not correct\n * An bug in ewe VM, please be \npatient for an update&quot;,MessageBox.OKB)).execute();
++			tbp.myMaintab.select(tbp.myMaintab.descP);
+ 		}
+ 	}
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000063.html">[Cachewolf-svn] [Feature #3031] Doppelklick in der Cacheliste
+</A></li>
+	<LI>Next message: <A HREF="000065.html">[Cachewolf-svn] [Feature #3031] Doppelklick in der Cacheliste
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#64">[ date ]</a>
+              <a href="thread.html#64">[ thread ]</a>
+              <a href="subject.html#64">[ subject ]</a>
+              <a href="author.html#64">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

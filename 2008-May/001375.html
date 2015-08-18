@@ -1,0 +1,228 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1481 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-May/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1481%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200805282118.m4SLIgED017994%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001374.html">
+   <LINK REL="Next"  HREF="001376.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1481 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1481%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200805282118.m4SLIgED017994%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1481 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Wed May 28 23:18:42 CEST 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001374.html">[Cachewolf-svn] r1480 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001376.html">[Cachewolf-svn] r1482 - trunk/res_noewe/languages
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1375">[ date ]</a>
+              <a href="thread.html#1375">[ thread ]</a>
+              <a href="subject.html#1375">[ subject ]</a>
+              <a href="author.html#1375">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2008-05-28 23:18:40 +0200 (Wed, 28 May 2008)
+New Revision: 1481
+
+Modified:
+   trunk/src/CacheWolf/CacheWolf.java
+   trunk/src/CacheWolf/Preferences.java
+Log:
+Added command line option: -c (oder /c, case insensitive) you can provide a path to the preferences file, this is minimum requierement for v1.0, see <A HREF="http://www.geoclub.de/viewtopic.php?p=385661#p385661">http://www.geoclub.de/viewtopic.php?p=385661#p385661</A> for further discussion 
+Added command line option: -debug (it has the same effect as adding debug -tag in the preferences file
+
+Modified: trunk/src/CacheWolf/CacheWolf.java
+===================================================================
+--- trunk/src/CacheWolf/CacheWolf.java	2008-05-24 19:58:49 UTC (rev 1480)
++++ trunk/src/CacheWolf/CacheWolf.java	2008-05-28 21:18:40 UTC (rev 1481)
+@@ -6,12 +6,12 @@
+ public class CacheWolf extends Editor{
+ 	
+ 	
+-	public static void main(String args[])
++	public static void main(String vmargs[])
+ 	{
+ 		//start with parameters:
+ 		//args[0]: spider
+ 		//args[1]: distance
+-		ewe.sys.Vm.startEwe(args);
++		ewe.sys.Vm.startEwe(vmargs);
+ /*		Gui.screenIs(Gui.PDA_SCREEN);
+ 		Rect s = (Rect)Window.getGuiInfo(Window.INFO_SCREEN_RECT,null,new Rect(),0);
+ 		//Gui.screenIs(Gui.PDA_SCREEN)
+@@ -28,13 +28,43 @@
+ 			Vm.setSIP(Vm.SIP_LEAVE_BUTTON);
+ 		}
+ 		
++		// get program command line parameters and switches
++		String[] args = vmargs; // Vm.getProgramArguments(); &lt;-- only works in eclipse, but mixes the letters in the ewe-vm (tested in ewe-1.40 on win xp)
++		Vm.debug(&quot;prg-args: &quot; + args.length);
++		Vm.debug(&quot;vm-args: &quot; + vmargs.length);
++		String configfile = null;
++		boolean debug = false;
+ 		if(args.length &gt; 0){
+ 			if(args[0].equals(&quot;test&quot;)){
+ 				Test t=new Test(); 
+ 				t.testAll();
+ 			}
++			for (int i=0; i &lt; args.length ; i++) {
++				Vm.debug(&quot;prog: &quot; + args[i]);
++				Vm.debug(&quot;vm: &quot; + vmargs[i]);
++				if (args[i] != null &amp;&amp; args[i].length() &gt; 1 &amp;&amp;
++						(args[i].startsWith(&quot;-&quot;) || args[i].startsWith(&quot;/&quot;)) ) {
++					String c = args[i].substring(1, args[i].length());
++					if (c.equalsIgnoreCase(&quot;c&quot;)) {
++						if (i &lt; args.length -1 ) {
++							configfile = args[i+1];
++							i++;
++						} else {
++							(new MessageBox(&quot;Error&quot;, MyLocale.getMsg(7200, &quot;Usage: CacheWolf [-c &lt;path to pref.xml&gt;] [-debug]&quot;), MessageBox.OKB)).execute();
++							// return usage info
++							ewe.sys.Vm.exit(1);
++						}
++					}
++					if (c.equalsIgnoreCase(&quot;debug&quot;)) {
++						Vm.debug(&quot;d&quot;);
++						debug = true;
++					}
++
++				}
++			}
+ 		}
+-		Editor mainF = new MainForm();
++		
++		Editor mainF = new MainForm(debug, configfile);
+ 		Device.preventIdleState(true);
+ 		mainF.execute();
+ 		Device.preventIdleState(false);
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2008-05-24 19:58:49 UTC (rev 1480)
++++ trunk/src/CacheWolf/Preferences.java	2008-05-28 21:18:40 UTC (rev 1481)
+@@ -36,6 +36,38 @@
+ 	}
+ 
+ 	private static Preferences _reference;
++	
++	private String pathToConfigFile;
++	
++	/**
++	 * Call this method to set the path of the config file &lt;br&gt;
++	 * If you call it with null it defaults to [program-dir]/pref.xml
++	 * if p is a directory &quot;pref.xml&quot; will automatically appended
++	 * @param p
++	 */
++	public void setPathToConfigFile(String p) {
++		String p_;
++		if (p == null) {
++			String test;
++			test = Vm.getenv(&quot;APPDATA&quot;, &quot;/&quot;); // returns in java-vm on win xp: c:\&lt;dokumente und Einstellungen&gt;\&lt;username&gt;\&lt;application data&gt;
++			log(&quot;Vm.getenv(APPDATA: &quot; + test); // this works also in win32.exe (ewe-vm on win xp)
++			test = Vm.getenv(&quot;HOME&quot;, &quot;/&quot;); // This should return on *nix system the home dir
++			log(&quot;Vm.getenv(HOME: &quot; + test);
++			test = System.getProperty(&quot;user.dir&quot;); // return in java-vm on win xp: &lt;working dir&gt; or maybe &lt;program dir&gt; 
++			log(&quot;System.getProperty(user.dir: &quot; + test); // in win32.exe -&gt; null
++			test = System.getProperty(&quot;user.home&quot;); // in MS-java-VM env variable $HOME is ignored and always &lt;windir&gt;\java returned, see <A HREF="http://support.microsoft.com/kb/177181/en-us/">http://support.microsoft.com/kb/177181/en-us/</A>
++			log(&quot;System.getProperty(user.home: &quot; + test); // in win32.exe -&gt; null
++			// &quot;user.dir&quot;              User's current working directory
++			// &quot;user.home&quot;             User home directory (taken from <A HREF="http://scv.bu.edu/Doc/Java/tutorial/java/system/properties.html">http://scv.bu.edu/Doc/Java/tutorial/java/system/properties.html</A> )
++			p_ = FileBase.makePath(FileBase.getProgramDirectory(), &quot;pref.xml&quot;);
++		}
++		else {
++			if (new FileBugfix(p).isDirectory()) p_ = FileBase.makePath(p, &quot;pref.xml&quot;);
++			else p_ = p; 
++		}
++		pathToConfigFile = STRreplace.replace(p_, &quot;//&quot;, &quot;/&quot;); // this is necessary in case that the root dir is the dir where the pref.xml is stored
++		pathToConfigFile = pathToConfigFile.replace('\\', '/');
++	}
+ 
+ 	/**
+ 	 * Constructor is private for a singleton object
+@@ -177,16 +209,19 @@
+ 	//////////////////////////////////////////////////////////////////////////////////////
+ 	
+ 	/**
+-	 * Method to open and parse the pref.xml file. Results are stored in the
++	 * Method to open and parse the config file (pref.xml). Results are stored in the
+ 	 * public variables of this class.
++	 * If you want to specify a non default config file call setPathToConfigFile() first.
+ 	 */
+ 	public void readPrefFile(){
++		if (pathToConfigFile == null) setPathToConfigFile(null); // this sets the default value 
+ 		try{
+-			String datei = STRreplace.replace(FileBase.getProgramDirectory() + &quot;/pref.xml&quot;, &quot;//&quot;, &quot;/&quot;); // this is necessary in case that the root dir is the program dir
+-			datei = datei.replace('\\', '/');
+-			ewe.io.Reader r = new ewe.io.InputStreamReader(new ewe.io.FileInputStream(datei));
++			ewe.io.Reader r = new ewe.io.InputStreamReader(new ewe.io.FileInputStream(pathToConfigFile));
+ 			parse(r);
+ 			r.close();
++		}catch(IOException e){
++			log(&quot;IOException reading config file: &quot; + pathToConfigFile, e, true);
++			(new MessageBox(MyLocale.getMsg(327, &quot;Information&quot;), MyLocale.getMsg(176, &quot;First start - using default preferences \n For experts only: \n Could not read preferences file:\n&quot;) + pathToConfigFile, MessageBox.OKB)).execute();
+ 		}catch(Exception e){
+ 			if (e instanceof NullPointerException)
+ 				log(&quot;Error reading pref.xml: NullPointerException in Element &quot;+lastName +&quot;. Wrong attribute?&quot;,e,true);
+@@ -346,11 +381,9 @@
+ 	 * Method to save current preferences in the pref.xml file
+ 	 */
+ 	public void savePreferences(){
+-		String datei = FileBase.getProgramDirectory() + &quot;/&quot; + &quot;pref.xml&quot;;
+-		datei = datei.replace('\\', '/');
+-
++		if (pathToConfigFile == null) setPathToConfigFile(null); // this sets the default value 
+ 		try{
+-			PrintWriter outp =  new PrintWriter(new BufferedWriter(new FileWriter(datei)));
++			PrintWriter outp =  new PrintWriter(new BufferedWriter(new FileWriter(pathToConfigFile)));
+ 			outp.print(&quot;&lt;?xml version=\&quot;1.0\&quot; encoding=\&quot;ISO-8859-1\&quot;?&gt;\n&quot;);
+ 			outp.print(&quot;&lt;preferences&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;locale language=\&quot;&quot; + SafeXML.strxmlencode(language) + &quot;\&quot;/&gt;\n&quot;);
+@@ -390,7 +423,7 @@
+ 			outp.print(&quot;&lt;/preferences&gt;&quot;);
+ 			outp.close();
+ 		} catch (Exception e) {
+-			log(&quot;Problem saving: &quot; +datei,e,true);
++			log(&quot;Problem saving: &quot; +pathToConfigFile,e,true);
+ 		}
+ 	}
+ 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001374.html">[Cachewolf-svn] r1480 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001376.html">[Cachewolf-svn] r1482 - trunk/res_noewe/languages
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1375">[ date ]</a>
+              <a href="thread.html#1375">[ thread ]</a>
+              <a href="subject.html#1375">[ subject ]</a>
+              <a href="author.html#1375">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

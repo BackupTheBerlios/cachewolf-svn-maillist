@@ -1,0 +1,124 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r643 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-March/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r643%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200703122250.l2CMolQk007982%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000462.html">
+   <LINK REL="Next"  HREF="000464.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r643 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r643%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200703122250.l2CMolQk007982%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r643 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Mon Mar 12 23:50:47 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000462.html">[Cachewolf-svn] r642 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000464.html">[Cachewolf-svn] [Feature #2951] Solver: Fehlermeldung fehlt
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#463">[ date ]</a>
+              <a href="thread.html#463">[ thread ]</a>
+              <a href="subject.html#463">[ subject ]</a>
+              <a href="author.html#463">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-03-12 23:50:43 +0100 (Mon, 12 Mar 2007)
+New Revision: 643
+
+Modified:
+   trunk/src/CacheWolf/MapLoaderGui.java
+   trunk/src/CacheWolf/OCXMLImporter.java
+   trunk/src/CacheWolf/SpiderGC.java
+Log:
+Download von Opencaching: Owner wird erkannt
+Download von Expedia Karten: Standard-Aufl?\195?\182sungen auf Werte gesetzt, mit denen ich gute Erfahrung gemacht habe
+SpiderGC: Gross-Kleinschreibung in Ownernamen wird nicht beachtet bei Erkennung, ob Owner
+
+Modified: trunk/src/CacheWolf/MapLoaderGui.java
+===================================================================
+--- trunk/src/CacheWolf/MapLoaderGui.java	2007-03-11 18:00:23 UTC (rev 642)
++++ trunk/src/CacheWolf/MapLoaderGui.java	2007-03-12 22:50:43 UTC (rev 643)
+@@ -31,7 +31,7 @@
+ 	mButton coosBtn;
+ 	mLabel scaleLbl = new mLabel(&quot;Approx. m per pixel:&quot;);
+ 	mInput scaleInput = new mInput (&quot;3&quot;);
+-	mInput scaleInputPerCache = new mInput (&quot;3&quot;);
++	mInput scaleInputPerCache = new mInput (&quot;1&quot;);
+ 	mLabel overlappingLbl = new mLabel(&quot;overlapping in pixel:&quot;);
+ 	mInput overlappingInput = new mInput(&quot;100&quot;);
+ 	mCheckBox overviewChkBox = new mCheckBox(&quot;download an overview map&quot;);
+@@ -70,7 +70,7 @@
+ 		pnlTiles.addNext(coosLbl = new mLabel(MyLocale.getMsg(1803, &quot;around the center: &quot;)));
+ 		pnlTiles.addLast(coosBtn = new mButton(center.toString()));
+ 		pnlTiles.addNext(scaleLbl);
+-		scaleInput.setText(&quot;3&quot;);
++		scaleInput.setText(&quot;5&quot;);
+ 		this.focusFirst();
+ 		pnlTiles.addLast(scaleInput);
+ 		//	pnlTiles.addLast(resolutionLbl);
+
+Modified: trunk/src/CacheWolf/OCXMLImporter.java
+===================================================================
+--- trunk/src/CacheWolf/OCXMLImporter.java	2007-03-11 18:00:23 UTC (rev 642)
++++ trunk/src/CacheWolf/OCXMLImporter.java	2007-03-12 22:50:43 UTC (rev 643)
+@@ -397,6 +397,7 @@
+ 		}
+ 		if(name.equals(&quot;userid&quot;)) {
+ 			holder.CacheOwner = strData;
++			if(holder.CacheOwner.equalsIgnoreCase(pref.myAlias) || (pref.myAlias2.length()&gt;0 &amp;&amp; holder.CacheOwner.equalsIgnoreCase(pref.myAlias2))) holder.is_owned = true;
+ 			return;
+ 		}
+ 
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2007-03-11 18:00:23 UTC (rev 642)
++++ trunk/src/CacheWolf/SpiderGC.java	2007-03-12 22:50:43 UTC (rev 643)
+@@ -390,7 +390,7 @@
+ 					//Vm.debug(&quot;Name: &quot; + ch.CacheName);
+ 					pref.log(&quot;Trying owner&quot;);
+ 					ch.CacheOwner = SafeXML.cleanback(getOwner(start)).trim();
+-					if(ch.CacheOwner.equals(pref.myAlias) || (pref.myAlias2.length()&gt;0 &amp;&amp; ch.CacheOwner.equals(pref.myAlias2))) ch.is_owned = true;
++					if(ch.CacheOwner.equalsIgnoreCase(pref.myAlias) || (pref.myAlias2.length()&gt;0 &amp;&amp; ch.CacheOwner.equalsIgnoreCase(pref.myAlias2))) ch.is_owned = true;
+ 					pref.log(&quot;Got owner&quot;);
+ 					//Vm.debug(&quot;Owner: &quot; + ch.CacheOwner);
+ 					pref.log(&quot;Trying date hidden&quot;);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000462.html">[Cachewolf-svn] r642 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000464.html">[Cachewolf-svn] [Feature #2951] Solver: Fehlermeldung fehlt
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#463">[ date ]</a>
+              <a href="thread.html#463">[ thread ]</a>
+              <a href="subject.html#463">[ subject ]</a>
+              <a href="author.html#463">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

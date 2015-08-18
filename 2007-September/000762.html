@@ -1,0 +1,608 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r870 - in trunk: resources src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-September/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r870%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200709021945.l82Jj7N5024425%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000761.html">
+   <LINK REL="Next"  HREF="000763.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r870 - in trunk: resources src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r870%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200709021945.l82Jj7N5024425%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r870 - in trunk: resources src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sun Sep  2 21:45:07 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000761.html">[Cachewolf-svn] r869 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000763.html">[Cachewolf-svn] r871 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#762">[ date ]</a>
+              <a href="thread.html#762">[ thread ]</a>
+              <a href="subject.html#762">[ subject ]</a>
+              <a href="author.html#762">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-09-02 21:44:59 +0200 (Sun, 02 Sep 2007)
+New Revision: 870
+
+Modified:
+   trunk/resources/cachewolf.Languages.cfg
+   trunk/src/CacheWolf/CacheList.java
+   trunk/src/CacheWolf/Filter.java
+   trunk/src/CacheWolf/MainForm.java
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/NewProfileForm.java
+   trunk/src/CacheWolf/Profile.java
+   trunk/src/CacheWolf/ProfilesForm.java
+   trunk/src/CacheWolf/SearchCache.java
+   trunk/src/CacheWolf/StatusBar.java
+Log:
+CacheTour: Bessere Integration mit dem Filter. Wenn eine CacheTour angewendet wurde und gespeichert wird, wird sie
+beim Start wieder hergestellt. Wenn eine Cachetour aktiv ist, wird das FilterIcon in der Statuszeile 
+blau gefaerbt. Warnmeldung wenn bei einer CacheTour blackgelistete und normale Caches gemischt werden.
+Anmerkung: Die Aenderung in Rev 822 wurde rueckgaengig gemacht (hinterlaesst bei mir Artefakte am PDA), da auch
+bei MainTab einige Aenderungen notwendig waren.
+
+Modified: trunk/resources/cachewolf.Languages.cfg
+===================================================================
+--- trunk/resources/cachewolf.Languages.cfg	2007-09-02 17:11:45 UTC (rev 869)
++++ trunk/resources/cachewolf.Languages.cfg	2007-09-02 19:44:59 UTC (rev 870)
+@@ -472,6 +472,7 @@
+ 		4500=Ges:
+ 		4501=Gez:
+ 		4502=Gef:
++		4600=Nicht alle Caches k%f6nnen angezeigt werden. Inkompatibler Blacklist Status.
+ 		5000=Lade Cacheliste
+ 		5497=Fehler: Ein Tag in spider.def fehlt
+ 		5498=Login nicht m%f6glich. Fehler beim Laden der Seite nach Login.
+@@ -1017,6 +1018,7 @@
+ 		4500=Tot:
+ 		4501=Vis:
+ 		4502=Fnd:
++		4600=Some cache(s) cannot be shown because of wrong blacklist status
+ 		5498=Login failed. Error loading page after login. 
+ 		5499=Error loading login page
+ 		5000=Load Cachelist
+
+Modified: trunk/src/CacheWolf/CacheList.java
+===================================================================
+--- trunk/src/CacheWolf/CacheList.java	2007-09-02 17:11:45 UTC (rev 869)
++++ trunk/src/CacheWolf/CacheList.java	2007-09-02 19:44:59 UTC (rev 870)
+@@ -241,6 +241,7 @@
+ 	public void applyCacheList() {
+ 		Vector cacheDB=Global.getProfile().cacheDB;
+ 		CacheHolder ch;
++		int wrongBlackStatus=0;
+ 		String apply=&quot;\uFFFF&quot;+Convert.toString(applyCount++);
+ 		// Start by setting all caches to filtered
+ 		for(int i = cacheDB.size()-1; i &gt;=0 ; i--){
+@@ -263,15 +264,21 @@
+ 				ch=null;
+ 				ch=(CacheHolder) cacheDB.get(idx);
+ 			}
+-			ch.is_filtered=false;
+-			ch.sort=MyLocale.formatLong(i,&quot;00000&quot;);
++			if (ch.is_black!=Filter.showBlacklisted) 
++				wrongBlackStatus++;
++			else {
++				ch.is_filtered=false;
++				ch.sort=MyLocale.formatLong(i,&quot;00000&quot;);
++			}
+ 		}
+ 		// The sort command places all filtered caches at the end
+ 		cacheDB.sort(new mySort(),false);
+ 		Filter.filterActive=Filter.FILTER_CACHELIST;
+ 		Filter.filterInverted=false;
+-		updateScreen();
+-		
++		updateScreen(cacheList.size()-wrongBlackStatus);
++		if (wrongBlackStatus&gt;0)
++			(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;),MyLocale.getMsg(4600,&quot;Some cache(s) cannot be shown because of wrong blacklist status&quot;), MessageBox.OKB)).execute();
++
+ 	}
+ 	
+ 	/** Add a cache (and its addis) to the list 
+@@ -314,8 +321,8 @@
+ 			return false;
+ 	}
+ 	
+-	void updateScreen() {
+-		Global.mainTab.tbP.myMod.numRows=cacheList.size();
++	void updateScreen(int numRows) {
++		Global.mainTab.tbP.myMod.numRows=numRows;
+ 		// Check whether the currently selected cache is still visible
+ 		//selectRow(getSelectedCache());
+ 		Global.mainTab.tbP.tc.update(true); // Update and repaint
+
+Modified: trunk/src/CacheWolf/Filter.java
+===================================================================
+--- trunk/src/CacheWolf/Filter.java	2007-09-02 17:11:45 UTC (rev 869)
++++ trunk/src/CacheWolf/Filter.java	2007-09-02 19:44:59 UTC (rev 870)
+@@ -11,12 +11,16 @@
+ *   @author BilboWolf (optimiert von salzkammergut)
+ */
+ public class Filter{
++	public static final int FILTER_INACTIVE=0;
++	public static final int FILTER_ACTIVE=1;
++	public static final int FILTER_CACHELIST=2;
++	
+ 	/** Toggle for showing blacklisted caches. Can be toggled through the Filter menu */
+ 	public static boolean showBlacklisted=false;
+ 	/** Indicator whether a filter is inverted */
+ 	public static boolean filterInverted=false;
+ 	/** Indicator whether a filter is active. Used in status bar to indicate filter status */
+-	public static boolean filterActive=false;
++	public static int filterActive=FILTER_INACTIVE;
+ 	
+ 	private static final int SMALLER = -1;
+ 	private static final int EQUAL = 0;
+@@ -451,7 +455,7 @@
+ 			}
+ 			
+ 		} // for
+-		filterActive=true;
++		filterActive=FILTER_ACTIVE;
+ 	}
+ 	
+ 	/**
+@@ -482,7 +486,7 @@
+ 			ch = (CacheHolder)cacheDB.get(i);
+ 			ch.is_filtered=(ch.is_black^showBlacklisted) ; // Always filter blacklisted caches
+ 		}
+-		filterActive=false;
++		filterActive=FILTER_INACTIVE;
+ 		filterInverted=false;
+ 	}
+ 
+
+Modified: trunk/src/CacheWolf/MainForm.java
+===================================================================
+--- trunk/src/CacheWolf/MainForm.java	2007-09-02 17:11:45 UTC (rev 869)
++++ trunk/src/CacheWolf/MainForm.java	2007-09-02 19:44:59 UTC (rev 870)
+@@ -42,11 +42,11 @@
+ 
+ 	protected boolean canExit(int exitCode) {
+ 		mTab.saveUnsavedChanges(true);
+-		return true;
++		return pref.hasCloseButton;
+ 	}
+ 	
+ 	public void doIt(){
+-	//	CellPanel [] p = addToolbar();
++		//CellPanel [] p = addToolbar();
+ 		Global.mainForm=this;
+ 		//this.title = &quot;CacheWolf &quot; + Version.getRelease();
+ 		this.exitSystemOnClose = true;
+@@ -54,6 +54,7 @@
+ 		this.moveable = true;
+ 		this.windowFlagsToSet = Window.FLAG_MAXIMIZE_ON_PDA;
+ 		if(Vm.isMobile() == true) {
++			//this.windowFlagsToSet |=Window.FLAG_FULL_SCREEN;
+ 			this.resizable = false;
+ 			this.moveable = false;
+ 		}
+@@ -100,11 +101,7 @@
+ 		pnlMainTab.addLast(mTab,STRETCH,FILL);
+ 		
+ 		mTab.dontAutoScroll=true;
+-		//p[0].addLast(mMenu);
+-		//p[0].addLast(mMenu,CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		//p[1].addLast(split,STRETCH,FILL);
+-		this.addLast(split,STRETCH,FILL);
+-		/*
++		
+ 		if (pref.menuAtTop) {
+ 			this.addLast(mMenu,CellConstants.DONTSTRETCH, CellConstants.FILL);
+ 			this.addLast(split,STRETCH,FILL);
+@@ -112,7 +109,6 @@
+ 			this.addLast(split,STRETCH,FILL);
+ 			this.addLast(mMenu,CellConstants.DONTSTRETCH, CellConstants.FILL);
+ 		}
+-		*/
+ 		mMenu.setTablePanel(mTab.getTablePanel());
+ 		infB.close(0);
+ 		mTab.tbP.selectFirstRow();
+@@ -152,12 +148,12 @@
+ 			// Make the splitterbar visible with a width of 6 
+ 			split.theSplitter.modify(0,Invisible);
+ 			split.theSplitter.resizeTo(6,split.theSplitter.getRect().height);
+-			Global.mainForm.mMenu.orgCacheTour.modifiers|=MenuItem.Checked;
++			Global.mainForm.mMenu.filtCacheTour.modifiers|=MenuItem.Checked;
+ 		} else {
+ 			// Hide the splitterbar and set width to 0
+ 			split.theSplitter.modify(Invisible,0);
+ 			split.theSplitter.resizeTo(0,split.theSplitter.getRect().height);
+-			Global.mainForm.mMenu.orgCacheTour.modifiers&amp;=~MenuItem.Checked;
++			Global.mainForm.mMenu.filtCacheTour.modifiers&amp;=~MenuItem.Checked;
+ 		}
+ 		split.theSplitter.doOpenClose(cacheListVisible);
+ 		Global.mainForm.mMenu.repaint();
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2007-09-02 17:11:45 UTC (rev 869)
++++ trunk/src/CacheWolf/MainMenu.java	2007-09-02 19:44:59 UTC (rev 870)
+@@ -29,7 +29,7 @@
+ 	private MenuItem filtCreate, filtClear, filtInvert, filtSelected, filtBlack, filtApply;
+ 	private MenuItem exportGPS, exportCacheMate,mnuSeparator;
+ 	private MenuItem orgCopy, orgMove, orgDelete;
+-	public MenuItem orgCacheTour,orgTravelbugs;
++	public MenuItem filtCacheTour,orgTravelbugs;
+ 	private MenuItem mnuNewProfile, mnuOpenProfile, mnuEditCenter;
+ 	private Form father;
+ 	private TablePanel tbp;
+@@ -114,7 +114,7 @@
+ 		///////////////////////////////////////////////////////////////////////
+ 		// Create the &quot;Filter&quot; pulldown menu
+ 		///////////////////////////////////////////////////////////////////////
+-		MenuItem[] filterMenuItems=new MenuItem[8];
++		MenuItem[] filterMenuItems=new MenuItem[10];
+ 		filterMenuItems[0] = filtApply  = new MenuItem(MyLocale.getMsg(709,&quot;Apply&quot;)); 
+ 		filterMenuItems[1] = filtCreate  = new MenuItem(MyLocale.getMsg(114,&quot;Create&quot;)); 
+ 		filterMenuItems[2] = filtInvert  = new MenuItem(MyLocale.getMsg(115,&quot;Invert&quot;)); 
+@@ -123,11 +123,13 @@
+ 		filterMenuItems[5] = filtSelected = new MenuItem(MyLocale.getMsg(160,&quot;Selected&quot;));
+ 		filterMenuItems[6] = mnuSeparator;
+ 		filterMenuItems[7] = filtBlack   = new MenuItem(MyLocale.getMsg(161,&quot;Show Blacklist&quot;));
++		filterMenuItems[8] = mnuSeparator;
++		filterMenuItems[9] = filtCacheTour = new MenuItem(MyLocale.getMsg(198,&quot;Cachetour&quot;));
+ 		
+ 		///////////////////////////////////////////////////////////////////////
+ 		// Create a combined &quot;Filter and Search&quot; pulldown menu for devices with small screens
+ 		///////////////////////////////////////////////////////////////////////
+-		MenuItem[] filterAndSearchMenuItems=new MenuItem[11];
++		MenuItem[] filterAndSearchMenuItems=new MenuItem[13];
+ 		filterAndSearchMenuItems[0]=filtApply;
+ 		filterAndSearchMenuItems[1]=filtCreate;
+ 		filterAndSearchMenuItems[2]=filtInvert;
+@@ -139,6 +141,8 @@
+ 		filterAndSearchMenuItems[8]=mnuSeparator;
+ 		filterAndSearchMenuItems[9]=search;
+ 		filterAndSearchMenuItems[10]=searchClr;
++		filterAndSearchMenuItems[11] = mnuSeparator;
++		filterAndSearchMenuItems[12] = filtCacheTour;
+ 		
+ 		// Depending on screen width display either filter and searach menus or the combined menu 
+ 		if (MyLocale.getScreenWidth()&gt;300) {
+@@ -151,14 +155,12 @@
+ 		///////////////////////////////////////////////////////////////////////
+ 		// Create the &quot;Organize&quot; pulldown menu
+ 		///////////////////////////////////////////////////////////////////////
+-		MenuItem[] organizeMenuItems=new MenuItem[7];
++		MenuItem[] organizeMenuItems=new MenuItem[5];
+ 		organizeMenuItems[0] = orgCopy  = new MenuItem(MyLocale.getMsg(141,&quot;Copy&quot;)); 
+ 		organizeMenuItems[1] = orgMove  = new MenuItem(MyLocale.getMsg(142,&quot;Move&quot;)); 
+ 		organizeMenuItems[2] = orgDelete   = new MenuItem(MyLocale.getMsg(143,&quot;Delete&quot;));
+ 		organizeMenuItems[3] = mnuSeparator;
+-		organizeMenuItems[4] = orgCacheTour = new MenuItem(MyLocale.getMsg(198,&quot;Cachetour&quot;));
+-		organizeMenuItems[5] = mnuSeparator;
+-		organizeMenuItems[6] = orgTravelbugs = new MenuItem(MyLocale.getMsg(139,&quot;Manage travelbugs&quot;));
++		organizeMenuItems[4] = orgTravelbugs = new MenuItem(MyLocale.getMsg(139,&quot;Manage travelbugs&quot;));
+ 		this.addMenu(new PullDownMenu(MyLocale.getMsg(140,&quot;Organize&quot;),new Menu(organizeMenuItems,null)));
+ 
+ 		///////////////////////////////////////////////////////////////////////
+@@ -482,8 +484,14 @@
+ 				Filter.showBlacklisted=!Filter.showBlacklisted;
+ 				SearchCache ssc = new SearchCache(cacheDB);
+ 				ssc.clearSearch();// Clear search &amp; restore filter status
++				Filter flt=new Filter();
++				flt.clearFilter();
+ 				tbp.refreshTable();
+ 			}
++			if(mev.selectedItem == filtCacheTour){
++				filtCacheTour.modifiers^=MenuItem.Checked;
++				Global.mainForm.toggleCacheListVisible();			
++			}
+ 			///////////////////////////////////////////////////////////////////////
+ 			// &quot;Organize&quot; pulldown menu
+ 			///////////////////////////////////////////////////////////////////////
+@@ -507,10 +515,6 @@
+ 				dm.deleteCaches();
+ 				tbp.refreshTable();
+ 			}
+-			if(mev.selectedItem == orgCacheTour){
+-				orgCacheTour.modifiers^=MenuItem.Checked;
+-				Global.mainForm.toggleCacheListVisible();			
+-			}
+ 			if(mev.selectedItem == orgTravelbugs){
+ 				TravelbugJourneyScreen tbs=new TravelbugJourneyScreen();
+ 				tbs.setPreferredSize(800,600);
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2007-09-02 17:11:45 UTC (rev 869)
++++ trunk/src/CacheWolf/MainTab.java	2007-09-02 19:44:59 UTC (rev 870)
+@@ -48,8 +48,7 @@
+ 		//Don't expand tabs if the screen is very narrow, i.e. HP IPAQ 65xx, 69xx
+ 		if (MyLocale.getScreenWidth() &lt;= 240) this.dontExpandTabs=true;
+ 		calcP = new CalcPanel(); // Init here so that Global.MainT is already set
+-		tbP = new TablePanel(pref, profile, statBar);
+-		Card c = this.addCard(new TableForm(tbP), MyLocale.getMsg(1200,&quot;List&quot;), null);
++		Card c = this.addCard(tbP=new TablePanel(pref, profile, statBar), MyLocale.getMsg(1200,&quot;List&quot;), null);
+ 
+ 		c = this.addCard(detP, MyLocale.getMsg(1201,&quot;Details&quot;), null);
+ 		c.iconize(new Image(&quot;details.gif&quot;),true);
+@@ -77,6 +76,7 @@
+ 		c = this.addCard(radarP, &quot;Radar&quot;, null);
+ 		radarP.setMainTab(this);
+ 		c.iconize(new Image(&quot;radar.gif&quot;),true);
++		mnuMain.allowProfileChange(true);
+ 	}
+ 
+ 	public TablePanel getTablePanel(){
+@@ -89,17 +89,19 @@
+ 	}
+ 
+ 
+-	public void onEvent(Event ev)
+-	{
++	public void onEvent(Event ev) {
+ 		if(ev instanceof MultiPanelEvent){
++			// Check whether a profile change is allowed, if not disable the relevant options
++			checkProfileChange();
+ 			// Perform clean up actions for the panel we are leaving
+ 			onLeavingPanel(oldCard);
+ 			// Prepare actions for the panel we are about to enter
+-			onEnteringPanel(oldCard=((MultiPanelEvent)ev).selectedIndex);
++			onEnteringPanel(((MultiPanelEvent)ev).selectedIndex);
++			oldCard=((MultiPanelEvent)ev).selectedIndex;
+ 		}
+ 		super.onEvent(ev); //Make sure you call this.
+ 		// If we are in Listview update status
+-		if (this.getSelectedItem()==0) statBar.updateDisplay();
++		if (this.getSelectedItem()==0 &amp;&amp; statBar!=null) statBar.updateDisplay();
+ 	}
+ 
+ 	/**
+@@ -161,16 +163,7 @@
+ 			updatePendingChanges();
+ 			if (detP.hasBlackStatusChanged()) {
+ 				// Restore the filter status (this automatically sets the status for blacklisted caches)
+-				//TODO This is not very elegant (see also SearchCache)
+-				Filter flt=new Filter();
+-				if (Filter.filterActive) {
+-					flt.setFilter();
+-					flt.doFilter();
+-				} else {
+-					flt.clearFilter();
+-				}
+-				if (Filter.filterInverted) 
+-					flt.invertFilter();
++				Global.getProfile().restoreFilter();
+ 				tbP.refreshTable();
+ 			}
+ 			break;
+@@ -237,7 +230,7 @@
+ 		tbP.pref = pref;
+ 		profile.updateBearingDistance();
+ 		tbP.refreshTable();
+-		(new MessageBox(MyLocale.getMsg(327,&quot;Information&quot;), MyLocale.getMsg(1024,&quot;Entfernungen in der Listenansicht \nvom aktuellen Standpunkt aus \nneu berechnet&quot;).replace('~','\n'), MessageBox.OKB)).execute();
++		//(new MessageBox(MyLocale.getMsg(327,&quot;Information&quot;), MyLocale.getMsg(1024,&quot;Entfernungen in der Listenansicht \nvom aktuellen Standpunkt aus \nneu berechnet&quot;).replace('~','\n'), MessageBox.OKB)).execute();
+ 	}
+ 
+ 	public void gotoPoint(String LatLon) { // TODO &#252;bergabe nicht als String
+@@ -358,6 +351,14 @@
+ 		if (saveIndex) profile.saveIndex(Global.getPref(),false);
+ 	}
+ 	
++	private void checkProfileChange() {
++		// A panel is selected. Could be the same panel twice
++		mnuMain.allowProfileChange(false);	  
++		if(this.getSelectedItem() == 0){// List view selected
++			mnuMain.allowProfileChange(true);	  
++			MyLocale.setSIPOff();
++		}
++	}
+ }
+ // 
+ 
+
+Modified: trunk/src/CacheWolf/NewProfileForm.java
+===================================================================
+--- trunk/src/CacheWolf/NewProfileForm.java	2007-09-02 17:11:45 UTC (rev 869)
++++ trunk/src/CacheWolf/NewProfileForm.java	2007-09-02 19:44:59 UTC (rev 870)
+@@ -51,7 +51,7 @@
+ 						profileDir=&quot;&quot;;
+ 						this.close(-1);
+ 					}
+-					Filter.filterActive=false;
++					Filter.filterActive=Filter.FILTER_INACTIVE;
+ 					Filter.filterInverted=false;
+ 					this.close(0);
+ 				}
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2007-09-02 17:11:45 UTC (rev 869)
++++ trunk/src/CacheWolf/Profile.java	2007-09-02 19:44:59 UTC (rev 870)
+@@ -57,7 +57,7 @@
+ 	public String filterDiff=new String(&quot;L&quot;);
+ 	public String filterTerr=new String(&quot;L&quot;);
+ 	// Saved filterstatus - is only refreshed from class Filter when Profile is saved
+-	public boolean filterActive=false;
++	public int filterActive=Filter.FILTER_INACTIVE;
+ 	public boolean filterInverted=false;
+ 
+ 	public boolean selectionChanged = true; // (&quot;H&#228;ckchen&quot;) used by movingMap to get to knao if it should update the caches in the map 
+@@ -102,7 +102,7 @@
+ 
+ 	
+ 	/** Save index with filter settings given */ 
+-	public void saveIndex(Preferences pref, boolean showprogress, boolean saveFilterActive, boolean saveFilterInverted){
++	public void saveIndex(Preferences pref, boolean showprogress, int saveFilterActive, boolean saveFilterInverted){
+ 		ProgressBarForm pbf = new ProgressBarForm();
+ 		Handle h = new Handle();
+ 		if(showprogress){
+@@ -143,7 +143,7 @@
+ 				distOC = &quot;0&quot;;
+ 			}
+ 
+-			detfile.print(&quot;    &lt;FILTER status = \&quot;&quot;+(saveFilterActive?&quot;T&quot;:&quot;F&quot;)+(saveFilterInverted?&quot;T&quot;:&quot;F&quot;)+ 
++			detfile.print(&quot;    &lt;FILTER status = \&quot;&quot;+saveFilterActive+(saveFilterInverted?&quot;T&quot;:&quot;F&quot;)+ 
+ 					&quot;\&quot; rose = \&quot;&quot;+filterRose+&quot;\&quot; type = \&quot;&quot;+filterType+
+ 					&quot;\&quot; var = \&quot;&quot;+filterVar+&quot;\&quot; dist = \&quot;&quot;+filterDist.replace('&quot;',' ')+&quot;\&quot; diff = \&quot;&quot;+
+ 					filterDiff+&quot;\&quot; terr = \&quot;&quot;+filterTerr+&quot;\&quot; size = \&quot;&quot;+filterSize+&quot;\&quot; /&gt;\n&quot;);
+@@ -157,11 +157,12 @@
+ 				ch = (CacheHolder)cacheDB.get(i);
+ 				////Vm.debug(&quot;Saving: &quot; + ch.CacheName);
+ 				if(ch.wayPoint.length()&gt;0) { //TODO &amp;&amp; ch.LongDescription.equals(&quot;An Error Has Occured&quot;) == false){
+-					detfile.print(&quot;    &lt;CACHE name = \&quot;&quot;+SafeXML.clean(ch.CacheName)+&quot;\&quot; owner = \&quot;&quot;+SafeXML.clean(ch.CacheOwner)+
++/*					detfile.print(&quot;    &lt;CACHE name = \&quot;&quot;+SafeXML.clean(ch.CacheName)+&quot;\&quot; owner = \&quot;&quot;+SafeXML.clean(ch.CacheOwner)+
+ 							//&quot;\&quot; lat = \&quot;&quot;+ SafeXML.clean(ch.LatLon) +
+ 							&quot;\&quot; lat = \&quot;&quot;+ ch.pos.latDec + &quot;\&quot; lon = \&quot;&quot;+ch.pos.lonDec+
+ 							&quot;\&quot; hidden = \&quot;&quot;+ch.DateHidden+&quot;\&quot; wayp = \&quot;&quot;+SafeXML.clean(ch.wayPoint)+&quot;\&quot; status = \&quot;&quot;+ch.CacheStatus+&quot;\&quot; type = \&quot;&quot;+ch.type+&quot;\&quot; dif = \&quot;&quot;+ch.hard+&quot;\&quot; terrain = \&quot;&quot; + ch.terrain + &quot;\&quot; dirty = \&quot;false&quot; + // ch.dirty + dirty is not used, so we save it as false 
+ 							&quot;\&quot; size = \&quot;&quot;+ch.CacheSize+&quot;\&quot; online = \&quot;&quot; + Convert.toString(ch.is_available) + &quot;\&quot; archived = \&quot;&quot; + Convert.toString(ch.is_archived) + &quot;\&quot; has_bug = \&quot;&quot; + Convert.toString(ch.has_bug) + &quot;\&quot; black = \&quot;&quot; + Convert.toString(ch.is_black) + &quot;\&quot; owned = \&quot;&quot; + Convert.toString(ch.is_owned) + &quot;\&quot; found = \&quot;&quot; + Convert.toString(ch.is_found) + &quot;\&quot; is_new = \&quot;&quot; + Convert.toString(ch.is_new) +&quot;\&quot; is_log_update = \&quot;&quot; + Convert.toString(ch.is_log_update) + &quot;\&quot; is_update = \&quot;&quot; + Convert.toString(ch.is_update) + &quot;\&quot; is_HTML = \&quot;&quot; + Convert.toString(ch.is_HTML) + &quot;\&quot; DNFLOGS = \&quot;&quot; + ch.noFindLogs + &quot;\&quot; ocCacheID = \&quot;&quot; + ch.ocCacheID + &quot;\&quot; is_INCOMPLETE = \&quot;&quot;+Convert.toString(ch.is_incomplete)+ &quot;\&quot; lastSyncOC = \&quot;&quot; + ch.lastSyncOC + &quot;\&quot; /&gt;\n&quot;);
++*/					detfile.print(ch.toXML());
+ 				}
+ 			}
+ 			detfile.print(&quot;&lt;/CACHELIST&gt;\n&quot;);
+@@ -221,8 +222,8 @@
+ 					ch.type = ex.findNext();
+ 					ch.hard = ex.findNext();
+ 					ch.terrain = ex.findNext();
+-					//ch.dirty =  ch.dirty is not used 
+-					ex.findNext(); // Need to skip dirty
++					// The next item was 'dirty' but this is no longer used.
++					ch.is_filtered = ex.findNext().equals(&quot;true&quot;) ? true : false; 
+ 					ch.CacheSize = ex.findNext();
+ 					ch.is_available = ex.findNext().equals(&quot;true&quot;) ? true : false;
+ 					ch.is_archived = ex.findNext().equals(&quot;true&quot;) ? true : false;
+@@ -268,7 +269,11 @@
+ 					ex.setSource(text);
+ 					String temp=ex.findNext(); // Filter status is now first, need to deal with old versions which don't have filter status
+ 					if (temp.length()==2) {
+-						filterActive=temp.charAt(0)=='T';
++						// Compatibility with previous versions
++						if (temp.charAt(0)=='T') 
++							filterActive=Filter.FILTER_ACTIVE;
++						else
++							filterActive=Common.parseInt(temp.substring(0,1));
+ 						filterInverted=temp.charAt(1)=='T';
+ 						filterRose = ex.findNext();
+ 					} else 
+@@ -311,12 +316,14 @@
+ 	 **/
+ 	void restoreFilter() {
+ 		Filter flt=new Filter();
+-		if (filterActive) {
++		if (filterActive==Filter.FILTER_ACTIVE) {
+ 			flt.setFilter();
+ 			flt.doFilter();
++			if (filterInverted) 
++				flt.invertFilter();
++		} else if (filterActive==Filter.FILTER_CACHELIST) {
++			flt.filterActive=filterActive;
+ 		}
+-		if (filterInverted) 
+-			flt.invertFilter();
+ 	}
+ 
+ 	public int getCacheIndex(String wp){
+
+Modified: trunk/src/CacheWolf/ProfilesForm.java
+===================================================================
+--- trunk/src/CacheWolf/ProfilesForm.java	2007-09-02 17:11:45 UTC (rev 869)
++++ trunk/src/CacheWolf/ProfilesForm.java	2007-09-02 19:44:59 UTC (rev 870)
+@@ -118,7 +118,7 @@
+ 				close(-1);
+ 			}
+ 			if (ev.target == btnOK || ev.target == choice){
+-				Filter.filterActive=false;
++				Filter.filterActive=Filter.FILTER_INACTIVE;
+ 				Filter.filterInverted=false;
+ 				if (choice.getSelectedItem()!=null) {
+ 					newSelectedProfile=choice.getSelectedItem().toString();
+
+Modified: trunk/src/CacheWolf/SearchCache.java
+===================================================================
+--- trunk/src/CacheWolf/SearchCache.java	2007-09-02 17:11:45 UTC (rev 869)
++++ trunk/src/CacheWolf/SearchCache.java	2007-09-02 19:44:59 UTC (rev 870)
+@@ -48,15 +48,7 @@
+ 	* cache database. Restore to the state of the filter
+ 	*/
+ 	public void clearSearch(){
+-		Filter flt=new Filter();
+-		if (Filter.filterActive) {
+-			flt.setFilter();
+-			flt.doFilter();
+-		} else {
+-			flt.clearFilter();
+-		}
+-		if (Filter.filterInverted) 
+-			flt.invertFilter();
++		Global.getProfile().restoreFilter();
+ 		for(int i = cacheDB.size()-1;i &gt;=0;i--){
+ 			((CacheHolder)cacheDB.get(i)).is_flaged=false;
+ 		}
+
+Modified: trunk/src/CacheWolf/StatusBar.java
+===================================================================
+--- trunk/src/CacheWolf/StatusBar.java	2007-09-02 17:11:45 UTC (rev 869)
++++ trunk/src/CacheWolf/StatusBar.java	2007-09-02 19:44:59 UTC (rev 870)
+@@ -46,8 +46,10 @@
+ 					MyLocale.getMsg(4502,&quot;Fnd:&quot;) + &quot; &quot; + stats.totalFound() + &quot;  &quot;;
+ 		disp.setText(strStatus);
+ 		// Indicate that a filter is active in the status line
+-		if (Filter.filterActive)
++		if (Filter.filterActive==Filter.FILTER_ACTIVE)
+ 			btnFlt.backGround=new Color(0,255,0);
++		else if (Filter.filterActive==Filter.FILTER_CACHELIST)
++			btnFlt.backGround=new Color(0,0,255);
+ 		else
+ 			btnFlt.backGround=null;
+ 		// Current centre can only be displayed if screen is big
+@@ -63,11 +65,11 @@
+ 		if (ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.PRESSED){
+ 			if (ev.target == btnFlt){
+ 				Filter flt = new Filter();
+-				if (Filter.filterActive) {
+-					flt.clearFilter();
+-				} else {
++				if (Filter.filterActive==Filter.FILTER_INACTIVE) {
+ 					flt.setFilter();
+ 					flt.doFilter();
++				} else {
++					flt.clearFilter();
+ 				}
+ 				Global.mainTab.tbP.refreshTable();
+ 			}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000761.html">[Cachewolf-svn] r869 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000763.html">[Cachewolf-svn] r871 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#762">[ date ]</a>
+              <a href="thread.html#762">[ thread ]</a>
+              <a href="subject.html#762">[ subject ]</a>
+              <a href="author.html#762">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

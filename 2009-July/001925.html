@@ -1,0 +1,627 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2006 - trunk/src/exp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-July/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2006%20-%20trunk/src/exp&In-Reply-To=%3C200907091907.n69J7L97021802%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001924.html">
+   <LINK REL="Next"  HREF="001926.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2006 - trunk/src/exp</H1>
+    <B>greiol at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2006%20-%20trunk/src/exp&In-Reply-To=%3C200907091907.n69J7L97021802%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2006 - trunk/src/exp">greiol at mail.berlios.de
+       </A><BR>
+    <I>Thu Jul  9 21:07:21 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001924.html">[Cachewolf-svn] r2005 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001926.html">[Cachewolf-svn] r2007 - in trunk: res_noewe src/CacheWolf	src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1925">[ date ]</a>
+              <a href="thread.html#1925">[ thread ]</a>
+              <a href="subject.html#1925">[ subject ]</a>
+              <a href="author.html#1925">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: greiol
+Date: 2009-07-09 21:07:19 +0200 (Thu, 09 Jul 2009)
+New Revision: 2006
+
+Modified:
+   trunk/src/exp/GpxExportNg.java
+Log:
+make export more robust, start work on better to understand config dialog
+
+Modified: trunk/src/exp/GpxExportNg.java
+===================================================================
+--- trunk/src/exp/GpxExportNg.java	2009-07-09 05:51:10 UTC (rev 2005)
++++ trunk/src/exp/GpxExportNg.java	2009-07-09 19:07:19 UTC (rev 2006)
+@@ -42,6 +42,7 @@
+ import ewe.ui.ProgressBarForm;
+ import ewe.ui.mButton;
+ import ewe.ui.mCheckBox;
++import ewe.ui.mChoice;
+ import ewe.ui.mInput;
+ import ewe.ui.mLabel;
+ import ewe.util.Enumeration;
+@@ -77,6 +78,8 @@
+ 	private int maxLogs = ewe.math.Number.INTEGER_MAX_VALUE;
+ 	/** number of errors / warnings during export */
+ 	private int exportErrors = 0;
++	/**  */
++	private String finderid;
+ 
+ 	final static String GPXHEADER = &quot;&lt;?xml version=\&quot;1.0\&quot; encoding=\&quot;utf-8\&quot;?&gt;\n&quot;
+ 			.concat(&quot;&lt;gpx xmlns:xsi=\&quot;<A HREF="http://www.w3.org/2001/XMLSchema-instance\">http://www.w3.org/2001/XMLSchema-instance\</A>&quot; xmlns:xsd=\&quot;<A HREF="http://www.w3.org/2001/XMLSchema\">http://www.w3.org/2001/XMLSchema\</A>&quot; version=\&quot;1.0\&quot; creator=\&quot;CacheWolf\&quot; xsi:schemaLocation=\&quot;<A HREF="http://www.topografix.com/GPX/1/0">http://www.topografix.com/GPX/1/0</A> <A HREF="http://www.topografix.com/GPX/1/0/gpx.xsd">http://www.topografix.com/GPX/1/0/gpx.xsd</A> <A HREF="http://www.groundspeak.com/cache/1/0">http://www.groundspeak.com/cache/1/0</A> <A HREF="http://www.groundspeak.com/cache/1/0/cache.xsd\">http://www.groundspeak.com/cache/1/0/cache.xsd\</A>&quot; xmlns=\&quot;<A HREF="http://www.topografix.com/GPX/1/0\">http://www.topografix.com/GPX/1/0\</A>&quot;&gt;\n&quot;)
+@@ -132,21 +135,34 @@
+ 			.concat(&quot;@@ADDILAT@@ @@ADDILON@@@@ADDIDELIM@@&quot;)
+ 			.concat(&quot;@@ADDILONG@@@@ADDIDELIM@@&quot;);
+ 
+-	static boolean smartIds;
+-	static boolean customIcons;
+-	static boolean separateFiles;
+-	static boolean sendToGarmin;
+-	static int outType;
++	private static boolean smartIds;
++	private static boolean customIcons;
++	private static boolean separateFiles;
++	private static boolean sendToGarmin;
++	private static int outType;
++	private static boolean hasBitmaps;
++	private static boolean hasGarminMap;
++	private static boolean hasGpsbabel;
++	private static String bitmapFileName;
++	private static String garminMapFileName;
+ 
+ 	public GpxExportNg() {
+-		// do nothing
++		garminMapFileName = FileBase.getProgramDirectory() + &quot;/garminmap.xml&quot;;
++		bitmapFileName = FileBase.getProgramDirectory() + &quot;/GarminPOI.zip&quot;;
++		
++		hasGarminMap = new File(garminMapFileName).exists();
++		hasBitmaps = new File(bitmapFileName).exists();
++		hasGpsbabel = Global.getPref().gpsbabel != null;
++		
++		finderid = Global.getPref().gcMemberId;
++		if (finderid.equals(&quot;&quot;)) Global.getPref().log(&quot;GPX Export: warning gcmemberid not set, check pref.xml&quot;);
+ 	}
+ 
+ 	public void doit() {
+ 		GpxExportNgForm exportOptions;
+ 		int ret;
+ 
+-		exportOptions = new GpxExportNgForm();
++		exportOptions = new GpxExportNgForm(hasGarminMap, hasBitmaps, hasGpsbabel);
+ 		ret = exportOptions.execute();
+ 
+ 		if (FormBase.IDCANCEL == ret) {
+@@ -204,23 +220,21 @@
+ 				new File(tempDir).mkdir();
+ 			} else {
+ 				tempDir = outDir;
+-				String tmp[] = new FileBugfix(tempDir).list(prefix + &quot;*.gpx&quot;,
+-						ewe.io.FileBase.LIST_FILES_ONLY);
++				String tmp[] = new FileBugfix(tempDir).list(prefix + &quot;*.gpx&quot;, ewe.io.FileBase.LIST_FILES_ONLY);
+ 				for (int i = 0; i &lt; tmp.length; i++) {
+-					FileBugfix tmpFile = new FileBugfix(tempDir
+-							+ FileBase.separator + tmp[i]);
++					FileBugfix tmpFile = new FileBugfix(tempDir	+ FileBase.separator + tmp[i]);
+ 					tmpFile.delete();
+ 				}
+-				tmp = new FileBugfix(tempDir).list(prefix + &quot;*.bmp&quot;,
+-						ewe.io.FileBase.LIST_FILES_ONLY);
++				tmp = new FileBugfix(tempDir).list(prefix + &quot;*.bmp&quot;, ewe.io.FileBase.LIST_FILES_ONLY);
+ 				for (int i = 0; i &lt; tmp.length; i++) {
+-					FileBugfix tmpFile = new FileBugfix(tempDir
+-							+ FileBase.separator + tmp[i]);
++					FileBugfix tmpFile = new FileBugfix(tempDir	+ FileBase.separator + tmp[i]);
+ 					tmpFile.delete();
+ 				}
+ 			}
+ 
+ 			ProgressBarForm pbf = new ProgressBarForm();
++			int poiCounter = 0;
++			int poiCategories = 0;
+ 			try {
+ 				Handle h = new Handle();
+ 
+@@ -286,6 +300,10 @@
+ 								+ FileBase.separator + tmp[i]);
+ 						tmpFile.delete();
+ 					}
++					pbf.exit(0);
++					poiCategories=fileHandles.size();
++					pbf.setTask(h, &quot;Transfer&quot;);
++					pbf.exec();
+ 				}
+ 
+ 				Enumeration keys = fileHandles.keys();
+@@ -296,35 +314,46 @@
+ 
+ 					writer.print(&quot;&lt;/gpx&gt;\n&quot;);
+ 					writer.close();
+-					if (poiZip != null)
+-						if (!copyPoiIcon(tempDir, key, prefix, poiZip))
++					if (sendToGarmin) {
++						poiCounter++;
++						h.progress = (float) poiCounter / (float) poiCategories;
++						h.changed();
++					}
++					if (poiZip != null) {
++						if (!copyPoiIcon(tempDir, key, prefix, poiZip)) {
+ 							exportErrors++;
++							continue;
++						}
+ 
+-					String[] cmdStack = new String[9];
+-					cmdStack[0]=Global.getPref().gpsbabel;
+-					cmdStack[1]=&quot;-i&quot;;
+-					cmdStack[2]=&quot;gpx&quot;;
+-					cmdStack[3]=&quot;-f&quot;;
+-					cmdStack[4]=tempDir + FileBase.separator + prefix + key + &quot;.gpx&quot;;
+-					cmdStack[5]=&quot;-o&quot;;
+-					cmdStack[6]=&quot;garmin_gpi,sleep=1,category=&quot;+prefix + key+&quot;,bitmap=&quot;+tempDir + FileBase.separator + prefix + key	+ &quot;.bmp&quot;;
+-					cmdStack[7]=&quot;-F&quot;;
+-					cmdStack[8]=outDir + FileBase.separator + prefix + key + &quot;.gpi&quot;;
++						if (sendToGarmin) {
++							String[] cmdStack = new String[9];
++							cmdStack[0]=Global.getPref().gpsbabel;
++							cmdStack[1]=&quot;-i&quot;;
++							cmdStack[2]=&quot;gpx&quot;;
++							cmdStack[3]=&quot;-f&quot;;
++							cmdStack[4]=tempDir + FileBase.separator + prefix + key + &quot;.gpx&quot;;
++							cmdStack[5]=&quot;-o&quot;;
++							cmdStack[6]=&quot;garmin_gpi,sleep=1,category=&quot;+prefix + key+&quot;,bitmap=&quot;+tempDir + FileBase.separator + prefix + key	+ &quot;.bmp&quot;;
++							cmdStack[7]=&quot;-F&quot;;
++							cmdStack[8]=outDir + FileBase.separator + prefix + key + &quot;.gpi&quot;;
++		
++							Process babelProcess = startProcess(cmdStack);
++							StreamReader errorStream = new StreamReader(babelProcess.getErrorStream());
++							while (errorStream.isOpen()) {
++								String errorMsg = errorStream.readALine();
++								if (errorMsg != null) {
++									Global.getPref().log(&quot;GPX Export: &quot; + errorMsg);
++									exportErrors++;
++								}
++								try {
++									babelProcess.exitValue();
++									errorStream.close();
++								} catch (IllegalThreadStateException e) {
++									// still running
++								}
++							}
++						}
+ 
+-					Process babelProcess = startProcess(cmdStack);
+-					StreamReader errorStream = new StreamReader(babelProcess.getErrorStream());
+-					while (errorStream.isOpen()) {
+-						String errorMsg = errorStream.readALine();
+-						if (errorMsg != null) {
+-							Global.getPref().log(&quot;GPX Export: &quot; + errorMsg);
+-							exportErrors++;
+-						}
+-						try {
+-							babelProcess.exitValue();
+-							errorStream.close();
+-						} catch (IllegalThreadStateException e) {
+-							// still running
+-						}
+ 					}
+ 				}
+ 
+@@ -553,7 +582,7 @@
+ 				if (ch.isAddiWpt()) {
+ 					trans.add(new Regex(&quot;@@WPCMT@@&quot;, SafeXML.cleanGPX(ch.getCacheName() + &quot; &quot; + ch.getFreshDetails().LongDescription)));
+ 				} else {
+-					trans.add(new Regex(&quot;@@WPCMT@@&quot;, SafeXML.cleanGPX(ch.getCacheName() + &quot; &quot; + Common.rot13(ch.getFreshDetails().Hints))));
++					trans.add(new Regex(&quot;@@WPCMT@@&quot;, SafeXML.cleanGPX(ch.getCacheName() + &quot; &quot; + &quot;(&quot;+ch.getNoFindLogs()+&quot;)&quot; + &quot; &quot; + Common.rot13(ch.getFreshDetails().Hints))));
+ 				}
+ 			} else {
+ 				if (ch.isAddiWpt()) {
+@@ -682,6 +711,10 @@
+ 	public String formatLogs(CacheHolder ch) {
+ 		LogList logs = ch.getFreshDetails().CacheLogs;
+ 		StringBuffer ret = new StringBuffer();
++		String fid = &quot;&quot;;
++		
++		if (outType == GPX_MYFINDSPQ) 
++			fid = finderid; 
+ 
+ 		if (0 == logs.size())
+ 			return &quot;&quot;;
+@@ -695,17 +728,20 @@
+ 		}
+ 
+ 		for (int i = 0; i &lt; exportlogs; i++) {
++			String logId = &quot;&quot;;
+ 			Log log = logs.getLog(i);
+ 
+-			if (outType == GPX_MYFINDSPQ
+-					&amp;&amp; !log.getLogger().equals(Global.getPref().myAlias))
+-				continue;
++			if (outType == GPX_MYFINDSPQ &amp;&amp; !log.getLogger().equals(Global.getPref().myAlias))
++					continue;
+ 
++//			if (outType == GPX_MYFINDSPQ) 
++//				logId = log.getLogId();
++			
+ 			Transformer trans = new Transformer(true);
+-			trans.add(new Regex(&quot;@@LOGID@@&quot;, &quot;&quot;));
++			trans.add(new Regex(&quot;@@LOGID@@&quot;, logId));
+ 			trans.add(new Regex(&quot;@@LOGDATE@@&quot;, log.getDate()));
+ 			trans.add(new Regex(&quot;@@LOGTYPE@@&quot;, image2TypeText(log.getIcon())));
+-			trans.add(new Regex(&quot;@@LOGFINDERID@@&quot;, &quot;&quot;));
++			trans.add(new Regex(&quot;@@LOGFINDERID@@&quot;, fid));
+ 			trans.add(new Regex(&quot;@@LOGFINDER@@&quot;, SafeXML.cleanGPX(log.getLogger())));
+ 			trans.add(new Regex(&quot;@@LOGENCODE@@&quot;, &quot;&quot;));
+ 			trans.add(new Regex(&quot;@@LOGTEXT@@&quot;, SafeXML.cleanGPX(log.getMessage())));
+@@ -891,66 +927,137 @@
+ 	 * dialog to set the GPX exporter options
+ 	 */
+ 	private class GpxExportNgForm extends Form {
+-		private CheckBoxGroup cbgExportType;
++		private CheckBoxGroup cbgExportType, cbgWpName;
+ 		private mCheckBox cbCompact, cbPqLike, cbMyFinds, cbCustomIcons,cbSeperateFiles, cbSendToGarmin, cbSmartId;
++		private mCheckBox cbWpClassic, cbWpSmartId, cbWpSmartName, cbCreatePoi, cbSeperateHints;
+ 		private mInput ibMaxLogs, ibPrefix;
+ 		private mButton btnOk, btnCancel;
++		
++		private boolean hasBitmaps;
++		private boolean hasGarminMap;
++		private boolean hasGpsbabel;
++		
++		private int guiid;
++		
++		private mChoice chStyle, chTarget, chIds;
+ 
+ 		/**
+ 		 * set up the form / dialog
+ 		 */
+-		public GpxExportNgForm() {
++		public GpxExportNgForm(boolean hasGarminMap, boolean hasBitmaps, boolean hasGpsbabel) {
++
++			guiid=0;
++
++			this.hasBitmaps = hasBitmaps;
++			this.hasGarminMap = hasGarminMap;
++			this.hasGpsbabel = hasGpsbabel;
++			
+ 			// TODO: get/set defaults from profile
+ 
+ 			this.setTitle(&quot;GPX Export&quot;);
++			this.resizable = false;
++			
++			btnOk = new mButton(&quot;OK&quot;);
++			btnCancel = new mButton(&quot;Cancel&quot;);
++			
++			if (guiid == 0) {
++                cbgExportType = new CheckBoxGroup();
+ 
+-			cbgExportType = new CheckBoxGroup();
++                cbCompact = new mCheckBox(&quot;Compact&quot;);
++                cbCompact.setGroup(cbgExportType);
+ 
+-			cbCompact = new mCheckBox(&quot;Compact&quot;);
+-			cbCompact.setGroup(cbgExportType);
++                cbPqLike = new mCheckBox(&quot;PQ like&quot;);
++                cbPqLike.setGroup(cbgExportType);
+ 
+-			cbPqLike = new mCheckBox(&quot;PQ like&quot;);
+-			cbPqLike.setGroup(cbgExportType);
++                cbMyFinds = new mCheckBox(&quot;MyFinds&quot;);
++                cbMyFinds.setGroup(cbgExportType);
+ 
+-			cbMyFinds = new mCheckBox(&quot;MyFinds&quot;);
+-			cbMyFinds.setGroup(cbgExportType);
++                cbgExportType.setText(&quot;Compact&quot;);
+ 
+-			cbgExportType.setText(&quot;Compact&quot;);
++                cbCustomIcons = new mCheckBox(&quot;custom icons&quot;);
+ 
+-			cbCustomIcons = new mCheckBox(&quot;custom icons&quot;);
++                cbSeperateFiles = new mCheckBox(&quot;one file per type&quot;);
+ 
+-			cbSeperateFiles = new mCheckBox(&quot;one file per type&quot;);
++                cbSendToGarmin = new mCheckBox(&quot;send to Garmin GPSr&quot;);
++                if (Global.getPref().gpsbabel == null)
++                        cbSendToGarmin.modify(ControlConstants.Disabled, 0);
+ 
+-			cbSendToGarmin = new mCheckBox(&quot;send to Garmin GPSr&quot;);
+-			if (Global.getPref().gpsbabel == null)
+-				cbSendToGarmin.modify(ControlConstants.Disabled, 0);
++                cbSmartId = new mCheckBox(&quot;use smart IDs&quot;);
+ 
+-			cbSmartId = new mCheckBox(&quot;use smart IDs&quot;);
++                ibPrefix = new mInput(&quot;GC-&quot;);
++                ibPrefix.modify(ControlConstants.Disabled, 0);
++                ibMaxLogs = new mInput(String
++                                .valueOf(Global.getPref().numberOfLogsToExport));
++                ibMaxLogs.modify(ControlConstants.Disabled, 0);
+ 
+-			ibPrefix = new mInput(&quot;GC-&quot;);
+-			ibPrefix.modify(ControlConstants.Disabled, 0);
+-			ibMaxLogs = new mInput(String
+-					.valueOf(Global.getPref().numberOfLogsToExport));
+-			ibMaxLogs.modify(ControlConstants.Disabled, 0);
++                addNext(cbCustomIcons);
++                addLast(cbCompact);
++                addNext(cbSeperateFiles);
++                addLast(cbPqLike);
++                addNext(cbSendToGarmin);
++                addLast(cbMyFinds);
++                
++                addLast(cbSmartId);
++                addNext(new mLabel(&quot;Prefix&quot;));
++                addLast(new mLabel(&quot;Max Logs&quot;));
+ 
+-			btnOk = new mButton(&quot;OK&quot;);
+-			btnCancel = new mButton(&quot;Cancel&quot;);
++                addNext(ibPrefix);
++                addLast(ibMaxLogs);
+ 
+-			addNext(cbCustomIcons);
+-			addLast(cbCompact);
+-			addNext(cbSeperateFiles);
+-			addLast(cbPqLike);
+-			addNext(cbSendToGarmin);
+-			addLast(cbMyFinds);
+-			addLast(cbSmartId);
+-			addNext(new mLabel(&quot;Prefix&quot;));
+-			addLast(new mLabel(&quot;Max Logs&quot;));
++                addButton(btnOk);
++                addButton(btnCancel);
+ 
+-			addNext(ibPrefix);
+-			addLast(ibMaxLogs);
++			} else if (guiid == 2) {
++				
++				chIds = new mChoice();
++				chIds.addItem(&quot;Classic IDs&quot;);
++				chIds.addItem(&quot;Smart IDs&quot;);
++				chIds.addItem(&quot;Smart Names&quot;);
++				chIds.select(0);
++				
++				chStyle = new mChoice();
++				chStyle.addItem(&quot;Compact&quot;);
++				chStyle.addItem(&quot;PQ like&quot;);
++				chStyle.addItem(&quot;MyFinds&quot;);
++				chStyle.select(0);
++				
++				chTarget = new mChoice();
++				chTarget.addItem(&quot;Single GPX&quot;);
++				chTarget.addItem(&quot;Separate GPX&quot;);
++				chTarget.addItem(&quot;POI&quot;);
++				chTarget.select(0);
++				
++				ibPrefix = new mInput(&quot;GC-&quot;);
++				ibPrefix.modify(ControlConstants.Disabled, 0);
++				ibMaxLogs = new mInput(String
++						.valueOf(Global.getPref().numberOfLogsToExport));
++				ibMaxLogs.modify(ControlConstants.Disabled, 0);
++				
++				cbSeperateHints = new mCheckBox(&quot;Separate Hints&quot;);
++				cbSendToGarmin = new mCheckBox(&quot;send to Garmin&quot;);
++				cbCustomIcons = new mCheckBox(&quot;Custom Icons&quot;);
+ 
++				
++				addNext(new mLabel(&quot;Style&quot;));
++				addLast(chStyle);
++				addNext(new mLabel(&quot;Names&quot;));
++				addLast(chIds);
++				addNext(new mLabel(&quot;Target&quot;));
++				addLast(chTarget);
++				addNext(cbCustomIcons);
++				addLast(cbSendToGarmin);
++				addLast(cbSeperateHints);
++				
++                addNext(new mLabel(&quot;Prefix&quot;));
++                addLast(ibPrefix);
++                addNext(new mLabel(&quot;Max Logs&quot;));
++                addLast(ibMaxLogs);
++				
++			}
++			
+ 			addButton(btnOk);
+ 			addButton(btnCancel);
++
+ 		}
+ 
+ 		/**
+@@ -958,85 +1065,89 @@
+ 		 * radio button settings pass everything else to &lt;code&gt;super()&lt;/code&gt;
+ 		 */
+ 		public void onEvent(Event ev) {
+-			if (ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.PRESSED) {
+-
+-				if (ev.target == cbgExportType) {
+-					if (cbgExportType.getSelected() == cbCompact) {
+-						if (cbCustomIcons.change(0, ControlConstants.Disabled))
+-							cbCustomIcons.repaint();
+-						if (cbSeperateFiles.change(0, ControlConstants.Disabled))
+-							cbSeperateFiles.repaint();
+-						if (Global.getPref().gpsbabel != null)
+-							if (cbSendToGarmin.change(0, ControlConstants.Disabled))
++			if (guiid == 0) {
++				if (ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.PRESSED) {
++	
++					if (ev.target == cbgExportType) {
++						if (cbgExportType.getSelected() == cbCompact) {
++							if (cbCustomIcons.change(0, ControlConstants.Disabled))
++								cbCustomIcons.repaint();
++							if (cbSeperateFiles.change(0, ControlConstants.Disabled))
++								cbSeperateFiles.repaint();
++							if (Global.getPref().gpsbabel != null)
++								if (cbSendToGarmin.change(0, ControlConstants.Disabled))
++									cbSendToGarmin.repaint();
++							if (cbSmartId.change(0, ControlConstants.Disabled))
++								cbSmartId.repaint();
++							if (ibMaxLogs.change(ControlConstants.Disabled, 0))
++								ibMaxLogs.repaint();
++						} else if (cbgExportType.getSelected() == cbPqLike) {
++							cbSeperateFiles.setState(false);
++							if (cbCustomIcons.change(0, ControlConstants.Disabled))
++								cbCustomIcons.repaint();
++							if (cbSeperateFiles.change(ControlConstants.Disabled, 0))
++								cbSeperateFiles.repaint();
++							if (Global.getPref().gpsbabel != null)
++								if (cbSendToGarmin.change(0, ControlConstants.Disabled))
++									cbSendToGarmin.repaint();
++							if (cbSmartId.change(0, ControlConstants.Disabled))
++								cbSmartId.repaint();
++							if (ibPrefix.change(ControlConstants.Disabled, 0))
++								ibPrefix.repaint();
++							if (ibMaxLogs.change(ControlConstants.Disabled, 1))
++								ibMaxLogs.repaint();
++						} else if (cbgExportType.getSelected() == cbMyFinds) {
++							cbCustomIcons.setState(false);
++							cbSeperateFiles.setState(false);
++							cbSendToGarmin.setState(false);
++							cbSmartId.setState(false);
++							if (cbCustomIcons.change(ControlConstants.Disabled, 0))
++								cbCustomIcons.repaint();
++							if (cbSeperateFiles.change(ControlConstants.Disabled, 0))
++								cbSeperateFiles.repaint();
++							if (cbSendToGarmin.change(ControlConstants.Disabled, 0))
+ 								cbSendToGarmin.repaint();
+-						if (cbSmartId.change(0, ControlConstants.Disabled))
+-							cbSmartId.repaint();
+-						if (ibMaxLogs.change(ControlConstants.Disabled, 0))
+-							ibMaxLogs.repaint();
+-					} else if (cbgExportType.getSelected() == cbPqLike) {
+-						cbSeperateFiles.setState(false);
+-						if (cbCustomIcons.change(0, ControlConstants.Disabled))
+-							cbCustomIcons.repaint();
+-						if (cbSeperateFiles.change(ControlConstants.Disabled, 0))
+-							cbSeperateFiles.repaint();
+-						if (Global.getPref().gpsbabel != null)
+-							if (cbSendToGarmin.change(0, ControlConstants.Disabled))
+-								cbSendToGarmin.repaint();
+-						if (cbSmartId.change(0, ControlConstants.Disabled))
+-							cbSmartId.repaint();
+-						if (ibPrefix.change(ControlConstants.Disabled, 0))
+-							ibPrefix.repaint();
+-						if (ibMaxLogs.change(ControlConstants.Disabled, 1))
+-							ibMaxLogs.repaint();
+-					} else if (cbgExportType.getSelected() == cbMyFinds) {
+-						cbCustomIcons.setState(false);
+-						cbSeperateFiles.setState(false);
+-						cbSendToGarmin.setState(false);
+-						cbSmartId.setState(false);
+-						if (cbCustomIcons.change(ControlConstants.Disabled, 0))
+-							cbCustomIcons.repaint();
+-						if (cbSeperateFiles.change(ControlConstants.Disabled, 0))
+-							cbSeperateFiles.repaint();
+-						if (cbSendToGarmin.change(ControlConstants.Disabled, 0))
+-							cbSendToGarmin.repaint();
+-						if (cbSmartId.change(ControlConstants.Disabled, 0))
+-							cbSmartId.repaint();
+-						if (ibPrefix.change(ControlConstants.Disabled, 0))
+-							ibPrefix.repaint();
+-						if (ibMaxLogs.change(ControlConstants.Disabled, 0))
+-							ibMaxLogs.repaint();
+-					}
+-				} else if (ev.target == cbSeperateFiles) {
+-					if (cbSeperateFiles.state) {
+-						if (ibPrefix.change(ControlConstants.Disabled, 1))
+-							ibPrefix.repaint();
+-					} else {
+-						if (ibPrefix.change(ControlConstants.Disabled, 0))
+-							ibPrefix.repaint();
+-					}
+-				} else if (ev.target == btnOk) {
+-					if (cbPqLike.state) {
+-						try {
+-							int logs = getMaxLogs();
+-							if (logs &gt; -1) {
+-								close(1);
+-							} else {
++							if (cbSmartId.change(ControlConstants.Disabled, 0))
++								cbSmartId.repaint();
++							if (ibPrefix.change(ControlConstants.Disabled, 0))
++								ibPrefix.repaint();
++							if (ibMaxLogs.change(ControlConstants.Disabled, 0))
++								ibMaxLogs.repaint();
++						}
++					} else if (ev.target == cbSeperateFiles) {
++						if (cbSeperateFiles.state) {
++							if (ibPrefix.change(ControlConstants.Disabled, 1))
++								ibPrefix.repaint();
++						} else {
++							if (ibPrefix.change(ControlConstants.Disabled, 0))
++								ibPrefix.repaint();
++						}
++					} else if (ev.target == btnOk) {
++						if (cbPqLike.state) {
++							try {
++								int logs = getMaxLogs();
++								if (logs &gt; -1) {
++									close(1);
++								} else {
++									ibMaxLogs.selectAll();
++									ibMaxLogs.takeFocus(0);
++									Sound.beep();
++								}
++							} catch (NumberFormatException e) {
+ 								ibMaxLogs.selectAll();
+ 								ibMaxLogs.takeFocus(0);
+ 								Sound.beep();
+ 							}
+-						} catch (NumberFormatException e) {
+-							ibMaxLogs.selectAll();
+-							ibMaxLogs.takeFocus(0);
+-							Sound.beep();
++						} else {
++							close(1);
+ 						}
+-					} else {
+-						close(1);
++	
++					} else if (ev.target == btnCancel) {
++						close(-1);
+ 					}
+-
+-				} else if (ev.target == btnCancel) {
+-					close(-1);
+ 				}
++			} else if (guiid == 2) {
++				
+ 			}
+ 			super.onEvent(ev);
+ 		}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001924.html">[Cachewolf-svn] r2005 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001926.html">[Cachewolf-svn] r2007 - in trunk: res_noewe src/CacheWolf	src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1925">[ date ]</a>
+              <a href="thread.html#1925">[ thread ]</a>
+              <a href="subject.html#1925">[ subject ]</a>
+              <a href="author.html#1925">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,140 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1881 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-June/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1881%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200906021614.n52GEv4f031027%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001798.html">
+   <LINK REL="Next"  HREF="001800.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1881 - trunk/src/CacheWolf</H1>
+    <B>greiol at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1881%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200906021614.n52GEv4f031027%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1881 - trunk/src/CacheWolf">greiol at mail.berlios.de
+       </A><BR>
+    <I>Tue Jun  2 18:14:57 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001798.html">[Cachewolf-svn] r1880 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001800.html">[Cachewolf-svn] r1882 - in trunk: res_noewe/languages src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1799">[ date ]</a>
+              <a href="thread.html#1799">[ thread ]</a>
+              <a href="subject.html#1799">[ subject ]</a>
+              <a href="author.html#1799">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: greiol
+Date: 2009-06-02 18:14:55 +0200 (Tue, 02 Jun 2009)
+New Revision: 1881
+
+Modified:
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/Preferences.java
+Log:
+GPX/LOC importer now remembers last used directory
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2009-06-02 12:34:46 UTC (rev 1880)
++++ trunk/src/CacheWolf/MainMenu.java	2009-06-02 16:14:55 UTC (rev 1881)
+@@ -321,11 +321,13 @@
+ 				tbp.resetModel();
+ 			}
+ 			if(mev.selectedItem == loadcaches){
+-				FileChooser fc = new FileChooser(FileChooserBase.OPEN|FileChooserBase.MULTI_SELECT, pref.baseDir);
++				String dir = pref.getImporterPath(&quot;LocGpxImporter&quot;);
++				FileChooser fc = new FileChooser(FileChooserBase.OPEN|FileChooserBase.MULTI_SELECT, dir);
+ 				fc.addMask(&quot;*.gpx,*.zip,*.loc&quot;);
+ 				fc.setTitle(MyLocale.getMsg(909,&quot;Select file(s)&quot;));
+ 				if(fc.execute() != FormBase.IDCANCEL){
+-					String dir = fc.getChosenDirectory().toString();
++					dir = fc.getChosenDirectory().toString();
++					pref.setImporterPath(&quot;LocGpxImporter&quot;, dir);
+ 					String files[] = fc.getAllChosen();
+ 					/*
+ 					int how = GPXImporter.DOIT_ASK;
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2009-06-02 12:34:46 UTC (rev 1880)
++++ trunk/src/CacheWolf/Preferences.java	2009-06-02 16:14:55 UTC (rev 1881)
+@@ -377,6 +377,9 @@
+ 		else if (name.equals(&quot;expPath&quot;)){
+ 			exporterPaths.put(atts.getValue(&quot;key&quot;),atts.getValue(&quot;value&quot;));
+ 		}
++		else if (name.equals(&quot;impPath&quot;)) {
++			importerPaths.put(atts.getValue(&quot;key&quot;), atts.getValue(&quot;value&quot;));
++		}
+ 		else if (name.equals(&quot;travelbugs&quot;)) {
+ 			travelbugColMap=atts.getValue(&quot;colmap&quot;);
+ 			travelbugColWidth=atts.getValue(&quot;colwidths&quot;);
+@@ -515,6 +518,12 @@
+ 				entry = (MapEntry) itPath.next();
+ 				outp.print(&quot;    &lt;expPath key = \&quot;&quot; + SafeXML.strxmlencode(entry.getKey().toString()) + &quot;\&quot; value = \&quot;&quot; + SafeXML.strxmlencode(entry.getValue().toString().replace('\\', '/')) + &quot;\&quot;/&gt;\n&quot;);
+ 			}
++			itPath = importerPaths.entries();
++			while(itPath.hasNext()){
++				entry = (MapEntry) itPath.next();
++				outp.print(&quot;    &lt;impPath key = \&quot;&quot; + SafeXML.strxmlencode(entry.getKey().toString()) + &quot;\&quot; value = \&quot;&quot; + SafeXML.strxmlencode(entry.getValue().toString().replace('\\', '/')) + &quot;\&quot;/&gt;\n&quot;);
++			}
++			
+ 			outp.print(&quot;&lt;/preferences&gt;&quot;);
+ 			outp.close();
+ 		} catch (Exception e) {
+@@ -806,6 +815,19 @@
+ 		}
+ 		return dir;
+ 	}
++	
++	private Hashtable importerPaths = new Hashtable();
++	
++	public void setImporterPath(String importer, String directory) {
++		importerPaths.put(importer, directory);
++		savePreferences();
++	}
++	
++	public String getImporterPath(String importer) {
++		String dir = (String) importerPaths.get(importer);
++		if (null == dir) dir = Global.getProfile().dataDir;
++		return dir;
++	}
+ 
+ 	/**
+ 	 * &lt;code&gt;True&lt;/code&gt; or &lt;code&gt;false&lt;/code&gt;, depending if a filter with the given ID is 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001798.html">[Cachewolf-svn] r1880 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001800.html">[Cachewolf-svn] r1882 - in trunk: res_noewe/languages src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1799">[ date ]</a>
+              <a href="thread.html#1799">[ thread ]</a>
+              <a href="subject.html#1799">[ subject ]</a>
+              <a href="author.html#1799">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,216 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1902 - in trunk/src/CacheWolf: . navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-June/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1902%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C200906141156.n5EBuWWO027368%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001819.html">
+   <LINK REL="Next"  HREF="001821.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1902 - in trunk/src/CacheWolf: . navi</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1902%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C200906141156.n5EBuWWO027368%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1902 - in trunk/src/CacheWolf: . navi">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Sun Jun 14 13:56:32 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001819.html">[Cachewolf-svn] r1901 - in trunk/src/CacheWolf: . navi
+</A></li>
+        <LI>Next message: <A HREF="001821.html">[Cachewolf-svn] r1903 - trunk/res_noewe/webmapservices
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1820">[ date ]</a>
+              <a href="thread.html#1820">[ thread ]</a>
+              <a href="subject.html#1820">[ subject ]</a>
+              <a href="author.html#1820">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2009-06-14 13:56:29 +0200 (Sun, 14 Jun 2009)
+New Revision: 1902
+
+Modified:
+   trunk/src/CacheWolf/Parser.java
+   trunk/src/CacheWolf/navi/MapSymbol.java
+   trunk/src/CacheWolf/navi/MovingMap.java
+   trunk/src/CacheWolf/navi/Navigate.java
+Log:
+get full context menu on a selected target Cache , mainly to directly open Cachedescription of destionation from map
+
+Modified: trunk/src/CacheWolf/Parser.java
+===================================================================
+--- trunk/src/CacheWolf/Parser.java	2009-06-14 11:51:35 UTC (rev 1901)
++++ trunk/src/CacheWolf/Parser.java	2009-06-14 11:56:29 UTC (rev 1902)
+@@ -553,6 +553,7 @@
+     		ch.LatLon=cwPt.toString(CWPoint.CW);
+     		ch.pos.set(cwPt);
+     		ch.calcDistance(Global.getPref().curCentrePt); // Update distance/bearing
++    		nav.setDestination(ch);
+     	    Global.getProfile().selectionChanged=true; // Tell moving map to updated displayed waypoints
+     	}
+     }
+
+Modified: trunk/src/CacheWolf/navi/MapSymbol.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MapSymbol.java	2009-06-14 11:51:35 UTC (rev 1901)
++++ trunk/src/CacheWolf/navi/MapSymbol.java	2009-06-14 11:56:29 UTC (rev 1902)
+@@ -14,6 +14,12 @@
+ 		filename = filenamei;
+ 		where = where_;
+ 	}
++	public MapSymbol(String namei, Object mapObjecti, String filenamei, CWPoint where_) {
++		name = namei;
++		filename = filenamei;
++		where = where_;
++		mapObject = mapObjecti;
++	}
+ 	public MapSymbol(String namei, Object mapObjecti, Image fromIm, CWPoint where_) {
+ 		name = namei;
+ 		where = where_;
+
+Modified: trunk/src/CacheWolf/navi/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MovingMap.java	2009-06-14 11:51:35 UTC (rev 1901)
++++ trunk/src/CacheWolf/navi/MovingMap.java	2009-06-14 11:56:29 UTC (rev 1902)
+@@ -388,7 +388,13 @@
+ 		addTrack(myNavigation.curTrack);
+ 		if (tracks != null &amp;&amp; tracks.size() &gt; 0 &amp;&amp; ((Track)tracks.get(0)).num &gt; 0) 
+ 			rebuildOverlaySet(); // show points which where added when MavingMap was not running
+-		destChanged(myNavigation.destination);
++		if (myNavigation.destinationIsCache) {
++			destChanged(myNavigation.destinationCache);
++		}
++		else {
++			destChanged(myNavigation.destination);
++		}
++		
+ 		FormFrame ret = exec();
+ 		return ret;
+ 	}
+@@ -804,6 +810,18 @@
+ 		mmp.addImage(ms);
+ 		return ms;
+ 	}
++
++	public MapSymbol addSymbol(String pName, Object mapObject, String filename, CWPoint where) {
++		if (symbols==null) symbols=new Vector();
++		MapSymbol ms = new MapSymbol(pName, mapObject, filename, where);
++		ms.loadImage();
++		ms.properties |= mImage.AlwaysOnTop;
++		Point pOnScreen = getXYonScreen(where);
++		ms.setLocation(pOnScreen.x-ms.getWidth()/2, pOnScreen.y-ms.getHeight()/2);
++		symbols.add(ms);
++		mmp.addImage(ms);
++		return ms;
++	}
+ 	
+ 	public void addSymbolIfNecessary(String pName, Object mapObject, Image imSymb, CWPoint where) {
+ 		if (findMapSymbol(pName) &gt;= 0) return;
+@@ -832,6 +850,18 @@
+ 		if (this.width != 0) updatePosition(posCircle.where); // dirty hack: if this.width == 0, then the symbols are not on the screen and get hidden by updateSymbolPositions
+ 	}
+ 
++	public void destChanged(CacheHolder ch) {
++		CWPoint d = new CWPoint (ch.pos);
++		if(!running || (d == null &amp;&amp; gotoPos == null) || 
++				(d != null &amp;&amp; gotoPos != null &amp;&amp; gotoPos.where.equals(d))) return;
++		removeGotoPosition();
++		if (d == null || !d.isValid() ) return;
++		gotoPos = addSymbol(&quot;goto&quot;, ch, &quot;goto_map.png&quot;, d);
++		//updateDistance(); - this is called from updatePosition
++		forceMapLoad = true;
++		if (this.width != 0) updatePosition(posCircle.where); // dirty hack: if this.width == 0, then the symbols are not on the screen and get hidden by updateSymbolPositions
++	}
++
+ 	public void removeGotoPosition() {
+ 		removeMapSymbol(&quot;goto&quot;);
+ 	}
+@@ -1878,7 +1908,7 @@
+ 					}
+ 					if (action == gotoCacheMenuItem) {
+ 						kontextMenu.close();
+-						mm.myNavigation.setDestination(clickedCache.pos);	
++						mm.myNavigation.setDestination(clickedCache);	
+ 					}
+ 					if (action == newWayPointMenuItem) {
+ 						kontextMenu.close();
+
+Modified: trunk/src/CacheWolf/navi/Navigate.java
+===================================================================
+--- trunk/src/CacheWolf/navi/Navigate.java	2009-06-14 11:51:35 UTC (rev 1901)
++++ trunk/src/CacheWolf/navi/Navigate.java	2009-06-14 11:56:29 UTC (rev 1902)
+@@ -13,7 +13,9 @@
+ import ewe.ui.FormBase;
+ import ewe.ui.MessageBox;
+ import ewe.util.mString;
++import CacheWolf.CacheHolder;
+ 
++
+ /**
+  * Non-Gui Class to handle all things regarding navigation
+  * (GPS, Sun direction etc.)
+@@ -23,6 +25,8 @@
+  */
+ public class Navigate {
+ 	public CWPoint destination = new CWPoint();
++	public CacheHolder destinationCache;
++	public boolean destinationIsCache = false;
+ 	public CWGPSPoint gpsPos = new CWGPSPoint();
+ 	public Track curTrack = null;
+ 	Color trackColor = new Color(255,0,0); // red
+@@ -116,10 +120,20 @@
+ 
+ 
+ 	public void setDestination(CWPoint d) {
++		destinationIsCache = false;
+ 		destination = new CWPoint (d);
+ 		if (gotoPanel != null) gotoPanel.destChanged(destination);
+ 		if (movingMap != null) movingMap.destChanged(destination);
+ 	}
++	
++	public void setDestination(CacheHolder ch) {
++		destinationIsCache = true;
++		destinationCache=ch;
++		destination = new CWPoint (ch.pos);
++		if (gotoPanel != null) gotoPanel.destChanged(destination);
++		if (movingMap != null) movingMap.destChanged(ch);
++	}
++
+ 	/**
+ 	 * use the constants SkyOrientation.SUN, SkyOrientation.MOON etc.
+ 	 * @param lu
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001819.html">[Cachewolf-svn] r1901 - in trunk/src/CacheWolf: . navi
+</A></li>
+	<LI>Next message: <A HREF="001821.html">[Cachewolf-svn] r1903 - trunk/res_noewe/webmapservices
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1820">[ date ]</a>
+              <a href="thread.html#1820">[ thread ]</a>
+              <a href="subject.html#1820">[ subject ]</a>
+              <a href="author.html#1820">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

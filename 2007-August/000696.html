@@ -1,0 +1,126 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r806 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-August/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r806%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200708111116.l7BBGEQn028127%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000695.html">
+   <LINK REL="Next"  HREF="000697.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r806 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r806%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200708111116.l7BBGEQn028127%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r806 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sat Aug 11 13:16:14 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000695.html">[Cachewolf-svn] r805 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000697.html">[Cachewolf-svn] r807 - in trunk: resources src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#696">[ date ]</a>
+              <a href="thread.html#696">[ thread ]</a>
+              <a href="subject.html#696">[ subject ]</a>
+              <a href="author.html#696">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-08-11 13:16:12 +0200 (Sat, 11 Aug 2007)
+New Revision: 806
+
+Modified:
+   trunk/src/CacheWolf/ShowCacheInBrowser.java
+   trunk/src/CacheWolf/SpiderGC.java
+Log:
+SpiderGC: Bugfix (<A HREF="http://www.geoclub.de/ftopic17942.html">http://www.geoclub.de/ftopic17942.html</A>)
+Die imgURL wurde faelschlicherweise nach lowercase konvertiert wodurch das Holen von Bildern von externen Linux Servern nicht funktioniert.
+ 
+
+Modified: trunk/src/CacheWolf/ShowCacheInBrowser.java
+===================================================================
+--- trunk/src/CacheWolf/ShowCacheInBrowser.java	2007-08-11 09:06:57 UTC (rev 805)
++++ trunk/src/CacheWolf/ShowCacheInBrowser.java	2007-08-11 11:16:12 UTC (rev 806)
+@@ -128,7 +128,7 @@
+ 						imgRex.searchFrom(chD.LongDescription,pos);
+ 						String imgUrl=imgRex.stringMatched(1);
+ 						//Vm.debug(&quot;imgUrl &quot;+imgUrl);
+-						if (imgUrl.lastIndexOf('.')&gt;0) {
++						if (imgUrl.lastIndexOf('.')&gt;0 &amp;&amp; imgUrl.toLowerCase().startsWith(&quot;http&quot;)) {
+ 							String imgType = (imgUrl.substring(imgUrl.lastIndexOf(&quot;.&quot;)).toLowerCase()+&quot;    &quot;).substring(0,4).trim();
+ 							// If we have an image which we stored when spidering, we can display it
+ 							if(!imgType.startsWith(&quot;.com&quot;) &amp;&amp; !imgType.startsWith(&quot;.php&quot;) &amp;&amp; !imgType.startsWith(&quot;.exe&quot;)){
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2007-08-11 09:06:57 UTC (rev 805)
++++ trunk/src/CacheWolf/SpiderGC.java	2007-08-11 11:16:12 UTC (rev 806)
+@@ -824,7 +824,7 @@
+ 		//Vm.debug(&quot;Test: \n&quot; + tst);
+ 		Extractor exImgSrc = new Extractor(tst, &quot;<A HREF="http://">http://</A>&quot;, &quot;\&quot;&quot;, 0, true);
+ 		while(exImgBlock.endOfSearch() == false){
+-			imgUrl = exImgSrc.findNext().toLowerCase();
++			imgUrl = exImgSrc.findNext();
+ 			//Vm.debug(&quot;Img Url: &quot; +imgUrl);
+ 			if(imgUrl.length()&gt;0){
+ 				imgUrl = &quot;<A HREF="http://">http://</A>&quot; + imgUrl;
+@@ -836,7 +836,7 @@
+ 						idxUrl=spideredUrls.find(imgUrl);
+ 						imgName = chD.wayPoint + &quot;_&quot; + Convert.toString(imgCounter);
+ 						if (idxUrl&lt;0) { // New image
+-							pref.log(&quot;Loading image: &quot; + imgUrl);
++							pref.log(&quot;Loading image: &quot; + imgUrl+&quot; as &quot;+imgName);
+ 							spiderImage(imgUrl, imgName+imgType);
+ 							chD.Images.add(imgName+imgType);
+ 							spideredUrls.add(imgUrl);
+@@ -863,7 +863,7 @@
+ 		Extractor exImgName = new Extractor(tst,p.getProperty(&quot;imgNameExStart&quot;),p.getProperty(&quot;imgNameExEnd&quot;), 0 , true);
+ 		exImgSrc = new Extractor(tst,p.getProperty(&quot;imgSrcExStart&quot;),p.getProperty(&quot;imgSrcExEnd&quot;), 0, true);
+ 		while(exImgSrc.endOfSearch() == false){
+-			imgUrl = exImgSrc.findNext().toLowerCase();
++			imgUrl = exImgSrc.findNext();
+ 			//Vm.debug(&quot;Img Url: &quot; +imgUrl);
+ 			if(imgUrl.length()&gt;0){
+ 				imgUrl = &quot;<A HREF="http://">http://</A>&quot; + imgUrl;
+@@ -1175,5 +1175,4 @@
+ 		return new String(dest,0,d);
+ 	}
+ 	
+-	
+ }
+\ No newline at end of file
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000695.html">[Cachewolf-svn] r805 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000697.html">[Cachewolf-svn] r807 - in trunk: resources src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#696">[ date ]</a>
+              <a href="thread.html#696">[ thread ]</a>
+              <a href="subject.html#696">[ subject ]</a>
+              <a href="author.html#696">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

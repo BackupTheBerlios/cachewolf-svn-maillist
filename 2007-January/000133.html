@@ -1,0 +1,610 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r398 - in trunk: resources src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r398%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200701150409.l0F49QIq015325%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000132.html">
+   <LINK REL="Next"  HREF="000134.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r398 - in trunk: resources src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r398%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200701150409.l0F49QIq015325%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r398 - in trunk: resources src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Mon Jan 15 05:09:26 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000132.html">[Cachewolf-svn] r397 - in trunk: resources src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000134.html">[Cachewolf-svn] r399 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#133">[ date ]</a>
+              <a href="thread.html#133">[ thread ]</a>
+              <a href="subject.html#133">[ subject ]</a>
+              <a href="author.html#133">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-01-15 05:09:21 +0100 (Mon, 15 Jan 2007)
+New Revision: 398
+
+Added:
+   trunk/resources/zoom1to1.png
+Modified:
+   trunk/src/CacheWolf/GotoPanel.java
+   trunk/src/CacheWolf/MainForm.java
+   trunk/src/CacheWolf/MapInfoObject.java
+   trunk/src/CacheWolf/MovingMap.java
+   trunk/src/CacheWolf/TrackOverlay.java
+Log:
+MovingMap: zoomen duerfte damit erstmal abgeschlossen sein: kleine Bugs behoben, Code etwas besser geordnet, Button 1:1 hinzugefuegt
+Titel-Leiste in Moving-Map entfernt
+Messagebox &quot;Lade Cachliste&quot; beim Start von CachWolf erscheint jetzt sofort und geht erst, wenn das Hauptfenster erscheint
+
+Added: trunk/resources/zoom1to1.png
+===================================================================
+(Binary files differ)
+
+
+Property changes on: trunk/resources/zoom1to1.png
+___________________________________________________________________
+Name: svn:mime-type
+   + application/octet-stream
+
+Modified: trunk/src/CacheWolf/GotoPanel.java
+===================================================================
+--- trunk/src/CacheWolf/GotoPanel.java	2007-01-14 19:47:46 UTC (rev 397)
++++ trunk/src/CacheWolf/GotoPanel.java	2007-01-15 04:09:21 UTC (rev 398)
+@@ -426,9 +426,7 @@
+ 			if ((fix &gt; 0) &amp;&amp; (gpsPosition.getSats()&gt;= 0)) {
+ 				mmp.directionArrows.setDirections(-361 /*(float)bearWayP.value*/, (float)sunAzimut.value, -361 /*(float)bearMov.value*/);
+ 				mmp.updatePosition(gpsPosition.latDec, gpsPosition.lonDec);
+-				Vm.debug(&quot;ShowLastAddedPoint: voher&quot;);
+ 				mmp.ShowLastAddedPoint(currTrack);
+-				Vm.debug(&quot;ShowLastAddedPoint: nachher&quot;);
+ 				mmp.setGpsStatus(MovingMap.gotFix);
+ 			}
+ 			if ((fix == 0) &amp;&amp; (gpsPosition.getSats()== 0)) {
+
+Modified: trunk/src/CacheWolf/MainForm.java
+===================================================================
+--- trunk/src/CacheWolf/MainForm.java	2007-01-14 19:47:46 UTC (rev 397)
++++ trunk/src/CacheWolf/MainForm.java	2007-01-15 04:09:21 UTC (rev 398)
+@@ -46,18 +46,16 @@
+ 			this.setPreferredSize(800, 600);
+ 		this.resizeOnSIP = true;
+ 		// Load CacheList
+-		
++		InfoBox infB = new InfoBox(&quot;CacheWolf&quot;,MyLocale.getMsg(5000,&quot;Loading Cache-List&quot;));
++		infB.exec();
++//		infB.waitUntilPainted(1000);
+ 		try{
+ 			pref.readPrefFile();
+ 			addGuiFont();
+ 			if (!pref.selectProfile(profile,Preferences.PROFILE_SELECTOR_ONOROFF, true)) 
+ 				ewe.sys.Vm.exit(0); // User MUST select or create a profile
+-			InfoBox infB = new InfoBox(&quot;CacheWolf&quot;,MyLocale.getMsg(5000,&quot;Loading Cache-List&quot;));
+-			infB.exec();
+-			infB.waitUntilPainted(1000);
+-			profile.readIndex();
+-			infB.close(0);
+ 			Vm.showWait(true);
++			profile.readIndex();
+ 			pref.curCentrePt.set(profile.centre);
+ 			TablePanel.updateBearingDistance(profile.cacheDB,pref);
+ 		} catch (Exception e){
+@@ -82,6 +80,7 @@
+ 			this.addLast(mMenu,CellConstants.DONTSTRETCH, CellConstants.FILL);
+ 		}
+ 		mMenu.setTablePanel(mTab.getTablePanel());
++		infB.close(0);
+ 		Vm.showWait(false);
+ 	}
+ 
+
+Modified: trunk/src/CacheWolf/MapInfoObject.java
+===================================================================
+--- trunk/src/CacheWolf/MapInfoObject.java	2007-01-14 19:47:46 UTC (rev 397)
++++ trunk/src/CacheWolf/MapInfoObject.java	2007-01-15 04:09:21 UTC (rev 398)
+@@ -69,6 +69,7 @@
+ 		affine[5]=0; //left
+ 		lowlat = 0; //buttom
+ 		lowlon = 1; //right
++		OrigUpperLeft = new CWPoint(affine[4], affine[5]);
+ 		doCalculations();
+ 	}
+ 
+@@ -184,12 +185,11 @@
+ 
+ 	/**
+ 	 * zoom in / out
+-	 * @param zf zf &gt; 1 == zoom in, zoom is relative to last zoom
++	 * @param zf zf &gt; 1 == zoom in, zoom is relative to original unscaled image
+ 	 * @param diffX shift of map in pixels (if the map was cropped while zooming) in the not zoomed image
+ 	 * @param diffY
+ 	 */
+ 	public void zoom(float zf, int diffX, int diffY) {
+-
+ 		// restore original values to calculate corret shift (upperleft)
+ 		affine[4] = OrigUpperLeft.latDec;
+ 		affine[5] = OrigUpperLeft.lonDec;
+@@ -200,11 +200,11 @@
+ 		CWPoint upperleft = calcLatLon(diffX, diffY);
+ 		affine[4] = upperleft.latDec;
+ 		affine[5] = upperleft.lonDec;
+-		affine[0] = affine[0] / zf / zoomFactor; 
+-		affine[1] = affine[1] / zf / zoomFactor; 
+-		affine[2] = affine[2] / zf / zoomFactor; 
+-		affine[3] = affine[3] / zf / zoomFactor; 
+-		zoomFactor = zf * zoomFactor ;
++		affine[0] = affine[0] / zf ; 
++		affine[1] = affine[1] / zf ; 
++		affine[2] = affine[2] / zf ; 
++		affine[3] = affine[3] / zf ; 
++		zoomFactor = zf ;
+ 		shift.x = diffX;
+ 		shift.y = diffY;
+ 		doCalculations(); // TODO lowlat neu berechnen?
+
+Modified: trunk/src/CacheWolf/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/MovingMap.java	2007-01-14 19:47:46 UTC (rev 397)
++++ trunk/src/CacheWolf/MovingMap.java	2007-01-15 04:09:21 UTC (rev 398)
+@@ -31,15 +31,17 @@
+ 	TrackOverlay[] TrackOverlays;
+ 	Vector tracks;
+ 	MapInfoObject currentMap;
++	
+ 	AniImage mapImage1to1;
+ 	ArrowsOnMap directionArrows = new ArrowsOnMap();
+ 	AniImage statusImageHaveSignal = new AniImage(&quot;position_green.png&quot;);
+ 	AniImage statusImageNoSignal = new AniImage(&quot;position_yellow.png&quot;);
+ 	AniImage statusImageNoGps = new AniImage(&quot;position_red.png&quot;);
+-
+-	AniImage ButtonImageChooseMap = new AniImage(&quot;choose_map.gif&quot;); 
+-	AniImage ButtonImageGpsOn = new AniImage(&quot;snap2gps.gif&quot;);
+-	AniImage ButtonImageLens = new AniImage(&quot;lupe.png&quot;);
++	AniImage bottonImageClose;
++	AniImage bottonImageChooseMap = new AniImage(&quot;choose_map.gif&quot;); 
++	AniImage buttonImageGpsOn = new AniImage(&quot;snap2gps.gif&quot;);
++	AniImage buttonImageLens = new AniImage(&quot;lupe.png&quot;);
++	AniImage buttonImageZoom1to1 = new AniImage(&quot;zoom1to1.png&quot;);
+ 	/*AniImage arrowUp = new AniImage(&quot;arrow_up.png&quot;);
+ 	AniImage arrowDown = new AniImage(&quot;arrow_down.png&quot;);
+ 	AniImage arrowLeft = new AniImage(&quot;arrow_left.png&quot;);
+@@ -59,26 +61,41 @@
+ 
+ 	public MovingMap(Preferences pref, GotoPanel gP, Vector cacheDB){
+ 		this.cacheDB = cacheDB;
+-		gotoPanel = gP;
++		this.gotoPanel = gP;
+ 		this.pref = pref;
++		this.windowFlagsToSet = Window.FLAG_FULL_SCREEN;
++		this.windowFlagsToClear = Window.FLAG_HAS_TITLE | Window.BDR_NOBORDER;
++		this.hasTopBar = false;
++		this.noBorder = true;
+ 		this.setPreferredSize(pref.myAppWidth, pref.myAppHeight);
+ 		this.title = &quot;Moving Map&quot;;
+ 		this.backGround = Color.Black;
+-		currentMap = new MapInfoObject();
+ 		mmp = new MovingMapPanel(this);
+ 		this.addLast(mmp);
+-		mmp.addImage(posCircle);
+-		setGpsStatus(noGPS);
+-		ButtonImageChooseMap.setLocation(10,10);
+-		ButtonImageChooseMap.properties = AniImage.AlwaysOnTop;
+-		ButtonImageGpsOn.setLocation(pref.myAppWidth-25, 10);
+-		ButtonImageGpsOn.properties = AniImage.AlwaysOnTop;
++		DrawnIcon closeX = new DrawnIcon(DrawnIcon.CROSS,15,15,new Color(0,0,0));
++		bottonImageClose = new AniImage(new Image(closeX.getWidth(), closeX.getHeight()));
++		Graphics tmp = new Graphics(bottonImageClose.image);
++		tmp.setColor(255, 255, 255);
++		tmp.fillRect(0, 0, closeX.getWidth(), closeX.getHeight());
++		closeX.doDraw(tmp, 0);
++		bottonImageClose.properties |= AniImage.AlwaysOnTop;
++		bottonImageClose.setLocation(Global.getPref().myAppWidth - bottonImageClose.getWidth()- 5, 5);
++		mmp.addImage(bottonImageClose);
++		buttonImageGpsOn.setLocation(pref.myAppWidth - bottonImageChooseMap.getWidth()-5, bottonImageClose.getHeight() + 10);
++		buttonImageGpsOn.properties = AniImage.AlwaysOnTop;
++		mmp.addImage(buttonImageGpsOn);
++		bottonImageChooseMap.setLocation(10,10);
++		bottonImageChooseMap.properties = AniImage.AlwaysOnTop;
++		mmp.addImage(bottonImageChooseMap);
+ 		directionArrows.properties = AniImage.AlwaysOnTop;
+ 		directionArrows.setLocation(Global.getPref().myAppWidth/2-directionArrows.getWidth()/2, 10);
+ 		mmp.addImage(directionArrows);
+-		ButtonImageLens.setLocation(Global.getPref().myAppWidth - ButtonImageLens.getWidth()-10, Global.getPref().myAppHeight/2 - ButtonImageLens.getHeight()/2 );
+-		ButtonImageLens.properties = AniImage.AlwaysOnTop;
+-		mmp.addImage(ButtonImageLens);
++		buttonImageLens.setLocation(Global.getPref().myAppWidth - buttonImageLens.getWidth()-10, Global.getPref().myAppHeight/2 - buttonImageLens.getHeight()/2 );
++		buttonImageLens.properties = AniImage.AlwaysOnTop;
++		mmp.addImage(buttonImageLens);
++		buttonImageZoom1to1.setLocation(Global.getPref().myAppWidth - buttonImageZoom1to1.getWidth()-10, Global.getPref().myAppHeight/2 - buttonImageLens.getHeight()/2 - buttonImageZoom1to1.getHeight() -10);
++		buttonImageZoom1to1.properties = AniImage.AlwaysOnTop;
++		mmp.addImage(buttonImageZoom1to1);
+ 		/*		arrowUp.setLocation(pref.myAppWidth/2, 10);
+ 		arrowDown.setLocation(pref.myAppWidth/2, pref.myAppHeight-20);
+ 		arrowLeft.setLocation(10, pref.myAppHeight/2+7);
+@@ -92,9 +109,10 @@
+ 		mmp.addImage(arrowLeft);
+ 		mmp.addImage(arrowRight);
+ 		 */		
+-		mmp.addImage(ButtonImageChooseMap);
+-		mmp.addImage(ButtonImageGpsOn);
++		currentMap = new MapInfoObject();
++		setGpsStatus(noGPS);
+ 		posCircle.properties = AniImage.AlwaysOnTop;
++		mmp.addImage(posCircle);
+ 		loadMaps(Global.getPref().baseDir+&quot;maps/standard/&quot;);
+ 	}
+ 
+@@ -150,6 +168,7 @@
+ 
+ 	public final FormFrame myExec() {
+ 		//addOverlaySet(); // neccessary to draw points which were added when the MovingMap was not running, so that these pixels are not stored in the not-immediately-drawing-work-around
++		// doShowExec(null,null,true,Gui.NEW_WINDOW &amp; ~Form.PageHigher);
+ 		return exec();
+ 	}
+ 	public void addTrack(Track tr) {
+@@ -202,7 +221,7 @@
+ 					TrackOverlays[i].move(0, 0);
+ 					TrackOverlays[i].tracks = this.tracks;
+ 					TrackOverlays[i].paintTracks();
+-					mmp.addImage(TrackOverlays[i]);
++				//	mmp.addImage(TrackOverlays[i]);
+ 				}
+ 			}
+ 		}
+@@ -329,9 +348,11 @@
+ 			for (int xi=0; xi&lt;3; xi++) {
+ 				if (posOnScreen.x +ww &gt;=0 &amp;&amp; posOnScreen.x &lt;= ww &amp;&amp; posOnScreen.y + wh &gt;=0 &amp;&amp; posOnScreen.y &lt;= wh)
+ 				{
++					if ((TrackOverlays[yi*3+xi].properties &amp; mImage.IsInvisible) &gt; 0) mmp.addImage(TrackOverlays[yi*3+xi]);
+ 					TrackOverlays[yi*3+xi].properties &amp;= ~mImage.IsInvisible;
+ 					TrackOverlays[yi*3+xi].move(posOnScreen.x+(xi-1)*ww, posOnScreen.y+(yi-1)*wh);
+ 				} else {
++					if ((TrackOverlays[yi*3+xi].properties &amp; mImage.IsInvisible) == 0) mmp.removeImage(TrackOverlays[yi*3+xi]);
+ 					TrackOverlays[yi*3+xi].properties |= mImage.IsInvisible;
+ 					TrackOverlays[yi*3+xi].move(30, 30);
+ 				}
+@@ -340,7 +361,7 @@
+ 	}
+ 
+ 		public void updateOverlayPos() {
+-			if (TrackOverlays == null) return;
++			if (TrackOverlays == null || TrackOverlays[4] == null) return;
+ 			updateOverlayOnlyPos();
+ 			if (TrackOverlays[0].location.x&gt;pref.myAppWidth || TrackOverlays[0].location.x + 3*pref.myAppWidth &lt; 0 || // testForNeedToRearange
+ 					TrackOverlays[0].location.y&gt;pref.myAppHeight || TrackOverlays[0].location.y + 3*pref.myAppHeight &lt;0) {
+@@ -506,14 +527,18 @@
+ 		}
+ 
+ 		public CWPoint getGotoPos(){
++			if (gotoPos == null) return null;
+ 			return new CWPoint(gotoPos.lat, gotoPos.lon);
+ 		}
+ 
+ 		public void removeAllMapSymbolsButGoto(){
+-			for (int i=symbols.size()-1; i&gt;=0; i--) {
++			if (symbols == null) return;
++			symbols.removeAllElements();
++			symbols.add(gotoPos);
++/*			for (int i=symbols.size()-1; i&gt;=0; i--) {
+ 				if (((MapSymbol)symbols.get(i)).name != &quot;goto&quot;) removeMapSymbol(i);
+ 			}
+-		}
++	*/	}
+ 
+ 		public void removeMapSymbol(String name) {
+ 			int symbNr = findMapSymbol(name);
+@@ -729,10 +754,9 @@
+ 		 * @param h
+ 		 */
+ 		public void zoomScreenRect(Point firstclickpoint, int w, int h) {
+-			Vm.showWait(true);
+-			int newImageWidth = this.width * 2; // (maximal) size of the zoomed image 
+-			int newImageHeight= this.height * 2;
+-			CWPoint center = ScreenXY2LatLon(firstclickpoint.x + w/2, firstclickpoint.y+h/2);
++			int newImageWidth = (int) (this.width *  (this.width  &lt; 481 ? 2 : 1.6)); // (maximal) size of the zoomed image 
++			int newImageHeight= (int) (this.height * (this.width &lt; 481 ?  2 : 1.6)); // dont make this to big, otherwise it causes out of memory errors 
++			CWPoint center = ScreenXY2LatLon(firstclickpoint.x + w/2, firstclickpoint.y + h/2);
+ 			float zoomFactor;
+ 			if (w &gt; 0)  zoomFactor = (float)this.width / (float)w; // zoom in
+ 			else {
+@@ -761,7 +785,7 @@
+ 				if (newImageRect.x + newImageRect.width &gt;= mapImage1to1.getWidth()) 
+ 					newImageRect.x = mapImage1to1.getWidth()- newImageWidth; // align right if right overlaping
+ 				if (newImageRect.y + newImageRect.height &gt;= mapImage1to1.getHeight()) 
+-					newImageRect.y = mapImage1to1.getHeight()- newImageWidth;
++					newImageRect.y = mapImage1to1.getHeight()- newImageHeight;
+ 				// crop if after shifting still overlapping
+ 				if (newImageRect.x &lt; 0) 
+ 					newImageRect.x = 0;
+@@ -772,46 +796,64 @@
+ 				if (newImageRect.y + newImageRect.height &gt;= mapImage1to1.getHeight()) 
+ 					newImageRect.height= mapImage1to1.getHeight()- newImageRect.y;
+ 			}
+-			zoomUnscaled(zoomFactor, newImageRect, center);
++			zoomFromUnscaled(zoomFactor * currentMap.zoomFactor, newImageRect, center);
+ 		}
+ 
++		public void zoom1to1() {
++			CWPoint center = ScreenXY2LatLon(this.width /2 , this.height/2);
++			zoomFromUnscaled(1, new Rect(0,0,mapImage1to1.getWidth(), mapImage1to1.getHeight()), center);
++		}
++		
+ /**
+  * do the actual scaling
+- * @param zoomFactor
++ * @param zoomFactor relative to original image
+  * @param newImageRect Rect in the 1:1 image that contains the area to be zoomed into
+  * @param center
+  */		
+-		public void zoomUnscaled (float zoomFactor, Rect newImageRect, CWPoint center) {
+-			int saveprop = mmp.mapImage.properties;
+-			AniImage tmp = null; // = mmp.mapImage;
+-			mmp.removeImage(mmp.mapImage);
+-			if (mmp.mapImage != mapImage1to1) {
+-				mmp.mapImage .free();
+-				mmp.mapImage = null;
+-			} else tmp = mapImage1to1;
++		public void zoomFromUnscaled (float zoomFactor, Rect newImageRect, CWPoint center) {
++			Vm.showWait(true);
++			boolean savegpsstatus = ignoreGps;
++			if (mapImage1to1 != null) {
++				ignoreGps = true; // avoid multi-thread problems
++				int saveprop = AniImage.IsMoveable;
++				AniImage tmp = null; // = mmp.mapImage;
++				if (mmp.mapImage != null) {
++					saveprop = mmp.mapImage.properties;
++					mmp.removeImage(mmp.mapImage);
++					if (mmp.mapImage != mapImage1to1) {
++						mmp.mapImage .free();
++						mmp.mapImage = null;
++					} else tmp = mapImage1to1;
++				}
++				Vm.getUsedMemory(true);
++				try {
++					tmp = new AniImage(mapImage1to1.scale((int) (newImageRect.width*zoomFactor), (int)(newImageRect.height*zoomFactor), newImageRect, 0));
++					currentMap.zoom(zoomFactor, newImageRect.x, newImageRect.y);
++				} catch (OutOfMemoryError e) {
++					(new MessageBox(&quot;Error&quot;, &quot;Out of memory error&quot;, MessageBox.OKB)).execute();}
++				Vm.getUsedMemory(true);
++				mmp.mapImage = tmp; // use unscaled or no image in case of OutOfMemoryError
++				mmp.mapImage.properties = saveprop;
++				mmp.addImage(mmp.mapImage);
++				mmp.images.moveToBack(mmp.mapImage);
++				if (mapImage1to1 != null &amp;&amp; mmp.mapImage != null &amp;&amp; mapImage1to1.image != null)
++				{
++					Point mappos = getMapPositionOnScreen();
++					mmp.mapImage.move(mappos.x,mappos.y);
++				}
++			} else // no map image loaded 
++				{ currentMap.zoom(zoomFactor, newImageRect.x, newImageRect.y); }
++
++			destroyOverlaySet();
+ 			Vm.getUsedMemory(true);
+-			try {
+-				tmp = new AniImage(mapImage1to1.scale((int) (newImageRect.width*zoomFactor*currentMap.zoomFactor), (int)(newImageRect.height*zoomFactor*currentMap.zoomFactor), newImageRect, 0));
+-				currentMap.zoom(zoomFactor, newImageRect.x, newImageRect.y);
+-			} catch (OutOfMemoryError e) {(new MessageBox(&quot;Error&quot;, &quot;Out of memory error&quot;, MessageBox.OKB)).execute();}
+-			Vm.getUsedMemory(true);
+-			mmp.mapImage = tmp; // use old image in case of OutOfMemoryError
+-			mmp.mapImage.properties = saveprop;
+-			mmp.addImage(mmp.mapImage);
+-			mmp.images.moveToBack(mmp.mapImage);
+-			if (mapImage1to1 != null &amp;&amp; mmp.mapImage != null &amp;&amp; mapImage1to1.image != null)
+-			{
+-				Point mappos = getMapPositionOnScreen();
+-				mmp.mapImage.move(mappos.x,mappos.y);
+-			}
+-			destroyOverlaySet();
+ 			setCenterOfScreen(center);
+ 			addOverlaySet();
+ 			this.repaintNow();
+ 			Vm.showWait(false);
++			ignoreGps = savegpsstatus;
+ 		}
+-		
+ 
++
+ 		public void onEvent(Event ev){
+ 			if(ev instanceof FormEvent &amp;&amp; (ev.type == FormEvent.CLOSED )){
+ 				gotoPanel.runMovingMap = false;
+@@ -830,6 +872,7 @@
+ 		Point saveMapLoc = null;
+ 		boolean saveGpsIgnoreStatus;
+ 		boolean paintingZoomArea;
++		ImageList saveImageList = null;
+ 		int lastZoomWidth , lastZoomHeight;
+ 		public MovingMapPanel(MovingMap f){
+ 			this.mm = f;
+@@ -837,53 +880,24 @@
+ 		public boolean imageBeginDragged(AniImage which,Point pos) {
+ 			if (mm.zoomingMode == true) {
+ 				saveMapLoc = pos;
++				mm.ignoreGps = true;
+ 				return false;
+ 			}
+ 			if (!(which == null || which == mapImage || which instanceof TrackOverlay) ) return false;
+ 			saveGpsIgnoreStatus = mm.ignoreGps; 
+ 			mm.ignoreGps = true;
+ 			saveMapLoc = pos;
++			bringMapToTop();
+ 			return super.imageBeginDragged(mapImage, pos);
+ 		}
+ 		
+-/*		public boolean imageDragged(ImageDragContext dc,Point where) {
+-			if (mm.zoomingMode == false) return super.imageDragged(dc, where);
+-			dc.
+-			void updateArea(DragContext dc,boolean doImage,boolean update)
+-//			-------------------------------------------------------------------
+-			{
+-				if (imagePos == null) imagePos = new Point().set(dc.prevPoint.x,dc.prevPoint.y);
+-				if (update) getUpdateArea(imagePos,dc.curPoint,null,null,imagePos);
+-				Graphics g = ib.get(updateArea.width,updateArea.height,true);
+-				g.setColor(new Color(0xff,0,0));
+-				g.fillRect(0,0,updateArea.width,updateArea.height);
+-				g.translate(-updateArea.x,-updateArea.y);
+-				if (copied == null){
+-					window.repaintNow(g,updateArea);
+-					if (doImage) image.draw(g,imagePos.x-cx+wx,imagePos.y-cy+wy,0);
+-
+-				}else{
+-					g.drawImage(copied,0,0);
+-					if (doImage) image.draw(g,imagePos.x-cx+wx,imagePos.y-cy+wy,0);
+-				}
+-				if (relativeImagePos == null) relativeImagePos = new Point();
+-				relativeImagePos.set(imagePos.x-cx,imagePos.y-cy);
+-				wg.drawImage(ib.image,updateArea.x,updateArea.y);
+-				wg.flush();
+-				g.translate(updateArea.x,updateArea.y);
+-				if (clearPendingDrags) dc.clearPendingDrags();
+-			}
+-
+-		}
+-		*/
+-		
+-
+ 		public boolean imageNotDragged(ImageDragContext dc,Point pos){
+ 			boolean ret = super.imageNotDragged(dc, pos);
+ 			mapMoved(pos.x - saveMapLoc.x, pos.y - saveMapLoc.y);
+ 			mm.ignoreGps = saveGpsIgnoreStatus;
++			bringMaptoBack();
++			this.repaintNow();
+ 			return ret;
+-
+ 		}
+ 		
+ 		public void onPenEvent(PenEvent ev) {
+@@ -895,6 +909,10 @@
+ 			if (mm.zoomingMode &amp;&amp; ev.type == PenEvent.PEN_UP ) {
+ 				paintingZoomArea = false;
+ 				mm.zoomingMode = false;
++				if (java.lang.Math.abs(lastZoomWidth) &lt; 15 || java.lang.Math.abs(lastZoomHeight) &lt; 15)  {
++					repaintNow();
++					return; // dont make to big zoom jumps - it is most probable not an intentional zoom
++				}
+ 				mm.zoomScreenRect(saveMapLoc, lastZoomWidth, lastZoomHeight);
+ 			}
+ 			
+@@ -918,6 +936,23 @@
+ 			super.onPenEvent(ev);
+ 		}
+ 		
++		private void bringMapToTop() {
++			if (mapImage == null || (mapImage.properties &amp; AniImage.IsInvisible) &gt; 0 ) return;
++			saveImageList = new ImageList();
++			saveImageList.copyFrom(images);
++			images.removeAllElements();
++			//images.remove(mapImage);
++			//mapImage.properties |= AniImage.AlwaysOnTop;
++			images.add(mapImage);
++		}
++		private void bringMaptoBack() {
++			//mapImage.properties &amp;= ~AniImage.AlwaysOnTop;
++			//images.moveToBack(mapImage);
++			if (saveImageList == null) return;
++			images=saveImageList;
++			saveImageList = null;
++		}
++		
+ 		public void moveMap(int diffX, int diffY) {
+ 			Point p = new Point();
+ 			if (mapImage!= null) {
+@@ -970,7 +1005,7 @@
+ 		 *	Method to react to user.
+ 		 */
+ 		public void imageClicked(AniImage which, Point pos){
+-			if (which == mm.ButtonImageChooseMap){
++			if (which == mm.bottonImageChooseMap){
+ 				mapsMenu = new Menu(new String[]{&quot;Select a map manually$s&quot;, &quot;Change map directory$c&quot;}, &quot;map choice&quot;);
+ 				if (!mm.noMapsAvailable) 
+ 				{
+@@ -980,17 +1015,25 @@
+ 				//m.set(Menu., status)
+ 				mapsMenu.exec(this, new Point(which.location.x, which.location.y), this);
+ 			}
+-			if (which == mm.ButtonImageGpsOn) {
++			if (which == mm.buttonImageGpsOn) {
+ 				if (mm.gotoPanel.serThread == null || !mm.gotoPanel.serThread.isAlive()) {
+ 					mm.gotoPanel.startGps();
+ 					mm.addTrack(mm.gotoPanel.currTrack); // use new track when gps now started
+ 				} 
+ 				mm.SnapToGps();
+ 			}
+-			if (which == mm.ButtonImageLens) {
++			if (which == mm.buttonImageLens) {
+ 				mm.setZoomingMode();
+ 			}
+-
++			if (which == mm.buttonImageZoom1to1) {
++				mm.zoom1to1();
++			}
++			if (which == mm.bottonImageClose) {
++				WindowEvent tmp = new WindowEvent();
++				tmp.type = WindowEvent.CLOSE;
++				mm.postEvent(tmp);
++			}
++				
+ 			/*if (which == mm.arrowRight)	{	moveMap(-10,0);	}
+ 		if (which == mm.arrowLeft)	{	moveMap(+10,0);	}
+ 		if (which == mm.arrowDown)	{	moveMap(0,-10);	}
+
+Modified: trunk/src/CacheWolf/TrackOverlay.java
+===================================================================
+--- trunk/src/CacheWolf/TrackOverlay.java	2007-01-14 19:47:46 UTC (rev 397)
++++ trunk/src/CacheWolf/TrackOverlay.java	2007-01-15 04:09:21 UTC (rev 398)
+@@ -24,6 +24,7 @@
+ 	public Point trackPixels[] = null;
+ 	public Color trackPixelsColor[] = null;
+ 	public int numPixels = 0;
++	final static int maxPixelsInCache = 500;
+ 	final static Color transparentColor = Color.White;
+ 	public TrackOverlay (TrackPoint topLefti, int widthi, int highti, MapInfoObject transi) {
+ 		topLeft = new TrackPoint(topLefti);
+@@ -109,7 +110,7 @@
+ 	}
+ 
+ 	public void addPixel(int x, int y, Color f) throws IndexOutOfBoundsException {
+-		if (trackPixels==null) { trackPixels = new Point[500]; trackPixelsColor = new Color[500]; } 
++		if (trackPixels==null) { trackPixels = new Point[maxPixelsInCache]; trackPixelsColor = new Color[maxPixelsInCache]; } 
+ 		trackPixels[numPixels] = new Point(x, y); // IndexOutOfBoundsException is handled in PaintPoint
+ 		trackPixelsColor[numPixels] = f.getCopy();
+ 		numPixels++;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000132.html">[Cachewolf-svn] r397 - in trunk: resources src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000134.html">[Cachewolf-svn] r399 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#133">[ date ]</a>
+              <a href="thread.html#133">[ thread ]</a>
+              <a href="subject.html#133">[ subject ]</a>
+              <a href="author.html#133">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

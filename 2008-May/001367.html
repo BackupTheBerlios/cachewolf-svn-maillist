@@ -1,0 +1,111 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1473 - trunk/src/CacheWolf/navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-May/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1473%20-%20trunk/src/CacheWolf/navi&In-Reply-To=%3C200805202250.m4KMoJIb024315%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001366.html">
+   <LINK REL="Next"  HREF="001368.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1473 - trunk/src/CacheWolf/navi</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1473%20-%20trunk/src/CacheWolf/navi&In-Reply-To=%3C200805202250.m4KMoJIb024315%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1473 - trunk/src/CacheWolf/navi">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Wed May 21 00:50:19 CEST 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001366.html">[Cachewolf-svn] r1472 - trunk/docs/CacheWolf Doku
+</A></li>
+        <LI>Next message: <A HREF="001368.html">[Cachewolf-svn] r1474 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1367">[ date ]</a>
+              <a href="thread.html#1367">[ thread ]</a>
+              <a href="subject.html#1367">[ subject ]</a>
+              <a href="author.html#1367">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2008-05-21 00:50:11 +0200 (Wed, 21 May 2008)
+New Revision: 1473
+
+Modified:
+   trunk/src/CacheWolf/navi/MapInfoObject.java
+Log:
+MapInfoObject: bug fixed: the calculation of scale didn't work exactly -&gt; warning: the automatic naming of maps changed --&gt; if you already have maps of the same area and scale, they will be downloaded again  (because they get now a different name and therefor cannot be recognised as already existend)
+
+Modified: trunk/src/CacheWolf/navi/MapInfoObject.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MapInfoObject.java	2008-05-20 20:41:14 UTC (rev 1472)
++++ trunk/src/CacheWolf/navi/MapInfoObject.java	2008-05-20 22:50:11 UTC (rev 1473)
+@@ -279,32 +279,15 @@
+ 			transLonY = affine[0]/nenner;
+ 
+ 			// calculate north direction
+-			// float scaleXpixels = 1/(float)java.lang.Math.sqrt(java.lang.Math.pow(transLonX,2)+java.lang.Math.pow(transLonY,2));
+-			//	float scaleY = 1/(float)java.lang.Math.sqrt(java.lang.Math.pow(transLatX,2)+java.lang.Math.pow(transLatY,2));
+-			// float rotationX2x=(float)transLonX*scaleXpixels;
+-			// float rotationX2y=(float)transLonY*scaleXpixels;
+-			//rotationY2y=-(float)transLatY*scaleY; // lat -&gt; y = -, y -&gt; y = +
+-			//rotationY2x=-(float)transLatX*scaleY; // uncomment an make it a field of MapInfoObject if you need translation from x to x rotated
+ 			Point c = calcMapXY(center);
+ 			int heightpixel = c.y * 2;
+ 			c.y -= 1000;
+ 			rotationRad = (float) (center.getBearing(calcLatLon(c)) / 180 * Math.PI);  // note: the direction of nord can vary across the image. In Gau&#223;-Kr&#252;ger Projection it does change about 1 degree per 10km! //(float)java.lang.Math.atan(rotationX2y);
+ 			if (rotationRad &gt; Math.PI) rotationRad -= 2* Math.PI;
+-			//if (rotationX2x &lt; 0) rotationRad = (float)java.lang.Math.PI - rotationRad;
++
+ 			// calculate scale in meters per pixel
+-			CWPoint bl = new CWPoint(buttomright.latDec, topleft.lonDec);
+-			double diagonal = topleft.getDistance(buttomright);
+-			double beta = java.lang.Math.atan(bl.getDistance(buttomright) / bl.getDistance(topleft));
+-			double gamma = beta - rotationRad;
+-			double heightkm = diagonal * Math.cos(gamma);
+-			// double metersPerLat = 1000*(new CWPoint(0,0)).getDistance(new CWPoint(1,0));
+-			//CWPoint buttomleftimage = topleft.project(rotationRad * 180 / Math.PI + 180, heightkm);
+-			//CWPoint buttomleftimage2 = calcLatLon(0, heightpixel);
+-			//double kw = buttomleftimage.getDistance(buttomleftimage2);
+-			//double kw2 = buttomleftimage.getBearing(buttomleftimage2);
+-			//Vm.debug(&quot;project test: &quot; + buttomleftimage.getDistance(topleft));
+-			// double heightpixel = calcMapXY(buttomleftimage).y / Math.cos(rotationRad); 
+-			scale = (float) (heightkm * 1000 / heightpixel); 
++			double heightkm = calcLatLon(0, heightpixel).getDistance(topleft);
++			scale = (float) (heightkm * 1000 / heightpixel);
+ 		} catch (ArithmeticException ex) { throw new ArithmeticException(MyLocale.getMsg(4305, &quot;Not allowed values in affine\n (matrix cannot be inverted)\n in file \n&quot;) + fileNameWFL); }
+ 	}
+ 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001366.html">[Cachewolf-svn] r1472 - trunk/docs/CacheWolf Doku
+</A></li>
+	<LI>Next message: <A HREF="001368.html">[Cachewolf-svn] r1474 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1367">[ date ]</a>
+              <a href="thread.html#1367">[ thread ]</a>
+              <a href="subject.html#1367">[ subject ]</a>
+              <a href="author.html#1367">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

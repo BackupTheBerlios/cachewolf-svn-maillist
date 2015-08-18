@@ -1,0 +1,150 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r609 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r609%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702182207.l1IM7gB8006316%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000422.html">
+   <LINK REL="Next"  HREF="000424.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r609 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r609%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702182207.l1IM7gB8006316%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r609 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sun Feb 18 23:07:42 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000422.html">[Cachewolf-svn] r608 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000424.html">[Cachewolf-svn] r610 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#423">[ date ]</a>
+              <a href="thread.html#423">[ thread ]</a>
+              <a href="subject.html#423">[ subject ]</a>
+              <a href="author.html#423">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-02-18 23:07:39 +0100 (Sun, 18 Feb 2007)
+New Revision: 609
+
+Modified:
+   trunk/src/CacheWolf/InfoBox.java
+   trunk/src/CacheWolf/SpiderGC.java
+Log:
+SpiderGC: Bilderspider robuster bei .php Bildern usw.
+Nachtrag Infobox zu vorheriger Rev
+
+Modified: trunk/src/CacheWolf/InfoBox.java
+===================================================================
+--- trunk/src/CacheWolf/InfoBox.java	2007-02-18 21:35:40 UTC (rev 608)
++++ trunk/src/CacheWolf/InfoBox.java	2007-02-18 22:07:39 UTC (rev 609)
+@@ -96,6 +96,10 @@
+ 		this.repaintNow();
+ 	}
+ 
++	public String getInfo(){
++		return msgArea.getText();
++	}
++
+ 	public void addWarning (String w) {
+ 		warnings.setText(warnings.text + w);
+ 	}
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2007-02-18 21:35:40 UTC (rev 608)
++++ trunk/src/CacheWolf/SpiderGC.java	2007-02-18 22:07:39 UTC (rev 609)
+@@ -504,9 +504,9 @@
+ 				koordRex.search(rowBlock);
+ 				typeRex.search(rowBlock);
+ 				cx.CacheName = nameRex.stringMatched(1);
+-				if(koordRex.didMatch()) cx.LatLon = koordRex.stringMatched(1); 
+-				else cx.LatLon = &quot;---&quot;; 
+-				cx.pos.set(cx.LatLon);
++				if(koordRex.didMatch()) cx.pos.set(koordRex.stringMatched(1)); 
++				cx.LatLon = ch.pos.toString(); 
++				//cx.pos.set(cx.LatLon);
+ 				if(typeRex.didMatch()) cx.type = CacheType.typeText2Number(&quot;Waypoint|&quot;+typeRex.stringMatched(1));
+ 				rowBlock = exRowBlock.findNext();
+ 				descRex.search(rowBlock);
+@@ -530,9 +530,9 @@
+ 	
+ 	public void getImages(String doc, CacheHolder ch){
+ 		int imgCounter = 0;
+-		String imgName = new String();
+-		String imgType = new String();
+-		String imgUrl = new String();
++		String imgName;
++		String imgType;
++		String imgUrl;
+ 		//In the long description
+ 		String longDesc = new String();
+ 		longDesc = getLongDesc(doc);
+@@ -545,7 +545,7 @@
+ 		//longDesc = STRreplace.replace(longDesc, &quot; &quot;, &quot;&quot;);
+ 		Extractor exImgBlock = new Extractor(longDesc, &quot;&lt;IMG&quot;, &quot;&gt;&quot;, 0, false);
+ 		//Vm.debug(&quot;In getImages: Have longDesc&quot; + longDesc);
+-		String tst = new String();
++		String tst;
+ 		tst = exImgBlock.findNext();
+ 		//Vm.debug(&quot;Test: \n&quot; + tst);
+ 		Extractor exImgSrc = new Extractor(tst, &quot;<A HREF="http://">http://</A>&quot;, &quot;\&quot;&quot;, 0, true);
+@@ -555,8 +555,8 @@
+ 			if(imgUrl.length()&gt;0){
+ 				imgUrl = &quot;<A HREF="http://">http://</A>&quot; + imgUrl;
+ 				try{
+-					imgType = imgUrl.substring(imgUrl.lastIndexOf(&quot;.&quot;));
+-					if(!imgType.equals(&quot;com&quot;) &amp;&amp; !imgType.equals(&quot;php&quot;) &amp;&amp; !imgType.equals(&quot;exe&quot;)){
++					imgType = imgUrl.substring(imgUrl.lastIndexOf(&quot;.&quot;)).toLowerCase();
++					if(!imgType.startsWith(&quot;com&quot;) &amp;&amp; !imgType.startsWith(&quot;php&quot;) &amp;&amp; !imgType.startsWith(&quot;exe&quot;)){
+ 						imgName = ch.wayPoint + &quot;_&quot; + Convert.toString(imgCounter);
+ 						pref.log(&quot;Loading image: &quot; + imgUrl);
+ 						spiderImage(imgUrl, imgName+imgType);
+@@ -584,8 +584,8 @@
+ 			if(imgUrl.length()&gt;0){
+ 				imgUrl = &quot;<A HREF="http://">http://</A>&quot; + imgUrl;
+ 				try{
+-					imgType = imgUrl.substring(imgUrl.lastIndexOf(&quot;.&quot;));
+-					if(!imgType.equals(&quot;com&quot;) &amp;&amp; !imgType.equals(&quot;php&quot;) &amp;&amp; !imgType.equals(&quot;exe&quot;)){
++					imgType = imgUrl.substring(imgUrl.lastIndexOf(&quot;.&quot;)).toLowerCase();
++					if(!imgType.startsWith(&quot;com&quot;) &amp;&amp; !imgType.startsWith(&quot;php&quot;) &amp;&amp; !imgType.startsWith(&quot;exe&quot;)){
+ 						imgName = ch.wayPoint + &quot;_&quot; + Convert.toString(imgCounter);
+ 						spiderImage(imgUrl, imgName+imgType);
+ 						imgCounter++;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000422.html">[Cachewolf-svn] r608 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000424.html">[Cachewolf-svn] r610 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#423">[ date ]</a>
+              <a href="thread.html#423">[ thread ]</a>
+              <a href="subject.html#423">[ subject ]</a>
+              <a href="author.html#423">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

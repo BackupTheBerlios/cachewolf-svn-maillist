@@ -1,0 +1,166 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1847 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-May/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1847%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200905252130.n4PLUQWl025248%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001764.html">
+   <LINK REL="Next"  HREF="001766.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1847 - trunk/src/CacheWolf</H1>
+    <B>greiol at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1847%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200905252130.n4PLUQWl025248%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1847 - trunk/src/CacheWolf">greiol at mail.berlios.de
+       </A><BR>
+    <I>Mon May 25 23:30:26 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001764.html">[Cachewolf-svn] r1846 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001766.html">[Cachewolf-svn] r1848 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1765">[ date ]</a>
+              <a href="thread.html#1765">[ thread ]</a>
+              <a href="subject.html#1765">[ subject ]</a>
+              <a href="author.html#1765">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: greiol
+Date: 2009-05-25 23:30:24 +0200 (Mon, 25 May 2009)
+New Revision: 1847
+
+Modified:
+   trunk/src/CacheWolf/CacheHolder.java
+Log:
+fix htmlexporter
+set proper non error values for size, terrain and difficulty of AWs in gc.com spider
+
+Modified: trunk/src/CacheWolf/CacheHolder.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolder.java	2009-05-24 16:30:16 UTC (rev 1846)
++++ trunk/src/CacheWolf/CacheHolder.java	2009-05-25 21:30:24 UTC (rev 1847)
+@@ -183,36 +183,51 @@
+ 		            
+ 			        start = xmlString.indexOf('&quot;', end + 1);
+ 			        end = xmlString.indexOf('&quot;', start + 1);
+-			        try {
+-			        	setHard(CacheTerrDiff.v1Converter(xmlString.substring(start + 1, end)));
+-			        } catch (IllegalArgumentException ex) {
+-			        	setHard(CacheTerrDiff.CW_DT_ERROR);
+-			        	if (Global.getPref().debug) Global.getPref().log(wayPoint, ex, true);
++			        if (isAddiWpt() || getType() == CacheType.CW_TYPE_CUSTOM) {
++			        	setHard(CacheTerrDiff.CW_DT_ADDITIONAL);
++			        } else {
++				        try {
++				        	setHard(CacheTerrDiff.v1Converter(xmlString.substring(start + 1, end)));
++				        } catch (IllegalArgumentException ex) {
++				        	setHard(CacheTerrDiff.CW_DT_ERROR);
++				        	setIncomplete(true);
++				        	if (Global.getPref().debug) Global.getPref().log(wayPoint, ex, true);
++				        }
+ 			        }
+-	
+-		            start = xmlString.indexOf('&quot;', end + 1);
+-			        end = xmlString.indexOf('&quot;', start + 1);
+-			        try {
+-			        	setTerrain(CacheTerrDiff.v1Converter(xmlString.substring(start + 1, end)));
+-			        } catch (IllegalArgumentException ex) {
+-			        	setTerrain(CacheTerrDiff.CW_DT_ERROR);
+-			        	if (Global.getPref().debug) Global.getPref().log(wayPoint, ex, true);
+-			        }
+-	
++			        start = xmlString.indexOf('&quot;', end + 1);
++				    end = xmlString.indexOf('&quot;', start + 1);
++				    if (isAddiWpt() || getType() == CacheType.CW_TYPE_CUSTOM) {
++				    	setTerrain(CacheTerrDiff.CW_DT_ADDITIONAL);
++				    } else {
++					    try {
++					    	setTerrain(CacheTerrDiff.v1Converter(xmlString.substring(start + 1, end)));
++					    } catch (IllegalArgumentException ex) {
++					    	setTerrain(CacheTerrDiff.CW_DT_ERROR);
++					    	setIncomplete(true);
++					    	if (Global.getPref().debug) Global.getPref().log(wayPoint, ex, true);
++				        }
++				    }
+ 			        // The next item was 'dirty' but this is no longer used.
+ 		            start = xmlString.indexOf('&quot;', end + 1);
+ 			        end = xmlString.indexOf('&quot;', start + 1);
+ 			        setFiltered(xmlString.substring(start + 1, end).equals(&quot;true&quot;));
+ 	
++			        if (isAddiWpt() || getType() == CacheType.CW_TYPE_CUSTOM) {
++			        	
++			        } 
+ 			        start = xmlString.indexOf('&quot;', end + 1);
+ 			        end = xmlString.indexOf('&quot;', start + 1);
+-			        try {
+-			        	setCacheSize(CacheSize.v1Converter(xmlString.substring(start + 1, end)));
+-			        } catch (IllegalArgumentException ex) {
+-			        	setCacheSize(CacheSize.CW_SIZE_ERROR);
+-			        	if (Global.getPref().debug) Global.getPref().log(wayPoint, ex, true);
++			        if (isAddiWpt() || getType() == CacheType.CW_TYPE_CUSTOM) {
++			        	setCacheSize(CacheSize.CW_SIZE_NOTCHOSEN);
++			        } else {
++				        try {
++				        	setCacheSize(CacheSize.v1Converter(xmlString.substring(start + 1, end)));
++				        } catch (IllegalArgumentException ex) {
++				        	setCacheSize(CacheSize.CW_SIZE_ERROR);
++				        	setIncomplete(true);
++				        	if (Global.getPref().debug) Global.getPref().log(wayPoint, ex, true);
++				        }
+ 			        }
+-			        
+ 			        start = xmlString.indexOf('&quot;', end + 1);
+ 			        end = xmlString.indexOf('&quot;', start + 1);
+ 			        setAvailable(xmlString.substring(start + 1, end).equals(&quot;true&quot;));
+@@ -376,16 +391,6 @@
+ 	        } catch (Exception ex) {
+ 	        	Global.getPref().log(&quot;Ignored Exception in CacheHolder()&quot;, ex, true);
+ 	        }
+-	        
+-	        if (type == CacheType.CW_TYPE_ERROR) {
+-	        	setIncomplete(true);
+-	        } else {
+-	        	if (! isAddiWpt() &amp;&amp; 
+-	        		(terrain == CacheTerrDiff.CW_DT_ERROR 
+-	        		|| hard == CacheTerrDiff.CW_DT_ERROR 
+-	        		|| cacheSize == CacheSize.CW_SIZE_ERROR)
+-	        	) setIncomplete(true);
+-	        }
+         }
+ 	
+ 	/**
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001764.html">[Cachewolf-svn] r1846 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001766.html">[Cachewolf-svn] r1848 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1765">[ date ]</a>
+              <a href="thread.html#1765">[ thread ]</a>
+              <a href="subject.html#1765">[ subject ]</a>
+              <a href="author.html#1765">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

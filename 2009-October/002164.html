@@ -1,0 +1,959 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2241 - in trunk/src/CacheWolf: . navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-October/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2241%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C200910050803.n958350O009908%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002161.html">
+   <LINK REL="Next"  HREF="002166.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2241 - in trunk/src/CacheWolf: . navi</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2241%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C200910050803.n958350O009908%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2241 - in trunk/src/CacheWolf: . navi">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Mon Oct  5 10:03:05 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002161.html">[Cachewolf-svn] r2240 - trunk/res_noewe/webmapservices
+</A></li>
+        <LI>Next message: <A HREF="002166.html">[Cachewolf-svn] r2242 - in trunk/tools/MakeWMSFile/capxml2wms: .	bin bin/Debug
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2164">[ date ]</a>
+              <a href="thread.html#2164">[ thread ]</a>
+              <a href="subject.html#2164">[ subject ]</a>
+              <a href="author.html#2164">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2009-10-05 10:02:04 +0200 (Mon, 05 Oct 2009)
+New Revision: 2241
+
+Modified:
+   trunk/src/CacheWolf/CacheHolder.java
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/Preferences.java
+   trunk/src/CacheWolf/PreferencesScreen.java
+   trunk/src/CacheWolf/navi/MovingMap.java
+   trunk/src/CacheWolf/navi/Navigate.java
+Log:
++ show caches on Map
++ set current centre point from GPS
+
+Modified: trunk/src/CacheWolf/CacheHolder.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolder.java	2009-10-05 07:44:49 UTC (rev 2240)
++++ trunk/src/CacheWolf/CacheHolder.java	2009-10-05 08:02:04 UTC (rev 2241)
+@@ -28,7 +28,7 @@
+ 	/** The name of the waypoint, typically GC.... or OC.... or CW...... (can be any characters) */
+ 	private String wayPoint = EMPTY;
+ 	/** The name of the cache (short description) */
+-	private String cacheName = EMPTY;
++	public String cacheName = EMPTY;
+ 	/** The alias of the owner */
+ 	private String cacheOwner = EMPTY;
+ 	/** The coordinates of the cache */
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2009-10-05 07:44:49 UTC (rev 2240)
++++ trunk/src/CacheWolf/MainTab.java	2009-10-05 08:02:04 UTC (rev 2241)
+@@ -31,7 +31,7 @@
+ 	CalcPanel calcP;
+ 	Preferences pref;
+ 	Profile profile;
+-	GotoPanel gotoP; 
++	GotoPanel gotoP;
+ 	RadarPanel radarP = new RadarPanel();
+ 	ImagePanel imageP;
+ 	SolverPanel solverP;
+@@ -45,7 +45,7 @@
+ 	public String mainCache=&quot;&quot;;
+ 	int oldCard=0;
+ 	boolean cacheDirty=false;
+-	
++
+ 	public MainTab(MainMenu mainMenu,StatusBar statBar){
+ 		Global.mainTab=this;
+ 		mnuMain=mainMenu;
+@@ -59,11 +59,11 @@
+ 		int sw = MyLocale.getScreenWidth();
+ 		if ( sw &lt;= 240) this.dontExpandTabs=true;
+ 		String imagesize=&quot;&quot;;
+-		if (pref.useBigIcons) imagesize=&quot;_vga&quot;;  
++		if (pref.useBigIcons) imagesize=&quot;_vga&quot;;
+ 		calcP = new CalcPanel(); // Init here so that Global.MainT is already set
+ 		tbP = new TablePanel(pref, profile, statBar);
+ 		Card c = this.addCard(new TableForm(tbP), MyLocale.getMsg(1200,&quot;List&quot;), null);
+-		
++
+ 		c = this.addCard(detP, MyLocale.getMsg(1201,&quot;Details&quot;), null);
+ 		c.iconize(new Image(&quot;details&quot;+imagesize+&quot;.gif&quot;),true);
+ 
+@@ -110,8 +110,8 @@
+ 		detP.clear(); // Clear only the attributes
+ 		hintLP.clear(); // Remove the logs
+ 		solverP.setInstructions(&quot;loading ...&quot;);
+-	}	
+-	
++	}
++
+ 	public void onEvent(Event ev) {
+ 		// This section clears old data when a new line is selected in the table
+ 		if (ev instanceof TableEvent) {
+@@ -144,7 +144,7 @@
+ 			cacheDirty=false;
+ 			if (tbP.getSelectedCache()&gt;=Global.mainTab.tbP.myMod.numRows || tbP.getSelectedCache()&lt;0) {
+ 				ch=null;
+-				chD=null; 
++				chD=null;
+ 				lastselected=&quot;&quot;;
+ 			} else {
+ 				ch = cacheDB.get(tbP.getSelectedCache());
+@@ -193,13 +193,14 @@
+ 	 */
+ 	private void onEnteringPanel(int panelNo) {//Vm.debug(&quot;Entering &quot;+panelNo);
+ 		switch (panelNo) {// Switch by panel number
+-		case 0:
++		case 0:  //MainPanel
+ 			MyLocale.setSIPOff();
+ 			// If Solver or Details has changed, save Cache
+ 			updatePendingChanges();
+ 			if (detP.hasBlackStatusChanged()) {
+ 				tbP.refreshTable();
+ 			}
++			updateCurCentrePtFromGPS();
+ 			break;
+ 		case 1:  // DetailsPanel
+ 			boolean newCache = false;
+@@ -216,7 +217,7 @@
+ 			break;
+ 		case 3: // Picture Panel
+ 			MyLocale.setSIPOff();
+-			if (ch.isAddiWpt()) { 
++			if (ch.isAddiWpt()) {
+ 				imageP.setImages(ch.mainCache.getCacheDetails(true));
+ 			} else {
+ 				imageP.setImages(chD);
+@@ -224,7 +225,7 @@
+ 			break;
+ 		case 4:  // Log Hint Panel
+ 			MyLocale.setSIPOff();
+-			if (ch.isAddiWpt()) { 
++			if (ch.isAddiWpt()) {
+ 				hintLP.setText(ch.mainCache.getCacheDetails(true));
+ 			} else {
+ 				hintLP.setText(chD);
+@@ -232,7 +233,7 @@
+ 			break;
+ 		case 5:  // Solver Panel
+ 			MyLocale.setSIPOff();
+-			if (ch.isAddiWpt()) { 
++			if (ch.isAddiWpt()) {
+ 				chMain=ch.mainCache;
+ 				solverP.setInstructions(ch.mainCache);
+ 			} else {
+@@ -250,20 +251,25 @@
+ 			MyLocale.setSIPOff();
+ 			radarP.setParam(pref, cacheDB, ch);
+ 			radarP.drawThePanel();
++			updateCurCentrePtFromGPS();
+ 			break;
+ 		}
+ 	}
+-	
+-	/** Update the distances of all caches to the centre and display a message 
++
++	/** Update the distances of all caches to the centre and display a message
+ 	 */
+ 	public void updateBearDist(){// Called from DetailsPanel, GotoPanel and myTableControl
++/*
+ 		MessageBox info = new MessageBox(MyLocale.getMsg(327,&quot;Information&quot;), MyLocale.getMsg(1024,&quot;Entfernungen in der Listenansicht \n werden neu berechnet...&quot;).replace('~','\n'), 0);
+ 		info.exec();
+ 		info.waitUntilPainted(200);
++*/
+ 		tbP.pref = pref;
+ 		profile.updateBearingDistance();
++/*
+ 		//tbP.refreshTable();
+ 		info.close(0);
++*/
+ 		tbP.tc.repaint();
+ 	}
+ 
+@@ -282,11 +288,11 @@
+ 
+ 
+ 	/**
+-	 * this is called from goto / MovingMap / CalcPanel / DetailsPanel and so on to 
++	 * this is called from goto / MovingMap / CalcPanel / DetailsPanel and so on to
+ 	 * offer the user the possibility of entering an new waypoint
+ 	 * at a given position. pCh must already been preset with a valid
+ 	 * CacheHolder object
+-	 * 
++	 *
+ 	 * @param pCh
+ 	 */
+ 	public void newWaypoint(CacheHolder pCh){
+@@ -297,7 +303,7 @@
+ 			onLeavingPanel(oldCard);
+ 		}
+ 		updatePendingChanges(); // was: onEnteringPanel(0); oldCard=0;
+-		
++
+ 		mainCache=lastselected;
+ 		int selectedIndex = profile.getCacheIndex( lastselected );
+ 		if (selectedIndex &gt;= 0) {
+@@ -308,12 +314,12 @@
+ 				} else {
+ 					mainCache = null;
+ 				}
+-			}			
++			}
+ 		}
+ 		if (CacheType.isAddiWpt(pCh.getType()) &amp;&amp; mainCache!=null &amp;&amp; mainCache.length()&gt;2) {
+ 			pCh.setWayPoint(profile.getNewAddiWayPointName(mainCache));
+ 			profile.setAddiRef(pCh);
+-		} else { 
++		} else {
+ 			pCh.setWayPoint(profile.getNewWayPointName());
+ 			lastselected=pCh.getWayPoint();
+ 		}
+@@ -321,7 +327,7 @@
+ 		chD = pCh.getCacheDetails(true);
+ 		this.ch = pCh;
+ 		cacheDB.add(pCh);
+-		Global.getProfile().notifyUnsavedChanges(true); // Just to be sure 
++		Global.getProfile().notifyUnsavedChanges(true); // Just to be sure
+ 		tbP.myMod.numRows++;
+ 		detP.setDetails(pCh, true);
+ 		oldCard=1;
+@@ -331,10 +337,10 @@
+ 
+ 	}
+ 
+-	
++
+ 	/**
+ 	 * sets posCircle Lat/Lon to centerTo
+-	 * 
++	 *
+ 	 * @param centerTo true: centers centerTo on the screen and disconnects MovingMap from GPS if Gps-pos is not on the loaded map
+ 	 * @param forceCenter
+ 	 */
+@@ -347,7 +353,7 @@
+ 			if (mm == null) {
+ 				mm = new MovingMap(nav, profile.cacheDB);
+ 				nav.setMovingMap(mm);
+-			} 
++			}
+ 			if (forceCenter) mm.setGpsStatus(MovingMap.noGPS); // disconnect movingMap from GPS TODO only if GPS-pos is not on the screen
+ 			mm.updatePosition(centerTo);
+ 			mm.myExec();
+@@ -364,14 +370,16 @@
+ 				mm.setGpsStatus(MovingMap.noGPS); // disconnect movingMap from GPS if GPS-pos is not on the screen
+ 				mm.setResModus(MovingMap.HIGHEST_RESOLUTION);
+ 				mm.updatePosition(centerTo.latDec, centerTo.lonDec);
+-				mm.setCenterOfScreen(centerTo, true); 
++				mm.setCenterOfScreen(centerTo, true);
+ 			}
+-					 */			//TODO what to do, if there is a map at centerTo, but it is not loaded because of mapSwitchMode == dest &amp; cuurpos und daf&#252;r gibt es keine Karte 
++					 */			//TODO what to do, if there is a map at centerTo, but it is not loaded because of mapSwitchMode == dest &amp; cuurpos und daf&#252;r gibt es keine Karte
+ 				}catch (InterruptedException e) {
++					e.printStackTrace();
+ 					Global.getPref().log(&quot;Error starting mavoing map (1): &quot; + e.getMessage(), e, true);
+-					(new MessageBox(&quot;Error&quot;, &quot;This must not happen please report to pfeffer how to produce this error message&quot;, FormBase.OKB)).execute(); } 
++					(new MessageBox(&quot;Error&quot;, &quot;This must not happen please report to pfeffer how to produce this error message&quot;, FormBase.OKB)).execute(); }
+ 			}
+ 		} catch (Exception e) { // TODO swith waiting indication clock off
++			e.printStackTrace();
+ 			Global.getPref().log(&quot;Error starting moving map (2): &quot; + e.getMessage(), e, true);
+ 			(new MessageBox(&quot;Error&quot;, &quot;Error starting moving map: &quot; + e.getMessage(), FormBase.OKB)).execute(); }
+ 	}
+@@ -383,9 +391,9 @@
+ 			cacheDirty = false;
+ 		}
+ 	}
+-	
++
+ 	/** Save the index file
+-	 * 
++	 *
+ 	 * @param askForConfirmation is ignored, old: If true, the save can be cancelled by user
+ 	 */
+ 	public void saveUnsavedChanges(boolean askForConfirmation) {
+@@ -399,18 +407,32 @@
+ 	    this.tbP.saveColWidth(pref);
+ 		Global.getPref().savePreferences();
+ 	}
+-	
++
+ 	private void checkProfileChange() {
+ 		// A panel is selected. Could be the same panel twice
+-		mnuMain.allowProfileChange(false);	  
++		mnuMain.allowProfileChange(false);
+ 		if(this.getSelectedItem() == 0){// List view selected
+-			mnuMain.allowProfileChange(true);	  
++			mnuMain.allowProfileChange(true);
+ 			MyLocale.setSIPOff();
+ 		}
+ 	}
++
++	private void  updateCurCentrePtFromGPS() {
++		if (pref.setCurrentCentreFromGPSPosition){
++			boolean gpsPosIsValid=nav.gpsPos.isValid();
++			if (gpsPosIsValid) {
++				CWPoint whereAmI = nav.gpsPos;
++				if (whereAmI != pref.curCentrePt) {
++					pref.curCentrePt.set(whereAmI);
++					this.updateBearDist();
++				}
++			}
++		}
++	}
+ }
+-// 
++//
+ 
+ 
+ 
+ 
++
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2009-10-05 07:44:49 UTC (rev 2240)
++++ trunk/src/CacheWolf/Preferences.java	2009-10-05 08:02:04 UTC (rev 2241)
+@@ -121,6 +121,8 @@
+ 	public String lastProfile=&quot;&quot;;
+ 	/** If true, the last profile is reloaded automatically without a dialogue */
+ 	public boolean autoReloadLastProfile=false;
++	/** If true current cetre will be set from gps position	 */
++	public boolean setCurrentCentreFromGPSPosition=true;
+ 	/** This is the login alias for geocaching.com and opencaching.de */
+ 	public String myAlias = &quot;&quot;;
+ 	/** Optional password */
+@@ -246,11 +248,14 @@
+ 	/** Determines whether to fill the white areas on the map */
+ 	public boolean fillWhiteArea=false;
+ 
+-        /** Selected Size of map tiles */
+-        public int mapTileSize=1;
+-        /** How many should maptiles overlap */
+-        public int mapOverlapping=100;
++    /** Selected Size of map tiles */
++    public int mapTileSize=1;
++    /** How many should maptiles overlap */
++    public int mapOverlapping=100;
+ 
++    /** ShowCachesOnMap */
++    public boolean showCachesOnMap=true;
++
+ 	//////////////////////////////////////////////
+ 	/** The debug switch (Can be used to activate dormant code) by adding
+ 	 * the line: &lt;pre&gt;&lt;debug value=&quot;true&quot; /&gt;&lt;/pre&gt;
+@@ -393,7 +398,9 @@
+ 			collectElement=new StringBuffer(50);
+ 			if (atts.getValue(&quot;autoreload&quot;).equals(&quot;true&quot;)) autoReloadLastProfile=true;
+ 		}
+-
++		else if (name.equals(&quot;CurrentCentre&quot;)) {
++			if (atts.getValue(&quot;FromGPSPosition&quot;).toLowerCase().equals(&quot;true&quot;)) setCurrentCentreFromGPSPosition=true;
++		}
+ 		else if(name.equals(&quot;basedir&quot;)) {
+ 			setBaseDir(atts.getValue(&quot;dir&quot;));
+ 		}
+@@ -562,6 +569,10 @@
+ 			     if (tmp == null || tmp.length() == 0) tmp = &quot;100&quot;;
+ 			     mapOverlapping = Convert.parseInt(tmp);
+ 		}
++		else if (name.equals(&quot;showCachesOnMap&quot;)){
++			tmp = atts.getValue(&quot;on&quot;);
++			showCachesOnMap = tmp != null &amp;&amp; tmp.equalsIgnoreCase(&quot;true&quot;);
++		}
+ 	}
+ 
+ 	public void characters( char ch[], int start, int length ) {
+@@ -596,6 +607,7 @@
+ 			outp.print(&quot;    &lt;locale language=\&quot;&quot; + SafeXML.clean(language) + &quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;basedir dir = \&quot;&quot; + SafeXML.clean(getBaseDir()) + &quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;lastprofile autoreload=\&quot;&quot; + SafeXML.strxmlencode(autoReloadLastProfile) + &quot;\&quot;&gt;&quot; + SafeXML.clean(lastProfile) + &quot;&lt;/lastprofile&gt;\n&quot;); //RB
++			outp.print(&quot;    &lt;CurrentCentre FromGPSPosition= \&quot;&quot; + SafeXML.clean(Convert.toString(setCurrentCentreFromGPSPosition)) + &quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;alias name =\&quot;&quot;+ SafeXML.clean(myAlias) +&quot;\&quot; password=\&quot;&quot;+SafeXML.clean(password)+&quot;\&quot; /&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;alias2 name =\&quot;&quot;+ SafeXML.clean(myAlias2) +&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;gcmemberid name =\&quot;&quot;+ SafeXML.clean(gcMemberId) +&quot;\&quot;/&gt;\n&quot;);
+@@ -648,6 +660,7 @@
+ 			outp.print(&quot;    &lt;logkeeping maximum=\&quot;&quot;+SafeXML.strxmlencode(maxLogsToKeep)+&quot;\&quot; keepown=\&quot;&quot;+SafeXML.strxmlencode(alwaysKeepOwnLogs)+&quot;\&quot; /&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;fillWhiteArea on=\&quot;&quot;+SafeXML.strxmlencode(fillWhiteArea)+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;mapLoader tileSize=\&quot;&quot;+SafeXML.strxmlencode(mapTileSize)+&quot;\&quot; overlapping=\&quot;&quot;+SafeXML.strxmlencode(mapOverlapping)+&quot;\&quot;/&gt;\n&quot;);
++			outp.print(&quot;    &lt;showCachesOnMap on=\&quot;&quot;+SafeXML.strxmlencode(showCachesOnMap)+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;&lt;/preferences&gt;&quot;);
+ 			outp.close();
+ 		} catch (Exception e) {
+
+Modified: trunk/src/CacheWolf/PreferencesScreen.java
+===================================================================
+--- trunk/src/CacheWolf/PreferencesScreen.java	2009-10-05 07:44:49 UTC (rev 2240)
++++ trunk/src/CacheWolf/PreferencesScreen.java	2009-10-05 08:02:04 UTC (rev 2241)
+@@ -21,7 +21,7 @@
+ 	mInput DataDir, Proxy, ProxyPort, Alias, nLogs, Browser, fontSize, 
+ 	       inpLogsPerPage,inpMaxLogsToSpider,inpPassword;
+ 	mCheckBox chkAutoLoad, chkShowDeletedImg, chkMenuAtTop, chkTabsAtTop, chkShowStatus,chkHasCloseButton,
+-	          chkSynthShort,chkProxyActive, chkDescShowImg, chkAddDetailsToWaypoint, chkAddDetailsToName;
++	          chkSynthShort,chkProxyActive, chkDescShowImg, chkAddDetailsToWaypoint, chkAddDetailsToName, chkSetCurrentCentreFromGPSPosition;
+ 	mTabbedPanel mTab;
+ 	mChoice chcGarminPort;
+ 	mLabel lblGarmin;
+@@ -83,9 +83,11 @@
+ 		DataDir = new mInput();
+ 		DataDir.setText(pref.getBaseDir());
+ 		frmDataDir.addLast(DataDir.setTag(CellConstants.SPAN, new Dimension(3,1)),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.EAST));
+-		frmDataDir.addLast(chkAutoLoad = new mCheckBox(MyLocale.getMsg(629,&quot;Autoload last profile&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		frmDataDir.addNext(chkAutoLoad = new mCheckBox(MyLocale.getMsg(629,&quot;Autoload last profile&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		if (pref.autoReloadLastProfile) chkAutoLoad.setState(true);
+ 		chkAutoLoad.setTag(INSETS,new Insets(0,0,2,0));
++		frmDataDir.addLast(chkSetCurrentCentreFromGPSPosition = new mCheckBox(MyLocale.getMsg(646,&quot;centre from GPS&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.EAST));
++		if (pref.setCurrentCentreFromGPSPosition) chkSetCurrentCentreFromGPSPosition.setState(true);
+ 		pnlGeneral.addLast(frmDataDir,HSTRETCH,HFILL);
+ 		
+ 		CellPanel pnlBrowser=new CellPanel();
+@@ -311,6 +313,7 @@
+ 				HttpConnection.setProxy(pref.myproxy, Common.parseInt(pref.myproxyport), pref.proxyActive); // TODO generate an error message if proxy port is not a number
+ 				//myPreferences.nLogs = Convert.parseInt(nLogs.getText());
+ 				pref.autoReloadLastProfile=chkAutoLoad.getState();
++				pref.setCurrentCentreFromGPSPosition=chkSetCurrentCentreFromGPSPosition.getState();
+ 				pref.showDeletedImages=chkShowDeletedImg.getState();
+ 				pref.garminConn=chcGarminPort.getSelectedItem().toString();
+ 				pref.garminGPSBabelOptions=chkSynthShort.state?&quot;-s&quot;:&quot;&quot;;
+
+Modified: trunk/src/CacheWolf/navi/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MovingMap.java	2009-10-05 07:44:49 UTC (rev 2240)
++++ trunk/src/CacheWolf/navi/MovingMap.java	2009-10-05 08:02:04 UTC (rev 2241)
+@@ -72,10 +72,10 @@
+ 	boolean ignoreGps = false; // ignores updateGps-calls if true
+ 	boolean autoSelectMap = true;
+ 	boolean forceMapLoad = true; // only needed to force updateposition to try to load the best map again after OutOfMemoryError after an repeated click on snap-to-gps
+-	boolean mapHidden = false;
++	public boolean mapHidden = false;
+ 	boolean noMapsAvailable;
+ 	boolean zoomingMode = false;
+-	boolean mapsloaded = false;
++	public boolean mapsloaded = false;
+ 	boolean additionalOverlaysDeleted=true;
+ 	Point lastRepaintMapPos = null;
+ 	double lastDistance = -1;
+@@ -104,11 +104,23 @@
+ 						&amp;&amp; (!((im instanceof MapSymbol)
+ 								|| (im instanceof TrackOverlay) || mmp.mapImage == im))) {
+ 					mmp.images.remove(im);
+-				} 
++				}
+ 			}
+ 		}
+ 	}
+ 
++	public boolean getShowCachesOnMap() {return pref.showCachesOnMap; }
++	public void setShowCachesOnMap(boolean value) {
++		if (value != pref.showCachesOnMap) {
++			pref.showCachesOnMap=value;
++		}
++		if (!value) {
++			// todo: add : goto Cache Symbol, Selected Symbol , Selected Cache Symbol
++			this.removeAllMapSymbolsButGoto();
++			}
++
++	}
++
+ 	public MovingMap(Navigate nav, CacheDB cacheDB){
+ 		this.cacheDB = cacheDB;
+ 		this.myNavigation = nav;
+@@ -122,7 +134,6 @@
+ 		this.setPreferredSize(pref.myAppWidth, pref.myAppHeight);
+ 		this.title = &quot;Moving Map&quot;;
+ 		this.backGround = new Color(254,254,254); // background must not be black because black is interpreted as transparent and transparent images above (eg trackoverlay) want be drawn in windows-VM, so be care, don|t use white either
+-		//this.mapPath = Global.getPref().getMapLoadPath();
+ 
+ 		mmp = new MovingMapPanel(this);
+ 		this.addLast(mmp);
+@@ -243,8 +254,7 @@
+ 		Vm.showWait(this, true);
+ 		inf.exec();
+ 		inf.waitUntilPainted(100);
+-		if (Global.getPref().debug)
+-			Global.getPref().log(MyLocale.getMsg(4203, &quot;Loading list of maps...&quot;));
++		if (pref.debug) pref.log(MyLocale.getMsg(4203, &quot;Loading list of maps...&quot;));
+ 		resetCenterOfMap();
+ 		boolean saveGpsIgnoreStatus = dontUpdatePos;
+ 		dontUpdatePos = true;
+@@ -270,7 +280,7 @@
+ 		{
+ 			double lineLengthMeters = 40 * currentMap.scale;
+ 
+-			int metricSystem = Global.getPref().metricSystem;
++			int metricSystem = pref.metricSystem;
+ 			double localizedLineLength = 0;
+ 			int bigUnit = -1;
+ 			int smallUnit = -1;
+@@ -346,7 +356,7 @@
+ 				ewe.sys.Double dd = new ewe.sys.Double();
+ 				String d;
+ 
+-				int metricSystem = Global.getPref().metricSystem;
++				int metricSystem = pref.metricSystem;
+ 				double localizedDistance = 0;
+ 				int bigUnit = -1;
+ 				int smallUnit = -1;
+@@ -911,7 +921,10 @@
+ 			mmp.removeImage((MapSymbol)symbols.get(i));
+ 		}
+ 		symbols.removeAllElements();
+-		if (gotoPos != null) symbols.add(gotoPos);
++		if (gotoPos != null) {
++			symbols.add(gotoPos);
++			mmp.addImage(gotoPos);
++		}
+ 	}
+ 
+ 	public void removeMapSymbol(String pName) {
+@@ -982,8 +995,8 @@
+ 	public void updatePosition(CWPoint where){
+ 		if (dontUpdatePos || loadingMapList) return; // avoid multi-threading problems
+ 		//Vm.debug(&quot;updatepos, lat: &quot;+where.latDec+&quot; lon: &quot;+where.lonDec);
+-		if (!mapsloaded || !this.maps.getMapsPath().equals(Global.getPref().getCustomMapsPath())) {
+-			loadMaps(Global.getPref().getCustomMapsPath(), where.latDec);
++		if (!mapsloaded || !this.maps.getMapsPath().equals(pref.getCustomMapsPath())) {
++			loadMaps(pref.getCustomMapsPath(), where.latDec);
+ 			lastCompareX = Integer.MAX_VALUE;
+ 			lastCompareY = Integer.MAX_VALUE;
+ 			autoSelectMap = true;
+@@ -1004,14 +1017,28 @@
+ 			// Vm.debug(&quot;Screen not completly covered by map&quot;);
+ 			if (forceMapLoad
+ 					|| (java.lang.Math.abs(lastCompareX - mapPos.x) &gt; this.width / 10 || java.lang.Math.abs(lastCompareY - mapPos.y) &gt; this.height / 10)) {
+-				// more then 1/10 of screen moved since last time we tried to
+-				// find a better map
+-
++				// more then 1/10 of screen moved since last time we tried to find a better map
+ 				if (autoSelectMap) {
+ 					setBestMap(where, screenNotCompletlyCovered);
+ 					forceMapLoad = false;
+ 				}
+-				
++				if (getShowCachesOnMap()) {
++					CacheHolder ch;
++					int twidth = width/10;
++					int theight = height/10;
++					Area screenArea = new Area(ScreenXY2LatLon(-twidth,-theight), ScreenXY2LatLon(width+twidth,height+theight));
++					for (int i = cacheDB.size() - 1; i &gt;= 0; i--) {
++						ch = cacheDB.get(i);
++						if (screenArea.isInBound(ch.pos)) {
++							// because visible and valid don't change while showing map --&gt;need no remove
++							if (ch.isVisible() &amp;&amp; ch.pos.isValid()) {
++								addSymbolIfNecessary(ch.cacheName, ch, GuiImageBroker.getTypeImage(ch.getType()), ch.pos);
++							}
++						}else{
++							removeMapSymbol(ch.cacheName);
++						}
++					}
++				}
+ 				if (isFillWhiteArea()) {
+ 					// Clean up any additional images, tiles will removed and any
+ 					// other item be added again later
+@@ -1268,7 +1295,7 @@
+ 			r.width = blackArea.x + offsetX;
+ 			r.height = whiteArea.height;
+ 			rectangles.add(r);
+-			if (Global.getPref().debug) {Global.getPref().log(&quot;add whitearea : &quot;+SRect(r));}
++			if (pref.debug) {pref.log(&quot;add whitearea : &quot;+SRect(r));}
+ 		}
+ 		if (blackArea.y &gt; whiteArea.y) {
+ 			Rect r= new Rect ();
+@@ -1277,7 +1304,7 @@
+ 			r.width = whiteArea.width;
+ 			r.height = blackArea.y + offsetY;
+ 			rectangles.add(r);
+-			if (Global.getPref().debug) {Global.getPref().log(&quot;add whitearea : &quot;+SRect(r));}
++			if (pref.debug) {pref.log(&quot;add whitearea : &quot;+SRect(r));}
+ 		}
+ 		if ((blackArea.y + blackArea.height) &lt;  whiteArea.y + whiteArea.height) {
+ 			Rect r= new Rect ();
+@@ -1286,7 +1313,7 @@
+ 			r.width = whiteArea.width;
+ 			r.height = (whiteArea.y + whiteArea.height) - r.y;
+ 			rectangles.add(r);
+-			if (Global.getPref().debug) {Global.getPref().log(&quot;add whitearea : &quot;+SRect(r));}
++			if (pref.debug) {pref.log(&quot;add whitearea : &quot;+SRect(r));}
+ 		}
+ 		if ((blackArea.x + blackArea.width)&lt;  whiteArea.x + whiteArea.width) {
+ 			Rect r= new Rect ();
+@@ -1295,7 +1322,7 @@
+ 			r.width = (whiteArea.x + whiteArea.width) - r.x;
+ 			r.height = whiteArea.height;
+ 			rectangles.add(r);
+-			if (Global.getPref().debug) {Global.getPref().log(&quot;add whitearea : &quot;+SRect(r));}
++			if (pref.debug) {pref.log(&quot;add whitearea : &quot;+SRect(r));}
+ 		}
+ 	}
+ 
+@@ -1562,10 +1589,10 @@
+ 		dontUpdatePos = true;  // make updatePosition ignore calls during loading new map
+ 		InfoBox inf;
+ 		inf = new InfoBox(MyLocale.getMsg(4201, &quot;Information&quot;), MyLocale.getMsg(4216, &quot;Loading map...&quot;));
+-		if (Global.getPref().debug) {
++		if (pref.debug) {
+ 			inf.show();
+ 			inf.waitUntilPainted(100);
+-			Global.getPref().log(MyLocale.getMsg(4216, &quot;Loading map...&quot;));
++			pref.log(MyLocale.getMsg(4216, &quot;Loading map...&quot;)+newmap.mapName);
+ 		}
+ 		try {
+ 			this.currentMap = newmap;
+@@ -1749,6 +1776,28 @@
+ 		zoomFromUnscaled(zoomFactor * currentMap.zoomFactor, newImageRect, center);
+ 	}
+ 
++	public void zoomin() {
++		zoomScreenRect(new Point(this.width / 4, this.height / 4),
++				this.width / 2, this.height / 2);
++	}
++
++	public void zoomout() {
++		CWPoint center = currentMap.center;
++		float zoomfactor = currentMap.zoomFactor / 2;
++		if (zoomfactor &lt; 1) {
++			zoomfactor = 1;
++		}
++		if (mapImage1to1 != null)
++			zoomFromUnscaled(zoomfactor, new Rect(0, 0,
++					mapImage1to1.getWidth(), mapImage1to1.getHeight()), center);
++		else
++			zoomFromUnscaled(zoomfactor, new Rect(0, 0, 1, 1), center);
++	}
++
++	public void setZoomingMode(boolean mode) {
++		zoomingMode = mode;
++	}
++
+ 	public void zoom1to1() {
+ 		CWPoint center = ScreenXY2LatLon(this.width /2 , this.height/2);
+ 		if (mapImage1to1 != null) zoomFromUnscaled(1, new Rect(0,0,mapImage1to1.getWidth(), mapImage1to1.getHeight()), center);
+@@ -1849,6 +1898,8 @@
+ 	MenuItem hideMapMI = new MenuItem(MyLocale.getMsg(4240, &quot;Hide map&quot;), new IconAndText(new mImage(&quot;map_on.png&quot;), MyLocale.getMsg(4241, &quot;Hide map&quot;), null, CellConstants.RIGHT));
+ 	MenuItem fillMapMI = new MenuItem(MyLocale.getMsg(4267, &quot;Show white areas&quot;), new IconAndText(new mImage(&quot;map_on.png&quot;), MyLocale.getMsg(4267, &quot;Show white areas&quot;), null, CellConstants.RIGHT));
+ 	MenuItem noFillMapMI = new MenuItem(MyLocale.getMsg(4266, &quot;Fill white areas&quot;), new IconAndText(new mImage(&quot;map_off.png&quot;), MyLocale.getMsg(4266, &quot;Fill white areas&quot;), null, CellConstants.RIGHT));
++	MenuItem showCachesOnMapMI = new MenuItem(MyLocale.getMsg(4268, &quot;Alle Cache anzeigen&quot;), new IconAndText(new mImage(&quot;map_off.png&quot;), MyLocale.getMsg(4268, &quot;Alle Cache anzeigen&quot;), null, CellConstants.RIGHT));
++	MenuItem noShowCachesOnMapMI = new MenuItem(MyLocale.getMsg(4269, &quot;Keine Cache anzeigen&quot;), new IconAndText(new mImage(&quot;map_on.png&quot;), MyLocale.getMsg(4269, &quot;Keine Cache anzeigen&quot;), null, CellConstants.RIGHT));
+ 	// automatic
+ 	MenuItem mapChangeModusMI = new MenuItem(MyLocale.getMsg(4242, &quot;Modus for automatic map change&quot;), MenuItem.Separator, null);;
+ 	MenuItem highestResGpsDestMI = new MenuItem(MyLocale.getMsg(4244, &quot;Highest res. containing dest. &amp; cur. position&quot;), new IconAndText(new mImage(&quot;res_gps_goto.png&quot;), MyLocale.getMsg(4245, &quot;Highest res. containing dest. &amp; cur. position&quot;), null, CellConstants.RIGHT)); //immer h&#239;&#191;&#189;chste Aufl&#239;&#191;&#189;sung w&#239;&#191;&#189;hlen, die akt. Pos. und Ziel enthalten
+@@ -2060,6 +2111,12 @@
+ 			else{
+ 				mapsMenu.addItem(noFillMapMI);
+ 			}
++			if (mm.getShowCachesOnMap()){
++				mapsMenu.addItem(noShowCachesOnMapMI);
++			}
++			else{
++				mapsMenu.addItem(showCachesOnMapMI);
++			}
+ 			// automatic
+ 			highestResGpsDestMI.modifiers &amp;= ~MenuItem.Checked;
+ 			highestResolutionMI.modifiers &amp;= ~MenuItem.Checked;
+@@ -2150,12 +2207,15 @@
+ 	}
+ 
+ 	public void onEvent(Event ev){
+-		if (mapsMenu != null &amp;&amp; ev instanceof PenEvent &amp;&amp; ev.type == PenEvent.PEN_DOWN &amp;&amp; ev.target == this) {mapsMenu.close(); mapsMenu = null;}
+-		if (kontextMenu != null &amp;&amp; ev instanceof PenEvent &amp;&amp; ev.type == PenEvent.PEN_DOWN &amp;&amp; ev.target == this) {kontextMenu.close(); kontextMenu = null; }
++		if (mapsMenu != null &amp;&amp; ev instanceof PenEvent &amp;&amp; ev.type == PenEvent.PEN_DOWN &amp;&amp; ev.target == this)
++			{mapsMenu.close(); mapsMenu = null;}
++		if (kontextMenu != null &amp;&amp; ev instanceof PenEvent &amp;&amp; ev.type == PenEvent.PEN_DOWN &amp;&amp; ev.target == this)
++			{kontextMenu.close(); kontextMenu = null; }
+ 
+ 		if (ev instanceof MenuEvent) {
+ 			if (ev.target == mapsMenu) {
+-				if (ev.type == MenuEvent.ABORTED || ev.type == ControlEvent.CANCELLED || ev.type == ControlEvent.FOCUS_OUT) mapsMenu.close(); // TODO menuIsActive() benutzen?
++				if (ev.type == MenuEvent.ABORTED || ev.type == ControlEvent.CANCELLED || ev.type == ControlEvent.FOCUS_OUT)
++						mapsMenu.close(); // TODO menuIsActive() benutzen?
+ 				if (ev.type == MenuEvent.SELECTED ) {
+ 					MenuItem action = (MenuItem) mapsMenu.getSelectedItem();
+ 					if (mapsMenu.getSelectedItem() != null) {
+@@ -2166,7 +2226,7 @@
+ 						}
+ 						else if (action == changeMapDirMI)	{
+ 							mapsMenu.close();
+-							FileChooser fc = new FileChooser(FileChooserBase.DIRECTORY_SELECT, Global.getPref().absoluteBaseDir+&quot;maps&quot;);
++							FileChooser fc = new FileChooser(FileChooserBase.DIRECTORY_SELECT, Global.getPref().getCustomMapsPath());
+ 							fc.addMask(&quot;*.wfl&quot;);
+ 							fc.setTitle(MyLocale.getMsg(4200,&quot;Select map directory:&quot;));
+ 							if(fc.execute() != FormBase.IDCANCEL){
+@@ -2187,6 +2247,20 @@
+ 							mm.updatePosition (mm.posCircle.where);
+ 							repaintNow();
+ 						}
++						else if (action == showCachesOnMapMI){
++							mapsMenu.close ();
++							mm.setShowCachesOnMap(true);
++							mm.forceMapLoad=true;
++							mm.updatePosition (mm.posCircle.where);
++							repaintNow();
++						}
++						else if (action == noShowCachesOnMapMI){
++							mapsMenu.close ();
++							mm.setShowCachesOnMap(false);
++							mm.forceMapLoad=true;
++							mm.updatePosition (mm.posCircle.where);
++							repaintNow();
++						}
+ 						//dont show map
+ 						else if (action == hideMapMI) {
+ 							mapsMenu.close();
+@@ -2240,6 +2314,7 @@
+ 					}
+ 				}
+ 			} // if (ev.target == mapsMenu)
++
+ 			if (ev.target == kontextMenu) {
+ 				if ((((MenuEvent)ev).type==MenuEvent.SELECTED)) {
+ 					MenuItem action = (MenuItem) kontextMenu.getSelectedItem();
+
+Modified: trunk/src/CacheWolf/navi/Navigate.java
+===================================================================
+--- trunk/src/CacheWolf/navi/Navigate.java	2009-10-05 07:44:49 UTC (rev 2240)
++++ trunk/src/CacheWolf/navi/Navigate.java	2009-10-05 08:02:04 UTC (rev 2241)
+@@ -14,12 +14,13 @@
+ import ewe.ui.MessageBox;
+ import ewe.util.mString;
+ import CacheWolf.CacheHolder;
++import CacheWolf.navi.MovingMap;
+ 
+ 
+ /**
+  * Non-Gui Class to handle all things regarding navigation
+  * (GPS, Sun direction etc.)
+- * start offset in localisation file: 4400 
++ * start offset in localisation file: 4400
+  * @author Pfeffer
+  *
+  */
+@@ -68,18 +69,18 @@
+ 				if (gotoPanel != null) gotoPanel.gpsStarted();
+ 				if (movingMap != null) movingMap.gpsStarted();
+ 			} catch (IOException e) {
+-				(new MessageBox(MyLocale.getMsg(4403, &quot;Error&quot;), 
+-					MyLocale.getMsg(4408, &quot;Could not connect to GPSD:&quot;) 
++				(new MessageBox(MyLocale.getMsg(4403, &quot;Error&quot;),
++					MyLocale.getMsg(4408, &quot;Could not connect to GPSD:&quot;)
+ 					+ e.getMessage()
+-					+ MyLocale.getMsg(4409, &quot;\npossible reasons:\nGPSD is not running or GPSD host is not reachable&quot;), 
+-					FormBase.OKB)).execute(); 
++					+ MyLocale.getMsg(4409, &quot;\npossible reasons:\nGPSD is not running or GPSD host is not reachable&quot;),
++					FormBase.OKB)).execute();
+ 			}
+ 		}else{
+ 			if (serThread != null) if (serThread.isAlive()) return; // TODO use gpsRunning
+ 			try {
+ 				serThread = new SerialThread(pref.mySPO, gpsPos, (pref.forwardGPS ? pref.forwardGpsHost : &quot;&quot;));
+ 				if (pref.forwardGPS &amp;&amp; !serThread.tcpForward) {
+-					(new MessageBox(MyLocale.getMsg(4400, &quot;Warning&quot;), 
++					(new MessageBox(MyLocale.getMsg(4400, &quot;Warning&quot;),
+ 							MyLocale.getMsg(4401, &quot;Ignoring error:\n could not forward GPS data to host:\n&quot;)
+ 							+ pref.forwardGpsHost+&quot;\n&quot; + serThread.lastError
+ 							+ MyLocale.getMsg(4402, &quot;\nstop and start GPS to retry&quot;), FormBase.OKB)).exec();
+@@ -96,16 +97,16 @@
+ 				if (gotoPanel != null) gotoPanel.gpsStarted();
+ 				if (movingMap != null) movingMap.gpsStarted();
+ 			} catch (IOException e) {
+-				(new MessageBox(MyLocale.getMsg(4403, &quot;Error&quot;), 
+-						MyLocale.getMsg(4404, &quot;Could not connect to GPS-receiver.\n Error while opening serial Port &quot;) 
++				(new MessageBox(MyLocale.getMsg(4403, &quot;Error&quot;),
++						MyLocale.getMsg(4404, &quot;Could not connect to GPS-receiver.\n Error while opening serial Port &quot;)
+ 						+ e.getMessage()
+-						+ MyLocale.getMsg(4405, &quot;\npossible reasons:\n Another (GPS-)program is blocking the port\nwrong port\nOn Loox: active infra-red port is blocking GPS&quot;), 
+-						FormBase.OKB)).execute(); 
++						+ MyLocale.getMsg(4405, &quot;\npossible reasons:\n Another (GPS-)program is blocking the port\nwrong port\nOn Loox: active infra-red port is blocking GPS&quot;),
++						FormBase.OKB)).execute();
+ 			} catch (UnsatisfiedLinkError e) {
+-				(new MessageBox(MyLocale.getMsg(4403, &quot;Error&quot;), 
+-						MyLocale.getMsg(4404, &quot;Could not connect to GPS-receiver.\n Error while opening serial Port &quot;) 
+-						+ MyLocale.getMsg(4406, &quot;Please copy jave_ewe.dll into the directory of the cachewolf program&quot;), 
+-						FormBase.OKB)).execute(); 
++				(new MessageBox(MyLocale.getMsg(4403, &quot;Error&quot;),
++						MyLocale.getMsg(4404, &quot;Could not connect to GPS-receiver.\n Error while opening serial Port &quot;)
++						+ MyLocale.getMsg(4406, &quot;Please copy jave_ewe.dll into the directory of the cachewolf program&quot;),
++						FormBase.OKB)).execute();
+ 			}
+ 		}
+ 	}
+@@ -140,7 +141,7 @@
+ 	}
+ 
+ 
+-	public void setDestination(String LatLon) { 
++	public void setDestination(String LatLon) {
+ 		setDestination(new CWPoint(LatLon));
+ 	}
+ 
+@@ -151,7 +152,7 @@
+ 		if (gotoPanel != null) gotoPanel.destChanged(destination);
+ 		if (movingMap != null) movingMap.destChanged(destination);
+ 	}
+-	
++
+ 	public void setDestination(CacheHolder ch) {
+ 		destinationIsCache = true;
+ 		destinationCache=ch;
+@@ -176,7 +177,7 @@
+ 			try {
+ 				curTrack.add(gpsPos);
+ 			} catch (IndexOutOfBoundsException e) { // track full -&gt; create a new one
+-				curTrack = new Track(trackColor); 
++				curTrack = new Track(trackColor);
+ 				curTrack.add(gpsPos);
+ 				if (movingMap != null) movingMap.addTrack(curTrack);
+ 			}
+@@ -186,11 +187,11 @@
+ 				skyOrientationDir = SkyOrientation.getLuminaryDir(luminary, jd, gpsPos);
+ 				// ewe.sys.Vm.debug(&quot;neu: &quot;+ skyOrientationDir.lonDec+ &quot;jd: &quot; + jd);
+ 			} catch (NumberFormatException e) { // irgendeine Info zu Berechnung des Sonnenaziumt fehlt (insbesondere Datum und Uhrzeit sind nicht unbedingt gleichzeitig verf&#252;gbar wenn es einen Fix gibt)
+-				skyOrientationDir.set(-361, -361); // any value out of range (bigger than 360) will prevent drawArrows from drawing it 
++				skyOrientationDir.set(-361, -361); // any value out of range (bigger than 360) will prevent drawArrows from drawing it
+ 			}
+ 
+ 		} else {
+-			skyOrientationDir.set(-361, -361); // any value out of range (bigger than 360) will prevent drawArrows from drawing it		
++			skyOrientationDir.set(-361, -361); // any value out of range (bigger than 360) will prevent drawArrows from drawing it
+ 		}
+ 		gotoPanel.updateGps(fix);
+ 		if (movingMap != null) movingMap.updateGps(fix);
+@@ -204,16 +205,16 @@
+ 	boolean run, tcpForward;
+ 	Socket tcpConn;
+ 	String lastError = new String();
+-	
++
+ 	public GpsdThread(CWGPSPoint GPSPoint) throws IOException {
+ 		try{
+ 			gpsdSocket = new Socket(Global.getPref().gpsdHost, Global.getPref().gpsdPort);
+ 		} catch (IOException e) {
+ 			throw new IOException(Global.getPref().gpsdHost);
+-		} // catch (UnsatisfiedLinkError e) {} // TODO in original java-vm 
++		} // catch (UnsatisfiedLinkError e) {} // TODO in original java-vm
+ 		myGPS = GPSPoint;
+ 	}
+-	
++
+ 	public void run() {
+ 		String gpsResult;
+ 		int noData = 0;
+@@ -233,8 +234,8 @@
+ 					//Vm.debug(&quot;P -&gt; &quot; + gpsResult);
+ 					noData = 0;
+ 					if (myGPS.examineGpsd(gpsResult))
+-						notinterpreted = 0; 
+-					else 
++						notinterpreted = 0;
++					else
+ 						notinterpreted++;
+ 					if (notinterpreted &gt; 22) myGPS.noInterpretableData();
+ 				}
+@@ -263,7 +264,7 @@
+ 		}
+ 		String str = null;
+ 		if (rcvLength &gt; 0)	{
+-			str = mString.fromAscii(rcvBuff, 0, rcvLength); 
++			str = mString.fromAscii(rcvBuff, 0, rcvLength);
+ 		}
+ 		return str;
+ 	}
+@@ -279,7 +280,7 @@
+  *
+  */
+ class SerialThread extends mThread{
+-	SerialPort comSp;   
++	SerialPort comSp;
+ 	byte[] comBuff = new byte[1024*10]; // when some action takes a long time (eg. loading or zooming a map), a lot of data can be in the buffer, read that at once
+ 	int comLength = 0;
+ 	CWGPSPoint myGPS;
+@@ -293,13 +294,13 @@
+ 			comSp = new SerialPort(spo);
+ 		} catch (IOException e) {
+ 			throw new IOException(spo.portName);
+-		} // catch (UnsatisfiedLinkError e) {} // TODO in original java-vm 
+-		if (forwardIP.length()&gt;0) { 
++		} // catch (UnsatisfiedLinkError e) {} // TODO in original java-vm
++		if (forwardIP.length()&gt;0) {
+ 			try {
+ 				tcpConn = new Socket(forwardIP, 23);
+ 				tcpForward = true;
+ 			} catch (ewe.net.UnknownHostException e) { tcpForward = false; lastError = e.getMessage();
+-			} catch (IOException e) { tcpForward = false; lastError = e.getMessage(); 
++			} catch (IOException e) { tcpForward = false; lastError = e.getMessage();
+ 			}
+ 		}
+ 		myGPS = GPSPoint;
+@@ -323,7 +324,7 @@
+ 				//Vm.debug(&quot;Length: &quot; + comBuff.length);
+ 				if (comLength &gt; 0)	{
+ 					noData = 0;
+-					String str = mString.fromAscii(comBuff, 0, comLength); 
++					String str = mString.fromAscii(comBuff, 0, comLength);
+ 					if (tcpForward) {
+ 						try {
+ 							tcpConn.write(comBuff, 0, comLength);
+@@ -345,10 +346,10 @@
+ 	}
+ }
+ 
+-/** 
+- * Class for creating a new mThread to create timer ticks to be able to do form.close in the ticked-thread. 
+- * Using the Vm.requestTimer-Method causes &quot;ewe.sys.EventDirectionException: This task cannot be done within 
+- * a Timer Tick.&quot; in the ewe-vm when form.close is called.  
++/**
++ * Class for creating a new mThread to create timer ticks to be able to do form.close in the ticked-thread.
++ * Using the Vm.requestTimer-Method causes &quot;ewe.sys.EventDirectionException: This task cannot be done within
++ * a Timer Tick.&quot; in the ewe-vm when form.close is called.
+  */
+ 
+ class UpdateThread extends mThread {
+@@ -377,3 +378,4 @@
+ }
+ 
+ 
++
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002161.html">[Cachewolf-svn] r2240 - trunk/res_noewe/webmapservices
+</A></li>
+	<LI>Next message: <A HREF="002166.html">[Cachewolf-svn] r2242 - in trunk/tools/MakeWMSFile/capxml2wms: .	bin bin/Debug
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2164">[ date ]</a>
+              <a href="thread.html#2164">[ thread ]</a>
+              <a href="subject.html#2164">[ subject ]</a>
+              <a href="author.html#2164">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

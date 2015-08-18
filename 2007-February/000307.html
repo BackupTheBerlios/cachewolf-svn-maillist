@@ -1,0 +1,1429 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r513 - in trunk: resources src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r513%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200702050246.l152kJxH016874%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000306.html">
+   <LINK REL="Next"  HREF="000308.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r513 - in trunk: resources src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r513%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200702050246.l152kJxH016874%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r513 - in trunk: resources src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Mon Feb  5 03:46:19 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000306.html">[Cachewolf-svn] r512 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000308.html">[Cachewolf-svn] r514 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#307">[ date ]</a>
+              <a href="thread.html#307">[ thread ]</a>
+              <a href="subject.html#307">[ subject ]</a>
+              <a href="author.html#307">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-02-05 03:46:11 +0100 (Mon, 05 Feb 2007)
+New Revision: 513
+
+Added:
+   trunk/resources/mark_cache.png
+   trunk/src/CacheWolf/Navigate.java
+Modified:
+   trunk/src/CacheWolf/DetailsPanel.java
+   trunk/src/CacheWolf/GotoPanel.java
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/MovingMap.java
+   trunk/src/CacheWolf/Parser.java
+   trunk/src/CacheWolf/myTableModel.java
+Log:
+MovingMap / Goto: einige Code umstrukturierungen
+DetailsPanel: gr?\195?\188ne Weltkugel ?\195?\182ffnet jetzt kalibrierte Karte und markiiert den gew?\195?\164hlten Cache mit einem blauen Rechteck
+MovingMap: manuelle Ma?\195?\159stabswahl, wurde recht schnell wieder automatisch ?\195?\188berschrieben
+MovingMap: jetz sollte die Karte auch bei langsamen Bewegungen upgedated werden
+
+Added: trunk/resources/mark_cache.png
+===================================================================
+(Binary files differ)
+
+
+Property changes on: trunk/resources/mark_cache.png
+___________________________________________________________________
+Name: svn:mime-type
+   + application/octet-stream
+
+Modified: trunk/src/CacheWolf/DetailsPanel.java
+===================================================================
+--- trunk/src/CacheWolf/DetailsPanel.java	2007-02-04 23:35:16 UTC (rev 512)
++++ trunk/src/CacheWolf/DetailsPanel.java	2007-02-05 02:46:11 UTC (rev 513)
+@@ -229,14 +229,15 @@
+ 				nsc.execute(this.getFrame(), Gui.CENTER_FRAME);
+ 			}
+ 			else if(ev.target == btnShowMap){
+-				try {
++				Global.mainTab.SwitchToMovingMap(thisCache.pos);
++/*				try {
+ 					MapDetailForm mdf = new MapDetailForm(thisCache.wayPoint, pref, profile);
+ 					mdf.execute();
+ 				} catch (IllegalArgumentException e) {
+ 					MessageBox tmp = new MessageBox(MyLocale.getMsg(321,&quot;Error&quot;), MyLocale.getMsg(322,&quot;Kann Bild/Karte nicht finden&quot;)+&quot;: &quot;+e.getMessage(), MessageBox.OKB);
+ 					tmp.exec();
+ 				}
+-			}
++	*/		}
+ 			else if(ev.target == btnShowBug){
+ 				InfoScreen is = new InfoScreen(thisCache.Bugs, &quot;Travelbugs&quot;, false, pref);
+ 				is.execute();
+
+Modified: trunk/src/CacheWolf/GotoPanel.java
+===================================================================
+--- trunk/src/CacheWolf/GotoPanel.java	2007-02-04 23:35:16 UTC (rev 512)
++++ trunk/src/CacheWolf/GotoPanel.java	2007-02-05 02:46:11 UTC (rev 513)
+@@ -14,104 +14,7 @@
+ import ewe.sys.Double;
+ 
+ 
+-/**
+- * Thread for reading data from COM-port
+- *
+- */
+-class SerialThread extends mThread{
+-	SerialPort comSp;   
+-	byte[] comBuff = new byte[1024];  
+-	int comLength = 0;
+-	CWGPSPoint myGPS;
+-	boolean run, tcpForward;
+-	Socket tcpConn;
+-	String lastError = new String();
+ 
+-	public SerialThread(SerialPortOptions spo, CWGPSPoint GPSPoint, String forwardIP) throws IOException {
+-		try{
+-			comSp = new SerialPort(spo);
+-		} catch (IOException e) {
+-			throw new IOException(spo.portName);
+-		} // catch (UnsatisfiedLinkError e) {} // TODO in original java-vm 
+-		if (forwardIP.length()&gt;0) { 
+-			try {
+-				tcpConn = new Socket(forwardIP, 23);
+-				tcpForward = true;
+-			} catch (ewe.net.UnknownHostException e) { tcpForward = false; lastError = e.getMessage();
+-			} catch (IOException e) { tcpForward = false; lastError = e.getMessage(); 
+-			}
+-		}
+-		myGPS = GPSPoint;
+-	}
+-
+-	public void run() {
+-		int noData = 0;
+-		int notinterpreted = 0;
+-		run = true;
+-		while (run){
+-			try {
+-				sleep(1000);
+-				//Vm.debug(&quot;Loop? &quot; + noData);
+-				noData++;
+-				if (noData &gt; 5) { myGPS.noDataError(); }
+-			} catch (InterruptedException e) {}
+-			if (comSp != null)	{
+-				comLength = comSp.nonBlockingRead(comBuff, 0 ,comBuff.length);
+-				//Vm.debug(&quot;Length: &quot; + comBuff.length);
+-				if (comLength &gt; 0)	{
+-					noData = 0;
+-					String str = mString.fromAscii(comBuff, 0, comLength); 
+-					if (tcpForward) {
+-						try {
+-							tcpConn.write(comBuff, 0, comLength);
+-						} catch (IOException e) { tcpForward = false; }
+-					}
+-					//Vm.debug(str);
+-					if (myGPS.examine(str)) notinterpreted = 0; else notinterpreted++;
+-					if (notinterpreted &gt; 22) myGPS.noInterpretableData();
+-				}
+-			}
+-		} // while
+-		myGPS.noData();
+-		tcpConn.close();
+-	}
+-
+-	public void stop() {
+-		run = false;
+-		if (comSp != null) comSp.close();
+-	}
+-}
+-
+-/** 
+- * Class for creating a new mThread to create timer ticks to be able to do form.close in the ticked-thread. 
+- * Using the Vm.requestTimer-Method causes &quot;ewe.sys.EventDirectionException: This task cannot be done within 
+- * a Timer Tick.&quot; in the ewe-vm when form.close is called.  
+- */
+-
+-class UpdateThread extends mThread {
+-	public boolean run;
+-	public int calldelay;
+-	public GotoPanel ticked;
+-
+-	public UpdateThread (GotoPanel gp, int cd) {
+-		ticked = gp;
+-		calldelay = cd;
+-	}
+-
+-	public void run () {
+-		run = true;
+-		while (run) {
+-			try { sleep (calldelay);} catch (InterruptedException e) {}
+-			ticked.ticked();
+-		}
+-	}
+-
+-	public void stop() {
+-		run = false;
+-	}
+-}
+-
+-
+ /**
+  *	Class to create the panel which handles the connection to the GPS-device&lt;br&gt;
+  *	Displays: current position,speed and bearing; relation to destination waypoint&lt;br&gt;
+@@ -121,9 +24,9 @@
+ 
+ public class GotoPanel extends CellPanel {
+ 
+-	public CWGPSPoint gpsPosition = new CWGPSPoint();
+-	public CWPoint toPoint = new CWPoint();
+-
++	//public CWGPSPoint gpsPosition = new CWGPSPoint();
++	//public CWPoint toPoint = new CWPoint();
++	public Navigate myNavigation;
+ 	mButton btnGPS, btnCenter,btnSave;
+ 	mButton btnGoto, btnMap;
+ 	mCheckBox chkDMM, chkDMS, chkDD, chkUTM;
+@@ -151,9 +54,6 @@
+ 	CellPanel GotoP = new CellPanel();
+ 	CellPanel LogP = new CellPanel();
+ 
+-	SerialThread serThread;
+-	UpdateThread tickerThread;
+-
+ 	ImageControl icRose;
+ 	GotoRose compassRose;
+ 
+@@ -167,12 +67,6 @@
+ 	GotoRose rose;
+ 	int ticker = 0;
+ 
+-	boolean mapsLoaded = false;
+-	public boolean runMovingMap = false;
+-	MovingMap mmp;
+-	Track currTrack;
+-	Color trackColor = RED;
+-
+ 	/**
+ 	 * Create GotoPanel 
+ 	 * @param Preferences 	global preferences
+@@ -180,12 +74,12 @@
+ 	 * @param DetailsPanel 	reference to DetailsPanel
+ 	 * @param Vector		cacheDB
+ 	 */
+-	public GotoPanel(Preferences p, Profile prof, MainTab mt, DetailsPanel dp)
+-	{
+-		pref = p;
+-		profile=prof;
+-		mainT = mt;
+-		detP = dp;
++	public GotoPanel(Navigate nav) {
++		myNavigation = nav;
++		pref = Global.getPref();
++		profile=Global.getProfile();
++		mainT = Global.mainTab;
++		detP = mainT.detP;
+ 		cacheDB = profile.cacheDB;
+ 
+ 		// Button
+@@ -210,7 +104,7 @@
+ 		//Coords
+ 		CoordsP.addNext(lblGPS = new mLabel(&quot;GPS: &quot;),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		lblGPS.backGround = RED;
+-		CoordsP.addLast(lblPosition = new mLabel(gpsPosition.toString(currFormat)),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
++		CoordsP.addLast(lblPosition = new mLabel(myNavigation.gpsPos.toString(currFormat)),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 		CoordsP.addNext(lblDST = new mLabel(MyLocale.getMsg(1500,&quot;DST:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		lblDST.backGround = BLUE;
+ 		CoordsP.addLast(btnGoto = new mButton(getGotoBtnText()),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+@@ -228,13 +122,13 @@
+ 
+ 		//GotoP.addNext(lblSatsText = new mLabel(&quot;Sats: &quot;),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		//lblSatsText.font = BOLD;
+-		GotoP.addLast(lblSats = new mLabel(&quot;Sats: &quot; + Convert.toString(gpsPosition.getSats())),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
++		GotoP.addLast(lblSats = new mLabel(&quot;Sats: &quot; + Convert.toString(myNavigation.gpsPos.getSats())),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 		lblSats.font = BOLD;
+-		GotoP.addLast(lblHDOP = new mLabel(&quot;HDOP: &quot; + Convert.toString(gpsPosition.getHDOP())),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
++		GotoP.addLast(lblHDOP = new mLabel(&quot;HDOP: &quot; + Convert.toString(myNavigation.gpsPos.getHDOP())),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 		lblHDOP.font = BOLD;
+ 
+ 
+-		GotoP.addLast(lblSpeed = new mLabel(Convert.toString(gpsPosition.getSpeed())),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
++		GotoP.addLast(lblSpeed = new mLabel(Convert.toString(myNavigation.gpsPos.getSpeed())),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 		lblSpeed.font = BOLD;
+ 
+ 		GotoP.addLast(lblBearMov = new mLabel(&quot;0&quot;),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+@@ -312,28 +206,23 @@
+ 	 * @param dest destination
+ 	 */ 
+ 	public void setDestination(CWPoint dest){
+-		toPoint.set(dest);
+-		if (!toPoint.isValid()) (new MessageBox(&quot;Error&quot;, &quot;coordinates are out of range: \n&quot;+&quot;latitude: &quot;+toPoint.latDec+&quot;\n longditue: &quot;+toPoint.lonDec, MessageBox.OKB)).execute();
++		myNavigation.setDestination(dest);
++		if (!myNavigation.destination.isValid()) (new MessageBox(&quot;Error&quot;, &quot;Coordinates are out of range: \n&quot;+&quot;latitude: &quot;+myNavigation.destination.latDec+&quot;\n longditue: &quot;+myNavigation.destination.lonDec, MessageBox.OKB)).execute();
++		
++	}
++	
++	public void destChanged() { // called from myNavigate
+ 		btnGoto.setText(getGotoBtnText());
+-		if (mmp != null) { 
+-			mmp.setGotoPosition(dest.latDec, dest.lonDec);
+-			mmp.repaintNow();
+-		}
+ 		updateDistance();
+ 	}
+ 	
+-	public void setDestination(String LatLon) {
+-		toPoint.set(LatLon);
+-		setDestination(toPoint);
+-	}
+ 
+ 	/**
+ 	 * set the coords of the destination and switch to gotoPanel  
+ 	 * @param LatLon destination
+ 	 */ 
+ 	public void setDestinationAndSwitch(String LatLon) {
+-		toPoint.set(LatLon,CWPoint.CW);
+-		setDestination(toPoint);
++		myNavigation.setDestination(LatLon);
+ 		mainT.select(this);
+ 	}
+ 	
+@@ -345,8 +234,8 @@
+ 	public void updateDistance() {
+ 		//update distance
+ 		Double tmp = new Double();
+-		if (gpsPosition.isValid() &amp;&amp; toPoint.isValid() ) {
+-			tmp.set(gpsPosition.getDistance(toPoint));
++		if (myNavigation.gpsPos.isValid() &amp;&amp; myNavigation.destination.isValid() ) {
++			tmp.set(myNavigation.gpsPos.getDistance(myNavigation.destination));
+ 			if (tmp.value &gt;= 1){
+ 				lblDist.setText(MyLocale.formatDouble(tmp,&quot;0.000&quot;)+ &quot; km&quot;);
+ 			}
+@@ -357,7 +246,7 @@
+ 		}
+ 		else lblDist.setText(&quot;--- km&quot;);
+ 		// update goto-bearing
+-		tmp.set(gpsPosition.getBearing(toPoint));
++		tmp.set(myNavigation.gpsPos.getBearing(myNavigation.destination));
+ 		if (tmp.value &lt;= 360) 
+ 			lblBearWayP.setText(tmp.toString(0,0,0) + &quot; Grad&quot;);
+ 		else lblBearWayP.setText(&quot;---&quot; + &quot; Grad&quot;);
+@@ -367,42 +256,22 @@
+ 	/**
+ 	 * method which is called if a timer is set up  
+ 	 */ 
+-	public void ticked() {
++	public void updateGps(int fix) {
+ 		Double bearMov = new Double();
+ 		Double speed = new Double();
+ 		Double sunAzimut = new Double();
+ 		Vm.debug(&quot;ticked: voher&quot;);
+-
+-		//		Vm.debug(&quot;ticked&quot;);
+-		int fix = gpsPosition.getFix();
+-		lblSats.setText(&quot;Sats: &quot; + Convert.toString(gpsPosition.getSats()));
+-		lblHDOP.setText(&quot;HDOP: &quot; + Convert.toString(gpsPosition.getHDOP()));
+-		// display values only, if signal good
+-		if ((fix &gt; 0) &amp;&amp; (gpsPosition.getSats()&gt;= 0)) {
+-			//gpsPosition.printAll();
+-			//Vm.debug(&quot;currTrack.add: voher&quot;);
+-			if (currTrack == null) currTrack = new Track(trackColor);
+-			try {
+-				currTrack.add(gpsPosition);
+-			} catch (IndexOutOfBoundsException e) { // track full -&gt; create a new one
+-				currTrack = new Track(trackColor); 
+-				currTrack.add(gpsPosition);
+-				if (mmp != null) mmp.addTrack(currTrack); // TODO maybe gotoPanel should also hold a list of Tracks, because otherwise they will be destroyed if not saved in mmp before
+-			}
++		lblSats.setText(&quot;Sats: &quot; + Convert.toString(myNavigation.gpsPos.getSats()));
++		lblHDOP.setText(&quot;HDOP: &quot; + Convert.toString(myNavigation.gpsPos.getHDOP()));
++		if ((fix &gt; 0) &amp;&amp; (myNavigation.gpsPos.getSats()&gt;= 0)) {
++			// display values only, if signal good
+ 			//Vm.debug(&quot;currTrack.add: nachher&quot;);
+-			lblPosition.setText(gpsPosition.toString(currFormat));
+-			speed.set(gpsPosition.getSpeed());
++			lblPosition.setText(myNavigation.gpsPos.toString(currFormat));
++			speed.set(myNavigation.gpsPos.getSpeed());
+ 			lblSpeed.setText(MyLocale.formatDouble(speed,&quot;0.0&quot;) + &quot; km/h&quot;);
+-			try { 
+-				sunAzimut.set(getSunAzimut(gpsPosition.Time, gpsPosition.Date, gpsPosition.latDec, gpsPosition.lonDec));
+-				lblSunAzimut.setText(MyLocale.formatDouble(sunAzimut,&quot;0.0&quot;) + &quot; Grad&quot;);
+-			} catch (NumberFormatException e) { 
+-				// irgendeine Info zu Berechnung des Sonnenaziumt fehlt (insbesondere Datum und Uhrzeit sind nicht unbedingt gleichzeitig verf&#252;gbar wenn es einen Fix gibt)
+-				sunAzimut.set(500); // any value out of range (bigger than 360) will prevent drawArrows from drawing it 
+-				lblSunAzimut.setText(&quot;---&quot;);
+-			}//sunAzimut.set(getSunAzimut(&quot;141303&quot;,&quot;130906&quot;, 50.744, 7.0935));
+-
+-			bearMov.set(gpsPosition.getBear());
++			sunAzimut.set((double)myNavigation.sunAzimut);
++			lblSunAzimut.setText(MyLocale.formatDouble(sunAzimut,&quot;0.0&quot;) + &quot; Grad&quot;);
++			bearMov.set(myNavigation.gpsPos.getBear());
+ 			lblBearMov.setText(bearMov.toString(0,0,0) + &quot; Grad&quot;);
+ 			compassRose.setSunMoveDirections((float)sunAzimut.value, (float)bearMov.value);
+ 			updateDistance();
+@@ -411,145 +280,58 @@
+ 		}
+ 
+ 		// receiving data, but signal ist not good
+-		if ((fix == 0) &amp;&amp; (gpsPosition.getSats()&gt;= 0)) {
++		if ((fix == 0) &amp;&amp; (myNavigation.gpsPos.getSats()&gt;= 0)) {
+ 			lblSats.backGround = YELLOW;
+ 		}
+ 		// receiving no data
+ 		if (fix == -1) {
+ 			if (lblSats.backGround != RED) (new MessageBox(&quot;Error&quot;, &quot;No data from GPS\nConnection to serial port closed&quot;,MessageBox.OKB)).exec();
+ 			lblSats.backGround = RED;
+-			stopGPS();
++			myNavigation.stopGps();
+ 		}
+ 		// cannot interprete data
+ 		if (fix == -2) {
+-			if (lblSats.backGround != RED) (new MessageBox(&quot;Error&quot;, &quot;Cannot interpret data from GPS\n possible reasons:\n wrong Port,\n wrong Baudrate,\n not NMEA-Protocol\nConnection to serial port closed\nLast String tried to interprete:\n &quot;+gpsPosition.lastStrExamined, MessageBox.OKB)).exec();
++			if (lblSats.backGround != RED) (new MessageBox(&quot;Error&quot;, &quot;Cannot interpret data from GPS\n possible reasons:\n wrong Port,\n wrong Baudrate,\n not NMEA-Protocol\nConnection to serial port closed\nLast String tried to interprete:\n &quot;+myNavigation.gpsPos.lastStrExamined, MessageBox.OKB)).exec();
+ 			lblSats.backGround = RED;
+-			stopGPS();
++			myNavigation.stopGps(); // TODO automatic in myNavigate?
+ 		}
+-
+-		// In moving map mode
+-		if (mmp != null &amp;&amp; runMovingMap ) { // neccessary in case of multi-threaded Java-VM: ticked could be called during load of mmp 
+-			if ((fix &gt; 0) &amp;&amp; (gpsPosition.getSats()&gt;= 0)) {
+-				mmp.directionArrows.setDirections(-361 /*(float)bearWayP.value*/, (float)sunAzimut.value, -361 /*(float)bearMov.value*/);
+-				mmp.setGpsStatus(MovingMap.gotFix);
+-				mmp.updatePosition(gpsPosition.latDec, gpsPosition.lonDec);
+-				mmp.ShowLastAddedPoint(currTrack);
+-			}
+-			if ((fix == 0) &amp;&amp; (gpsPosition.getSats()== 0)) {
+-				mmp.setGpsStatus(MovingMap.lostFix);
+-			}
+-			if (fix &lt; 0 ) {
+-				mmp.setGpsStatus(MovingMap.noGPSData);
+-			}
+-		}
+ 	}
+ 
+-	public void startDisplayTimer() {
+-		tickerThread = new UpdateThread(this, 1000);
+-		tickerThread.start();
++	public void gpsStarted() {
++		chkLog.modify(ControlConstants.Disabled,0);
++		btnGPS.setText(&quot;Stop&quot;);
+ 	}
+-
+-	public void stopDisplayTimer(){
+-		if (tickerThread != null) tickerThread.stop();
++	
++	public void startGps() {
++		myNavigation.setRawLogging(chkLog.getState(), Convert.toInt(inpLogSeconds.getText()));
++		myNavigation.startGps();
+ 	}
+ 
+-	/**
+-	 * @param utc in the format as it comes from gps DDMMYY
+-	 * @param datum in the format as it comes from gps HHMMSS
+-	 * @param lat in degrees in WGS84
+-	 * @param lon in degrees in WGS84
+-	 * @return Azimut of the sun in degrees from north
+-	 * @throws NumberFormatException when utc / datum could not be interpreted
+-	 */
+-	public double getSunAzimut (String utc, String datum, double lat, double lon) {
+-		//	(new MessageBox(&quot;test&quot;, &quot;utc:&quot;+utc+&quot; datum: &quot;+datum+&quot;, lat: &quot;+lat+&quot;, len: &quot;+lon, MessageBox.OKB)).exec();
+-		try {
+-			int tag, monat, jahr, stunde, minute, sekunde;
+-			tag = Convert.parseInt(datum.substring(0, 2));
+-			monat = Convert.parseInt(datum.substring(2, 4));
+-			jahr = Convert.parseInt(datum.substring(4, 6)) + 2000;
+-			stunde=Convert.parseInt(utc.substring(0, 2));
+-			minute=Convert.parseInt(utc.substring(2, 4));
+-			sekunde=Convert.parseInt(utc.substring(4, 6)); // Kommastellen werden abgeschnitten
+-			// julianisches &quot;Datum&quot; jd berechnen (see <A HREF="http://de.wikipedia.org/wiki/Julianisches_Datum">http://de.wikipedia.org/wiki/Julianisches_Datum</A> )
+-			if (monat&lt;2) {jahr--; monat+=12;} // verlegung des Jahres Endes auf Feb macht Berechnung von SChaltjahren einfacher
+-			double a = (int)java.lang.Math.floor((double)jahr/100.); // Alle hundert Jahre kein Schlatjahr (abrunden)
+-			double b = 2 - a + java.lang.Math.floor((double)a/4.);
+-			double jd = java.lang.Math.floor(365.25*(jahr + 4716.)) + java.lang.Math.floor(30.6001*((double)monat+1.)) + (double)tag + (double)stunde/24 + (double)minute/1440 + (double)sekunde/86400 + b - 1524.5;
+-			double jd0 = java.lang.Math.floor(365.25*(jahr + 4716.)) + java.lang.Math.floor(30.6001*((double)monat+1.)) +(double)tag + b - 1524.5;
+-			// Ekliptikalkoordinaten der Sonne berechnen (see <A HREF="http://de.wikipedia.org/wiki/Sonnenstand">http://de.wikipedia.org/wiki/Sonnenstand</A> )
+-			double n = jd - 2451545.0;
+-			double l = 280.46 + 0.9856474 * n;
+-			double g = 357.528 + 0.9856003 * n;
+-			double d = l + 1.915*java.lang.Math.sin(g/180*java.lang.Math.PI) + 0.02 * java.lang.Math.sin(2*g/180*java.lang.Math.PI);
+-			// Rektaszension alpha und Deklination delta der Sonne berechnen
+-			double e = 23.439 -0.0000004 * n;
+-			double alphaNenner = java.lang.Math.cos(d/180*java.lang.Math.PI);
+-			double alpha = 180/java.lang.Math.PI*java.lang.Math.atan(java.lang.Math.cos(e/180*java.lang.Math.PI)*java.lang.Math.sin(d/180*java.lang.Math.PI)/alphaNenner);
+-			double delta = 180/java.lang.Math.PI*java.lang.Math.asin(java.lang.Math.sin(e/180*java.lang.Math.PI)*java.lang.Math.sin(d/180*java.lang.Math.PI) );
+-			if (alphaNenner&lt;0) {alpha +=180;}
+-			// Azimut
+-			double t0 = (jd0 - 2451545.)/36525.; // schon in t0 bzw jd0 richtig berechnet?
+-			double thetaHG = 6.697376 + 2400.05134 * t0 + 1.002738 * ((double)stunde + (double)minute/60.);
+-			double theta = thetaHG * 15. + lon;
+-			double azimutNenner = java.lang.Math.cos((theta-alpha)/180*java.lang.Math.PI)*java.lang.Math.sin(lat/180*java.lang.Math.PI)-
+-			java.lang.Math.tan(delta/180*java.lang.Math.PI)*java.lang.Math.cos(lat/180*java.lang.Math.PI);
+-			double azimut = java.lang.Math.atan(java.lang.Math.sin((theta-alpha)/180*java.lang.Math.PI)/
+-					azimutNenner);
+-			azimut = azimut * 180. / java.lang.Math.PI;
+-			if (azimutNenner&lt;0) azimut +=180.;
+-			// null = Sueden auf Null = Norden umrechnen
+-			azimut +=180.;
+-			if (azimut &gt;360.) azimut -=360.;
+-			return azimut;
+-		} catch (IndexOutOfBoundsException e) {
+-			// wird von substring geworfen wenn datum / utc nicht genug Ziffern haben
+-			// NumberFormatException wird au&#223;erdem von Convert.ParseInt direkt geworfen wenn
+-			// nicht in Int konvertiert werden kann
+-			throw new NumberFormatException();
+-		}
+-	}
+-
+-	private void stopGPS() {
+-		serThread.stop();
+-		stopDisplayTimer();
++	public void gpsStoped() {
+ 		btnGPS.setText(&quot;Start&quot;);
+-		gpsPosition.stopLog();
+ 		lblSats.backGround = this.backGround;
+-		if (mmp != null) mmp.setGpsStatus(MovingMap.noGPS);
+-		this.repaintNow(); // without this the change in the background color will not be displayed
+ 		chkLog.modify(0,ControlConstants.Disabled);
++		this.repaintNow(); // without this the change in the background color will not be displayed
+ 	}
+ 
+-	public void startGps() {
+-		if (serThread != null) if (serThread.isAlive()) return;
+-		try {
+-			serThread = new SerialThread(pref.mySPO, gpsPosition, (pref.forwardGPS ? pref.forwardGpsHost : &quot;&quot;));
+-			if (pref.forwardGPS &amp;&amp; !serThread.tcpForward) {
+-				(new MessageBox(&quot;Warning&quot;, &quot;Ignoring error:\n could not forward GPS data to host:\n&quot;+pref.forwardGpsHost+&quot;\n&quot;+serThread.lastError+&quot;\nstop and start GPS to retry&quot;,MessageBox.OKB)).exec();
+-			}
+-			if (gpsPosition.latDec == 0 &amp;&amp; gpsPosition.lonDec == 0) {
+-				gpsPosition.latDec = toPoint.latDec; // setze Zielpunkt als Ausgangspunkt
+-				gpsPosition.lonDec = toPoint.lonDec;
+-			}
+-			serThread.start();
+-			startDisplayTimer();
+-			if (chkLog.getState()){
+-				gpsPosition.startLog(profile.dataDir, Convert.toInt(inpLogSeconds.getText()), CWGPSPoint.LOGALL);
+-			}
+-			chkLog.modify(ControlConstants.Disabled,0);
+-			btnGPS.setText(&quot;Stop&quot;);
+-		} catch (IOException e) {
+-			(new MessageBox(&quot;Error&quot;, &quot;Could not connect to GPS-receiver.\n Error while opening serial Port &quot; + e.getMessage()+&quot;\npossible reasons:\n Another (GPS-)program is blocking the port\nwrong port\nOn Loox: active infra-red port is blocking GPS&quot;, MessageBox.OKB)).execute(); 
+-		}
+-		currTrack = new Track(RED); // TODO addTrack here to MovingMap? see MovingMapPanel.snapToGps
+-	}
+ 	
+ 	private String getGotoBtnText() {
+-		if (toPoint == null) return &quot;not set&quot;;
+-		else return toPoint.toString(currFormat);
++		if (myNavigation.destination == null) return &quot;not set&quot;;
++		else return myNavigation.destination.toString(currFormat);
+ 	}
+-
++	
++	public void switchToMovingMap() {
++		CWPoint centerTo;
++		if (myNavigation.isGpsPosValid()) centerTo = new CWPoint(myNavigation.gpsPos); // set gps-pos if gps is on
++		else {
++			// setze Zielpunkt als Ausgangspunkt, wenn GPS aus ist und lade entsprechende Karte
++			centerTo = new CWPoint(myNavigation.destination);
++			if (myNavigation.destination.isValid())	centerTo = new CWPoint(myNavigation.destination);
++			else centerTo = new CWPoint(pref.curCentrePt); // if not goto-point defined move map to centere point
++		}  
++		mainT.SwitchToMovingMap(centerTo);
++	}
++	
+ 	/**
+ 	 * Eventhandler
+ 	 */
+@@ -560,68 +342,39 @@
+ 			// display coords in another format
+ 			if (ev.target == chkFormat){
+ 				currFormat = chkFormat.getSelectedIndex();
+-				lblPosition.setText(gpsPosition.toString(currFormat));
++				lblPosition.setText(myNavigation.gpsPos.toString(currFormat));
+ 				btnGoto.setText(getGotoBtnText());
+ 			}
+ 
+ 			// start/stop GPS connection
+ 			if (ev.target == btnGPS){
+ 				if (btnGPS.getText().equals(&quot;Start&quot;)) startGps();
+-				else stopGPS();
++				else myNavigation.stopGps();
+ 			}
+ 
+ 			// set current position as center and recalculate distance of caches in MainTab 
+ 			if (ev.target == btnCenter){
+ 				Vm.showWait(true);
+-				pref.curCentrePt.set(gpsPosition);
++				pref.curCentrePt.set(myNavigation.gpsPos);
+ 				mainT.updateBearDist();
+ 				Vm.showWait(false);
+ 				(new MessageBox(&quot;Info&quot;, &quot;Entfernungen in der Listenansicht \nvom aktuellen Standpunkt aus \nneu berechnet&quot;, MessageBox.OKB)).execute();
+ 			}
+ 			//Start moving map
+ 			if (ev.target == btnMap){
+-				runMovingMap = true;
+-				boolean runbefore=false;
+-				if (mmp == null) mmp = new MovingMap(pref, this, cacheDB);
+-				else runbefore = true;
+-				if (serThread == null || !serThread.isAlive() || !gpsPosition.isValid()) {
+-					// setze Zielpunkt als Ausgangspunkt, wenn GPS aus ist und lade entsprechende Karte
+-					mmp.ignoreGps = false;
+-					if (toPoint.isValid())	mmp.updatePosition(toPoint.latDec, toPoint.lonDec);
+-					else mmp.updatePosition(Global.getPref().curCentrePt.latDec, Global.getPref().curCentrePt.lonDec); // if not goto-point defined move map to centere point
+-					mmp.ignoreGps = true;
+-				} else mmp.updatePosition(gpsPosition.latDec, gpsPosition.lonDec); // set gps-pos if gps is on 
+-				if (currTrack != null) mmp.addTrack(currTrack);
+-				if (runbefore) mmp.addOverlaySet(); // draw new trackpoints but only do so if OverlaySet needs to be updated, otherwise it is anyway newly created
+-				if (toPoint.isValid()) mmp.setGotoPosition(toPoint.latDec, toPoint.lonDec);
+-				else mmp.removeGotoPosition();
+-				// update cache symbols in map
+-				if (mainT.tbP.myMod.cacheSelectionChanged) {
+-					mainT.tbP.myMod.cacheSelectionChanged = false;
+-					mmp.removeAllMapSymbolsButGoto();
+-					CacheHolder ch;
+-					for (int i=cacheDB.size()-1; i&gt;=0; i--) {
+-						ch = (CacheHolder) cacheDB.get(i);
+-						if (ch.is_Checked) {
+-							//CWPoint tmpll = new CWPoint(ch.LatLon);
+-							int ct = Convert.parseInt(ch.type);
+-							mmp.addSymbol(ch.CacheName, ch, myTableModel.cacheImages[ct], ch.pos.latDec, ch.pos.lonDec);
+-						}
+-					}
+-				}
+-				mmp.myExec();
++				switchToMovingMap();
+ 			} 
+ 			// create new waypoint with current GPS-position
+ 			if (ev.target == btnSave){
+ 				CacheHolder ch = new CacheHolder();
+-				ch.LatLon = gpsPosition.toString();
+-				ch.pos = new CWPoint(gpsPosition);
++				ch.LatLon = myNavigation.gpsPos.toString();
++				ch.pos = new CWPoint(myNavigation.gpsPos);
+ 				mainT.newWaypoint(ch);
+ 			}
+ 			// change destination waypoint
+ 			if (ev.target == btnGoto){
+ 				CoordsScreen cs = new CoordsScreen();
+-				if (toPoint.isValid())	cs.setFields(toPoint, currFormat);
++				if (myNavigation.destination.isValid())	cs.setFields(myNavigation.destination, currFormat);
+ 				else cs.setFields(new CWPoint(0,0), currFormat);
+ 				if (cs.execute() == CoordsScreen.IDOK)
+ 					setDestination(cs.getCoords());
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2007-02-04 23:35:16 UTC (rev 512)
++++ trunk/src/CacheWolf/MainTab.java	2007-02-05 02:46:11 UTC (rev 513)
+@@ -1,18 +1,16 @@
+ package CacheWolf;
+ 
+-import ewe.sys.Vm;
+ import ewe.ui.*;
+ import ewe.fx.*;
+ import ewe.util.*;
+-//import ewe.sys.*;
+ 
+ /**
+-*	This class creates the tabbed panel and sets the tabs to the respective
+-*	other panels. Important is to have a look at the event handler!&lt;br&gt;
+-*	Class ID = 1200
+-*	@see MainForm
+-*	@see MainMenu
+-*/
++ *	This class creates the tabbed panel and sets the tabs to the respective
++ *	other panels. Important is to have a look at the event handler!&lt;br&gt;
++ *	Class ID = 1200
++ *	@see MainForm
++ *	@see MainMenu
++ */
+ public class MainTab extends mTabbedPanel {
+ 	DescriptionPanel descP= new DescriptionPanel();
+ 	HintLogPanel hintLP = new HintLogPanel();
+@@ -29,7 +27,9 @@
+ 	String lastselected = new String();
+ 	CacheHolder ch =null;
+ 	MainMenu mnuMain;
+-	
++	MovingMap mm;
++	Navigate nav;
++
+ 	public MainTab(MainMenu mainMenu,StatusBar statBar){
+ 		Global.mainTab=this;
+ 		mnuMain=mainMenu;
+@@ -42,44 +42,46 @@
+ 		if (MyLocale.getScreenWidth() &lt;= 240) this.dontExpandTabs=true;
+ 		calcP = new CalcPanel(); // Init here so that Global.MainT is already set
+ 		Card c = this.addCard(tbP = new TablePanel(pref, profile, statBar), MyLocale.getMsg(1200,&quot;List&quot;), null);
+-		
++
+ 		c = this.addCard(detP, MyLocale.getMsg(1201,&quot;Details&quot;), null);
+ 		c.iconize(new Image(&quot;details.gif&quot;),true);
+-		
++
+ 		c = this.addCard(descP, MyLocale.getMsg(1202,&quot;Description&quot;), null);
+ 		c.iconize(new Image(&quot;descr.gif&quot;),true);
+-		
++
+ 		c = this.addCard(new ScrollBarPanel(imageP = new ImagePanel()), MyLocale.getMsg(1203,&quot;Images&quot;), null);
+ 		c.iconize(new Image(&quot;images.gif&quot;),true);
+-		
++
+ 		c = this.addCard(hintLP, MyLocale.getMsg(1204,&quot;Hints &amp; Logs&quot;), null);
+ 		c.iconize(new Image(&quot;more.gif&quot;),true);
+ 
+ 		c = this.addCard(calcP, MyLocale.getMsg(1206,&quot;Calc&quot;), null);
+ 		c.iconize(new Image(&quot;ewe/HandHeld.bmp&quot;),true);
+-		
+-		c = this.addCard(gotoP = new GotoPanel(pref, profile, this, detP), &quot;Goto&quot;, null);
++
++		nav = new Navigate();
++		c = this.addCard(gotoP = new GotoPanel(nav), &quot;Goto&quot;, null);
+ 		c.iconize(new Image(&quot;goto.gif&quot;),true);
+ 		tbP.setPanels(gotoP, this);
+-		
++		nav.setGotoPanel(gotoP);
++
+ 		c = this.addCard(solverP = new SolverPanel(pref, profile), MyLocale.getMsg(1205,&quot;Solver&quot;), null);
+ 		c.iconize(new Image(&quot;solver.gif&quot;),true);
+-		
++
+ 		c = this.addCard(radarP, &quot;Radar&quot;, null);
+ 		radarP.setMainTab(this);
+ 		c.iconize(new Image(&quot;radar.gif&quot;),true);
+ 		mnuMain.allowProfileChange(true);
+ 	}
+-	
++
+ 	public TablePanel getTablePanel(){
+ 		return tbP;
+ 	}
+-	
++
+ 	public void selectAndActive(int rownum){
+ 		tbP.selectAndActive(rownum);
+ 		this.selectAndExpand(0);
+ 	}
+-	
++
+ 	/** Update the distances of all caches to the center and display a message 
+ 	 */
+ 	public void updateBearDist(){
+@@ -88,7 +90,7 @@
+ 		tbP.refreshTable();
+ 		(new MessageBox(MyLocale.getMsg(327,&quot;Information&quot;), MyLocale.getMsg(1024,&quot;Entfernungen in der Listenansicht \nvom aktuellen Standpunkt aus \nneu berechnet&quot;).replace('~','\n'), MessageBox.OKB)).execute();
+ 	}
+-	
++
+ 	public void gotoPoint(String LatLon) {
+ 		gotoP.setDestinationAndSwitch(LatLon);
+ 	}
+@@ -201,7 +203,15 @@
+ 		  super.onEvent(ev); //Make sure you call this.
+ 	}
+ 
+-	
+-	
++	public void SwitchToMovingMap(CWPoint centerTo) {
++		if (mm == null) {
++			mm = new MovingMap(nav, profile.cacheDB);
++			nav.setMovingMap(mm);
++		}
++		//mm.ignoreGps = false; // TODO genauer nachdenken multi-threading: wenn er grad eine Karte l&#228;dt o.&#228;., dann funktioniert folgender Befehl nicht
++		mm.updatePosition(centerTo.latDec, centerTo.lonDec);
++		mm.myExec();
++	}
+ }
+ 
++
+
+Modified: trunk/src/CacheWolf/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/MovingMap.java	2007-02-04 23:35:16 UTC (rev 512)
++++ trunk/src/CacheWolf/MovingMap.java	2007-02-05 02:46:11 UTC (rev 513)
+@@ -12,7 +12,7 @@
+ /**
+  *	Class to handle a moving map.
+  */
+-public class MovingMap extends Form {
++public class MovingMap extends Form implements TimerProc {
+ 	final static int gotFix = 4; //green
+ 	final static int lostFix = 3; //yellow
+ 	final static int noGPSData = 2; // red
+@@ -25,13 +25,14 @@
+ 	MovingMapPanel mmp;
+ 	MapsList maps;
+ 	Vector symbols;
+-	GotoPanel gotoPanel;
+ 	Vector cacheDB;
+ 	TrackOverlay[] TrackOverlays;
+ 	CWPoint TrackOverlaySetCenterTopLeft;
+ 	Vector tracks;
+ 	MapInfoObject currentMap = null;
+ 	String mapPath;
++	Navigate myNavigation;
++	boolean running = false;
+ 
+ 	MapImage mapImage1to1;
+ 	ArrowsOnMap directionArrows = new ArrowsOnMap();
+@@ -49,6 +50,7 @@
+ 	AniImage ScaleImage;
+ 	Graphics ScaleImageGraphics;
+ 	MapImage posCircle = new MapImage(&quot;position_green.png&quot;);
++	public static final String MARK_CACHE_IMAGE = &quot;mark_cache.png&quot;;
+ 	int posCircleX = 0, posCircleY = 0, lastCompareX = Integer.MAX_VALUE, lastCompareY = Integer.MAX_VALUE;
+ 	double posCircleLat, posCircleLon;
+ 
+@@ -61,10 +63,10 @@
+ 	boolean zoomingMode = false;
+ 	boolean mapsloaded = false;
+ 
+-	public MovingMap(Preferences pref, GotoPanel gP, Vector cacheDB){
++	public MovingMap(Navigate nav, Vector cacheDB){
+ 		this.cacheDB = cacheDB;
+-		this.gotoPanel = gP;
+-		this.pref = pref;
++		this.myNavigation = nav;
++		this.pref = Global.getPref();
+ 		if (pref.myAppHeight &lt;= 640 &amp;&amp; pref.myAppWidth &lt;= 640)	this.windowFlagsToSet = Window.FLAG_FULL_SCREEN;
+ 		this.windowFlagsToClear = Window.FLAG_HAS_TITLE | Window.BDR_NOBORDER;
+ 		this.hasTopBar = false;
+@@ -249,11 +251,38 @@
+ 	}
+ 
+ 	public final FormFrame myExec() {
+-		//addOverlaySet(); // neccessary to draw points which were added when the MovingMap was not running, so that these pixels are not stored in the not-immediately-drawing-work-around
+-		// doShowExec(null,null,true,Gui.NEW_WINDOW &amp; ~Form.PageHigher);
++		// update cache symbols in map
++		running = true;
++		MainTab mainT = Global.mainTab;
++		if (mainT.tbP.myMod.cacheSelectionChanged) {
++			mainT.tbP.myMod.cacheSelectionChanged = false;
++			removeAllMapSymbolsButGoto();
++			CacheHolder ch;
++			for (int i=cacheDB.size()-1; i&gt;=0; i--) {
++				ch = (CacheHolder) cacheDB.get(i);
++				if (ch.is_Checked || ch == mainT.ch) { // ch == Global.mainTab.ch: always show the gray marked cache
++					int ct = Convert.parseInt(ch.type);
++					addSymbol(ch.CacheName, ch, myTableModel.cacheImages[ct], ch.pos.latDec, ch.pos.lonDec);
++				}
++			}
++		}
++		if (mainT.ch != null) setMarkedCache(mainT.ch);
++		destChanged(myNavigation.destination);
++		addTrack(myNavigation.curTrack);
++		if (tracks != null &amp;&amp; tracks.size() &gt; 0 &amp;&amp; ((Track)tracks.get(0)).num &gt; 0) 
++			addOverlaySet(); // show points wich where added when MavingMap was not running
+ 		FormFrame ret = exec();
+ 		return ret;
+ 	}
++	
++	CacheHolder markedCache = null;
++	public void setMarkedCache(CacheHolder ch) {
++		if (ch == markedCache) return;
++		if (markedCache != null) removeMapSymbol(&quot;selectedCache&quot;);
++		markedCache = ch;
++		if (markedCache != null) addSymbol(&quot;selectedCache&quot;, MARK_CACHE_IMAGE, ch.pos.latDec, ch.pos.lonDec);
++	}
++	
+ 	public void addTrack(Track tr) {
+ 		if (tr == null) return;
+ 		if (tracks == null) tracks = new Vector();
+@@ -662,9 +691,11 @@
+ 		mmp.addImage(ms);
+ 	}
+ 
+-	public void setGotoPosition(double lat, double lon) {
++	public void destChanged(CWPoint d) {
++		if(!running || d.equals(gotoPos)) return;
+ 		removeGotoPosition();
+-		gotoPos = addSymbol(&quot;goto&quot;, &quot;goto_map.png&quot;, lat, lon);
++		if (d == null || !d.isValid() ) return;
++		gotoPos = addSymbol(&quot;goto&quot;, &quot;goto_map.png&quot;, d.latDec, d.lonDec);
+ 		updateDistance();
+ 		forceMapLoad = true;
+ 		updatePosition(posCircleLat, posCircleLon);
+@@ -681,6 +712,9 @@
+ 
+ 	public void removeAllMapSymbolsButGoto(){
+ 		if (symbols == null) return;
++		for (int i = symbols.size()-1; i &gt;= 0; i--) {
++			mmp.removeImage((MapSymbol)symbols.get(i));
++		}
+ 		symbols.removeAllElements();
+ 		if (gotoPos != null) symbols.add(gotoPos);
+ 	}
+@@ -698,7 +732,7 @@
+ 	public int findMapSymbol(String name) {
+ 		if (symbols == null) return -1;
+ 		MapSymbol ms;
+-		for (int i = 0; i &lt; symbols.size(); i++) {
++		for (int i = symbols.size() -1; i &gt;= 0 ; i--) {
+ 			ms= (MapSymbol)symbols.get(i);
+ 			if (ms.name == name) return i;
+ 		}
+@@ -711,21 +745,20 @@
+ 	 * @param  
+ 	 */
+ 	public void updateOnlyPosition(double lat, double lon, boolean updateOverlay){
+-		Point mapPos = new Point(0,0);
+-		Point oldMapPos = getMapPositionOnScreen();
++		//Point oldMapPos = getMapPositionOnScreen();
+ 		posCircleLat = lat;
+ 		posCircleLon = lon;
+-		mapPos = getMapPositionOnScreen();
++		Point mapPos = getMapPositionOnScreen();
+ 		//Vm.debug(&quot;mapx = &quot; + mapx);
+ 		//Vm.debug(&quot;mapy = &quot; + mapy);
+-		if (forceMapLoad || (java.lang.Math.abs(oldMapPos.x - mapPos.x) &gt; 1 || java.lang.Math.abs(oldMapPos.y - mapPos.y) &gt; 1)) {
+-			if (mmp.mapImage != null) 	mmp.mapImage.move(mapPos.x, mapPos.y);
+-			updateSymbolPositions();
+-			updateDistance();
+-			if (updateOverlay ) updateOverlayPos(); // &amp;&amp; TrackOverlays != null
+-			//}
+-			mmp.repaintNow(); // TODO test if the &quot;if&quot; above can be used: i guess it can be used as long as the posCircle doesn't move autonom without a mapmove
+-		}
++		//if (forceMapLoad || (java.lang.Math.abs(oldMapPos.x - mapPos.x) &gt; 1 || java.lang.Math.abs(oldMapPos.y - mapPos.y) &gt; 1)) { // TODO make the speed improvement work: this if doesn't work in case of a series of changes less than 1 px 
++		if (mmp.mapImage != null) 	mmp.mapImage.move(mapPos.x, mapPos.y);
++		updateSymbolPositions();
++		updateDistance();
++		if (updateOverlay ) updateOverlayPos(); // &amp;&amp; TrackOverlays != null
++		//}
++		mmp.repaintNow(); 
++		//}
+ 		//Vm.debug(&quot;update only position&quot;);			
+ 	}
+ 	/**
+@@ -759,6 +792,26 @@
+ 		}
+ 	}
+ 
++	public void updateGps(int fix) {
++		if (!running) return;
++		// runMovingMap neccessary in case of multi-threaded Java-VM: ticked could be called during load of mmp 
++		if ((fix &gt; 0) &amp;&amp; (myNavigation.gpsPos.getSats()&gt;= 0)) { // TODO is getSats really necessary?
++			directionArrows.setDirections(-361 /*(float)bearWayP.value*/, myNavigation.sunAzimut, -361 /*(float)bearMov.value*/);
++			setGpsStatus(MovingMap.gotFix);
++			updatePosition(myNavigation.gpsPos.latDec, myNavigation.gpsPos.lonDec);
++			ShowLastAddedPoint(myNavigation.curTrack);
++		}
++		if (fix == 0 &amp;&amp; myNavigation.gpsPos.getSats()== 0) 	setGpsStatus(MovingMap.lostFix);
++		if (fix &lt; 0 )	setGpsStatus(MovingMap.noGPSData);
++	}
++	
++	public void gpsStarted() {
++		addTrack(myNavigation.curTrack);
++		addOverlaySet();
++	}
++	public void gpsStoped() {
++		setGpsStatus(MovingMap.noGPS);
++	}
+ 
+ 	int mapChangeModus;
+ 	float scaleWanted;
+@@ -823,10 +876,10 @@
+ 	}
+ 
+ 	public void setResModus (int modus) {
++		scaleWanted = currentMap.scale;
+ 		if (mapChangeModus == modus) return;
+ 		mapChangeModus = modus;
+-		if (modus == NORMAL_KEEP_RESOLUTION) scaleWanted = currentMap.scale;
+-		else setBestMap(posCircleLat, posCircleLon, true);
++		if (modus != NORMAL_KEEP_RESOLUTION) setBestMap(posCircleLat, posCircleLon, true);
+ 	}
+ 	/**
+ 	 * method to get a point on the screen which must be included in the map
+@@ -869,7 +922,13 @@
+ 		Rect screen = (Rect) s[1]; 
+ 		//Rect screen = new Rect(posCircleX, posCircleY, (width != 0 ? width : pref.myAppWidth), (height != 0 ? height : pref.myAppHeight));
+ 		MapInfoObject m = maps.getMapChangeResolution(cll.latDec, cll.lonDec, screen, currentMap.scale, !betterOverview);
+-		if (m != null) setMap(m, posCircleLat, posCircleLon);
++		if (m != null) {
++			boolean saveGpsIgnStatus = ignoreGps;
++			ignoreGps = true;
++			setMap(m, posCircleLat, posCircleLon);
++			setResModus(MovingMap.NORMAL_KEEP_RESOLUTION);
++			ignoreGps = saveGpsIgnStatus;
++		}
+ 		else (new MessageBox(&quot;Error&quot;, &quot;No &quot;+ (betterOverview ? &quot;less&quot; : &quot;more&quot;) + &quot; deteiled map available&quot;, MessageBox.OKB)).execute();
+ 	}
+ 
+@@ -882,7 +941,11 @@
+ 			Rect screen = (Rect) s[1]; 
+ 			newmap = maps.getBestMap(cll.latDec, cll.lonDec, screen, Float.MAX_VALUE -1, false);
+ 		}
++		boolean saveGpsIgnStatus = ignoreGps;
++		ignoreGps = true;
+ 		setMap(newmap, posCircleLat, posCircleLon);
++		setResModus(MovingMap.NORMAL_KEEP_RESOLUTION);
++		ignoreGps = saveGpsIgnStatus;
+ 	}
+ 
+ 	public void setGpsStatus (int status) {
+@@ -1125,7 +1188,7 @@
+ 			}
+ 		} else // no map image loaded 
+ 		{ currentMap.zoom(zoomFactor, newImageRect.x, newImageRect.y); }
+-
++		scaleWanted = currentMap.scale;
+ 		destroyOverlaySet();
+ 		Vm.getUsedMemory(true); // call garbage collection
+ 		setCenterOfScreen(center);
+@@ -1146,7 +1209,7 @@
+ 	 */
+ 	public void onEvent(Event ev){
+ 		if(ev instanceof FormEvent &amp;&amp; (ev.type == FormEvent.CLOSED )){
+-			gotoPanel.runMovingMap = false;
++			running = false;
+ 		}  
+ 		if(ev instanceof KeyEvent &amp;&amp; ev.target == this &amp;&amp; ((KeyEvent)ev).key == IKeys.ESCAPE) {
+ 			this.close(0);
+@@ -1320,7 +1383,7 @@
+ 
+ 	public void chooseMap() {
+ 		CWPoint gpspos;
+-		if (mm.gotoPanel.gpsPosition.Fix &gt; 0) gpspos = new CWPoint(mm.gotoPanel.gpsPosition.latDec, mm.gotoPanel.gpsPosition.lonDec);
++		if (mm.myNavigation.gpsPos.Fix &gt; 0) gpspos = new CWPoint(mm.myNavigation.gpsPos.latDec, mm.myNavigation.gpsPos.lonDec);
+ 		else gpspos = null;
+ 		ListBox l = new ListBox(mm.maps, gpspos, mm.getGotoPos(), mm.currentMap);
+ 		if(l.execute() == FormBase.IDOK){
+@@ -1410,8 +1473,7 @@
+ 	}
+ 
+ 	public void snapToGps() {
+-		if (mm.gotoPanel.serThread == null || !mm.gotoPanel.serThread.isAlive()) 
+-			mm.gotoPanel.startGps();
++		mm.myNavigation.startGps();
+ 		mm.SnapToGps();
+ 	}
+ 
+@@ -1484,17 +1546,14 @@
+ 						// manually change map resolution
+ 						if (action == moreDetailsMI) {
+ 							mapsMenu.close();
+-							mm.setResModus(MovingMap.NORMAL_KEEP_RESOLUTION);
+ 							mm.loadMoreDetailedMap(false);
+ 						} 
+ 						if (action == moreOverviewMI) {
+ 							mapsMenu.close();
+-							mm.setResModus(MovingMap.NORMAL_KEEP_RESOLUTION);
+ 							mm.loadMoreDetailedMap(true);
+ 						}
+ 						if (action == AllCachesResMI) {
+ 							mapsMenu.close();
+-							mm.setResModus(MovingMap.NORMAL_KEEP_RESOLUTION);
+ 							mm.loadMapForAllCaches();
+ 						}
+ 						// moveto position
+@@ -1521,7 +1580,7 @@
+ 					MenuItem action = (MenuItem) kontextMenu.getSelectedItem(); 
+ 					if (action == gotoMenuItem) {
+ 						kontextMenu.close();
+-						mm.gotoPanel.setDestination(mm.ScreenXY2LatLon(saveMapLoc.x, saveMapLoc.y));	
++						mm.myNavigation.setDestination(mm.ScreenXY2LatLon(saveMapLoc.x, saveMapLoc.y));	
+ 					}
+ 					if (action == openCacheDescMenuItem) {
+ 						//mm.onEvent(new FormEvent(FormEvent.CLOSED, mm));
+@@ -1530,9 +1589,10 @@
+ 						close.target = mm;
+ 						close.type = WindowEvent.CLOSE;
+ 						mm.postEvent(close);
+-						mm.gotoPanel.mainT.tbP.selectAndActive(mm.cacheDB.find(clickedCache));
+-						mm.gotoPanel.mainT.select(mm.gotoPanel.mainT.descP);
+-						mm.gotoPanel.mainT.openDesciptionPanel(clickedCache);
++						MainTab mainT = Global.mainTab;
++						mainT.tbP.selectAndActive(mm.cacheDB.find(clickedCache));
++						mainT.select(Global.mainTab.descP);
++						mainT.openDesciptionPanel(clickedCache);
+ 					}
+ 					if (action == newWayPointMenuItem) {
+ 						kontextMenu.close();
+@@ -1542,8 +1602,7 @@
+ 						mm.postEvent(close);
+ 						CacheHolder newWP = new CacheHolder();
+ 						newWP.pos = mm.ScreenXY2LatLon(saveMapLoc.x, saveMapLoc.y);
+-						mm.gotoPanel.mainT.newWaypoint(newWP);
+-
++						Global.mainTab.newWaypoint(newWP);
+ 					}
+ 
+ 				}
+
+Added: trunk/src/CacheWolf/Navigate.java
+===================================================================
+--- trunk/src/CacheWolf/Navigate.java	2007-02-04 23:35:16 UTC (rev 512)
++++ trunk/src/CacheWolf/Navigate.java	2007-02-05 02:46:11 UTC (rev 513)
+@@ -0,0 +1,276 @@
++package CacheWolf;
++
++import ewe.fx.Color;
++import ewe.io.IOException;
++import ewe.io.SerialPort;
++import ewe.io.SerialPortOptions;
++import ewe.net.Socket;
++import ewe.sys.Convert;
++import ewe.sys.mThread;
++import ewe.ui.MessageBox;
++import ewe.util.mString;
++
++public class Navigate {
++	public CWPoint destination = new CWPoint();
++	public CWGPSPoint gpsPos = new CWGPSPoint();
++	public Track curTrack = null;
++	Color trackColor = new Color(255,0,0); // red
++	public float sunAzimut = -361;
++
++	public GotoPanel gotoPanel = null;
++	public MovingMap movingMap = null;
++	public SerialThread serThread = null;
++	public Preferences pref = Global.getPref();
++	public UpdateThread tickerThread;
++	boolean lograw = false;
++	int logIntervall = 10;
++
++	public void setGotoPanel(GotoPanel gp) {
++		gotoPanel = gp;
++	}
++	public void setMovingMap (MovingMap mm) {
++		movingMap = mm;
++	}
++
++	public void startGps() {
++		if (serThread != null) if (serThread.isAlive()) return;
++		try {
++			serThread = new SerialThread(pref.mySPO, gpsPos, (pref.forwardGPS ? pref.forwardGpsHost : &quot;&quot;));
++			if (pref.forwardGPS &amp;&amp; !serThread.tcpForward) {
++				(new MessageBox(&quot;Warning&quot;, &quot;Ignoring error:\n could not forward GPS data to host:\n&quot;+pref.forwardGpsHost+&quot;\n&quot;+serThread.lastError+&quot;\nstop and start GPS to retry&quot;,MessageBox.OKB)).exec();
++			}
++			if (gpsPos.latDec == 0 &amp;&amp; gpsPos.lonDec == 0) { // TODO use isValid() // TODO raus damit?
++				gpsPos.latDec = destination.latDec; // setze Zielpunkt als Ausgangspunkt
++				gpsPos.lonDec = destination.lonDec;
++			}
++			serThread.start();
++			startDisplayTimer();
++			if (lograw)	gpsPos.startLog(Global.getProfile().dataDir, logIntervall, CWGPSPoint.LOGALL);
++			if (gotoPanel != null) gotoPanel.gpsStarted();
++			if (movingMap != null) movingMap.gpsStarted();
++		} catch (IOException e) {
++			(new MessageBox(&quot;Error&quot;, &quot;Could not connect to GPS-receiver.\n Error while opening serial Port &quot; + e.getMessage()+&quot;\npossible reasons:\n Another (GPS-)program is blocking the port\nwrong port\nOn Loox: active infra-red port is blocking GPS&quot;, MessageBox.OKB)).execute(); 
++		}
++		curTrack = new Track(trackColor); // TODO addTrack here to MovingMap? see MovingMapPanel.snapToGps
++	}
++
++	public void setRawLogging(boolean on, int intervall) {
++		lograw = on;
++		logIntervall = intervall; // TODO switch on and off during serthread running
++	}
++	public void startDisplayTimer() {
++		tickerThread = new UpdateThread(this, 1000);
++		tickerThread.start();
++	}
++
++	public void stopDisplayTimer(){
++		if (tickerThread != null) tickerThread.stop();
++	}
++	
++	public void stopGps() {
++		serThread.stop();
++		stopDisplayTimer();
++		gpsPos.stopLog();
++		if (gotoPanel != null) gotoPanel.gpsStoped();
++		if (movingMap != null) movingMap.gpsStoped();
++	}
++	
++	public boolean isGpsPosValid() {
++		return 	serThread != null &amp;&amp; serThread.isAlive() &amp;&amp; gpsPos.isValid() ; // &amp;&amp; gpsPos.getfiex();
++
++	}
++
++
++	public void setDestination(String LatLon) { 
++		setDestination(new CWPoint(LatLon));
++	}
++
++
++	public void setDestination(CWPoint d) {
++		destination = new CWPoint (d);
++		if (gotoPanel != null) gotoPanel.destChanged();
++		if (movingMap != null) { // TODO make movingmap the same as gotopanel
++			movingMap.destChanged(gpsPos);
++			movingMap.repaintNow();
++		}
++	}
++	public void ticked() {
++		int fix = gpsPos.getFix();
++		if (fix &gt; 0 &amp;&amp; (gpsPos.getSats()&gt;= 0)) {
++			//gpsPosition.printAll();
++			//Vm.debug(&quot;currTrack.add: voher&quot;);
++			if (curTrack == null) curTrack = new Track(trackColor);
++			try {
++				curTrack.add(gpsPos);
++			} catch (IndexOutOfBoundsException e) { // track full -&gt; create a new one
++				curTrack = new Track(trackColor); 
++				curTrack.add(gpsPos);
++				if (movingMap != null) movingMap.addTrack(curTrack); // TODO maybe gotoPanel should also hold a list of Tracks, because otherwise they will be destroyed if not saved in mmp before
++			}
++			try {
++				sunAzimut = getSunAzimut(gpsPos.Time, gpsPos.Date, gpsPos.latDec, gpsPos.lonDec);
++			} catch (NumberFormatException e) { // irgendeine Info zu Berechnung des Sonnenaziumt fehlt (insbesondere Datum und Uhrzeit sind nicht unbedingt gleichzeitig verf&#252;gbar wenn es einen Fix gibt)
++				sunAzimut = -361; // any value out of range (bigger than 360) will prevent drawArrows from drawing it 
++			}
++
++		} else {
++			sunAzimut = -361;
++		}
++		gotoPanel.updateGps(fix);
++		if (movingMap != null) movingMap.updateGps(fix);
++	}
++
++	/**
++	 * @param utc in the format as it comes from gps DDMMYY
++	 * @param datum in the format as it comes from gps HHMMSS
++	 * @param lat in degrees in WGS84
++	 * @param lon in degrees in WGS84
++	 * @return Azimut of the sun in degrees from north
++	 * @throws NumberFormatException when utc / datum could not be interpreted
++	 */
++	public static float getSunAzimut (String utc, String datum, double lat, double lon) {
++		//	(new MessageBox(&quot;test&quot;, &quot;utc:&quot;+utc+&quot; datum: &quot;+datum+&quot;, lat: &quot;+lat+&quot;, len: &quot;+lon, MessageBox.OKB)).exec();
++		try {
++			int tag, monat, jahr, stunde, minute, sekunde;
++			tag = Convert.parseInt(datum.substring(0, 2));
++			monat = Convert.parseInt(datum.substring(2, 4));
++			jahr = Convert.parseInt(datum.substring(4, 6)) + 2000;
++			stunde=Convert.parseInt(utc.substring(0, 2));
++			minute=Convert.parseInt(utc.substring(2, 4));
++			sekunde=Convert.parseInt(utc.substring(4, 6)); // Kommastellen werden abgeschnitten
++			// julianisches &quot;Datum&quot; jd berechnen (see <A HREF="http://de.wikipedia.org/wiki/Julianisches_Datum">http://de.wikipedia.org/wiki/Julianisches_Datum</A> )
++			if (monat&lt;2) {jahr--; monat+=12;} // verlegung des Jahres Endes auf Feb macht Berechnung von SChaltjahren einfacher
++			double a = (int)java.lang.Math.floor((double)jahr/100.); // Alle hundert Jahre kein Schlatjahr (abrunden)
++			double b = 2 - a + java.lang.Math.floor((double)a/4.);
++			double jd = java.lang.Math.floor(365.25*(jahr + 4716.)) + java.lang.Math.floor(30.6001*((double)monat+1.)) + (double)tag + (double)stunde/24 + (double)minute/1440 + (double)sekunde/86400 + b - 1524.5;
++			double jd0 = java.lang.Math.floor(365.25*(jahr + 4716.)) + java.lang.Math.floor(30.6001*((double)monat+1.)) +(double)tag + b - 1524.5;
++			// Ekliptikalkoordinaten der Sonne berechnen (see <A HREF="http://de.wikipedia.org/wiki/Sonnenstand">http://de.wikipedia.org/wiki/Sonnenstand</A> )
++			double n = jd - 2451545.0;
++			double l = 280.46 + 0.9856474 * n;
++			double g = 357.528 + 0.9856003 * n;
++			double d = l + 1.915*java.lang.Math.sin(g/180*java.lang.Math.PI) + 0.02 * java.lang.Math.sin(2*g/180*java.lang.Math.PI);
++			// Rektaszension alpha und Deklination delta der Sonne berechnen
++			double e = 23.439 -0.0000004 * n;
++			double alphaNenner = java.lang.Math.cos(d/180*java.lang.Math.PI);
++			double alpha = 180/java.lang.Math.PI*java.lang.Math.atan(java.lang.Math.cos(e/180*java.lang.Math.PI)*java.lang.Math.sin(d/180*java.lang.Math.PI)/alphaNenner);
++			double delta = 180/java.lang.Math.PI*java.lang.Math.asin(java.lang.Math.sin(e/180*java.lang.Math.PI)*java.lang.Math.sin(d/180*java.lang.Math.PI) );
++			if (alphaNenner&lt;0) {alpha +=180;}
++			// Azimut
++			double t0 = (jd0 - 2451545.)/36525.; // schon in t0 bzw jd0 richtig berechnet?
++			double thetaHG = 6.697376 + 2400.05134 * t0 + 1.002738 * ((double)stunde + (double)minute/60.);
++			double theta = thetaHG * 15. + lon;
++			double azimutNenner = java.lang.Math.cos((theta-alpha)/180*java.lang.Math.PI)*java.lang.Math.sin(lat/180*java.lang.Math.PI)-
++			java.lang.Math.tan(delta/180*java.lang.Math.PI)*java.lang.Math.cos(lat/180*java.lang.Math.PI);
++			float azimut = (float) java.lang.Math.atan(java.lang.Math.sin((theta-alpha)/180*java.lang.Math.PI)/
++					azimutNenner);
++			azimut = (float) (azimut * 180f / java.lang.Math.PI);
++			if (azimutNenner&lt;0) azimut +=180.;
++			// null = Sueden auf Null = Norden umrechnen
++			azimut +=180.;
++			if (azimut &gt;360.) azimut -=360.;
++			return azimut;
++		} catch (IndexOutOfBoundsException e) {
++			// wird von substring geworfen wenn datum / utc nicht genug Ziffern haben
++			// NumberFormatException wird au&#223;erdem von Convert.ParseInt direkt geworfen wenn
++			// nicht in Int konvertiert werden kann
++			throw new NumberFormatException();
++		}
++	}
++}
++/**
++ * Thread for reading data from COM-port
++ *
++ */
++class SerialThread extends mThread{
++	SerialPort comSp;   
++	byte[] comBuff = new byte[1024];  
++	int comLength = 0;
++	CWGPSPoint myGPS;
++	boolean run, tcpForward;
++	Socket tcpConn;
++	String lastError = new String();
++
++	public SerialThread(SerialPortOptions spo, CWGPSPoint GPSPoint, String forwardIP) throws IOException {
++		try{
++			comSp = new SerialPort(spo);
++		} catch (IOException e) {
++			throw new IOException(spo.portName);
++		} // catch (UnsatisfiedLinkError e) {} // TODO in original java-vm 
++		if (forwardIP.length()&gt;0) { 
++			try {
++				tcpConn = new Socket(forwardIP, 23);
++				tcpForward = true;
++			} catch (ewe.net.UnknownHostException e) { tcpForward = false; lastError = e.getMessage();
++			} catch (IOException e) { tcpForward = false; lastError = e.getMessage(); 
++			}
++		}
++		myGPS = GPSPoint;
++	}
++
++	public void run() {
++		int noData = 0;
++		int notinterpreted = 0;
++		run = true;
++		while (run){
++			try {
++				sleep(1000);
++				//Vm.debug(&quot;Loop? &quot; + noData);
++				noData++;
++				if (noData &gt; 5) { myGPS.noDataError(); }
++			} catch (InterruptedException e) {}
++			if (comSp != null)	{
++				comLength = comSp.nonBlockingRead(comBuff, 0 ,comBuff.length);
++				//Vm.debug(&quot;Length: &quot; + comBuff.length);
++				if (comLength &gt; 0)	{
++					noData = 0;
++					String str = mString.fromAscii(comBuff, 0, comLength); 
++					if (tcpForward) {
++						try {
++							tcpConn.write(comBuff, 0, comLength);
++						} catch (IOException e) { tcpForward = false; }
++					}
++					//Vm.debug(str);
++					if (myGPS.examine(str)) notinterpreted = 0; else notinterpreted++;
++					if (notinterpreted &gt; 22) myGPS.noInterpretableData();
++				}
++			}
++		} // while
++		myGPS.noData();
++		tcpConn.close();
++	}
++
++	public void stop() {
++		run = false;
++		if (comSp != null) comSp.close();
++	}
++}
++
++/** 
++ * Class for creating a new mThread to create timer ticks to be able to do form.close in the ticked-thread. 
++ * Using the Vm.requestTimer-Method causes &quot;ewe.sys.EventDirectionException: This task cannot be done within 
++ * a Timer Tick.&quot; in the ewe-vm when form.close is called.  
++ */
++
++class UpdateThread extends mThread {
++	public boolean run;
++	public int calldelay;
++	public Navigate ticked;
++
++	public UpdateThread (Navigate gp, int cd) {
++		ticked = gp;
++		calldelay = cd;
++	}
++
++	public void run () {
++		run = true;
++		while (run) {
++			try { sleep (calldelay);} catch (InterruptedException e) {}
++			ticked.ticked();
++		}
++	}
++
++	public void stop() {
++		run = false;
++	}
++}
++
+
+Modified: trunk/src/CacheWolf/Parser.java
+===================================================================
+--- trunk/src/CacheWolf/Parser.java	2007-02-04 23:35:16 UTC (rev 512)
++++ trunk/src/CacheWolf/Parser.java	2007-02-05 02:46:11 UTC (rev 513)
+@@ -368,7 +368,7 @@
+     }
+     
+     private String funcCp(){
+-    	return Global.mainTab.gotoP.gpsPosition.toString();
++    	return Global.mainTab.nav.gpsPos.toString();
+     }
+     
+     private double funcCrossTotal(int nargs) throws Exception {
+@@ -452,13 +452,13 @@
+     /** Implements a goto command goto(coordinate,optionalWaypointName).
+      */
+     private void funcGoto(int nargs) throws Exception {
+-    	GotoPanel gotoP=Global.mainTab.gotoP;
++    	Navigate nav=Global.mainTab.nav;
+ 		String waypointName=null;
+         if (nargs==2) waypointName=popCalcStackAsString();  
+ 		String coord=popCalcStackAsString();
+ 		if (!isValidCoord(coord)) err(MyLocale.getMsg(1712,&quot;Invalid coordinate: &quot;)+coord);
+ 		// Don't want to switch to goto panel, just set the values
+-		gotoP.setDestination(coord);
++		nav.setDestination(coord);
+ 		if (nargs==2) { // Now set the value of the addi waypoint (it must exist already)
+     		int i=Global.getProfile().getCacheIndex(waypointName);
+     		if (i&lt;0) err(MyLocale.getMsg(1714,&quot;Goto: Waypoint does not exist: &quot;)+waypointName);
+
+Modified: trunk/src/CacheWolf/myTableModel.java
+===================================================================
+--- trunk/src/CacheWolf/myTableModel.java	2007-02-04 23:35:16 UTC (rev 512)
++++ trunk/src/CacheWolf/myTableModel.java	2007-02-05 02:46:11 UTC (rev 513)
+@@ -16,7 +16,7 @@
+ */
+ public class myTableModel extends TableModel{
+ 	
+-	public boolean cacheSelectionChanged = false;
++	public boolean cacheSelectionChanged = true;
+ 	Vector cacheDB;
+ 	String[] colName;
+ 	static Image cacheImages[] = new Image[454];
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000306.html">[Cachewolf-svn] r512 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000308.html">[Cachewolf-svn] r514 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#307">[ date ]</a>
+              <a href="thread.html#307">[ thread ]</a>
+              <a href="subject.html#307">[ subject ]</a>
+              <a href="author.html#307">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

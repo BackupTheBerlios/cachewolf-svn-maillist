@@ -1,0 +1,194 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2444 - in trunk/src/CacheWolf: . imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2444%20-%20in%20trunk/src/CacheWolf%3A%20.%20imp&In-Reply-To=%3C201001311324.o0VDO6q4020144%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002368.html">
+   
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2444 - in trunk/src/CacheWolf: . imp</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2444%20-%20in%20trunk/src/CacheWolf%3A%20.%20imp&In-Reply-To=%3C201001311324.o0VDO6q4020144%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2444 - in trunk/src/CacheWolf: . imp">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Sun Jan 31 14:24:06 CET 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002368.html">[Cachewolf-svn] r2443 - trunk/src/CacheWolf
+</A></li>
+        
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2369">[ date ]</a>
+              <a href="thread.html#2369">[ thread ]</a>
+              <a href="subject.html#2369">[ subject ]</a>
+              <a href="author.html#2369">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2010-01-31 14:24:04 +0100 (Sun, 31 Jan 2010)
+New Revision: 2444
+
+Modified:
+   trunk/src/CacheWolf/OC.java
+   trunk/src/CacheWolf/Preferences.java
+   trunk/src/CacheWolf/imp/OCXMLImporter.java
+   trunk/src/CacheWolf/imp/OCXMLImporterScreen.java
+Log:
+saving last visited OC site host in preferences
+
+Modified: trunk/src/CacheWolf/OC.java
+===================================================================
+--- trunk/src/CacheWolf/OC.java	2010-01-31 11:22:37 UTC (rev 2443)
++++ trunk/src/CacheWolf/OC.java	2010-01-31 13:24:04 UTC (rev 2444)
+@@ -37,4 +37,13 @@
+ 	public final static boolean isOC(String wpName) {
+ 		return (getOCHostName(wpName.toUpperCase()) != null);		
+ 	}
++	
++	public final static int getSiteIndex(String site) {
++		for (int i = 0; i &lt; OCSites.length; i++) {
++			if(site.equalsIgnoreCase(OCSites[i][OC_HOSTNAME])) {
++				return i;
++			}
++		}
++		return 0; // don't get a fault
++	}
+ }
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2010-01-31 11:22:37 UTC (rev 2443)
++++ trunk/src/CacheWolf/Preferences.java	2010-01-31 13:24:04 UTC (rev 2444)
+@@ -217,7 +217,8 @@
+ 	public String garminGPSBabelOptions=&quot;&quot;;
+ 	/** Max. length for Garmin waypoint names (for etrex which can only accept 6 chars) */
+ 	public int garminMaxLen=0;
+-	public boolean downloadmissingOC = false;
++	public boolean downloadMissingOC = false;
++	public String lastOCSite=OC.OCSites[0][OC.OC_HOSTNAME];
+ 	/** The currently used centre point, can be different from the profile's centrepoint. This is used
+ 	 *  for spidering */
+ 	private CWPoint curCentrePt=new CWPoint();
+@@ -441,7 +442,10 @@
+ 			setBaseDir(atts.getValue(&quot;dir&quot;));
+ 		}
+ 		else if (name.equals(&quot;opencaching&quot;)) {
+-			downloadmissingOC = Boolean.valueOf(atts.getValue(&quot;downloadmissing&quot;)).booleanValue();
++			tmp=atts.getValue(&quot;lastSite&quot;);
++			if (!(tmp == null) &amp;&amp; OC.getSiteIndex(tmp)&gt;=0 ) lastOCSite=tmp;
++			tmp=atts.getValue(&quot;downloadMissing&quot;);
++			if (!(tmp == null)) downloadMissingOC = Boolean.valueOf(tmp).booleanValue();
+ 		}
+ 		else if (name.equals(&quot;listview&quot;)) {
+ 			listColMap=atts.getValue(&quot;colmap&quot;);
+@@ -672,7 +676,7 @@
+ 			outp.print(&quot;    &lt;solver ignorevariablecase=\&quot;&quot; + SafeXML.strxmlencode(solverIgnoreCase) + &quot;\&quot; degMode=\&quot;&quot; + SafeXML.strxmlencode(solverDegMode) + &quot;\&quot; /&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;garmin connection = \&quot;&quot; + SafeXML.clean(garminConn) + &quot;\&quot; GPSBabelOptions = \&quot;&quot; + SafeXML.clean(garminGPSBabelOptions) + &quot;\&quot; MaxWaypointLength = \&quot;&quot; + SafeXML.strxmlencode(garminMaxLen) +
+ 					        &quot;\&quot; addDetailsToWaypoint = \&quot;&quot; + SafeXML.strxmlencode(addDetailsToWaypoint) + &quot;\&quot; addDetailsToName = \&quot;&quot; + SafeXML.strxmlencode(addDetailsToName) + &quot;\&quot; /&gt;\n&quot;);
+-			outp.print(&quot;    &lt;opencaching downloadMissing=\&quot;&quot; + SafeXML.strxmlencode(downloadmissingOC) + &quot;\&quot;/&gt;\n&quot;);
++			outp.print(&quot;    &lt;opencaching lastSite=\&quot;&quot;+lastOCSite+&quot;\&quot; downloadMissing=\&quot;&quot; + SafeXML.strxmlencode(downloadMissingOC) + &quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;location lat = \&quot;&quot; + SafeXML.clean(curCentrePt.getLatDeg(TransformCoordinates.DD)) + &quot;\&quot; long = \&quot;&quot; + SafeXML.clean(curCentrePt.getLonDeg(TransformCoordinates.DD)) + &quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;spider forcelogin=\&quot;&quot; + SafeXML.strxmlencode(forceLogin) + &quot;\&quot; spiderUpdates=\&quot;&quot; + SafeXML.strxmlencode(spiderUpdates) + &quot;\&quot; checkLog=\&quot;&quot; + SafeXML.strxmlencode(checkLog) + &quot;\&quot; maxSpiderNumber=\&quot;&quot; + SafeXML.strxmlencode(maxSpiderNumber) + &quot;\&quot; downloadPics=\&quot;&quot; + SafeXML.strxmlencode(downloadPics) + &quot;\&quot; downloadTBs=\&quot;&quot; + SafeXML.strxmlencode(downloadTBs) +&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;gotopanel northcentered=\&quot;&quot; + SafeXML.strxmlencode(northCenteredGoto) + &quot;\&quot; /&gt;\n&quot;);
+
+Modified: trunk/src/CacheWolf/imp/OCXMLImporter.java
+===================================================================
+--- trunk/src/CacheWolf/imp/OCXMLImporter.java	2010-01-31 11:22:37 UTC (rev 2443)
++++ trunk/src/CacheWolf/imp/OCXMLImporter.java	2010-01-31 13:24:04 UTC (rev 2444)
+@@ -127,7 +127,7 @@
+ 		/** pref.downloadmissingOC = true, if not the last syncdate shall be used,
+ 		 *  but the caches shall be reloaded
+ 		 *  only used in syncSingle  */
+-		if (pref.downloadmissingOC)  lastS = &quot;20050801000000&quot;;
++		if (pref.downloadMissingOC)  lastS = &quot;20050801000000&quot;;
+ 		else {
+ 			if (ch.getLastSync().length() &lt; 14) lastS = &quot;20050801000000&quot;;
+ 			else lastS = ch.getLastSync();
+@@ -176,8 +176,10 @@
+ 		Vm.showWait(true);
+ 		String dist = importOpt.maxDistanceInput.getText();
+ 
+-		if (importOpt.domains.getSelectedItem()!=null)
++		if (importOpt.domains.getSelectedItem()!=null) {
+ 			hostname = (String)importOpt.domains.getSelectedItem();
++			pref.lastOCSite=hostname;
++		}
+ 
+ 		if (dist.length()== 0) return;
+ 
+@@ -186,7 +188,7 @@
+ 		dist = distDouble.toString(0, 1, 0).replace(',', '.');
+ 		//check, if distance is greater than before
+ 		if (Convert.toInt(dist) &gt; Convert.toInt(profile.getDistOC()) ||
+-				pref.downloadmissingOC  ){
++				pref.downloadMissingOC  ){
+ 			// resysnc
+ 			lastS = &quot;20050801000000&quot;;
+ 			incUpdate = false;
+
+Modified: trunk/src/CacheWolf/imp/OCXMLImporterScreen.java
+===================================================================
+--- trunk/src/CacheWolf/imp/OCXMLImporterScreen.java	2010-01-31 11:22:37 UTC (rev 2443)
++++ trunk/src/CacheWolf/imp/OCXMLImporterScreen.java	2010-01-31 13:24:04 UTC (rev 2444)
+@@ -60,8 +60,7 @@
+ 		this.title = title;
+ 
+ 		if((options &amp; HOST) &gt; 0){
+-			// String[] hosts = new String[] {OCXMLImporter.OPENCACHING_DE_HOST, OCXMLImporter.OPENCACHING_CZ_HOST, OCXMLImporter.OPENCACHING_PL_HOST, OCXMLImporter.OPENCACHING_UK_HOST, OCXMLImporter.OPENCACHING_SE_HOST};
+-			domains = new mChoice(OC.OCHostNames(),0);
++			domains = new mChoice(OC.OCHostNames(),OC.getSiteIndex(pref.lastOCSite));
+ 			domains.setTextSize(25, 1);
+ 			this.addLast(domains, CellConstants.DONTSTRETCH, CellConstants.DONTFILL|CellConstants.WEST);
+ 		}
+@@ -170,7 +169,7 @@
+ 		if((options &amp; ALL) &gt; 0){
+ 			missingCheckBox = new mCheckBox();
+ 			missingCheckBox.setText(MyLocale.getMsg(1606,&quot;Alle erneut downloaden&quot;));
+-			missingCheckBox.setState(pref.downloadmissingOC);
++			missingCheckBox.setState(pref.downloadMissingOC);
+ 			this.addLast(missingCheckBox, CellConstants.DONTSTRETCH, CellConstants.DONTFILL|CellConstants.WEST);
+ 		}
+ 
+@@ -190,7 +189,7 @@
+ 			if (ev.target == okB){
+ 				    // distOC wird hier noch nicht in Pref eingetragen, damit noch gepr&#252;ft werden kann, ob es gr&#246;&#223;er oder kleiner ist als vorher
+ 					if (imagesCheckBox!=null) pref.downloadPics = imagesCheckBox.state;
+-					if (missingCheckBox!=null) pref.downloadmissingOC = missingCheckBox.state;
++					if (missingCheckBox!=null) pref.downloadMissingOC = missingCheckBox.state;
+ 					if (travelbugsCheckBox!=null) pref.downloadTBs = travelbugsCheckBox.state;
+ 					if (maxLogsInput!=null) pref.maxLogsToSpider=Common.parseInt(maxLogsInput.getText());
+ 					pref.savePreferences();
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002368.html">[Cachewolf-svn] r2443 - trunk/src/CacheWolf
+</A></li>
+	
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2369">[ date ]</a>
+              <a href="thread.html#2369">[ thread ]</a>
+              <a href="subject.html#2369">[ subject ]</a>
+              <a href="author.html#2369">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

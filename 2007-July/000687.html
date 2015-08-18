@@ -1,0 +1,192 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r797 - in trunk/src: . CacheWolf utils
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-July/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r797%20-%20in%20trunk/src%3A%20.%20CacheWolf%20utils&In-Reply-To=%3C200707291317.l6TDHI1x012633%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000686.html">
+   <LINK REL="Next"  HREF="000688.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r797 - in trunk/src: . CacheWolf utils</H1>
+    <B>bilbowolf at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r797%20-%20in%20trunk/src%3A%20.%20CacheWolf%20utils&In-Reply-To=%3C200707291317.l6TDHI1x012633%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r797 - in trunk/src: . CacheWolf utils">bilbowolf at mail.berlios.de
+       </A><BR>
+    <I>Sun Jul 29 15:17:18 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000686.html">[Cachewolf-svn] r796 - trunk
+</A></li>
+        <LI>Next message: <A HREF="000688.html">[Cachewolf-svn] r798 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#687">[ date ]</a>
+              <a href="thread.html#687">[ thread ]</a>
+              <a href="subject.html#687">[ subject ]</a>
+              <a href="author.html#687">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: bilbowolf
+Date: 2007-07-29 15:17:13 +0200 (Sun, 29 Jul 2007)
+New Revision: 797
+
+Added:
+   trunk/src/io/
+   trunk/src/utils/
+   trunk/src/utils/CWWrapper.java
+Modified:
+   trunk/src/CacheWolf/CacheWolf.java
+   trunk/src/CacheWolf/Profile.java
+   trunk/src/CacheWolf/SpiderGC.java
+Log:
+Ich glaube ich habe das exec Problem gel?\195?\182st.
+
+Modified: trunk/src/CacheWolf/CacheWolf.java
+===================================================================
+--- trunk/src/CacheWolf/CacheWolf.java	2007-07-28 19:00:33 UTC (rev 796)
++++ trunk/src/CacheWolf/CacheWolf.java	2007-07-29 13:17:13 UTC (rev 797)
+@@ -261,6 +261,3 @@
+ // or the local files &quot;JavaDoc&quot; directory
+ // Javadoc Main Page: <A HREF="http://java.sun.com/j2se/javadoc/index.jsp">http://java.sun.com/j2se/javadoc/index.jsp</A>
+ // javadoc -classpath ewe.jar -d &quot;cachewolf doc&quot; cachewolf/*.java
+-//page conunter:
+-// select * from mos_content where id = 13
+-// update mos_content set hits = 0 where id = 13
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2007-07-28 19:00:33 UTC (rev 796)
++++ trunk/src/CacheWolf/Profile.java	2007-07-29 13:17:13 UTC (rev 797)
+@@ -14,6 +14,7 @@
+ import ewe.ui.ProgressBarForm;
+ import ewe.util.Hashtable;
+ import ewe.util.Vector;
++import ewe.util.*;
+ 
+ /**
+  * This class holds a profile, i.e. a group of caches with a centre location
+@@ -173,6 +174,7 @@
+ 	 *	than the collection of caches in a directory.
+ 	 */
+ 	public void readIndex(){
++		
+ 		try {
+ 			selectionChanged = true;
+ 			boolean fmtDec=false;
+@@ -183,6 +185,10 @@
+ 			String text=in.readLine(); // &lt;CACHELIST&gt;
+ 			if (text!=null &amp;&amp; text.indexOf(&quot;decimal&quot;)&gt;0) fmtDec=true;
+ 			Extractor ex = new Extractor(null, &quot; = \&quot;&quot;, &quot;\&quot; &quot;, 0, true);
++			
++			//OperationTimer optt = new OperationTimer();
++			//optt.start(&quot;Reading...&quot;);
++			
+ 			while ((text = in.readLine()) != null){
+ 				// Check for Line with cache data
+ 				if (text.indexOf(&quot;&lt;CACHE &quot;)&gt;=0){
+@@ -271,6 +277,13 @@
+ 				}
+ 			}
+ 			in.close();
++			
++			//optt.end();
++			//long times[];
++			//times = optt.getTimes();
++			//Vm.debug(&quot;Reading ended: &quot; + times[0]);
++			
++			
+ 			// Build references between caches and addi wpts
+ 			buildReferences();
+ 		} catch (FileNotFoundException e) {
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2007-07-28 19:00:33 UTC (rev 796)
++++ trunk/src/CacheWolf/SpiderGC.java	2007-07-29 13:17:13 UTC (rev 797)
+@@ -119,7 +119,11 @@
+ 				    + &quot;&amp;&quot; + URL.encodeURL(&quot;cookie&quot;,false) +&quot;=&quot;+ URL.encodeURL(&quot;on&quot;,false)
+ 				    + &quot;&amp;&quot; + URL.encodeURL(&quot;Button1&quot;,false) +&quot;=&quot;+ URL.encodeURL(&quot;Login&quot;,false);
+ 				start = fetch_post(loginPage, doc, p.getProperty(&quot;nextPage&quot;));  // /login/default.aspx
+-				pref.log(&quot;Login successful&quot;);
++				if(start.indexOf(&quot;You are logged in as&quot;) &gt; 0) pref.log(&quot;Login successful&quot;);
++				else {
++					pref.log(&quot;Login failed.&quot;);
++					return ERR_LOGIN;
++				}
+ 			}catch(Exception ex){
+ 				//Vm.debug(&quot;Could not login: gc.com start page&quot;);
+ 				pref.log(&quot;Login failed.&quot;, ex);
+
+Added: trunk/src/utils/CWWrapper.java
+===================================================================
+--- trunk/src/utils/CWWrapper.java	2007-07-28 19:00:33 UTC (rev 796)
++++ trunk/src/utils/CWWrapper.java	2007-07-29 13:17:13 UTC (rev 797)
+@@ -0,0 +1,33 @@
++package utils;
++import CacheWolf.*;
++import ewe.sys.*;
++
++/**
++ * Class built as a wrapper for the buggy Vm.exec
++ * in EWE Version 1.49
++ * It identifies the plattform and uses a different call
++ * to Vm.exec() depending on the plattform.
++ * It uses depreciated classes, which is OK for now.
++ */
++public class CWWrapper {
++	
++	public static exec(String str) throws IOException{
++		String plattform = Vm.getPlatform();
++		if(plattform.equals(&quot;WinCE&quot;)){
++			Vm.exec(str, &quot;&quot;, 0, true);
++		}
++		if(plattform.equals(&quot;Win32&quot;)){
++			Vm.exec(str, &quot;&quot;, 0, true);
++		}
++		if(plattform.equals(&quot;Unix&quot;)){
++			String[] strarr = new String[1];
++			strarr[0] = str;
++			String[] dummy = new String[1];
++			Vm.exec(strarr, dummy);
++		}
++		if(plattform.equals(&quot;Java&quot;)){
++			ewe.sys.Process p = Vm.exec(str);
++			p.waitFor();
++		}
++	}
++}
+\ No newline at end of file
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000686.html">[Cachewolf-svn] r796 - trunk
+</A></li>
+	<LI>Next message: <A HREF="000688.html">[Cachewolf-svn] r798 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#687">[ date ]</a>
+              <a href="thread.html#687">[ thread ]</a>
+              <a href="subject.html#687">[ subject ]</a>
+              <a href="author.html#687">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,158 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r624 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r624%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702241419.l1OEJrc4021829%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000441.html">
+   <LINK REL="Next"  HREF="000443.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r624 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r624%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702241419.l1OEJrc4021829%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r624 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sat Feb 24 15:19:53 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000441.html">[Cachewolf-svn] r623 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000443.html">[Cachewolf-svn] r625 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#442">[ date ]</a>
+              <a href="thread.html#442">[ thread ]</a>
+              <a href="subject.html#442">[ subject ]</a>
+              <a href="author.html#442">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-02-24 15:19:50 +0100 (Sat, 24 Feb 2007)
+New Revision: 624
+
+Modified:
+   trunk/src/CacheWolf/Parser.java
+   trunk/src/CacheWolf/Tokenizer.java
+Log:
+Parser: Befehl zum Anzeigen der lokalen Variablen (?) und Bugfix bei Gross-/Kleinschreibung von Variablennamen
+
+Modified: trunk/src/CacheWolf/Parser.java
+===================================================================
+--- trunk/src/CacheWolf/Parser.java	2007-02-24 08:18:26 UTC (rev 623)
++++ trunk/src/CacheWolf/Parser.java	2007-02-24 14:19:50 UTC (rev 624)
+@@ -165,11 +165,11 @@
+     }
+     
+     /** Shows global symbols */
+-    private void showGlobals() throws Exception {
++    private void showVars(boolean globals) throws Exception {
+     	Iterator it=symbolTable.entries();
+     	while (it.hasNext()) {
+     		String varName=((String)((ewe.util.Map.MapEntry) it.next()).getKey());
+-    		if (varName.startsWith(&quot;$&quot;)) {
++    		if (globals == varName.startsWith(&quot;$&quot;)) {
+     			String value=(String) getVariable(varName);
+     			if (java.lang.Double.isNaN(toNumber(value)))
+     				messageStack.add(varName+&quot; = \&quot;&quot;+STRreplace.replace(value.toString(),&quot;\&quot;&quot;,&quot;\&quot;\&quot;&quot;)+&quot;\&quot;&quot;);
+@@ -183,8 +183,9 @@
+     private void clearLocalSymbols() {
+     	Iterator it=symbolTable.entries();
+     	while (it.hasNext()) {
+-    		if (((String)((ewe.util.Map.MapEntry) it.next()).getKey()).startsWith(&quot;$&quot;)) 
+-    			symbolTable.remove(it);
++    		ewe.util.Map.MapEntry sym=(ewe.util.Map.MapEntry) it.next();
++    		if (!((String)sym.getKey()).startsWith(&quot;$&quot;)) 
++    			symbolTable.remove(sym.getKey());
+     	}
+     }
+     
+@@ -220,7 +221,7 @@
+ 			// If it is a global variable, add it with a default value
+ 			if (varName.startsWith(&quot;$&quot;)) {
+ 				result=&quot;&quot;;
+-				symbolTable.put(varName,&quot;&quot;);
++				symbolTable.put(Global.getPref().solverIgnoreCase?varName.toUpperCase():varName,&quot;&quot;);
+ 			} else
+ 				err (MyLocale.getMsg(1702,&quot;Variable not defined: &quot;)+varName);
+ 		}
+@@ -397,7 +398,7 @@
+     	if (!isValidCoord(coordA)) err(MyLocale.getMsg(1712,&quot;Invalid coordinate: &quot;)+coordA);
+ 		if (!isValidCoord(coordB)) err(MyLocale.getMsg(1712,&quot;Invalid coordinate: &quot;)+coordB);
+     	cwPt.set(coordA);
+-    	return cwPt.getDistance(new CWPoint(coordB));
++    	return cwPt.getDistance(new CWPoint(coordB))*1000.0;
+     }
+     
+     /** Calculate brearing from one point to the next */
+@@ -609,9 +610,12 @@
+ 
+ 	private void parseSimpleCommand() throws Exception{
+ 		if (thisToken.tt==TokenObj.TT_STOP) throw new Exception(&quot;STOP&quot;);  // Terminate without error message
+-		if (thisToken.token.equals(&quot;$&quot;)) {
+-			showGlobals();
++		if (thisToken.token.equals(&quot;$&quot;)) { // Show all global variables
++			showVars(true);
+ 			getToken();
++		} else if (thisToken.token.equals(&quot;?&quot;)) { // Show all local variables
++			showVars(false);
++			getToken();
+ 		} else if (thisToken.tt==TokenObj.TT_VARIABLE &amp;&amp; lookAheadToken().tt==TokenObj.TT_EQ) 
+ 			parseAssign();
+ 		else 
+@@ -694,7 +698,7 @@
+ 			}
+ 			// Name starts with $ but is not a waypoint, fall through and set it as global variable
+ 		}
+-		symbolTable.put(varName, popCalcStackAsString());
++		symbolTable.put(Global.getPref().solverIgnoreCase?varName.toUpperCase():varName, popCalcStackAsString());
+ 	}
+ 	
+ 	private void parseStringExp()throws Exception {
+
+Modified: trunk/src/CacheWolf/Tokenizer.java
+===================================================================
+--- trunk/src/CacheWolf/Tokenizer.java	2007-02-24 08:18:26 UTC (rev 623)
++++ trunk/src/CacheWolf/Tokenizer.java	2007-02-24 14:19:50 UTC (rev 624)
+@@ -47,7 +47,7 @@
+ 	}
+ 	
+ 	private boolean isSymbol(char c){
+-		return &quot;!&lt;&gt;(){}*/,;^+-=&quot;.indexOf(look)!=-1;
++		return &quot;?!&lt;&gt;(){}*/,;^+-=&quot;.indexOf(c)!=-1;
+ 	}
+ 
+ 	private boolean getChar(){
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000441.html">[Cachewolf-svn] r623 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000443.html">[Cachewolf-svn] r625 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#442">[ date ]</a>
+              <a href="thread.html#442">[ thread ]</a>
+              <a href="subject.html#442">[ subject ]</a>
+              <a href="author.html#442">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

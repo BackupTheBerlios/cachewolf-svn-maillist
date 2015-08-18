@@ -1,0 +1,337 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2189 - in trunk/src/CacheWolf: . navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-September/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2189%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C200909142004.n8EK4VvM012302%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002112.html">
+   <LINK REL="Next"  HREF="002114.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2189 - in trunk/src/CacheWolf: . navi</H1>
+    <B>mik77 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2189%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C200909142004.n8EK4VvM012302%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2189 - in trunk/src/CacheWolf: . navi">mik77 at mail.berlios.de
+       </A><BR>
+    <I>Mon Sep 14 22:04:31 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002112.html">[Cachewolf-svn] r2188 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="002114.html">[Cachewolf-svn] r2190 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2113">[ date ]</a>
+              <a href="thread.html#2113">[ thread ]</a>
+              <a href="subject.html#2113">[ subject ]</a>
+              <a href="author.html#2113">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mik77
+Date: 2009-09-14 22:04:26 +0200 (Mon, 14 Sep 2009)
+New Revision: 2189
+
+Modified:
+   trunk/src/CacheWolf/DataMover.java
+   trunk/src/CacheWolf/NewProfileWizard.java
+   trunk/src/CacheWolf/Preferences.java
+   trunk/src/CacheWolf/PreferencesScreen.java
+   trunk/src/CacheWolf/TravelbugJourneyList.java
+   trunk/src/CacheWolf/navi/MapImporter.java
+   trunk/src/CacheWolf/navi/MovingMap.java
+Log:
+a more fundamental solution for relative data dir path
+
+Modified: trunk/src/CacheWolf/DataMover.java
+===================================================================
+--- trunk/src/CacheWolf/DataMover.java	2009-09-14 18:31:15 UTC (rev 2188)
++++ trunk/src/CacheWolf/DataMover.java	2009-09-14 20:04:26 UTC (rev 2189)
+@@ -239,7 +239,7 @@
+ 	
+ 	public String selectTargetDir() {
+ 		// Select destination directory
+-		FileChooser fc = new FileChooser(FileChooserBase.DIRECTORY_SELECT, pref.baseDir);
++		FileChooser fc = new FileChooser(FileChooserBase.DIRECTORY_SELECT, pref.absoluteBaseDir);
+ 		fc.setTitle(MyLocale.getMsg(148,&quot;Select Target directory&quot;));
+ 		if(fc.execute() != FormBase.IDCANCEL){
+ 			return fc.getChosen() + &quot;/&quot;;
+
+Modified: trunk/src/CacheWolf/NewProfileWizard.java
+===================================================================
+--- trunk/src/CacheWolf/NewProfileWizard.java	2009-09-14 18:31:15 UTC (rev 2188)
++++ trunk/src/CacheWolf/NewProfileWizard.java	2009-09-14 20:04:26 UTC (rev 2189)
+@@ -9,14 +9,14 @@
+ 	static public boolean startNewProfileWizard(ewe.ui.Frame parent) {
+ 		if (Global.mainTab != null) Global.mainTab.saveUnsavedChanges(true);
+ 		Preferences pref = Global.getPref();
+-		NewProfileForm f=new NewProfileForm(pref.baseDir);
++		NewProfileForm f=new NewProfileForm(pref.absoluteBaseDir);
+ 		int code=f.execute(parent, Gui.CENTER_FRAME);
+ 		if (code==0) {
+ 			Profile profile = Global.getProfile();
+ 			profile.clearProfile(); 
+ 			pref.lastProfile=profile.name=f.profileDir;
+ 			pref.savePreferences(); // Remember that this was the last profile used
+-			profile.dataDir=pref.baseDir+f.profileDir+&quot;/&quot;;
++			profile.dataDir=pref.absoluteBaseDir+f.profileDir+&quot;/&quot;;
+ 			
+ 			CoordsScreen cs = new CoordsScreen();
+ 			cs.setFields(new CWPoint(), TransformCoordinates.CW);
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2009-09-14 18:31:15 UTC (rev 2188)
++++ trunk/src/CacheWolf/Preferences.java	2009-09-14 20:04:26 UTC (rev 2189)
+@@ -115,7 +115,8 @@
+ 	//////////////////////////////////////////////////////////////////////////////////////
+ 
+ 	/** The base directory contains one subdirectory for each profile*/
+-	public String baseDir = &quot;&quot;;
++	private String baseDir = &quot;&quot;;
++	public String absoluteBaseDir = &quot;&quot;;
+ 	/** Name of last used profile */
+ 	public String lastProfile=&quot;&quot;;
+ 	/** If true, the last profile is reloaded automatically without a dialogue */
+@@ -385,7 +386,7 @@
+ 		}
+ 
+ 		else if(name.equals(&quot;basedir&quot;)) {
+-			baseDir = atts.getValue(&quot;dir&quot;);
++			setBaseDir(atts.getValue(&quot;dir&quot;));
+ 		}
+ 		else if (name.equals(&quot;opencaching&quot;)) {
+ 			downloadmissingOC = Boolean.valueOf(atts.getValue(&quot;downloadmissing&quot;)).booleanValue();
+@@ -570,7 +571,7 @@
+ 			outp.print(&quot;&lt;?xml version=\&quot;1.0\&quot; encoding=\&quot;ISO-8859-1\&quot;?&gt;\n&quot;);
+ 			outp.print(&quot;&lt;preferences&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;locale language=\&quot;&quot; + SafeXML.clean(language) + &quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;    &lt;basedir dir = \&quot;&quot; + SafeXML.clean(baseDir) + &quot;\&quot;/&gt;\n&quot;);
++			outp.print(&quot;    &lt;basedir dir = \&quot;&quot; + SafeXML.clean(getBaseDir()) + &quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;lastprofile autoreload=\&quot;&quot; + SafeXML.strxmlencode(autoReloadLastProfile) + &quot;\&quot;&gt;&quot; + SafeXML.clean(lastProfile) + &quot;&lt;/lastprofile&gt;\n&quot;); //RB
+ 			outp.print(&quot;    &lt;alias name =\&quot;&quot;+ SafeXML.clean(myAlias) +&quot;\&quot; password=\&quot;&quot;+SafeXML.clean(password)+&quot;\&quot; /&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;alias2 name =\&quot;&quot;+ SafeXML.clean(myAlias2) +&quot;\&quot;/&gt;\n&quot;);
+@@ -675,7 +676,7 @@
+ 		ret = getMapManuallySavePath(false);
+ 		File t = new FileBugfix(ret);
+ 		String[] f = t.list(&quot;*.wfl&quot;, FileBase.LIST_FILES_ONLY);
+-		if (f != null &amp;&amp; f.length &gt; 0) return  baseDir + mapsPath;
++		if (f != null &amp;&amp; f.length &gt; 0) return  absoluteBaseDir + mapsPath;
+ 		f = t.list(&quot;*.wfl&quot;, FileBase.LIST_DIRECTORIES_ONLY | FileBase.LIST_ALWAYS_INCLUDE_DIRECTORIES);
+ 		if (f != null &amp;&amp; f.length &gt; 0) { // see if in a subdir of &lt;baseDir&gt;/maps/standard are .wfl files
+ 			String[] f2;
+@@ -716,7 +717,7 @@
+ 		// return getMapExpediaLoadPath();
+ 
+ 		//whole maps directory
+-		return Global.getPref().baseDir.replace('\\', '/') + &quot;maps&quot;;
++		return Global.getPref().absoluteBaseDir.replace('\\', '/') + &quot;maps&quot;;
+ 	}
+ 
+ 	/**
+@@ -725,7 +726,7 @@
+ 	 * this should be adjustable in preferences...
+ 	 */
+ 	public String getMapManuallySavePath(boolean create) {
+-		String mapsDir = baseDir + mapsPath;
++		String mapsDir = absoluteBaseDir + mapsPath;
+ 		if (create &amp;&amp; !(new FileBugfix(mapsDir).isDirectory())) { // dir exists?
+ 			if (new FileBugfix(mapsDir).mkdirs() == false) {// dir creation failed?
+ 				(new MessageBox(MyLocale.getMsg(321,&quot;Error&quot;), MyLocale.getMsg(172,&quot;Error: cannot create maps directory: \n&quot;)+mapsDir, FormBase.OKB)).exec();
+@@ -739,8 +740,8 @@
+ 	 * to this path the automatically downloaded maps are saved
+ 	 */
+ 	public String getMapDownloadSavePath(String mapkind) {
+-		String subdir = Global.getProfile().dataDir.substring(Global.getPref().baseDir.length()).replace('\\', '/');
+-		String mapsDir = Global.getPref().baseDir + &quot;maps/&quot; + Common.ClearForFileName(mapkind)+ &quot;/&quot; + subdir;
++		String subdir = Global.getProfile().dataDir.substring(Global.getPref().absoluteBaseDir.length()).replace('\\', '/');
++		String mapsDir = Global.getPref().absoluteBaseDir + &quot;maps/&quot; + Common.ClearForFileName(mapkind)+ &quot;/&quot; + subdir;
+ 		if (!(new FileBugfix(mapsDir).isDirectory())) { // dir exists?
+ 			if (new FileBugfix(mapsDir).mkdirs() == false) // dir creation failed?
+ 			{(new MessageBox(MyLocale.getMsg(321,&quot;Error&quot;), MyLocale.getMsg(172,&quot;Error: cannot create maps directory: \n&quot;)+new FileBugfix(mapsDir).getParentFile(), FormBase.OKB)).exec();
+@@ -751,7 +752,7 @@
+ 	}
+ 
+ 	public String getMapExpediaLoadPath() {
+-		return Global.getPref().baseDir.replace('\\', '/') + &quot;maps/expedia&quot;; // baseDir has trailing /
++		return Global.getPref().absoluteBaseDir.replace('\\', '/') + &quot;maps/expedia&quot;; // baseDir has trailing /
+ 	}
+ 
+     //////////////////////////////////////////////////////////////////////////////////////
+@@ -786,22 +787,20 @@
+ 	 */
+ 	public boolean selectProfile(Profile prof, int showProfileSelector, boolean hasNewButton) {
+ 		// If datadir is empty, ask for one
+-		if (baseDir.length()==0 || !(new FileBugfix(baseDir)).exists()) {
++		if (absoluteBaseDir.length()==0 || !(new FileBugfix(absoluteBaseDir)).exists()) {
+ 			do {
+ 				FileChooser fc = new FileChooser(FileChooserBase.DIRECTORY_SELECT, getHomeDir());
+ 				fc.title = MyLocale.getMsg(170,&quot;Select base directory for cache data&quot;);
+ 				// If no base directory given, terminate
+ 				if (fc.execute() == FormBase.IDCANCEL) ewe.sys.Vm.exit(0);
+-				baseDir = fc.getChosenFile().toString();
+-			}while (!(new FileBugfix(baseDir)).exists());
++				setBaseDir(fc.getChosenFile().toString());
++			}while (!(new FileBugfix(absoluteBaseDir)).exists());
+ 		}
+-		baseDir=baseDir.replace('\\','/');
+-		if (!baseDir.endsWith(&quot;/&quot;)) baseDir+=&quot;/&quot;;
+ 		boolean profileExists=true;  // Assume that the profile exists
+ 		do {
+ 			if(!profileExists || (showProfileSelector==PROFILE_SELECTOR_FORCED_ON) ||
+ 					(showProfileSelector==PROFILE_SELECTOR_ONOROFF &amp;&amp; !autoReloadLastProfile)){ // Ask for the profile
+-				ProfilesForm f = new ProfilesForm(baseDir,lastProfile,!profileExists || hasNewButton);
++				ProfilesForm f = new ProfilesForm(absoluteBaseDir,lastProfile,!profileExists || hasNewButton);
+ 				int code = f.execute();
+ 				// If no profile chosen (includes a new one), terminate
+ 				if (code==-1) return false; // Cancel pressed
+@@ -812,13 +811,13 @@
+ 				//curCentrePt.set(0,0); // No centre yet
+ 				lastProfile=f.newSelectedProfile;
+ 			}
+-			profileExists=(new FileBugfix(baseDir+lastProfile)).exists();
++			profileExists=(new FileBugfix(absoluteBaseDir+lastProfile)).exists();
+ 			if (!profileExists) (new MessageBox(MyLocale.getMsg(144,&quot;Warning&quot;),
+ 					           MyLocale.getMsg(171,&quot;Profile does not exist: &quot;)+lastProfile,FormBase.MBOK)).execute();
+ 		} while (profileExists==false);
+ 		// Now we are sure that baseDir exists and basDir+profile exists
+ 		prof.name=lastProfile;
+-		prof.dataDir=baseDir+lastProfile;
++		prof.dataDir=absoluteBaseDir+lastProfile;
+ 		prof.dataDir=prof.dataDir.replace('\\','/');
+ 		if (!prof.dataDir.endsWith(&quot;/&quot;)) prof.dataDir+='/';
+ 		savePreferences();
+@@ -1033,5 +1032,18 @@
+ 	public String getPathToConfigFile() {
+ 		return pathToConfigFile;
+ 	}
++	
++	public String getBaseDir() {
++		return baseDir;
++	}
++	
++	public void setBaseDir(String dir) {
++		baseDir = dir;
++		baseDir=baseDir.replace('\\','/');
++		if (!baseDir.endsWith(&quot;/&quot;)) baseDir+=&quot;/&quot;;
++		absoluteBaseDir = new FileBugfix(baseDir).getAbsolutePath();
++		absoluteBaseDir=absoluteBaseDir.replace('\\','/');
++		if (!absoluteBaseDir.endsWith(&quot;/&quot;)) absoluteBaseDir+=&quot;/&quot;;
++	}
+ 
+ }
+
+Modified: trunk/src/CacheWolf/PreferencesScreen.java
+===================================================================
+--- trunk/src/CacheWolf/PreferencesScreen.java	2009-09-14 18:31:15 UTC (rev 2188)
++++ trunk/src/CacheWolf/PreferencesScreen.java	2009-09-14 20:04:26 UTC (rev 2189)
+@@ -81,7 +81,7 @@
+ 		//frmDataDir.setTag(INSETS,new Insets(10,10,10,10));
+ 		frmDataDir.addLast(brwBt = new mButton(MyLocale.getMsg(604,&quot;Browse&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.EAST));
+ 		DataDir = new mInput();
+-		DataDir.setText(pref.baseDir);
++		DataDir.setText(pref.getBaseDir());
+ 		frmDataDir.addLast(DataDir.setTag(CellConstants.SPAN, new Dimension(3,1)),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.EAST));
+ 		frmDataDir.addLast(chkAutoLoad = new mCheckBox(MyLocale.getMsg(629,&quot;Autoload last profile&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		if (pref.autoReloadLastProfile) chkAutoLoad.setState(true);
+@@ -284,7 +284,7 @@
+ 			if (ev.target == applyB){
+ 				//if (pref.currProfile == 0){
+ 					//pref.curCentrePt.set(btnCentre.getText());
+-					pref.baseDir = DataDir.getText();
++					pref.setBaseDir(DataDir.getText());
+ 				//}
+ 				pref.fontSize = Convert.toInt(fontSize.getText());
+ 				if (pref.fontSize&lt;6) pref.fontSize=11;
+@@ -332,7 +332,7 @@
+ 				this.close(0);
+ 			}
+ 			if(ev.target == brwBt){
+-				FileChooser fc = new FileChooser(FileChooserBase.DIRECTORY_SELECT, pref.baseDir);
++				FileChooser fc = new FileChooser(FileChooserBase.DIRECTORY_SELECT, pref.getBaseDir());
+ 				fc.setTitle(MyLocale.getMsg(616,&quot;Select directory&quot;));
+ 				if(fc.execute() != FormBase.IDCANCEL)	DataDir.setText(fc.getChosen()+&quot;/&quot;);
+ 			}
+
+Modified: trunk/src/CacheWolf/TravelbugJourneyList.java
+===================================================================
+--- trunk/src/CacheWolf/TravelbugJourneyList.java	2009-09-14 18:31:15 UTC (rev 2188)
++++ trunk/src/CacheWolf/TravelbugJourneyList.java	2009-09-14 20:04:26 UTC (rev 2189)
+@@ -101,7 +101,7 @@
+ 	 */
+ 	public boolean readTravelbugsFile(){
+ 		try{
+-			String datei = Global.getPref().baseDir + &quot;/&quot; + &quot;travelbugs.xml&quot;;
++			String datei = Global.getPref().absoluteBaseDir + &quot;/&quot; + &quot;travelbugs.xml&quot;;
+ 			datei = datei.replace('\\', '/');
+ 			ewe.io.Reader r = new ewe.io.InputStreamReader(new ewe.io.FileInputStream(datei));
+ 			parse(r);
+@@ -159,7 +159,7 @@
+ 	 * Method to save current travelbugs in the travelbugs.xml file
+ 	 */
+ 	public void saveTravelbugsFile(){
+-		String baseDir=Global.getPref().baseDir;
++		String baseDir=Global.getPref().absoluteBaseDir;
+ 		try {
+ 			File backup=new File(baseDir+&quot;travelbugs.bak&quot;);
+ 			if (backup.exists()) backup.delete();
+
+Modified: trunk/src/CacheWolf/navi/MapImporter.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MapImporter.java	2009-09-14 18:31:15 UTC (rev 2188)
++++ trunk/src/CacheWolf/navi/MapImporter.java	2009-09-14 20:04:26 UTC (rev 2189)
+@@ -121,7 +121,7 @@
+ 	 */
+ 	public int importMap(){
+ 		String rawFileName = new String();
+-		FileChooser fc = new FileChooser(FileChooserBase.DIRECTORY_SELECT, Global.getPref().baseDir);
++		FileChooser fc = new FileChooser(FileChooserBase.DIRECTORY_SELECT, Global.getPref().absoluteBaseDir);
+ 		fc.addMask(&quot;*.png,*.gif,*.bmp,*.jpg&quot;);
+ 		fc.setTitle(MyLocale.getMsg(4100,&quot;Select Directory:&quot;));
+ 		int tmp = fc.execute() ; 
+
+Modified: trunk/src/CacheWolf/navi/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MovingMap.java	2009-09-14 18:31:15 UTC (rev 2188)
++++ trunk/src/CacheWolf/navi/MovingMap.java	2009-09-14 20:04:26 UTC (rev 2189)
+@@ -2068,7 +2068,7 @@
+ 						}
+ 						else if (action == changeMapDirMI)	{
+ 							mapsMenu.close();
+-							FileChooser fc = new FileChooser(FileChooserBase.DIRECTORY_SELECT, Global.getPref().baseDir+&quot;maps&quot;);
++							FileChooser fc = new FileChooser(FileChooserBase.DIRECTORY_SELECT, Global.getPref().absoluteBaseDir+&quot;maps&quot;);
+ 							fc.addMask(&quot;*.wfl&quot;);
+ 							fc.setTitle(MyLocale.getMsg(4200,&quot;Select map directory:&quot;));
+ 							if(fc.execute() != FormBase.IDCANCEL){
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002112.html">[Cachewolf-svn] r2188 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="002114.html">[Cachewolf-svn] r2190 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2113">[ date ]</a>
+              <a href="thread.html#2113">[ thread ]</a>
+              <a href="subject.html#2113">[ subject ]</a>
+              <a href="author.html#2113">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

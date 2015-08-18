@@ -1,0 +1,271 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1705 - in trunk: res_noewe/languages src/CacheWolf	src/exp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-March/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1705%20-%20in%20trunk%3A%20res_noewe/languages%20src/CacheWolf%0A%09src/exp&In-Reply-To=%3C200903151312.n2FDCtQB020259%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001617.html">
+   <LINK REL="Next"  HREF="001619.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1705 - in trunk: res_noewe/languages src/CacheWolf	src/exp</H1>
+    <B>mik77 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1705%20-%20in%20trunk%3A%20res_noewe/languages%20src/CacheWolf%0A%09src/exp&In-Reply-To=%3C200903151312.n2FDCtQB020259%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1705 - in trunk: res_noewe/languages src/CacheWolf	src/exp">mik77 at mail.berlios.de
+       </A><BR>
+    <I>Sun Mar 15 14:12:55 CET 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001617.html">[Cachewolf-svn] r1704 - in trunk: res_noewe/languages src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001619.html">[Cachewolf-svn] r1706 - in trunk: res_noewe/languages src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1618">[ date ]</a>
+              <a href="thread.html#1618">[ thread ]</a>
+              <a href="subject.html#1618">[ subject ]</a>
+              <a href="author.html#1618">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mik77
+Date: 2009-03-15 14:12:51 +0100 (Sun, 15 Mar 2009)
+New Revision: 1705
+
+Modified:
+   trunk/res_noewe/languages/DE.cfg
+   trunk/res_noewe/languages/EN.cfg
+   trunk/src/CacheWolf/Preferences.java
+   trunk/src/CacheWolf/PreferencesScreen.java
+   trunk/src/exp/Exporter.java
+   trunk/src/exp/LocExporter.java
+Log:
+Add some cache details to Garmin export
+
+Modified: trunk/res_noewe/languages/DE.cfg
+===================================================================
+--- trunk/res_noewe/languages/DE.cfg	2009-03-15 00:35:23 UTC (rev 1704)
++++ trunk/res_noewe/languages/DE.cfg	2009-03-15 13:12:51 UTC (rev 1705)
+@@ -206,6 +206,9 @@
+ 		640=Ja
+ 		641=Nein
+ 		642=Nachfragen
++		643=Cachedetails anh%e4ngen an:
++		644=Wegpunkt
++		645=Name
+ 		700=Filter setzen
+ 		701=Entfernung
+ 		702=Schwierigkeit
+
+Modified: trunk/res_noewe/languages/EN.cfg
+===================================================================
+--- trunk/res_noewe/languages/EN.cfg	2009-03-15 00:35:23 UTC (rev 1704)
++++ trunk/res_noewe/languages/EN.cfg	2009-03-15 13:12:51 UTC (rev 1705)
+@@ -206,6 +206,9 @@
+ 		640=Yes
+ 		641=No
+ 		642=Ask
++		643=Append cache details to:
++		644=waypoint
++		645=name
+ 		700=Set filter
+ 		701=Distance
+ 		702=Difficulty
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2009-03-15 00:35:23 UTC (rev 1704)
++++ trunk/src/CacheWolf/Preferences.java	2009-03-15 13:12:51 UTC (rev 1705)
+@@ -203,6 +203,10 @@
+ 	public int spiderUpdates = ASK;
+ 	/** Maximum number of new caches to spider */
+ 	public int maxSpiderNumber = 200;
++	/** Add short details to waypoint on export */
++	public boolean addDetailsToWaypoint = false;
++	/** Add short details to name on export */
++	public boolean addDetailsToName = false;
+ 
+ 	//////////////////////////////////////////////
+ 	/** The debug switch (Can be used to activate dormant code) by adding
+@@ -319,7 +323,11 @@
+ 			tmp = atts.getValue(&quot;GPSBabelOptions&quot;);
+ 			if (tmp != null) garminGPSBabelOptions=tmp;
+ 			tmp = atts.getValue(&quot;MaxWaypointLength&quot;);
+-			if (tmp != null) garminMaxLen=Convert.toInt(atts.getValue(&quot;MaxWaypointLength&quot;));
++			if (tmp != null) garminMaxLen=Convert.toInt(tmp);
++			tmp = atts.getValue(&quot;addDetailsToWaypoint&quot;);
++			if (tmp != null) addDetailsToWaypoint = Boolean.valueOf(tmp).booleanValue();
++			tmp = atts.getValue(&quot;addDetailsToName&quot;);
++			if (tmp != null) addDetailsToName = Boolean.valueOf(tmp).booleanValue();
+ 		}
+ 		else if (name.equals(&quot;imagepanel&quot;)) {
+ 			showDeletedImages = Boolean.valueOf(atts.getValue(&quot;showdeletedimages&quot;)).booleanValue();
+@@ -440,7 +448,8 @@
+ 			outp.print(&quot;    &lt;imagepanel showdeletedimages=\&quot;&quot; + SafeXML.strxmlencode(showDeletedImages) + &quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;hintlogpanel logsperpage=\&quot;&quot; + SafeXML.strxmlencode(logsPerPage) + &quot;\&quot; initialhintheight=\&quot;&quot; + SafeXML.strxmlencode(initialHintHeight) + &quot;\&quot;  maxspiderlogs=\&quot;&quot; + SafeXML.strxmlencode(maxLogsToSpider) + &quot;\&quot; /&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;solver ignorevariablecase=\&quot;&quot; + SafeXML.strxmlencode(solverIgnoreCase) + &quot;\&quot; degMode=\&quot;&quot; + SafeXML.strxmlencode(solverDegMode) + &quot;\&quot; /&gt;\n&quot;);
+-			outp.print(&quot;    &lt;garmin connection = \&quot;&quot; + SafeXML.strxmlencode(garminConn) + &quot;\&quot; GPSBabelOptions = \&quot;&quot; + SafeXML.strxmlencode(garminGPSBabelOptions) + &quot;\&quot; MaxWaypointLength = \&quot;&quot; + SafeXML.strxmlencode(garminMaxLen) + &quot;\&quot; /&gt;\n&quot;);
++			outp.print(&quot;    &lt;garmin connection = \&quot;&quot; + SafeXML.strxmlencode(garminConn) + &quot;\&quot; GPSBabelOptions = \&quot;&quot; + SafeXML.strxmlencode(garminGPSBabelOptions) + &quot;\&quot; MaxWaypointLength = \&quot;&quot; + SafeXML.strxmlencode(garminMaxLen) +
++					        &quot;\&quot; addDetailsToWaypoint = \&quot;&quot; + SafeXML.strxmlencode(addDetailsToWaypoint) + &quot;\&quot; addDetailsToName = \&quot;&quot; + SafeXML.strxmlencode(addDetailsToName) + &quot;\&quot; /&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;opencaching downloadPicsOC=\&quot;&quot; + SafeXML.strxmlencode(downloadPicsOC) + &quot;\&quot; downloadMaps=\&quot;&quot; + SafeXML.strxmlencode(downloadMapsOC) + &quot;\&quot; downloadMissing=\&quot;&quot; + SafeXML.strxmlencode(downloadmissingOC) + &quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;	&lt;location lat = \&quot;&quot; + SafeXML.strxmlencode(curCentrePt.getLatDeg(CWPoint.DD)) + &quot;\&quot; long = \&quot;&quot; + SafeXML.strxmlencode(curCentrePt.getLonDeg(CWPoint.DD)) + &quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;spider forcelogin=\&quot;&quot; + SafeXML.strxmlencode(forceLogin) + &quot;\&quot; spiderUpdates=\&quot;&quot; + SafeXML.strxmlencode(spiderUpdates) + &quot;\&quot; maxSpiderNumber=\&quot;&quot; + SafeXML.strxmlencode(maxSpiderNumber) + &quot;\&quot;/&gt;\n&quot;);
+
+Modified: trunk/src/CacheWolf/PreferencesScreen.java
+===================================================================
+--- trunk/src/CacheWolf/PreferencesScreen.java	2009-03-15 00:35:23 UTC (rev 1704)
++++ trunk/src/CacheWolf/PreferencesScreen.java	2009-03-15 13:12:51 UTC (rev 1705)
+@@ -15,12 +15,12 @@
+ *	Class ID=600
+ */
+ public class PreferencesScreen extends Form {
+-	mButton cancelB, applyB, brwBt, gpsB,btnCentre;
++	mButton cancelB, applyB, brwBt, gpsB;
+ 	mChoice inpLanguage, inpMetric, inpSpiderUpdates;
+-	mInput DataDir, Proxy, ProxyPort, Alias, nLogs, Browser, fontSize, inpGPS, 
++	mInput DataDir, Proxy, ProxyPort, Alias, nLogs, Browser, fontSize, 
+ 	       inpLogsPerPage,inpMaxLogsToSpider,inpPassword;
+-	mCheckBox dif, ter, loc, own, hid, stat, dist, bear, chkAutoLoad, chkShowDeletedImg, chkMenuAtTop, 
+-	          chkTabsAtTop, chkShowStatus,chkHasCloseButton,chkSynthShort,chkProxyActive, chkDescShowImg;
++	mCheckBox chkAutoLoad, chkShowDeletedImg, chkMenuAtTop, chkTabsAtTop, chkShowStatus,chkHasCloseButton,
++	          chkSynthShort,chkProxyActive, chkDescShowImg, chkAddDetailsToWaypoint, chkAddDetailsToName;
+ 	mTabbedPanel mTab;
+ 	mChoice chcGarminPort;
+ 	mLabel lblGarmin;
+@@ -105,11 +105,7 @@
+ 		pnlGeneral.addLast(pnlBrowser,HSTRETCH,HFILL);
+ 		
+ 		pnlGeneral.addLast(gpsB = new mButton(&quot;GPS: &quot; + pref.mySPO.portName+&quot;/&quot;+pref.mySPO.baudRate),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+-		//content.addNext(Alias.setTag(Control.SPAN, new Dimension(3,1)),content.DONTSTRETCH, (content.HFILL|content.WEST));
+-/*		pnlGeneral.addLast(inpGPS=new mInput(&quot;&quot;));
+-		inpGPS.modify(ControlConstants.Disabled|ControlConstants.NoFocus,0);
+-		inpGPS.setText(pref.mySPO.portName+&quot;/&quot;+pref.mySPO.baudRate);
+-	*/	
++
+ 		// Garmin and GPSBabel
+ 		pnlGeneral.addNext(lblGarmin=new mLabel(MyLocale.getMsg(173,&quot;Garmin:  PC Port:&quot;)),DONTSTRETCH,LEFT);
+ //		lblGarmin.setTag(INSETS,new Insets(4,0,0,0));
+@@ -122,7 +118,12 @@
+ 		//frmGarmin.borderStyle=UIConstants.BDR_RAISEDOUTER|UIConstants.BDR_SUNKENINNER|UIConstants.BF_TOP;
+ 		//frmGarmin.setTag(INSETS,new Insets(4,0,0,0));
+ 		//pnlGeneral.addLast(frmGarmin);
+-		pnlGeneral.addLast(new mLabel(&quot;&quot;));
++		pnlGeneral.addNext(new mLabel(MyLocale.getMsg(643,&quot;Append cache details to:&quot;)),DONTSTRETCH,LEFT);
++		pnlGeneral.addNext(chkAddDetailsToWaypoint=new mCheckBox(MyLocale.getMsg(644,&quot;waypoints&quot;)),DONTSTRETCH,RIGHT);
++		chkAddDetailsToWaypoint.setState(pref.addDetailsToWaypoint);
++		pnlGeneral.addLast(chkAddDetailsToName=new mCheckBox(MyLocale.getMsg(645,&quot;names&quot;)),STRETCH,LEFT);
++		chkAddDetailsToName.setState(pref.addDetailsToName);
++		//pnlGeneral.addLast(new mLabel(&quot;&quot;));
+ 		
+ 		/////////////////////////////////////////////////////////
+ 		// Second panel - Screen
+@@ -314,6 +315,9 @@
+ 				Global.mainTab.tbP.myMod.setColumnNamesAndWidths();
+ 				pref.metricSystem = inpMetric.getInt() == 0 ? Metrics.METRIC : Metrics.IMPERIAL;
+ 				pref.spiderUpdates = inpSpiderUpdates.getInt();
++				pref.addDetailsToWaypoint = chkAddDetailsToWaypoint.getState();
++				pref.addDetailsToName = chkAddDetailsToName.getState();
++
+ 				pref.savePreferences();
+ 				pref.dirty = true; // Need to update table in case columns were enabled/disabled
+ 				this.close(0);
+
+Modified: trunk/src/exp/Exporter.java
+===================================================================
+--- trunk/src/exp/Exporter.java	2009-03-15 00:35:23 UTC (rev 1704)
++++ trunk/src/exp/Exporter.java	2009-03-15 13:12:51 UTC (rev 1705)
+@@ -415,5 +415,20 @@
+         return ( sb.length() == originalTextLength ) ? text : sb.toString();
+     } // end insertEntities
+ 
++    public static String getShortDetails( CacheHolder ch ) {
++    	StringBuffer strBuf = new StringBuffer(7);
++    	strBuf.append(ch.CacheSize.substring(0, 1).toLowerCase());
++    	strBuf.append(ch.hard.charAt(0));
++    	if ( ch.hard.endsWith(&quot;.5&quot;) ) {
++    		strBuf.append(&quot;5&quot;);
++    	}
++    	strBuf.append(&quot;/&quot;);
++    	strBuf.append(ch.terrain.charAt(0));
++    	if ( ch.terrain.endsWith(&quot;.5&quot;) ) {
++    		strBuf.append(&quot;5&quot;);
++    	}
+ 
++    	return strBuf.toString();
++    }
++
+ }
+
+Modified: trunk/src/exp/LocExporter.java
+===================================================================
+--- trunk/src/exp/LocExporter.java	2009-03-15 00:35:23 UTC (rev 1704)
++++ trunk/src/exp/LocExporter.java	2009-03-15 13:12:51 UTC (rev 1705)
+@@ -22,6 +22,9 @@
+ 		super();
+ 		this.setMask(&quot;*.loc&quot;);
+ 		this.setHowManyParams(NO_PARAMS);
++		if (Global.getPref().addDetailsToName) {
++			this.setNeedCacheDetails(true);
++		}
+ 		if ((new File(FileBase.getProgramDirectory()+&quot;/garminmap.xml&quot;)).exists()) {
+ 			gm=new GarminMap();
+ 			gm.readGarminMap();
+@@ -38,6 +41,9 @@
+ 		StringBuffer strBuf = new StringBuffer(200);
+ 		strBuf.append(&quot;&lt;waypoint&gt;\r\n   &lt;name id=\&quot;&quot;);
+ 		String wptName=simplifyString(chD.wayPoint);
++		if (Global.getPref().addDetailsToWaypoint) {
++			wptName += getShortDetails( chD );			
++		}
+ 		if (Global.getPref().garminMaxLen==0)
+ 			strBuf.append(wptName);
+ 		else {
+@@ -47,6 +53,16 @@
+ 		}
+ 		strBuf.append(&quot;\&quot;&gt;&lt;![CDATA[&quot;);
+ 		strBuf.append(simplifyString(chD.CacheName));
++		if (Global.getPref().addDetailsToName) {
++			strBuf.append(&quot;, &quot;);
++			strBuf.append(CacheType.wayType[Common.parseInt(chD.type)][CacheType.WPT_TEXT]);			
++			strBuf.append(&quot; &quot;);
++			strBuf.append( getShortDetails( chD ) );
++			if (!chD.Hints.equals(&quot;null&quot;)) {
++				strBuf.append(&quot;; Hint:&quot;);
++				strBuf.append( simplifyString(Common.rot13(chD.Hints)) );			
++			}
++		}
+ 		strBuf.append(&quot;]]&gt;&lt;/name&gt;\r\n   &lt;coord lat=\&quot;&quot;);
+ 		strBuf.append(chD.pos.getLatDeg(CWPoint.DD));
+ 		strBuf.append(&quot;\&quot; lon=\&quot;&quot;);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001617.html">[Cachewolf-svn] r1704 - in trunk: res_noewe/languages src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001619.html">[Cachewolf-svn] r1706 - in trunk: res_noewe/languages src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1618">[ date ]</a>
+              <a href="thread.html#1618">[ thread ]</a>
+              <a href="subject.html#1618">[ subject ]</a>
+              <a href="author.html#1618">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

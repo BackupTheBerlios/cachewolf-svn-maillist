@@ -1,0 +1,404 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1101 - in trunk/src/CacheWolf: . navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-November/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1101%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C200711251748.lAPHmIfA027754%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000993.html">
+   <LINK REL="Next"  HREF="000995.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1101 - in trunk/src/CacheWolf: . navi</H1>
+    <B>mik77 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1101%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C200711251748.lAPHmIfA027754%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1101 - in trunk/src/CacheWolf: . navi">mik77 at mail.berlios.de
+       </A><BR>
+    <I>Sun Nov 25 18:48:18 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000993.html">[Cachewolf-svn] r1100 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000995.html">[Cachewolf-svn] r1102 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#994">[ date ]</a>
+              <a href="thread.html#994">[ thread ]</a>
+              <a href="subject.html#994">[ subject ]</a>
+              <a href="author.html#994">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mik77
+Date: 2007-11-25 18:48:08 +0100 (Sun, 25 Nov 2007)
+New Revision: 1101
+
+Modified:
+   trunk/src/CacheWolf/CWPoint.java
+   trunk/src/CacheWolf/CoordsScreen.java
+   trunk/src/CacheWolf/navi/GkPoint.java
+   trunk/src/CacheWolf/navi/GotoPanel.java
+Log:
+GK coordinates added to IO especially CoordsScreen
+
+Modified: trunk/src/CacheWolf/CWPoint.java
+===================================================================
+--- trunk/src/CacheWolf/CWPoint.java	2007-11-25 16:32:38 UTC (rev 1100)
++++ trunk/src/CacheWolf/CWPoint.java	2007-11-25 17:48:08 UTC (rev 1101)
+@@ -6,6 +6,7 @@
+ import ewe.sys.Locale;
+ import ewe.sys.Convert;
+ import CacheWolf.navi.TrackPoint;
++import CacheWolf.navi.GkPoint;
+ import CacheWolf.navi.TransformCoordinates;
+ 
+ import com.bbn.openmap.proj.coords.*;
+@@ -32,10 +33,11 @@
+ 	public static final int DMM = 1;
+ 	public static final int DMS = 2;
+ 	public static final int UTM = 3;
+-	public static final int CW = 4;
+-	public static final int REGEX = 5;
+-	public static final int LAT_LON = 6;
+-	public static final int LON_LAT = 7;
++	public static final int GK = 4;
++	public static final int CW = 5;
++	public static final int REGEX = 6;
++	public static final int LAT_LON = 7;
++	public static final int LON_LAT = 8;
+ 	
+ 	
+ 	/**
+@@ -316,6 +318,19 @@
+ 			this.lonDec = ll.getLongitude();
+ 		} else {this.latDec = 91; this.lonDec = 361; }
+ 	}
++	
++	/**
++	 * set lat and lon by using GK coordinates  
++	 * @param strEasting  Easting component
++	 * @param strNorthing Northing component
++	 */
++	public void set ( String strEasting, String strNorthing ){
++		GkPoint gk = new GkPoint(Common.parseDouble(strEasting), Common.parseDouble(strNorthing));
++		
++		this. latDec = TransformCoordinates.germanGkToWgs84(gk).latDec;
++		this. lonDec = TransformCoordinates.germanGkToWgs84(gk).lonDec;
++		this.utmValid = false;
++	}
+ 
+ 	/**
+ 	 * Get degrees of latitude in different formats
+@@ -397,11 +412,11 @@
+ 			case DMM: 	
+ 			    // Need to check if minutes would round up to 60
+ 				if (java.lang.Math.round(tmpMin*1000.0) == 60000) { tmpMin =0;  iDeg++; }
+-				if (what==0)
+-					return MyLocale.formatLong(iDeg, &quot;00&quot;);
+-				else
+-					return MyLocale.formatDouble(tmpMin, &quot;00.000&quot;).replace(',','.');
+-				
++				switch (what) {
++					case 0: return MyLocale.formatLong(iDeg, &quot;00&quot;);
++					case 1: return MyLocale.formatDouble(tmpMin, &quot;00.000&quot;).replace(',','.');
++					case 2: return &quot;&quot;;
++				}
+ 			case DMS:
+ 				tmpSec= (tmpMin - (int)tmpMin) * 60.0;
+ 				tmpMin=(int) tmpMin;
+@@ -414,7 +429,6 @@
+ 					case 1: return MyLocale.formatDouble(tmpMin, &quot;00&quot;);
+ 					case 2: return MyLocale.formatDouble(tmpSec, &quot;00.0&quot;).replace(',','.');
+ 				}
+-		
+ 		}
+ 		return &quot;&quot;; // Dummy to keep compiler happy
+ 	}
+@@ -457,6 +471,22 @@
+ 		return Convert.toString((long)utm.easting).replace(',','.');
+ 	}
+ 	
++	/**
++	 * Get GK northing
++	 */
++	public String getGKNorthing(){
++		double gkNorthing = TransformCoordinates.wgs84ToGermanGk(this).getNorthing();
++		return Convert.toString((long)gkNorthing).replace(',','.');		
++	}
++
++	/**
++	 * Get GK easting
++	 */
++	public String getGKEasting() {
++		double gkEasting = TransformCoordinates.wgs84ToGermanGk(this).getGkEasting();
++		return Convert.toString((long)gkEasting).replace(',','.');		
++	}
++	
+ 	public String getGermanGkCoordinates() {
+ 		return TransformCoordinates.wgs84ToGermanGk(this).toString(0, &quot;R:&quot;, &quot; H:&quot;);
+ 	}
+@@ -590,6 +620,8 @@
+ 			return Common.DoubleToString(lonDec, 8) +  &quot;,&quot; + Common.DoubleToString(latDec, 8);
+ 		case LAT_LON:
+ 			return Common.DoubleToString(latDec, 8) +  &quot;,&quot; + Common.DoubleToString(lonDec, 8);
++		case GK:
++			return getGermanGkCoordinates();
+ 		default: return &quot;Unknown Format: &quot; + format;
+ 
+ 		}
+
+Modified: trunk/src/CacheWolf/CoordsScreen.java
+===================================================================
+--- trunk/src/CacheWolf/CoordsScreen.java	2007-11-25 16:32:38 UTC (rev 1100)
++++ trunk/src/CacheWolf/CoordsScreen.java	2007-11-25 17:48:08 UTC (rev 1101)
+@@ -13,7 +13,7 @@
+ 
+ public class CoordsScreen extends Form {
+ 
+-	mCheckBox chkDMM, chkDMS, chkDD, chkUTM;
++	mCheckBox chkDMM, chkDMS, chkDD, chkUTM, chkGK;
+ 	CheckBoxGroup chkFormat = new CheckBoxGroup();
+ 	mChoice chcNS, chcEW;
+ 	mInput inpNSDeg, inpNSm, inpNSs, inpEWDeg, inpEWm, inpEWs;
+@@ -21,8 +21,8 @@
+ 	mInput inpText;
+ 	mButton btnCancel, btnApply, btnCopy, btnPaste, btnParse, btnGps;
+ 	CWPoint coordInp = new CWPoint();
+-	CellPanel TopP = new CellPanel();
+-	CellPanel BottomP = new CellPanel();
++	CellPanel topLinePanel = new CellPanel();
++	CellPanel mainPanel = new CellPanel();
+ 	int exitKeys[]={75009};
+ 	int currFormat;
+ 	
+@@ -30,59 +30,62 @@
+ 	{
+ 		this.setTitle(&quot;&quot;);
+ 		//Radiobuttons for format
+-		TopP.addNext(chkDD =new mCheckBox(&quot;d.d&#176;&quot;),CellConstants.DONTSTRETCH, CellConstants.WEST);
+-		TopP.addNext(chkDMM =new mCheckBox(&quot;d&#176;m.m\'&quot;),CellConstants.DONTSTRETCH, CellConstants.WEST);
+-		TopP.addNext(chkDMS =new mCheckBox(&quot;d&#176;m\'s\&quot;&quot;),CellConstants.DONTSTRETCH,CellConstants.WEST);
+-		TopP.addLast(chkUTM =new mCheckBox(&quot;UTM&quot;),CellConstants.DONTSTRETCH, CellConstants.WEST);
++		topLinePanel.addNext(chkDD =new mCheckBox(&quot;d.d&#176;&quot;),CellConstants.DONTSTRETCH, CellConstants.WEST);
++		topLinePanel.addNext(chkDMM =new mCheckBox(&quot;d&#176;m.m\'&quot;),CellConstants.DONTSTRETCH, CellConstants.WEST);
++		topLinePanel.addNext(chkDMS =new mCheckBox(&quot;d&#176;m\'s\&quot;&quot;),CellConstants.DONTSTRETCH,CellConstants.WEST);
++		topLinePanel.addNext(chkUTM =new mCheckBox(&quot;UTM&quot;),CellConstants.DONTSTRETCH, CellConstants.WEST);
++		topLinePanel.addLast(chkGK =new mCheckBox(&quot;GK&quot;),CellConstants.DONTSTRETCH, CellConstants.WEST);
+ 
+ 		chkDD.setGroup(chkFormat); chkDD.exitKeys=exitKeys;
+ 		chkDMM.setGroup(chkFormat);chkDMM.exitKeys=exitKeys;
+ 		chkDMS.setGroup(chkFormat);chkDMS.exitKeys=exitKeys;
+ 		chkUTM.setGroup(chkFormat);chkUTM.exitKeys=exitKeys;
++		chkGK.setGroup(chkFormat);chkGK.exitKeys=exitKeys;
++		
++		this.addLast(topLinePanel,CellConstants.DONTSTRETCH, CellConstants.WEST);
+ 
+ 		// Input for degrees
+-		TopP.addNext(chcNS = new mChoice(new String[]{&quot;N&quot;, &quot;S&quot;},0),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		mainPanel.addNext(chcNS = new mChoice(new String[]{&quot;N&quot;, &quot;S&quot;},0),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		chcNS.setInt(0);
+-		TopP.addNext(inpNSDeg = new mInput(),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		TopP.addNext(inpNSm = new mInput(),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		TopP.addLast(inpNSs = new mInput(),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		mainPanel.addNext(inpNSDeg = new mInput(),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		mainPanel.addNext(inpNSm = new mInput(),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		mainPanel.addLast(inpNSs = new mInput(),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		
+-		TopP.addNext(chcEW = new mChoice(new String[]{&quot;E&quot;, &quot;W&quot;},0),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		mainPanel.addNext(chcEW = new mChoice(new String[]{&quot;E&quot;, &quot;W&quot;},0),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		chcEW.setInt(0);
+-		TopP.addNext(inpEWDeg = new mInput(),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		TopP.addNext(inpEWm = new mInput(),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		TopP.addLast(inpEWs = new mInput(),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		mainPanel.addNext(inpEWDeg = new mInput(),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		mainPanel.addNext(inpEWm = new mInput(),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		mainPanel.addLast(inpEWs = new mInput(),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 
+ 		// Input for UTM
+-		TopP.addNext(new mLabel(MyLocale.getMsg(1400,&quot;Zone&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		TopP.addNext(new mLabel(MyLocale.getMsg(1402,&quot;Easting&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		TopP.addLast(new mLabel(MyLocale.getMsg(1401,&quot;Northing&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		mainPanel.addNext(new mLabel(MyLocale.getMsg(1400,&quot;Zone&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		mainPanel.addNext(new mLabel(MyLocale.getMsg(1402,&quot;Easting&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		mainPanel.addLast(new mLabel(MyLocale.getMsg(1401,&quot;Northing&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 
+-		TopP.addNext(inpUTMZone = new mInput(),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		TopP.addNext(inpUTMEasting = new mInput(),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		TopP.addNext(inpUTMNorthing = new mInput(),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		TopP.addLast(btnGps = new mButton(&quot;GPS&quot;),CellConstants.HSTRETCH, (CellConstants.HFILL));
++		mainPanel.addNext(inpUTMZone = new mInput(),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		mainPanel.addNext(inpUTMEasting = new mInput(),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		mainPanel.addNext(inpUTMNorthing = new mInput(),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		mainPanel.addLast(btnGps = new mButton(&quot;GPS&quot;),CellConstants.HSTRETCH, (CellConstants.HFILL));
+ 		
+-		TopP.addLast(new mLabel(MyLocale.getMsg(1405,&quot;To load coordinates from GC, enter GCxxxxx below&quot;)),CellConstants.HSTRETCH, (CellConstants.HFILL)).setTag(SPAN,new Dimension(4,1));
++		mainPanel.addLast(new mLabel(MyLocale.getMsg(1405,&quot;To load coordinates from GC, enter GCxxxxx below&quot;)),CellConstants.HSTRETCH, (CellConstants.HFILL)).setTag(SPAN,new Dimension(4,1));
+ 			// Input for free Text
+-		TopP.addNext(inpText = new mInput(),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
++		mainPanel.addNext(inpText = new mInput(),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 		inpText.toolTip=MyLocale.getMsg(1406,&quot;Enter coordinates in any format or GCxxxxx&quot;);
+ 		inpText.setTag(SPAN,new Dimension(3,1));
+-		TopP.addLast(btnParse = new mButton(MyLocale.getMsg(619,&quot;Parse&quot;)),CellConstants.HSTRETCH, (CellConstants.HFILL));
++		mainPanel.addLast(btnParse = new mButton(MyLocale.getMsg(619,&quot;Parse&quot;)),CellConstants.HSTRETCH, (CellConstants.HFILL));
+ 		
+ 		// Buttons for cancel and apply, copy and paste
+-		TopP.addNext(btnCancel = new mButton(MyLocale.getMsg(614,&quot;Cancel&quot;)),CellConstants.HSTRETCH, (CellConstants.HFILL));
++		mainPanel.addNext(btnCancel = new mButton(MyLocale.getMsg(614,&quot;Cancel&quot;)),CellConstants.HSTRETCH, (CellConstants.HFILL));
+ 		//btnCancel.setTag(SPAN,new Dimension(4,1));
+-		TopP.addNext(btnApply = new mButton(MyLocale.getMsg(615,&quot;Apply&quot;)),CellConstants.HSTRETCH, (CellConstants.HFILL));
++		mainPanel.addNext(btnApply = new mButton(MyLocale.getMsg(615,&quot;Apply&quot;)),CellConstants.HSTRETCH, (CellConstants.HFILL));
+ 		//btnApply.setTag(SPAN,new Dimension(4,1));
+-		TopP.addNext(btnPaste = new mButton(MyLocale.getMsg(617,&quot;Paste&quot;)),CellConstants.HSTRETCH, (CellConstants.HFILL));
++		mainPanel.addNext(btnPaste = new mButton(MyLocale.getMsg(617,&quot;Paste&quot;)),CellConstants.HSTRETCH, (CellConstants.HFILL));
+ 		//btnParse.setTag(SPAN,new Dimension(4,1));
+-		TopP.addLast(btnCopy = new mButton(MyLocale.getMsg(618,&quot;Copy&quot;)),CellConstants.HSTRETCH, (CellConstants.HFILL));
++		mainPanel.addLast(btnCopy = new mButton(MyLocale.getMsg(618,&quot;Copy&quot;)),CellConstants.HSTRETCH, (CellConstants.HFILL));
+ 		//btnCopy.setTag(SPAN,new Dimension(4,1));
+ 		chcNS.exitKeys=exitKeys; chcEW.exitKeys=exitKeys;
+ 		//add Panels
+-		this.addLast(TopP,CellConstants.DONTSTRETCH, CellConstants.WEST).setTag(SPAN,new Dimension(4,1));
+-//		this.addLast(BottomP,CellConstants.VSTRETCH, CellConstants.VFILL|CellConstants.WEST).setTag(SPAN,new Dimension(4,1));
++		this.addLast(mainPanel,CellConstants.DONTSTRETCH, CellConstants.WEST);
+ 		chcNS.takeFocus(Control.ByKeyboard);
+ 	}
+ 	
+@@ -114,6 +117,12 @@
+ 				enable(inpUTMZone); enable(inpUTMNorthing); enable(inpUTMEasting);
+ 				inpUTMNorthing.wantReturn=true;
+ 	 			break;
++			case CWPoint.GK: 	
++				disable(chcNS); disable(inpNSDeg); disable(inpNSm); disable(inpNSs);
++				disable(chcEW); disable(inpEWDeg); disable(inpEWm); disable(inpEWs);
++				disable(inpUTMZone); enable(inpUTMNorthing); enable(inpUTMEasting);
++				inpUTMNorthing.wantReturn=true;
++	 			break;
+ 		}
+ 		
+ 		this.stretchLastColumn = true;
+@@ -129,6 +138,9 @@
+ 		if (format == CWPoint.UTM)
+ 			coords.set(inpUTMZone.getText(), 
+ 					   inpUTMNorthing.getText(), inpUTMEasting.getText());
++		else if (format == CWPoint.GK) {
++			coords.set(inpUTMEasting.getText(), inpUTMNorthing.getText());			
++		}
+ 		else {
+ 			NS = chcNS.getInt()== 0?&quot;N&quot;:&quot;S&quot;;
+ 			EW = chcEW.getInt()== 0?&quot;E&quot;:&quot;W&quot;;
+@@ -146,6 +158,11 @@
+ 			inpUTMNorthing.setText(coords.getUTMNorthing());
+ 			inpUTMEasting.setText((coords.getUTMEasting()));
+ 		}
++		else if (format == CWPoint.GK){
++			inpUTMZone.setText(&quot;&quot;);
++			inpUTMNorthing.setText(coords.getGKNorthing());
++			inpUTMEasting.setText((coords.getGKEasting()));
++		}
+ 		else {
+ 			chcNS.setInt(coords.getNSLetter().equals(&quot;N&quot;)?0:1);
+ 			chcEW.setInt(coords.getEWLetter().equals(&quot;E&quot;)?0:1);
+@@ -179,6 +196,7 @@
+ 			if (((ControlEvent)ev).target==chkDD || ((ControlEvent)ev).target==chkDMM ||
+ 			    ((ControlEvent)ev).target==chkDMS) Gui.takeFocus(chcNS,Control.ByKeyboard);	
+ 			if (((ControlEvent)ev).target==chkUTM) Gui.takeFocus(inpUTMZone,Control.ByKeyboard);
++			if (((ControlEvent)ev).target==chkGK) Gui.takeFocus(inpUTMEasting,Control.ByKeyboard);
+ 			if (((ControlEvent)ev).target==chcNS) Gui.takeFocus(inpNSDeg,Control.ByKeyboard);
+ 			if (((ControlEvent)ev).target==chcEW) Gui.takeFocus(inpEWDeg,Control.ByKeyboard);
+ 		}
+
+Modified: trunk/src/CacheWolf/navi/GkPoint.java
+===================================================================
+--- trunk/src/CacheWolf/navi/GkPoint.java	2007-11-25 16:32:38 UTC (rev 1100)
++++ trunk/src/CacheWolf/navi/GkPoint.java	2007-11-25 17:48:08 UTC (rev 1101)
+@@ -88,7 +88,15 @@
+ 		return easting;
+ 	}
+ 	
++	/**
++	 * easting measured in meters from stripe middle
++	 * @return
++	 */
++	public double getNorthing() {
++		return northing;
++	}
+ 	
++	
+ 	public String toString() {
+ 		return toString(0, &quot;R: &quot;, &quot; H: &quot;);
+ 	}
+
+Modified: trunk/src/CacheWolf/navi/GotoPanel.java
+===================================================================
+--- trunk/src/CacheWolf/navi/GotoPanel.java	2007-11-25 16:32:38 UTC (rev 1100)
++++ trunk/src/CacheWolf/navi/GotoPanel.java	2007-11-25 17:48:08 UTC (rev 1101)
+@@ -70,7 +70,7 @@
+ 	int ticker = 0;
+ 	
+ 	Menu mnuContextFormt;
+-	MenuItem miDMM, miDMS, miDD, miUTM;
++	MenuItem miDMM, miDMS, miDD, miUTM, miGK;
+ 	
+ 	Menu mnuContextRose;
+ 	MenuItem miLuminary[] = new MenuItem[SkyOrientation.LUMINARY_NAMES.length];
+@@ -108,6 +108,8 @@
+ 		miDMS.modifiers &amp;= ~MenuItem.Checked;
+ 		mnuContextFormt.addItem(miUTM = new MenuItem(&quot;UTM&quot;));
+ 		miUTM.modifiers &amp;= ~MenuItem.Checked;
++		mnuContextFormt.addItem(miGK = new MenuItem(&quot;GK&quot;));
++		miGK.modifiers &amp;= ~MenuItem.Checked;
+ 		currFormat = CWPoint.DMM;
+ 
+ 		// Create context menu for compass rose: select luminary for orientation
+@@ -329,15 +331,21 @@
+ 						mnuContextFormt.close();
+ 						currFormat = CWPoint.UTM;
+ 					}
++					if (action == miGK) {
++						mnuContextFormt.close();
++						currFormat = CWPoint.GK;
++					}
+ 					miDD.modifiers &amp;= ~MenuItem.Checked;
+ 					miDMM.modifiers &amp;= ~MenuItem.Checked;
+ 					miDMS.modifiers &amp;= ~MenuItem.Checked;
+ 					miUTM.modifiers &amp;= ~MenuItem.Checked;
++					miGK.modifiers &amp;= ~MenuItem.Checked;
+ 					switch (currFormat) {
+ 					case CWPoint.DD: miDD.modifiers |= MenuItem.Checked; break;   
+ 					case CWPoint.DMM: miDMM.modifiers |= MenuItem.Checked; break;   
+ 					case CWPoint.DMS: miDMS.modifiers |= MenuItem.Checked; break;   
+ 					case CWPoint.UTM: miUTM.modifiers |= MenuItem.Checked; break;
++					case CWPoint.GK: miGK.modifiers |= MenuItem.Checked; break;
+ 					}
+ 
+ 					lblPosition.setText(myNavigation.gpsPos.toString(currFormat));
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000993.html">[Cachewolf-svn] r1100 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000995.html">[Cachewolf-svn] r1102 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#994">[ date ]</a>
+              <a href="thread.html#994">[ thread ]</a>
+              <a href="subject.html#994">[ subject ]</a>
+              <a href="author.html#994">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

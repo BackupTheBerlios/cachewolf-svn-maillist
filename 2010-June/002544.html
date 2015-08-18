@@ -1,0 +1,162 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2606 - trunk/src/CacheWolf/imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-June/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2606%20-%20trunk/src/CacheWolf/imp&In-Reply-To=%3C201006140852.o5E8q7Ke014430%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002543.html">
+   <LINK REL="Next"  HREF="002545.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2606 - trunk/src/CacheWolf/imp</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2606%20-%20trunk/src/CacheWolf/imp&In-Reply-To=%3C201006140852.o5E8q7Ke014430%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2606 - trunk/src/CacheWolf/imp">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Mon Jun 14 10:52:07 CEST 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002543.html">[Cachewolf-svn] [Bug #17259] &quot;Liste sortiert halten&quot; funktioniert	nur in bestimmten Situa
+</A></li>
+        <LI>Next message: <A HREF="002545.html">[Cachewolf-svn] r2607 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2544">[ date ]</a>
+              <a href="thread.html#2544">[ thread ]</a>
+              <a href="subject.html#2544">[ subject ]</a>
+              <a href="author.html#2544">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2010-06-14 10:52:06 +0200 (Mon, 14 Jun 2010)
+New Revision: 2606
+
+Modified:
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+1) little enhancement for debug of spider.
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2010-06-14 08:23:10 UTC (rev 2605)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2010-06-14 08:52:06 UTC (rev 2606)
+@@ -167,6 +167,7 @@
+ 	private int numArchivedUpdates=0;
+ 	private int numAvailableUpdates=0;
+ 	private int numLogUpdates=0;
++	private int numPrivate=0;
+ 
+ 	public SpiderGC(Preferences prf, Profile profile, boolean bypass){
+ 		this.profile=profile;
+@@ -369,7 +370,10 @@
+ 								if (CacheDescriptionGC.indexOf(propFound)!=-1) chWaypoint=chWaypoint+&quot;found&quot;;
+ 							cachesToLoad.add(chWaypoint);
+ 							}
+-							else {cachesToUpdate.remove( chWaypoint );}
++							else {
++								pref.log(&quot;no load of : &quot; + chWaypoint);
++								cachesToUpdate.remove( chWaypoint );
++								}
+ 						}
+ 						else {
+ 							if (maxUpdate&gt;0) {
+@@ -398,7 +402,15 @@
+ 				} // next Cache
+ 				infB.setInfo(MyLocale.getMsg(5521,&quot;Page &quot;) + page_number + &quot;\n&quot; +
+ 							 MyLocale.getMsg(5511,&quot;Found &quot;) + cachesToLoad.size() + MyLocale.getMsg(5512,&quot; caches&quot;));
+-				if(found_on_page &lt; 20) maxDistance = 0; // last page (has less than 20 entries!?) to check reached
++				if(found_on_page &lt; 20) {
++					if (spiderAllFinds) {
++						// check all pages ( seen a gc-account with found_on_page less 20 and not on end )
++						if (((page_number-1)*20+found_on_page) &gt;= numFinds) {
++							maxDistance = 0;
++						}
++					}
++					else maxDistance = 0; // last page (has less than 20 entries!?) to check reached
++				}
+ 				if(maxDistance &gt; 0){getNextListPage();}
+ 			} // loop pages
+ 		} // try
+@@ -412,7 +424,7 @@
+ 		infB.setInfo(MyLocale.getMsg(5511,&quot;Found &quot;) + cachesToLoad.size() + MyLocale.getMsg(5512,&quot; caches&quot;));
+ 
+ 		pref.log(&quot;Checked &quot; + page_number + &quot; pages&quot;);
+-		pref.log(&quot;with &quot; + ((page_number-1)*20+found_on_page-1) + &quot; caches&quot;);
++		pref.log(&quot;with &quot; + ((page_number-1)*20+found_on_page) + &quot; caches&quot;);
+ 		pref.log(&quot;Found &quot; + cachesToLoad.size() + &quot; new caches&quot;);
+ 		pref.log(&quot;Found &quot; + cachesToUpdate.size() + &quot;/&quot; + cachesShouldUpdate.size() + &quot; caches for update&quot;);
+ 		if(spiderAllFinds){
+@@ -423,6 +435,7 @@
+ 		pref.log(&quot;Found &quot; + numLogUpdates + &quot; caches with new found in log.&quot;);
+ 		pref.log(&quot;Found &quot; + (cachesToUpdate.size()-numAvailableUpdates-numLogUpdates) + &quot; caches possibly archived.&quot;);
+ 		pref.log(&quot;Found &quot; + cachesShouldUpdate.size() + &quot;?=&quot; + (numFoundUpdates+numArchivedUpdates+numAvailableUpdates+numArchivedUpdates) + &quot; caches to update.&quot;);
++		pref.log(&quot;Found &quot; + numPrivate + &quot; Premium Caches (for non Premium Member.)&quot;);
+ 
+ 		//=======
+ 		// Now ready to spider each cache in the list
+@@ -875,7 +888,7 @@
+ 		CacheHolderDetail chd = ch.getCacheDetails(false);
+ 		if (spiderAllFinds) {
+ 			if(!ch.is_found()) { ch.setFound(true); save=true; numFoundUpdates+=1; ret=true;}
+-			is_archived_GC=CacheDescription.indexOf(propArchived)!=-1;
++			is_archived_GC=CacheDescription.indexOf(propArchived) != -1;
+ 			if (is_archived_GC!=ch.is_archived()) { ch.setArchived(is_archived_GC); save=true; numArchivedUpdates+=1; ret=true;}
+ 		} else if (!doNotgetFound){ // there could be a found or own ...
+ 			is_found_GC=CacheDescription.indexOf(propFound)!=-1;
+@@ -888,7 +901,7 @@
+ 		if (typeChanged(ch,CacheDescription)) { save=true; ret=true;}
+ 		if (sizeChanged(ch,CacheDescription)) { save=true; ret=true;}
+ 		if (difficultyOrTerrainChanged(ch,CacheDescription)) {save=true; ret=true;}
+-		if (newFoundExists(ch,CacheDescription)) {numLogUpdates+=1; ret=true;}
++		if (newFoundExists(ch,CacheDescription)) {numLogUpdates++; ret=true;}
+ 		if (save) ch.save();
+ 		return ret;
+ 	}
+@@ -946,7 +959,13 @@
+ 	 */
+ 	private boolean doPMCache(String toCheck) {
+ 		if (pref.isPremium) return true;
+-		return toCheck.indexOf(propPM) &lt;= 0;
++		if (toCheck.indexOf(propPM) &lt;= 0) {
++			return true;
++		}
++		else {
++			numPrivate=numPrivate+1;
++			return false;			
++		}
+ 	}
+ 	/*
+ 	 * check for changed Cachetype
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002543.html">[Cachewolf-svn] [Bug #17259] &quot;Liste sortiert halten&quot; funktioniert	nur in bestimmten Situa
+</A></li>
+	<LI>Next message: <A HREF="002545.html">[Cachewolf-svn] r2607 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2544">[ date ]</a>
+              <a href="thread.html#2544">[ thread ]</a>
+              <a href="subject.html#2544">[ subject ]</a>
+              <a href="author.html#2544">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

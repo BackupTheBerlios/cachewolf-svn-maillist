@@ -1,0 +1,134 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r779 - in trunk: resources src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-July/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r779%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200707072206.l67M6xrO015419%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000665.html">
+   <LINK REL="Next"  HREF="000667.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r779 - in trunk: resources src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r779%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200707072206.l67M6xrO015419%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r779 - in trunk: resources src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sun Jul  8 00:06:59 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000665.html">[Cachewolf-svn] r778 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000667.html">[Cachewolf-svn] r780 - branches/bugfix_09n/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#666">[ date ]</a>
+              <a href="thread.html#666">[ thread ]</a>
+              <a href="subject.html#666">[ subject ]</a>
+              <a href="author.html#666">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-07-08 00:06:53 +0200 (Sun, 08 Jul 2007)
+New Revision: 779
+
+Modified:
+   trunk/resources/cachewolf.Languages.cfg
+   trunk/src/CacheWolf/MovingMap.java
+Log:
+CacheTour: Auch aus der Moving Map koennen Caches hinzugefuegt werden (ueber das Kontextmenue wenn zunaechst die 
+Cacheliste angezeigt wurde).
+
+Modified: trunk/resources/cachewolf.Languages.cfg
+===================================================================
+--- trunk/resources/cachewolf.Languages.cfg	2007-07-07 21:30:52 UTC (rev 778)
++++ trunk/resources/cachewolf.Languages.cfg	2007-07-07 22:06:53 UTC (rev 779)
+@@ -83,7 +83,8 @@
+ 		195=Derzeitiges Zentrum		
+ 		196=Gesamte # Caches (GC&amp;OC)%0aGesamt # sichtbar%0aGesamt # gefunden
+ 		197=Cachetour anzeigen/verbergen
+-		198=Cachetour	
++		198=Cachetour
++		199=Zu Cachetour hinzuf%fcgen	
+ 		200=Details
+ 		201=Beschreibung
+ 		202=Bilder
+@@ -539,6 +540,7 @@
+ 		196=Total # of caches (GC&amp;OC)%0aTotal # visible%0aTotal # found
+ 		197=Show/Hide cachetour	
+ 		198=Cachetour
++		199=Add to cachetour
+ 		200=Details
+ 		201=Description
+ 		202=Images
+
+Modified: trunk/src/CacheWolf/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/MovingMap.java	2007-07-07 21:30:52 UTC (rev 778)
++++ trunk/src/CacheWolf/MovingMap.java	2007-07-07 22:06:53 UTC (rev 779)
+@@ -1299,7 +1299,7 @@
+ 	Menu kontextMenu;
+ 	MenuItem gotoMenuItem = new MenuItem(&quot;Goto here$g&quot;, 0, null);
+ 	MenuItem newWayPointMenuItem = new MenuItem(&quot;Create new Waypoint here$n&quot;, 0, null);;
+-	MenuItem openCacheDescMenuItem;
++	MenuItem openCacheDescMenuItem,addCachetoListMenuItem;
+ 
+ 	Menu mapsMenu;
+ 	MenuItem selectMapMI = new MenuItem(&quot;Select a map manually$s&quot;, 0, null);
+@@ -1560,8 +1560,12 @@
+ 			AniImage clickedOnImage = images.findHotImage(p);
+ 			if (clickedOnImage != null &amp;&amp; clickedOnImage instanceof MapSymbol) {
+ 				clickedCache = ((CacheHolder)((MapSymbol)clickedOnImage).mapObject);
+-				if (clickedCache != null) openCacheDescMenuItem = new MenuItem(&quot;Open '&quot;+clickedCache.CacheName+&quot;'$o&quot;); // clickedCache == null can happen if clicked on the goto-symbol
++				if (clickedCache != null) openCacheDescMenuItem = new MenuItem(&quot;Open '&quot;+(clickedCache.CacheName.length()&gt;0?clickedCache.CacheName:clickedCache.wayPoint)+&quot;'$o&quot;); // clickedCache == null can happen if clicked on the goto-symbol
+ 				kontextMenu.addItem(openCacheDescMenuItem);
++				if (clickedCache !=null &amp;&amp; Global.mainForm.cacheListVisible) { 
++					addCachetoListMenuItem = new MenuItem(MyLocale.getMsg(199,&quot;Add to cachetour&quot;));
++					kontextMenu.addItem(addCachetoListMenuItem);
++				}
+ 			}
+ 			kontextMenu.exec(this, new Point(p.x, p.y), this);
+ 		}
+@@ -1673,6 +1677,10 @@
+ 						newWP.LatLon=newWP.pos.toString(); 
+ 						Global.mainTab.newWaypoint(newWP);
+ 					}
++					if (action == addCachetoListMenuItem) {
++						kontextMenu.close();
++						Global.mainForm.cacheList.addCache(clickedCache.wayPoint);
++					}
+ 
+ 				}
+ 			} // if (ev.target == kontextMenu)
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000665.html">[Cachewolf-svn] r778 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000667.html">[Cachewolf-svn] r780 - branches/bugfix_09n/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#666">[ date ]</a>
+              <a href="thread.html#666">[ thread ]</a>
+              <a href="subject.html#666">[ subject ]</a>
+              <a href="author.html#666">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

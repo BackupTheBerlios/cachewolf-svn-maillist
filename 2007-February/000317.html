@@ -1,0 +1,326 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r523 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r523%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702052053.l15KrrLD011071%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000316.html">
+   <LINK REL="Next"  HREF="000318.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r523 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r523%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702052053.l15KrrLD011071%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r523 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Mon Feb  5 21:53:53 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000316.html">[Cachewolf-svn] r522 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000318.html">[Cachewolf-svn] r524 - in trunk: resources src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#317">[ date ]</a>
+              <a href="thread.html#317">[ thread ]</a>
+              <a href="subject.html#317">[ subject ]</a>
+              <a href="author.html#317">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-02-05 21:53:47 +0100 (Mon, 05 Feb 2007)
+New Revision: 523
+
+Modified:
+   trunk/src/CacheWolf/Filter.java
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/NewProfileForm.java
+   trunk/src/CacheWolf/Preferences.java
+   trunk/src/CacheWolf/ProfilesForm.java
+   trunk/src/CacheWolf/SearchCache.java
+   trunk/src/CacheWolf/StatusBar.java
+Log:
+Filter: Bugfix Filteranzeige beim Laden eines leeren Profils bzw. Erstellen eines neuen Profils
+Refactoring von filterActive, filterInverted und showBlacklisted von Preferences nach Filter
+
+Modified: trunk/src/CacheWolf/Filter.java
+===================================================================
+--- trunk/src/CacheWolf/Filter.java	2007-02-05 18:48:00 UTC (rev 522)
++++ trunk/src/CacheWolf/Filter.java	2007-02-05 20:53:47 UTC (rev 523)
+@@ -11,6 +11,12 @@
+ *   @author BilboWolf (optimiert von salzkammergut)
+ */
+ public class Filter{
++	/** Toggle for showing blacklisted caches. Can be toggled through the Filter menu */
++	public static boolean showBlacklisted=false;
++	/** Indicator whether a filter is inverted */
++	public static boolean filterInverted=false;
++	/** Indicator whether a filter is active. Used in status bar to indicate filter status */
++	public static boolean filterActive=false;
+ 	
+ 	private static final int SMALLER = -1;
+ 	private static final int EQUAL = 0;
+@@ -297,11 +303,11 @@
+ 	*/
+ 	public void doFilter(){
+ 		Vector cacheDB=Global.getProfile().cacheDB;
++		if (cacheDB.size()==0) return;
+ 		CacheHolder ch;
+ 		int cacheTypePattern;
+ 		int cacheRosePattern;
+ 		int cacheSizePattern;
+-		boolean showBlackListed=Global.getPref().showBlacklisted;
+ 		// Values from filterscreen are parsed outside the main filter loop (fsc=FilterSCreen)
+ 		double dummyd1;
+ 		//Loop db and match once against type pattern and once against rose pattern
+@@ -313,7 +319,7 @@
+ 		// A cache is only displayed (i.e. is_filtered = false) if it meets all 9 filter criteria
+ 		for(int i = cacheDB.size()-1; i &gt;=0 ; i--){
+ 			ch = (CacheHolder)cacheDB.get(i);
+-			ch.is_filtered = ch.is_black^showBlackListed;
++			ch.is_filtered = ch.is_black^showBlacklisted;
+ 			///////////////////////////////
+ 			// Filter criterium 1: Cache type
+ 			///////////////////////////////
+@@ -438,7 +444,7 @@
+ 			}
+ 			
+ 		} // for
+-		Global.getPref().filterActive=true;
++		if (hasFilter())filterActive=true;
+ 	}
+ 	
+ 	/**
+@@ -447,7 +453,8 @@
+ 	public void invertFilter(){
+ 		Vector cacheDB=Global.getProfile().cacheDB;
+ 		CacheHolder ch;
+-		boolean showBlackListed=Global.getPref().showBlacklisted;
++		if (cacheDB.size()==0) return;
++		boolean showBlackListed=Filter.showBlacklisted;
+ 		for(int i = cacheDB.size()-1; i &gt;=0 ; i--){
+ 			ch = (CacheHolder)cacheDB.get(i);
+ 			if (ch.is_black==showBlackListed)
+@@ -455,7 +462,7 @@
+ 			else
+ 				ch.is_filtered=true; // Hide all those that have the wrong is_black status
+ 		}
+-		Global.getPref().filterInverted=true;
++		filterInverted=true;
+ 	}
+ 	
+ 	/**
+@@ -464,23 +471,24 @@
+ 	public void clearFilter(){
+ 		Vector cacheDB=Global.getProfile().cacheDB;
+ 		CacheHolder ch;
+-		boolean showBlackListed=Global.getPref().showBlacklisted;
+ 		for(int i = cacheDB.size()-1; i &gt;=0 ; i--){
+ 			ch = (CacheHolder)cacheDB.get(i);
+-			ch.is_filtered=(ch.is_black^showBlackListed) || CacheType.isAddiWpt(ch.type); // Always filter blacklisted caches
++			ch.is_filtered=(ch.is_black^showBlacklisted) || CacheType.isAddiWpt(ch.type); // Always filter blacklisted caches
+ 		}
+-		Global.getPref().filterActive=false;
+-		Global.getPref().filterInverted=false;
+-/*
++		filterActive=false;
++		filterInverted=false;
++	}
++
++	public boolean hasFilter() {
+ 		Profile prof=Global.getProfile();
+-		prof.filterType = new String(Profile.FILTERTYPE);
+-		prof.filterRose = new String(Profile.FILTERROSE);
+-		prof.filterVar = new String(Profile.FILTERVAR);
+-		prof.filterSize = new String(Profile.FILTERSIZE);
+-		prof.filterDist=&quot;L&quot;;
+-		prof.filterDiff=&quot;L&quot;;
+-		prof.filterTerr=&quot;L&quot;;
+-*/		
++		return !(prof.filterType.equals(Profile.FILTERTYPE) &amp;&amp;
++		    prof.filterRose.equals(Profile.FILTERROSE) &amp;&amp;
++		    prof.filterVar.equals(Profile.FILTERVAR) &amp;&amp;
++		    prof.filterSize.equals(Profile.FILTERSIZE) &amp;&amp;
++		    prof.filterDist.equals(&quot;L&quot;) &amp;&amp;
++		    prof.filterDiff.equals(&quot;L&quot;) &amp;&amp;
++		    prof.filterTerr.equals(&quot;L&quot;));
+ 	}
++
+ }
+ 
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2007-02-05 18:48:00 UTC (rev 522)
++++ trunk/src/CacheWolf/MainMenu.java	2007-02-05 20:53:47 UTC (rev 523)
+@@ -200,7 +200,7 @@
+ 					pref.lastProfile=profile.name=f.profileDir;
+ 					pref.savePreferences(); // Remember that this was the last profile used
+ 					profile.dataDir=pref.baseDir+f.profileDir+&quot;/&quot;;
+-					pref.showBlacklisted=false;
++					Filter.showBlacklisted=false;
+ 					filtBlack.modifiers&amp;=~MenuItem.Checked;
+ 					tbp.refreshTable();
+ 				}
+@@ -213,7 +213,7 @@
+ 					profile.readIndex();
+ 					pref.curCentrePt.set(profile.centre);
+ 					filtBlack.modifiers&amp;=~MenuItem.Checked;
+-					pref.showBlacklisted=false;
++					Filter.showBlacklisted=false;
+ 					tbp.resetModel();
+ 					Global.mainTab.tbP.gotoFirstLine();
+ 				}
+@@ -262,14 +262,14 @@
+ 						}
+ 					}
+ 				}
+-				pref.showBlacklisted=false;
++				Filter.showBlacklisted=false;
+ 				filtBlack.modifiers&amp;=~MenuItem.Checked;
+ 				tbp.resetModel();
+ 			}
+ 			if(mev.selectedItem == loadOC){
+ 				OCXMLImporter oc = new OCXMLImporter(pref,profile);
+ 				oc.doIt();
+-				pref.showBlacklisted=false;
++				Filter.showBlacklisted=false;
+ 				filtBlack.modifiers&amp;=~MenuItem.Checked;
+ 				tbp.resetModel();
+ 			}
+@@ -291,7 +291,7 @@
+ 			}
+ 			if(mev.selectedItem == filtBlack){
+ 				filtBlack.modifiers^=MenuItem.Checked;
+-				pref.showBlacklisted=!pref.showBlacklisted;
++				Filter.showBlacklisted=!Filter.showBlacklisted;
+ 				Filter flt = new Filter();
+ 				flt.clearFilter();
+ 				tbp.refreshTable();
+
+Modified: trunk/src/CacheWolf/NewProfileForm.java
+===================================================================
+--- trunk/src/CacheWolf/NewProfileForm.java	2007-02-05 18:48:00 UTC (rev 522)
++++ trunk/src/CacheWolf/NewProfileForm.java	2007-02-05 20:53:47 UTC (rev 523)
+@@ -35,16 +35,18 @@
+ 				profileDir=inpDir.getDisplayText();
+ 				File f=new File(baseDir+profileDir);
+ 				if (f.exists()) {
+-					MessageBox mb=new MessageBox(MyLocale.getMsg(321,&quot;Error&quot;),MyLocale.getMsg(1114,&quot;Directory exists already.&quot;),IDOK);
++					MessageBox mb=new MessageBox(MyLocale.getMsg(321,&quot;Error&quot;),MyLocale.getMsg(1114,&quot;Directory exists already.&quot;),MBOK);
+ 					mb.execute();
+ 					profileDir=&quot;&quot;;
+ 				} else {
+ 					if (profileDir.indexOf(&quot;/&quot;)&gt;=0 || profileDir.indexOf(&quot;\\&quot;)&gt;=0 || !f.createDir()) {
+-						MessageBox mb=new MessageBox(MyLocale.getMsg(321,&quot;Error&quot;),MyLocale.getMsg(1113,&quot;Cannot create directory&quot;),IDOK);
++						MessageBox mb=new MessageBox(MyLocale.getMsg(321,&quot;Error&quot;),MyLocale.getMsg(1113,&quot;Cannot create directory&quot;),MBOK);
+ 						mb.execute();
+ 						profileDir=&quot;&quot;;
+ 						this.close(-1);
+ 					}
++					Filter.filterActive=false;
++					Filter.filterInverted=false;
+ 					this.close(0);
+ 				}
+ 			}
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2007-02-05 18:48:00 UTC (rev 522)
++++ trunk/src/CacheWolf/Preferences.java	2007-02-05 20:53:47 UTC (rev 523)
+@@ -43,12 +43,6 @@
+ 	public boolean showDeletedImages=true; /* Used in ImagePanel */
+ 	public boolean solverIgnoreCase=false;
+ 
+-	/** Toggle for showing blacklisted caches. Can be toggled through the Filter menu */
+-	public boolean showBlacklisted=false;
+-	/** Indicator whether a filter is active. Used in status bar to indicate filter status */
+-	public boolean filterActive=false;
+-	/** Indicator whether a filter is inverted */
+-	public boolean filterInverted=false;
+ 	public int myAppHeight = 0;
+ 	public int myAppWidth = 0;
+ 	//public int nLogs = 5;
+
+Modified: trunk/src/CacheWolf/ProfilesForm.java
+===================================================================
+--- trunk/src/CacheWolf/ProfilesForm.java	2007-02-05 18:48:00 UTC (rev 522)
++++ trunk/src/CacheWolf/ProfilesForm.java	2007-02-05 20:53:47 UTC (rev 523)
+@@ -122,6 +122,8 @@
+ 				close(-1);
+ 			}
+ 			if (ev.target == btnOK || ev.target == choice){
++				Filter.filterActive=false;
++				Filter.filterInverted=false;
+ 				newSelectedProfile=choice.getSelectedItem().toString();
+ 				close(1);
+ 			}
+
+Modified: trunk/src/CacheWolf/SearchCache.java
+===================================================================
+--- trunk/src/CacheWolf/SearchCache.java	2007-02-05 18:48:00 UTC (rev 522)
++++ trunk/src/CacheWolf/SearchCache.java	2007-02-05 20:53:47 UTC (rev 523)
+@@ -49,13 +49,13 @@
+ 	*/
+ 	public void clearSearch(){
+ 		Filter flt=new Filter();
+-		if (Global.getPref().filterActive) {
++		if (Filter.filterActive) {
+ 			flt.setFilter();
+ 			flt.doFilter();
+ 		} else {
+ 			flt.clearFilter();
+ 		}
+-		if (Global.getPref().filterInverted) 
++		if (Filter.filterInverted) 
+ 			flt.invertFilter();
+ 		for(int i = cacheDB.size()-1;i &gt;=0;i--){
+ 			((CacheHolder)cacheDB.get(i)).is_flaged=false;
+
+Modified: trunk/src/CacheWolf/StatusBar.java
+===================================================================
+--- trunk/src/CacheWolf/StatusBar.java	2007-02-05 18:48:00 UTC (rev 522)
++++ trunk/src/CacheWolf/StatusBar.java	2007-02-05 20:53:47 UTC (rev 523)
+@@ -30,8 +30,7 @@
+ 					MyLocale.getMsg(4502,&quot;Fnd:&quot;) + &quot; &quot; + stats.totalFound() + &quot;  &quot;;
+ 		disp.setText(strStatus);
+ 		// Indicate that a filter is active in the status line
+-		Profile prof=Global.getProfile();
+-		if (Global.getPref().filterActive)
++		if (Filter.filterActive)
+ 			lblFlt.modify(0,Invisible); // Set the filter to &quot;invisible&quot;
+ 		else
+ 			lblFlt.modify(Invisible,0); // Make filter visible
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000316.html">[Cachewolf-svn] r522 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000318.html">[Cachewolf-svn] r524 - in trunk: resources src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#317">[ date ]</a>
+              <a href="thread.html#317">[ thread ]</a>
+              <a href="subject.html#317">[ subject ]</a>
+              <a href="author.html#317">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

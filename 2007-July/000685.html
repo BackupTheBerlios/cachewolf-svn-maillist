@@ -1,0 +1,179 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r795 - in trunk: resources src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-July/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r795%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200707281850.l6SIoUxm009307%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000684.html">
+   <LINK REL="Next"  HREF="000686.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r795 - in trunk: resources src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r795%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200707281850.l6SIoUxm009307%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r795 - in trunk: resources src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sat Jul 28 20:50:30 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000684.html">[Cachewolf-svn] r794 - in trunk: resources src/CacheWolf src/exp
+</A></li>
+        <LI>Next message: <A HREF="000686.html">[Cachewolf-svn] r796 - trunk
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#685">[ date ]</a>
+              <a href="thread.html#685">[ thread ]</a>
+              <a href="subject.html#685">[ subject ]</a>
+              <a href="author.html#685">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-07-28 20:50:23 +0200 (Sat, 28 Jul 2007)
+New Revision: 795
+
+Modified:
+   trunk/resources/cachewolf.Languages.cfg
+   trunk/src/CacheWolf/CoordsScreen.java
+   trunk/src/CacheWolf/SpiderGC.java
+Log:
+CoordsScreen: Feature: Im freien Textfeld zum Parsen von Koordinaten kann jetzt der Wegpunktname eines Caches von GC 
+eingegeben werden. Die Koordinaten dieses Caches werden geholt und geparst. 
+Zweck: Schnelleres und einfacheres Setzen eines Zentrums beim Spidern eines neuen Profils
+
+Modified: trunk/resources/cachewolf.Languages.cfg
+===================================================================
+--- trunk/resources/cachewolf.Languages.cfg	2007-07-28 18:12:58 UTC (rev 794)
++++ trunk/resources/cachewolf.Languages.cfg	2007-07-28 18:50:23 UTC (rev 795)
+@@ -284,6 +284,8 @@
+ 		1402=Ost
+ 		1403=Richtung
+ 		1404=Strecke
++		1405=Koordinaten von GC laden: GCxxxxx unten eingeben
++		1406=Koordinaten in beliebigem Format oder GCxxxx
+ 		1500=Ziel:
+ 		1501=Aktuell
+ 		1600=Opencahing.de Download
+@@ -743,6 +745,8 @@
+ 		1402=Easting
+ 		1403=Bearing
+ 		1404=Distance
++		1405=To load coordinates from GC, enter GCxxxxx below
++		1406=Enter coordinates in any format or GCxxxx
+ 		1500=DST:
+ 		1501=Current
+ 		1600=Opencahing.de Download
+
+Modified: trunk/src/CacheWolf/CoordsScreen.java
+===================================================================
+--- trunk/src/CacheWolf/CoordsScreen.java	2007-07-28 18:12:58 UTC (rev 794)
++++ trunk/src/CacheWolf/CoordsScreen.java	2007-07-28 18:50:23 UTC (rev 795)
+@@ -61,11 +61,12 @@
+ 		TopP.addNext(inpUTMEasting = new mInput(),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		TopP.addLast(inpUTMNorthing = new mInput(),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 
+-		// Input for free Text
++		TopP.addLast(new mLabel(MyLocale.getMsg(1405,&quot;To load coordinates from GC, enter GCxxxxx below&quot;)),CellConstants.HSTRETCH, (CellConstants.HFILL)).setTag(SPAN,new Dimension(4,1));
++			// Input for free Text
+ 		TopP.addNext(inpText = new mInput(),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
++		inpText.toolTip=MyLocale.getMsg(1406,&quot;Enter coordinates in any format or GCxxxxx&quot;);
+ 		inpText.setTag(SPAN,new Dimension(3,1));
+ 		TopP.addLast(btnParse = new mButton(MyLocale.getMsg(619,&quot;Parse&quot;)),CellConstants.HSTRETCH, (CellConstants.HFILL));
+-
+ 		
+ 		// Buttons for cancel and apply, copy and paste
+ 		TopP.addNext(btnCancel = new mButton(MyLocale.getMsg(614,&quot;Cancel&quot;)),CellConstants.HSTRETCH, (CellConstants.HFILL));
+@@ -213,7 +214,13 @@
+ 
+ 			if (ev.target == btnParse){
+ 				// try to parse coords
+-				CWPoint coord = new CWPoint(inpText.getText());
++				CWPoint coord;
++				if (inpText.getText().trim().startsWith(&quot;GC&quot;)) {
++					SpiderGC spider = new SpiderGC(Global.getPref(), Global.getProfile(), false);
++					coord = new CWPoint(spider.getCacheCoordinates(inpText.getText().trim()));
++				} else {	
++					coord = new CWPoint(inpText.getText());
++				}
+ 				if (coord.latDec == 0 &amp;&amp; coord.lonDec == 0){
+ 					MessageBox tmpMB = new MessageBox(MyLocale.getMsg(312,&quot;Error&quot;), MyLocale.getMsg(4111,&quot;Coordinates must be entered in the format N DD MM.MMM E DDD MM.MMM&quot;), MessageBox.OKB);
+ 					tmpMB.exec();
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2007-07-28 18:12:58 UTC (rev 794)
++++ trunk/src/CacheWolf/SpiderGC.java	2007-07-28 18:50:23 UTC (rev 795)
+@@ -189,6 +189,33 @@
+ 	} // spiderSingle
+ 	
+ 	/**
++	 * Fetch the coordinates of a waypoint from GC
++	 * @param wayPoint the name of the waypoint
++	 * @return the cache coordinates
++	 */
++	public String getCacheCoordinates(String wayPoint) {
++		String completeWebPage;
++		InfoBox infB = new InfoBox(&quot;Info&quot;, &quot;Loading&quot;, InfoBox.PROGRESS_WITH_WARNINGS);
++		infB.exec();
++		if (p==null) {
++			infB.close(0);
++			(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), &quot;Could not load 'spider.def'&quot;, MessageBox.OKB)).execute();
++			return &quot;&quot;;
++		}
++		if (login()!=Form.IDOK) return &quot;&quot;;
++		String doc = &quot;<A HREF="http://www.geocaching.com/seek/cache_details.aspx?wp=">http://www.geocaching.com/seek/cache_details.aspx?wp=</A>&quot; + wayPoint;
++		try{
++			pref.log(&quot;Fetching: &quot; + wayPoint);
++			completeWebPage = fetch(doc);
++		}catch(Exception ex){
++			pref.log(&quot;Could not fetch &quot; + wayPoint,ex);
++			return &quot;&quot;;
++		}
++		infB.close(0);
++		return getLatLon(completeWebPage);	
++	}
++	
++	/**
+ 	*	Method to start the spider for a search around the center coordinates
+ 	*/
+ 	public void doIt(){
+@@ -539,6 +566,7 @@
+ 	private String getLatLon(String doc){
+ 		inRex = new Regex(p.getProperty(&quot;latLonRex&quot;));
+ 		inRex.search(doc);
++		if (!inRex.didMatch()) return &quot;&quot;;
+ 		return inRex.stringMatched(1);
+ 	}
+ 	
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000684.html">[Cachewolf-svn] r794 - in trunk: resources src/CacheWolf src/exp
+</A></li>
+	<LI>Next message: <A HREF="000686.html">[Cachewolf-svn] r796 - trunk
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#685">[ date ]</a>
+              <a href="thread.html#685">[ thread ]</a>
+              <a href="subject.html#685">[ subject ]</a>
+              <a href="author.html#685">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

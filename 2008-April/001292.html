@@ -1,0 +1,158 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1398 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-April/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1398%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200804211514.m3LFE3uD021036%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001291.html">
+   <LINK REL="Next"  HREF="001293.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1398 - trunk/src/CacheWolf</H1>
+    <B>engywuck at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1398%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200804211514.m3LFE3uD021036%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1398 - trunk/src/CacheWolf">engywuck at mail.berlios.de
+       </A><BR>
+    <I>Mon Apr 21 17:14:03 CEST 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001291.html">[Cachewolf-svn] r1397 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001293.html">[Cachewolf-svn] r1399 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1292">[ date ]</a>
+              <a href="thread.html#1292">[ thread ]</a>
+              <a href="subject.html#1292">[ subject ]</a>
+              <a href="author.html#1292">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: engywuck
+Date: 2008-04-21 17:14:01 +0200 (Mon, 21 Apr 2008)
+New Revision: 1398
+
+Modified:
+   trunk/src/CacheWolf/HintLogPanel.java
+Log:
+On opening logs/hints tab, data is only loaded, when we open a new cache. If its the same, don't touch the data. (Fixed like in Rev. 1397 for description tab.)
+
+Modified: trunk/src/CacheWolf/HintLogPanel.java
+===================================================================
+--- trunk/src/CacheWolf/HintLogPanel.java	2008-04-20 19:53:29 UTC (rev 1397)
++++ trunk/src/CacheWolf/HintLogPanel.java	2008-04-21 15:14:01 UTC (rev 1398)
+@@ -22,7 +22,7 @@
+  */
+ public class HintLogPanel extends CellPanel{
+ 	int crntLogPosition = 0;
+-	CacheHolderDetail cache;
++	CacheHolderDetail currCache;
+ 	private final int DEFAULT_STRINGBUFFER_SIZE=8000;
+ 	mTextPad hint = new mTextPad();
+ 	//mTextPad logs = new mTextPad();
+@@ -62,22 +62,24 @@
+ 	}
+ 
+ 	public void setText(CacheHolderDetail cache){
+-		this.cache = cache;
+-		if(!cache.Hints.equals(&quot;null&quot;)) 
+-			hint.setText(STRreplace.replace(cache.Hints, &quot;&lt;br&gt;&quot;, &quot;\n&quot;));
+-		else
+-			hint.setText(&quot;&quot;);
+-		crntLogPosition = 0;
+-		setLogs(0);
+-		moreBt.modify(0,ControlConstants.Disabled);
+-		prevBt.modify(0,ControlConstants.Disabled);
+-//		if (Gui.screenIs(Gui.PDA_SCREEN) &amp;&amp; Vm.isMobile()) {
+-//		Vm.setSIP(0);
+-//		}
+-		////Vm.debug(&quot;In log: &quot; + cache.CacheLogs);
++	        if (currCache != cache){
++	            this.currCache = cache;
++	            if(!cache.Hints.equals(&quot;null&quot;)) 
++	                hint.setText(STRreplace.replace(cache.Hints, &quot;&lt;br&gt;&quot;, &quot;\n&quot;));
++	            else
++	                hint.setText(&quot;&quot;);
++	            crntLogPosition = 0;
++	            setLogs(0);
++	            moreBt.modify(0,ControlConstants.Disabled);
++	            prevBt.modify(0,ControlConstants.Disabled);
++	        }
+ 	}
+ 
+ 	public void clear() {
++	    clearOutput();
++	    currCache = null;
++	}
++	private void clearOutput() {
+ 		if (htmlTxtImage != null) {
+ 			htmlImagDisp.removeImage(htmlTxtImage);
+ 			htmlTxtImage.free();		
+@@ -87,14 +89,14 @@
+ 		Vm.showWait(true);
+ 		StringBuffer dummy = new StringBuffer(DEFAULT_STRINGBUFFER_SIZE);
+ 		int counter = 0;
+-		int nLogs=cache.CacheLogs.size();
++		int nLogs=currCache.CacheLogs.size();
+ 		int logsPerPage=Global.getPref().logsPerPage;
+ 		for(int i = crntLogPosition; i&lt;nLogs; i++){
+-			dummy.append(cache.CacheLogs.getLog(i).toHtml());
++			dummy.append(currCache.CacheLogs.getLog(i).toHtml());
+ 			dummy.append(&quot;&lt;/br&gt;&quot;);
+ 			if(++counter &gt;= logsPerPage) break;
+ 		}
+-		clear();
++		clearOutput();
+ 		logs.resizeTo(width, 50);
+ 		// The cache GCP0T6 crashes the HtmlDisplay
+ 		// As a temporary fix
+@@ -141,14 +143,14 @@
+ 	 */
+ 	public void onEvent(Event ev){
+ 		if(ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.PRESSED){
+-			int minLogs = java.lang.Math.min(Global.getPref().logsPerPage, cache.CacheLogs.size());
++			int minLogs = java.lang.Math.min(Global.getPref().logsPerPage, currCache.CacheLogs.size());
+ 			if(ev.target == moreBt){
+ 				prevBt.modify(0,ControlConstants.Disabled);
+ 				prevBt.repaintNow();
+ 				crntLogPosition += minLogs;
+-				if(crntLogPosition &gt;= cache.CacheLogs.size()) {
++				if(crntLogPosition &gt;= currCache.CacheLogs.size()) {
+ 					//crntLogPosition = cache.CacheLogs.size()-5;
+-					crntLogPosition = cache.CacheLogs.size()- minLogs;
++					crntLogPosition = currCache.CacheLogs.size()- minLogs;
+ 					moreBt.modify(ControlConstants.Disabled,0);
+ 					moreBt.repaintNow();
+ 				}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001291.html">[Cachewolf-svn] r1397 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001293.html">[Cachewolf-svn] r1399 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1292">[ date ]</a>
+              <a href="thread.html#1292">[ thread ]</a>
+              <a href="subject.html#1292">[ subject ]</a>
+              <a href="author.html#1292">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

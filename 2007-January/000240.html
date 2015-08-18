@@ -1,0 +1,356 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r461 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r461%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701271426.l0REQwcr020040%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000239.html">
+   <LINK REL="Next"  HREF="000241.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r461 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r461%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701271426.l0REQwcr020040%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r461 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sat Jan 27 15:26:58 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000239.html">[Cachewolf-svn] r460 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000241.html">[Cachewolf-svn] r462 - trunk/resources
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#240">[ date ]</a>
+              <a href="thread.html#240">[ thread ]</a>
+              <a href="subject.html#240">[ subject ]</a>
+              <a href="author.html#240">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-01-27 15:26:46 +0100 (Sat, 27 Jan 2007)
+New Revision: 461
+
+Modified:
+   trunk/src/CacheWolf/RadarPanel.java
+   trunk/src/CacheWolf/myInteractivePanel.java
+Log:
+Radar Panel Update:
+Zoom in bis 1km (fuer hohe Cachedichte in Staedten)
+Gelber 1km Kreis
+Cacheinfos beim langen Anklicken (PDA) bzw. Mouseover (PC)
+
+Modified: trunk/src/CacheWolf/RadarPanel.java
+===================================================================
+--- trunk/src/CacheWolf/RadarPanel.java	2007-01-27 14:20:30 UTC (rev 460)
++++ trunk/src/CacheWolf/RadarPanel.java	2007-01-27 14:26:46 UTC (rev 461)
+@@ -28,13 +28,13 @@
+ 	MainTab mt;
+ 	boolean penMoving = false;
+ 	int x1,y1,x2,y2 = 0;
++	boolean reCenterImage=true;
+ 	/**
+ 	* Constructor for the radar panel.
+ 	* Loads images, sets up the interactive panel and
+ 	* &quot;navigation&quot; buttons.
+ 	*/
+ 	public RadarPanel(){
+-		
+ 		cacheImages[0] = new Image(&quot;0.png&quot;);
+ 		//cacheImages[1] = new Image();
+ 		cacheImages[2] = new Image(&quot;2.png&quot;);
+@@ -78,8 +78,7 @@
+ 		selectedWaypoint = sWp;
+ 		pref = p;
+ 		cacheDB = db;
+-		double dummy;
+-		height = (int)(pref.myAppHeight);
++		height = (int)(pref.myAppHeight)*6/5; // add 10% each at top/bottom 
+ 		//height = (int)height * 2;
+ 		////Vm.debug(&quot;Height: &quot; + Convert.toString(height));
+ 		////Vm.debug(&quot;App Height: &quot; + Convert.toString(pref.myAppHeight));
+@@ -87,6 +86,11 @@
+ 		//width = (int)width * 2;
+ 	}
+ 	
++	// Call this after the center has changed to re-center the radar panel
++	public void recenterRadar() {
++		reCenterImage=true;
++	}
++	
+ 	/**
+ 	* Public method to draw the different caches and the
+ 	* radar background
+@@ -101,6 +105,11 @@
+ 		drawBackground();
+ 		drawCaches();
+ 		iActP.repaintNow();
++		if (reCenterImage) {
++			Dimension dispSize=getDisplayedSize(null);
++			iActP.scroll(pref.myAppWidth/10,(height-dispSize.height)/2);
++			reCenterImage=false;
++		}
+ 	}
+ 	
+ 	/**
+@@ -114,68 +123,57 @@
+ 		int x,y = 0;
+ 		CacheHolder holder;
+ 		double degrees;
+-		int rowCounter = 0;
+-		for(int i = 0; i &lt; cacheDB.size(); i++){
++		double pi180=java.lang.Math.PI / 180.0;
++		for(int i = cacheDB.size()-1; i &gt;=0 ; i--){
+ 			holder = (CacheHolder)cacheDB.get(i);
+-			if(holder.is_black == false &amp;&amp; holder.is_filtered == false)
+-			{
+-				////Vm.debug(holder.wayPoint + &quot;: &quot; +Convert.toString(holder.degrees));
+-				//degrees = (holder.degrees - 360)*-1;
+-				degrees = holder.degrees * java.lang.Math.PI / 180;
++			if(!holder.is_black &amp;&amp; !holder.is_filtered) {
++				degrees = holder.degrees * pi180;
+ 				x =new Float(holder.kilom/scale *  java.lang.Math.sin(degrees)).intValue();
+-				y = new Float(holder.kilom/scale *  java.lang.Math.cos(degrees)).intValue();
+-				y=y*-1;
+-				if(centerX+x&lt;=width &amp;&amp; centerY+y &lt;= height){
+-					if(toggleMod == 1){ // draw waypoint names
+-						Image img = new Image(fm.getTextWidth(holder.wayPoint),fm.getHeight());
+-						Graphics g = new Graphics(img);
+-						g.setColor(new Color(0,0,0));
+-						g.fillRect(0,0,fm.getTextWidth(holder.wayPoint), fm.getHeight());
+-						g.setColor(new Color(255,255,255));
+-						g.drawText(holder.wayPoint, 0,0);
+-						aImg = new AniImage(img);
+-						aImg.setLocation(centerX+x+5,centerY+y);
+-						aImg.transparentColor = new Color(0,0,0);
+-						aImg.properties = mImage.IsNotHot;
+-						iActP.addImage(aImg);
+-					}
+-					if(toggleMod == 2 &amp;&amp; holder.CacheName.length()&gt; 0){ // draw cache names
+-						try {
+-							Image img = new Image(fm.getTextWidth(holder.CacheName),fm.getHeight());
++				y = -new Float(holder.kilom/scale *  java.lang.Math.cos(degrees)).intValue();
++				if(centerX+x&gt;=0 &amp;&amp; centerY+y&gt;=0 &amp;&amp; centerX+x&lt;=width &amp;&amp; centerY+y &lt;= height){
++					if (toggleMod&gt;0) {
++						String s;
++						if (toggleMod==1)
++							s=holder.wayPoint;
++						else
++							s=holder.CacheName;
++						if (s.length()&gt;0) { 
++							int tw;
++							Image img = new Image(tw=fm.getTextWidth(s),fm.getHeight());
+ 							Graphics g = new Graphics(img);
+-							g.setColor(new Color(0,0,0));
+-							g.fillRect(0,0,fm.getTextWidth(holder.CacheName), fm.getHeight());
+-							g.setColor(new Color(255,255,255));
+-							g.drawText(holder.CacheName, 0,0);
++							g.setColor(Color.Black);
++							g.fillRect(0,0,tw, fm.getHeight());
++							g.setColor(Color.White);
++							g.drawText(s, 0,0);
+ 							aImg = new AniImage(img);
+ 							aImg.setLocation(centerX+x+5,centerY+y);
+-							aImg.transparentColor = new Color(0,0,0);
++							aImg.transparentColor = Color.Black;
+ 							aImg.properties = mImage.IsNotHot;
+ 							iActP.addImage(aImg);
+-						} catch (Exception e) {
+-							e.printStackTrace();
+ 						}
+ 					}
+-					rpi = new RadarPanelImage(cacheImages[Convert.parseInt(holder.type)]);
++					Image imgCache=cacheImages[Convert.parseInt(holder.type)];
++					// If we have no image for the cache type use a question mark
++					if (imgCache==null) imgCache=cacheImages[8]; 
++					rpi = new RadarPanelImage(imgCache);
+ 					rpi.wayPoint = holder.wayPoint;
+-					rpi.rownum = rowCounter;
++					rpi.rownum = i;
+ 					rpi.setLocation(centerX+x-7,centerY+y-7);
+ 					iActP.addImage(rpi);
+-					if(holder.wayPoint.equals(selectedWaypoint)){
+-						Image img = new Image(20, 20);
+-						Graphics g = new Graphics(img);
+-						g.setColor(new Color(0,0,0));
+-						g.fillRect(0,0,20,20);
+-						g.setColor(new Color(255,0,0));
+-						g.drawEllipse(0,0, 20,20);
+-						aImg = new AniImage(img);
++					if(holder.wayPoint.equals(selectedWaypoint)){ // Draw red circle around selected wpt
++						Image imgCircle = new Image(20, 20);
++						Graphics gCircle = new Graphics(imgCircle);
++						gCircle.setColor(Color.Black);
++						gCircle.fillRect(0,0,20,20);
++						gCircle.setColor(new Color(255,0,0));
++						gCircle.drawEllipse(0,0, 20,20);
++						aImg = new AniImage(imgCircle);
+ 						aImg.setLocation(centerX+x-9,centerY+y-9);
+ 						aImg.transparentColor = new Color(0,0,0);
+ 						aImg.properties = mImage.IsNotHot;
+ 						iActP.addImage(aImg);
+ 					}
+ 				}//if center...
+-				rowCounter++;
+ 			}// if is_black...
+ 		}
+ 	}
+@@ -191,7 +189,7 @@
+ 		iActP.refresh();
+ 		Image img = new Image(width, height);
+ 		Graphics g = new Graphics(img);
+-		g.setColor(new Color(0,0,0));
++		g.setColor(Color.Black);
+ 		//Vm.debug(Convert.toString(height));
+ 		g.fillRect(0,0,width, height);
+ 		
+@@ -221,8 +219,14 @@
+ 		}
+ 		g.drawLine(centerX,0,centerX,height);
+ 		g.drawLine(0,centerY,width,centerY);
+-		
+-		g.free();
++
++		// Show 1 KM radius only if we have zoomed in (useful for cities with high density of caches)
++		if (scaleKm&lt;=20) {
++			g.setColor(new Color(255,255,0)); // Yellow for 1km circle
++			radius = radstep/5;
++			g.drawEllipse(centerX-radius/2,centerY-radius/2, radius,radius);
++			g.free();
++		}	
+ 		AniImage aImg = new AniImage(img);
+ 		//iActP.addImage(aImg);
+ 		iActP.backgroundImage = img;
+@@ -232,15 +236,19 @@
+ 	}
+ 	
+ 	public void onEvent(Event ev){
+-		
+ 		if(ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.PRESSED){
+ 			if (ev.target == btPlus){
+-				scaleKm = scaleKm - 10;
+-				if(scaleKm &lt; 10) scaleKm = 10;
++				if (scaleKm&gt;10) scaleKm = scaleKm - 10;
++				else if (scaleKm==10) scaleKm=5;
++				else if (scaleKm==5) scaleKm=2;
++				else scaleKm=1;
+ 				drawThePanel();
+ 			}
+ 			if (ev.target == btMinus){
+-				scaleKm = scaleKm + 10;
++				if (scaleKm==1) scaleKm=2;
++				else if(scaleKm==2) scaleKm=5;
++				else if(scaleKm==5) scaleKm=10;
++				else scaleKm = scaleKm + 10;
+ 				drawThePanel();
+ 			}
+ 			if (ev.target == btToggle){
+
+Modified: trunk/src/CacheWolf/myInteractivePanel.java
+===================================================================
+--- trunk/src/CacheWolf/myInteractivePanel.java	2007-01-27 14:20:30 UTC (rev 460)
++++ trunk/src/CacheWolf/myInteractivePanel.java	2007-01-27 14:26:46 UTC (rev 461)
+@@ -17,18 +17,66 @@
+ 	boolean penMoving = false;
+ 	int x1,y1,x2,y2 = 0;
+ 	static Color RED = new Color(255,0,0);
++	Font font = new Font(&quot;Verdana&quot;, Font.BOLD, 10);
++	FontMetrics fm = getFontMetrics();
++	long timePenOn=0;
++	AniImage imgInfo;
++	String strDifficulty=MyLocale.getMsg(1120,&quot;Diff&quot;);
++	String strTerrain=MyLocale.getMsg(1121,&quot;Terr&quot;);
+ 	
++	private void clearInfo() {
++		removeImage(imgInfo);
++		imgInfo=null;
++		refresh();
++		onImage=null;
++	}
++	
+ 	public void imageClicked(AniImage which, Point pos){
+-		String fn = new String();
+-		if(which instanceof RadarPanelImage){
+-			RadarPanelImage ich = (RadarPanelImage)which;
+-			mt.selectAndActive(ich.rownum);
++		long timePenOff=Vm.getTimeStampLong();
++		// If the pen rested more than 500 msec, we only display the info and don't treat it as a click
++		if (timePenOff-timePenOn&lt;500 || !Vm.isMobile()) { 
++			String fn = new String();
++			if(which instanceof RadarPanelImage){
++				RadarPanelImage ich = (RadarPanelImage)which;
++				mt.selectAndActive(ich.rownum);
++			}
++		} else {
++			if (imgInfo!=null) clearInfo(); 
+ 		}
+ 	}
+ 	
+ 	public void setMainTab(MainTab tb){
+ 		mt = tb;
+ 	}
++	public boolean imageMovedOn(AniImage which) {
++		timePenOn=Vm.getTimeStampLong();
++		RadarPanelImage imgRP=(RadarPanelImage) which;
++		ewe.util.Vector cacheDB=Global.getProfile().cacheDB;
++		CacheHolder ch=(CacheHolder) cacheDB.get(imgRP.rownum);
++		String s=ch.wayPoint+&quot;  &quot;+ch.CacheSize+&quot; / &quot;+strDifficulty+&quot;=&quot;+ch.hard+&quot;  &quot;+strTerrain+&quot;=&quot;+ch.terrain;
++		int tw;
++		Image img = new Image(tw=fm.getTextWidth(s)+2,fm.getHeight()+2);
++		Graphics g = new Graphics(img);
++		g.setColor(new Color(0,0,255));
++		g.fillRect(0,0,tw, fm.getHeight()+2);
++		g.setColor(Color.White);
++		g.drawText(s, 1,1);
++		imgInfo = new AniImage(img);
++		Rect r=getVisibleArea(null);
++		imgInfo.setLocation(r.x,r.y); // Place the info at top left corner
++		imgInfo.properties = mImage.IsNotHot;
++		addImage(imgInfo);
++		refreshOnScreen(imgInfo);
++		return true;
++	}
++	public boolean imageMovedOff(AniImage which) {
++		clearInfo();
++		return true;
++	}
++	public void onPenEvent(PenEvent ev) {
++		super.onPenEvent(ev);
++		if (ev.type==PenEvent.PEN_UP) clearInfo();
++	}
+ 	/*
+ 	public void onEvent(Event ev){
+ 		BufferedGraphics bfg;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000239.html">[Cachewolf-svn] r460 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000241.html">[Cachewolf-svn] r462 - trunk/resources
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#240">[ date ]</a>
+              <a href="thread.html#240">[ thread ]</a>
+              <a href="subject.html#240">[ subject ]</a>
+              <a href="author.html#240">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

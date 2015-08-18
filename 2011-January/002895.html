@@ -1,0 +1,192 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2906 - in trunk/src/CacheWolf: . imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2011-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2906%20-%20in%20trunk/src/CacheWolf%3A%20.%20imp&In-Reply-To=%3C20110108150535.E793E480BEB%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002892.html">
+   <LINK REL="Next"  HREF="002896.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2906 - in trunk/src/CacheWolf: . imp</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2906%20-%20in%20trunk/src/CacheWolf%3A%20.%20imp&In-Reply-To=%3C20110108150535.E793E480BEB%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2906 - in trunk/src/CacheWolf: . imp">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Sat Jan  8 04:05:35 CET 2011</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002892.html">[Cachewolf-svn] r2903 - in branches/r1.2: res_noewe	src/CacheWolf/imp
+</A></li>
+        <LI>Next message: <A HREF="002896.html">[Cachewolf-svn] r2907 - in trunk: res_noewe src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2895">[ date ]</a>
+              <a href="thread.html#2895">[ thread ]</a>
+              <a href="subject.html#2895">[ subject ]</a>
+              <a href="author.html#2895">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2011-01-08 16:05:35 +0100 (Sat, 08 Jan 2011)
+New Revision: 2906
+
+Modified:
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+1. solving an NPE on making a new profile and changing there.
+2. Improvement on Spidering finds and SpiderAllFinds. 
+3. Listing PM-Caches in log.txt for non-PMs.
+3. recognition of changed DistanceCodeKey changed fom | to km.
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2011-01-07 23:17:58 UTC (rev 2905)
++++ trunk/src/CacheWolf/MainMenu.java	2011-01-08 15:05:35 UTC (rev 2906)
+@@ -319,6 +319,7 @@
+ 			///////////////////////////////////////////////////////////////////////
+ 			if(mev.selectedItem == mnuNewProfile){
+ 				if (NewProfileWizard.startNewProfileWizard(getFrame()) ) {
++					tbp.myMod.numRows=0;
+ 					pref.setCurCentrePt(profile.centre);
+ 		            filtBlack.modifiers=Global.getProfile().showBlacklisted()?filtBlack.modifiers|MenuItem.Checked:filtBlack.modifiers&amp;~MenuItem.Checked;
+ 					tbp.refreshTable();
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2011-01-07 23:17:58 UTC (rev 2905)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2011-01-08 15:05:35 UTC (rev 2906)
+@@ -733,7 +733,7 @@
+ 
+ 			direction = options.directionInput.getText();
+ 			directions = mString.split(direction, '-');
+-
++			
+ 			doNotgetFound = options.foundCheckBox.getState();
+ 			profile.setDirectionGC(direction);
+ 
+@@ -941,7 +941,7 @@
+ 						if (ch == null) { // not in DB
+ 							if (gotDistance &gt;= fromDistance
+ 									&amp;&amp; directionOK(directions, getDirection(DistanceAndDirection))
+-									&amp;&amp; doPMCache(CacheDescriptionGC)
++									&amp;&amp; doPMCache(chWaypoint, CacheDescriptionGC)
+ 									&amp;&amp; cachesToLoad.size() &lt; maxNew) {
+ 								if (CacheDescriptionGC.indexOf(propFound) != -1)
+ 									chWaypoint = chWaypoint + &quot;found&quot;;
+@@ -955,7 +955,7 @@
+ 						} else {
+ 							if (maxUpdate &gt; 0) { // regardless of fromDistance
+ 								if (!ch.is_black()) {
+-									if (doPMCache(CacheDescriptionGC)
++									if (doPMCache(chWaypoint, CacheDescriptionGC)
+ 										&amp;&amp; updateExists(ch, CacheDescriptionGC)) {
+ 										if (cFoundForUpdate.size() &lt; maxUpdate) {
+ 											cFoundForUpdate.put(chWaypoint, ch);
+@@ -1053,7 +1053,7 @@
+ 				holder.setWayPoint(wpt);
+ 				int test = getCacheByWaypointName(holder, false,
+ 						pref.downloadPics, pref.downloadTBs, doNotgetFound,
+-						loadAllLogs || is_found);
++						loadAllLogs || is_found |!doNotgetFound);
+ 				if (test == SPIDER_CANCEL) {
+ 					infB.close(0);
+ 					break;
+@@ -1329,8 +1329,7 @@
+ 
+ 			rexCookieID.search(loginPage);
+ 			if (!rexCookieID.didMatch()) {
+-				pref.log(&quot;[login]:check rexCookieID in SpiderGC.java --&gt; CookieID not found. Using old one.&quot;
+-						 + Preferences.NEWLINE + loginPage, null);
++				pref.log(&quot;[login]:check rexCookieID in SpiderGC.java --&gt; CookieID not found. Using old one.&quot;, null);
+ 			} else
+ 				cookieID = rexCookieID.stringMatched(1);
+ 			rexCookieSession.search(loginPage);
+@@ -1723,7 +1722,8 @@
+     }
+ 		return new String(ctmp);
+   }
+-	private String getDistanceAndDirection(String doc) {
++	private String getDistanceAndDirection(String doc) {		
++		if (spiderAllFinds) return &quot;&quot;;
+ 		RexPropDistanceCode.search(doc);
+ 		if (!RexPropDistanceCode.didMatch()) {
+ 			pref.log(&quot;check distRex&quot; + Preferences.NEWLINE + doc);
+@@ -1731,7 +1731,7 @@
+ 		}
+ 		String stmp = ewe.net.URL.decodeURL(RexPropDistanceCode.stringMatched(1));
+ 		String ret = decodeXor( stmp, DistanceCodeKey);
+-		if (ret.indexOf(&quot;|&quot;) == -1) {
++		if (ret.indexOf(&quot;km&quot;) == -1) {
+ 			// Versuch den DistanceCodeKey automatisch zu bestimmen
+ 			// da dieser von gc mal wieder ge&#228;ndert wurde.
+ 			// todo Ben&#246;tigt ev noch weitere Anpassungen: | am Anfang, and calc of keylength
+@@ -1771,6 +1771,7 @@
+ 	 * @return Distance
+ 	 */
+ 	private double getDistGC(String doc) throws Exception {
++		if (spiderAllFinds) return 0;
+ 		RexPropDistance.search(doc); // km oder mi
+ 		if (RexPropDistance.didMatch()) {
+ 			if (MyLocale.getDigSeparator().equals(&quot;,&quot;))
+@@ -1803,13 +1804,16 @@
+ 	/**
+ 	 * check for Premium Member Cache
+ 	 */
+-	private boolean doPMCache(String toCheck) {
++	private boolean doPMCache(String chWaypoint, String toCheck) {
+ 		if (pref.isPremium)
+ 			return true;
+ 		if (toCheck.indexOf(propPM) &lt;= 0) {
+ 			return true;
+ 		} else {
+ 			numPrivate = numPrivate + 1;
++			if (spiderAllFinds) {
++				pref.log(chWaypoint+&quot; is private.&quot;,null);
++			}
+ 			return false;
+ 		}
+ 	}
+@@ -2083,7 +2087,7 @@
+ 	 * if cache lies in the desired direction
+ 	 */
+ 	private boolean directionOK(String[] directions, String gotDirection) {
+-		if (directions.length == 0)
++		if (directions == null || directions.length == 0)
+ 			return true; // nothing means all
+ 		int lowerLimit = Common.parseInt(directions[0]);
+ 		int upperLimit = Common.parseInt(directions[1]);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002892.html">[Cachewolf-svn] r2903 - in branches/r1.2: res_noewe	src/CacheWolf/imp
+</A></li>
+	<LI>Next message: <A HREF="002896.html">[Cachewolf-svn] r2907 - in trunk: res_noewe src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2895">[ date ]</a>
+              <a href="thread.html#2895">[ thread ]</a>
+              <a href="subject.html#2895">[ subject ]</a>
+              <a href="author.html#2895">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

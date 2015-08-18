@@ -1,0 +1,442 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2402 - in trunk: . res_noewe src/CacheWolf	src/CacheWolf/imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2402%20-%20in%20trunk%3A%20.%20res_noewe%20src/CacheWolf%0A%09src/CacheWolf/imp&In-Reply-To=%3C201001140137.o0E1bkUE008472%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002325.html">
+   <LINK REL="Next"  HREF="002327.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2402 - in trunk: . res_noewe src/CacheWolf	src/CacheWolf/imp</H1>
+    <B>mik77 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2402%20-%20in%20trunk%3A%20.%20res_noewe%20src/CacheWolf%0A%09src/CacheWolf/imp&In-Reply-To=%3C201001140137.o0E1bkUE008472%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2402 - in trunk: . res_noewe src/CacheWolf	src/CacheWolf/imp">mik77 at mail.berlios.de
+       </A><BR>
+    <I>Thu Jan 14 02:37:46 CET 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002325.html">[Cachewolf-svn] r2401 - trunk/src/CacheWolf/imp
+</A></li>
+        <LI>Next message: <A HREF="002327.html">[Cachewolf-svn] r2403 - trunk
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2326">[ date ]</a>
+              <a href="thread.html#2326">[ thread ]</a>
+              <a href="subject.html#2326">[ subject ]</a>
+              <a href="author.html#2326">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mik77
+Date: 2010-01-14 02:37:42 +0100 (Thu, 14 Jan 2010)
+New Revision: 2402
+
+Modified:
+   trunk/buildexe.bat
+   trunk/res_noewe/spider.def
+   trunk/src/CacheWolf/LogList.java
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+first draft for new GC design
+
+Modified: trunk/buildexe.bat
+===================================================================
+--- trunk/buildexe.bat	2010-01-12 09:33:09 UTC (rev 2401)
++++ trunk/buildexe.bat	2010-01-14 01:37:42 UTC (rev 2402)
+@@ -1,6 +1,5 @@
+ cd %~d0%~p0
+ call getres.bat
+-java -cp lib/ewe.jar Ewe programs/Jewel.ewe -c cw-pda.jnf
+ java -cp lib/ewe.jar Ewe programs/Jewel.ewe -c cw-ppc2003.jnf
+ java -cp lib/ewe.jar Ewe programs/Jewel.ewe -c cw-pc.jnf
+ REM Dont change the order above because the PC version has to overwrite the PDA version of the EWE-file
+
+Modified: trunk/res_noewe/spider.def
+===================================================================
+--- trunk/res_noewe/spider.def	2010-01-12 09:33:09 UTC (rev 2401)
++++ trunk/res_noewe/spider.def	2010-01-14 01:37:42 UTC (rev 2402)
+@@ -34,6 +34,7 @@
+ # Version 4.10- 20091021 Tags in Description are now correctly closed
+ # Version 4.11- 20091023 Reverted last change, because it doesn't work with EWE/EXE
+ # Version 5.0 - 20091105 adaption to new GC-design
++# Version 6.0 - 20100113 adaption to new GC-design
+ #============================================================
+ # A suffix of Rex indicates a regular expression
+ # A suffix of ExStart indicates the start of an Extractor search pattern
+@@ -55,9 +56,12 @@
+ firstPageFinds     = <A HREF="http://www.geocaching.com/seek/nearest.aspx?ul=">http://www.geocaching.com/seek/nearest.aspx?ul=</A>
+ # Regex to search for cachenames
+ listBlockRex       = &lt;table id=&quot;ctl00_ContentBody_dlResults&quot;((?s).*?)&lt;/table&gt;
+-lineRex            = &lt;tr\ bgcolor='#.{6}'&gt;(?:(?s).*?)&lt;td\ valign=&quot;top&quot;\ align=&quot;left&quot;&gt;((?s).*?)&lt;/tr&gt;
++lineRex            = &lt;tr\ bgcolor='#.{6}'\ class=&quot;Data\ BorderTop&quot;&gt;((?s).*?)&lt;/tr&gt;
+ directionRex       = /compass/(.*?).gif
+-distRex            = &lt;br\ /&gt;(.*?)(?:km|mi)(?:\\s*)&lt;/td&gt;
++logDateRex         = &lt;td&gt;(.*?)&lt;br\ /&gt;&lt;span\ class=&quot;Success&quot;&gt;&lt;/span&gt;&lt;/td&gt;
++availableRex       = &lt;span class=&quot;Strike&quot;&gt;
++PMRex              = small_profile.gif
++distRex            = &lt;br\ /&gt;(.*?)(?:km|mi)
+ waypointRex        = \\(GC(.*?)\\)&lt;br\ /&gt;
+ showOnlyFound      = &amp;f=1
+ maxDistance        = &amp;dist=
+@@ -85,46 +89,46 @@
+ #--------------------------------------
+ getPageByName      = <A HREF="http://www.geocaching.com/seek/cache_details.aspx?wp=">http://www.geocaching.com/seek/cache_details.aspx?wp=</A>
+ fetchAllLogs       = &amp;log=y
+-cacheUnavailable   = &lt;ul&gt;&lt;font\ color=&quot;red&quot;&gt;&lt;li&gt;This\ cache\ is\ temporarily\ unavailable.\ Read\ the\ logs\ below\ to\ read\ the\ status\ for\ this\ cache.&lt;/li&gt;&lt;/font&gt;&lt;/ul&gt;
+-cacheArchived      = This cache\ has\ been\ archived
+-latLonRex          = &lt;span\ id=&quot;LatLon&quot;\ style=&quot;font-weight:bold;&quot;&gt;((?s).*?)&lt;/span&gt;
+-shortDescRex       = &lt;span\ id=&quot;ShortDescription&quot;&gt;((?s).*?)&lt;/span&gt;
++cacheUnavailable   = &lt;ul\ class=&quot;OldWarning&quot;&gt;&lt;li&gt;This\ cache\ is\ temporarily\ unavailable.\ Read\ the\ logs\ below\ to\ read\ the\ status\ for\ this\ cache.&lt;/li&gt;&lt;/ul&gt;&lt;/span&gt;
++cacheArchived      = &lt;ul\ class=&quot;OldWarning&quot;&gt;&lt;li&gt;This\ cache\ has\ been\ archived,\ but\ is\ available\ for\ viewing\ for\ archival\ purposes.&lt;/li&gt;&lt;/ul&gt;&lt;/span&gt;
++latLonRex          = &lt;span\ id=&quot;ctl00_ContentBody_LatLon&quot;\ style=&quot;font-weight:bold;&quot;&gt;((?s).*?)&lt;/span&gt;
++shortDescRex       = &lt;span\ id=&quot;ctl00_ContentBody_ShortDescription&quot;&gt;((?s).*?)&lt;/span&gt;
+ #This version doesn't work with EWE/EXE, so we trim the tags in code
+-#longDescRex        = &lt;span\ id=&quot;LongDescription&quot;&gt;((?s).*?)&lt;/span&gt;(?:\\s*)&lt;br\ /&gt;(?:\\s*)&lt;/p&gt;(?:\\s*)&lt;p&gt;(?:\\s*)&lt;strong&gt;Additional\ Hints&nbsp;\\(&lt;/strong&gt;
+-longDescRex        = &lt;span\ id=&quot;LongDescription&quot;&gt;((?s).*?)&lt;strong&gt;Additional\ Hints&nbsp;\\(&lt;/strong&gt;
+-cacheNameRex       = &lt;span\ id=&quot;CacheName&quot;&gt;((?s).*?)&lt;/span&gt;
+-cacheOwnerRex      = &lt;span\ id=&quot;CacheOwner&quot;&gt;by\ &lt;a\ href=(?:(?s).*?)&gt;((?s).*?)&lt;/a&gt;&lt;/span&gt;
+-dateHiddenRex      = &lt;span\ id=&quot;DateHidden&quot;&gt;((?s).*?)&lt;/span&gt;
+-hintsRex           = &lt;span\ id=&quot;Hints&quot;\ class=&quot;displayMe&quot;&gt;((?s).*?)&lt;/span&gt;
+-sizeRex            = alt=&quot;Size:\ ((?s).*?)&quot;\ title=&quot;Size:
+-difficultyRex      = &lt;span\ id=&quot;Difficulty&quot;&gt;.*?alt=&quot;(.*?)\ out\ of
+-terrainRex         = &lt;span\ id=&quot;Terrain&quot;&gt;.*?alt=&quot;(.*?)\ out\ of
+-cacheTypeRex       = /images/WptTypes/(.*?)\\.gif&quot;\ ALT=&quot;
+-cacheLocationRex   = &lt;span\ id=&quot;Location&quot;&gt;In\ ([^&lt;]*?)&lt;
++#longDescRex        = &lt;span\ id=&quot;ctl00_ContentBody_LongDescription&quot;&gt;((?s).*?)&lt;/span&gt;(?:\\s*)&lt;br\ /&gt;(?:\\s*)&lt;/p&gt;(?:\\s*)&lt;p&gt;(?:\\s*)&lt;strong&gt;Additional\ Hints&nbsp;\\(&lt;/strong&gt;
++longDescRex        = &lt;span\ id=&quot;ctl00_ContentBody_LongDescription&quot;&gt;((?s).*?)&lt;td\ valign=&quot;top&quot;\ width=&quot;10%&quot;&gt;&nbsp;&lt;/td&gt;
++cacheNameRex       = &lt;span\ id=&quot;ctl00_ContentBody_CacheName&quot;&gt;((?s).*?)&lt;/span&gt;
++cacheOwnerRex      = &lt;span\ id=&quot;ctl00_ContentBody_CacheOwner&quot;&gt;by\ &lt;a\ href=(?:(?s).*?)&gt;((?s).*?)&lt;/a&gt;&lt;/span&gt;
++dateHiddenRex      = &lt;span\ id=&quot;ctl00_ContentBody_DateHidden&quot;&gt;((?s).*?)&lt;/span&gt;
++hintsRex           = &lt;span\ id=&quot;ctl00_ContentBody_Hints&quot;\ class=&quot;displayMe&quot;&gt;((?s).*?)&lt;/span&gt;
++sizeRex            = alt=&quot;Size:\ ((?s).*?)&quot;\ /&gt;&amp;nbsp&lt;small&gt;
++difficultyRex      = &lt;span\ id=&quot;ctl00_ContentBody_Difficulty&quot;&gt;.*?alt=&quot;(.*?)\ out\ of
++terrainRex         = &lt;span\ id=&quot;ctl00_ContentBody_Terrain&quot;&gt;.*?alt=&quot;(.*?)\ out\ of
++cacheTypeRex       = /images/WptTypes/(.*?)\\.gif&quot;\ alt=&quot;
++cacheLocationRex   = &lt;span\ id=&quot;ctl00_ContentBody_Location&quot;&gt;In\ ([^&lt;]*?)&lt;
+ premiumCachepage   = Sorry, the owner of this listing has made it viewable to subscribers only.
+ 
+ #--------------------------------------
+ #Section2a: Logs
+ #--------------------------------------
+ # blockRex extrahiert zun&#228;chst aus der gesamten Seite den Logbereich
+-blockRex           = &lt;span\ id=&quot;CacheLogs&quot;&gt;((?s).*?)&lt;/span&gt;
++blockRex           = &lt;table class=&quot;LogsTable Table&quot;&gt;((?s).*?)&lt;/table&gt;&lt;/span&gt;&lt;/p&gt;
+ # singleLogEx extrahiert in einer Schleife alle Logs aus dem Logbereich
+-singleLogExStart   = &lt;STRONG&gt;
+-singleLogExEnd     = [&lt;a\ href=
++singleLogExStart   = &lt;strong&gt;
++singleLogExEnd     = &lt;small&gt;&lt;a\ href=&quot;
+ # iconEx, nameTempEx, dateEx, singleLogEx werden auf einen singleLog angewendet
+ iconExStart        = <A HREF="http://www.geocaching.com/images/icons/">http://www.geocaching.com/images/icons/</A>
+-iconExEnd          = '\ align='abs
++iconExEnd          = &quot;\ alt=&quot;&quot;\ /&gt;
+ nameTempExStart    = &lt;a\ href=&quot;
+ nameTempExEnd      = /a&gt;
+ # Name extrahiert aus nameTemp
+ nameExStart        = &gt;
+ nameExEnd          = &lt;
+-dateExStart        = align='absmiddle'&gt;&nbsp;
+-dateExEnd          = \ by\ &lt;
++dateExStart        = gif&quot;\ alt=&quot;&quot;\ /&gt;&nbsp;
++dateExEnd          = \ by\ &lt;a\ href=&quot;/profile/?guid=
+ logExStart         = found)&lt;br\ /&gt;
+-logExEnd           = &lt;br\ /&gt;[
+-logIdExStart         = by\ &lt;a\ name=&quot;
+-logIdExEnd           = &quot;\ style=&quot;
++logExEnd           = &lt;br\ /&gt;&lt;small&gt;&lt;a\ href=&quot;
++logIdExStart         = &quot;\ id=&quot;
++logIdExEnd           = &quot;&gt;
+ # Die Icons, die einen erfolgreichen Fund signalisieren
+ icon_smile         = icon_smile.gif
+ icon_camera        = icon_camera.gif
+@@ -134,11 +138,11 @@
+ #Section2b: Bugs
+ #--------------------------------------
+ # blockEx extrahiert zun&#228;chst den Bugbereich aus der gesamten Seite
+-blockExStart       = &gt;&nbsp;&lt;b&gt;Inventory&lt;/b&gt;
+-blockExEnd         = What\ are\ Trackable\ Items?
++blockExStart       = &gt;&nbsp;Inventory&lt;/h3&gt;
++blockExEnd         = &lt;p class=&quot;NoSpacing&quot;&gt;
+ # bugEx extrahiert die Namen der einzelnen Bugs aus dem Bugbereich
+-bugExStart         = &lt;a\ href='
+-bugExEnd           = &lt;/a&gt;&lt;/strong&gt;&lt;/td&gt;
++bugExStart         = &lt;a\ href=&quot;
++bugExEnd           = &lt;/a&gt;&lt;/li&gt;
+ bugDetailsStart    = id=&quot;ctl00_ContentBody_BugDetails_BugGoal&quot;&gt;
+ bugDetailsEnd      = &lt;/span&gt;
+ getBugByName       = <A HREF="http://www.geocaching.com/track/search.aspx?k=">http://www.geocaching.com/track/search.aspx?k=</A>
+@@ -160,10 +164,10 @@
+ imgBlockExStart    = &lt;IMG
+ imgBlockExEnd      = &gt;
+ # imgSpanEx searches for images in the image section
+-imgSpanExStart     = &lt;span\ id=&quot;Images&quot;
+-imgSpanExEnd       = &lt;/span&gt;
+-imgNameExStart     = align=&quot;absmiddle&quot;\ border=&quot;0&quot;&gt;
+-imgNameExEnd       = &lt;/a&gt;&lt;br\ /&gt;
++imgSpanExStart     = &lt;span id=&quot;ctl00_ContentBody_Images&quot;&gt;
++imgSpanExEnd       = &lt;/span&gt;&lt;/p&gt;
++imgNameExStart     = &quot;\ /&gt;\ &lt;span&gt;
++imgNameExEnd       = &lt;/span&gt;&lt;/a&gt;
+ imgSrcExStart      = &lt;a\ href=&quot;<A HREF="http://">http://</A>
+ imgSrcExEnd        = &quot;\ rel=&quot;lightbox&quot;
+ imgCommentExStart  = &lt;/a&gt;&lt;br\ /&gt;
+@@ -175,18 +179,18 @@
+ wayBlockExStart    = &lt;strong&gt;Additional\ Waypoints&lt;/strong&gt;
+ wayBlockExEnd      = &lt;/table&gt;
+ nameRex            = &amp;RefDS=1&quot;&gt;(.*)&lt;/a&gt;
+-koordRex           = align=&quot;left&quot;&gt;([NSns]\ [0-9]{1,2}..[0-9]{1,2}.[0-9]{1,3}\ [EWew]\ [0-9]{1,3}..[0-9]{1,2}.[0-9]{1,3})&lt;/td&gt;
++koordRex           = &lt;td&gt;([NSns]\ [0-9]{1,2}..[0-9]{1,2}.[0-9]{1,3}\ [EWew]\ [0-9]{1,3}..[0-9]{1,2}.[0-9]{1,3})&lt;/td&gt;
+ descRex            = colspan=&quot;4&quot;&gt;((?:.|\n|\r)*?)&lt;/td&gt;
+ typeRex            = &lt;/a&gt;\ \\((.*)\\)&lt;/td&gt;
+ rowBlockExStart    = &lt;tr
+ rowBlockExEnd      = &lt;/tr&gt;
+-prefixExStart      = &lt;td\ valign=\&quot;top\&quot;\ align=\&quot;left\&quot;&gt;
++prefixExStart      = &lt;td&gt;
+ prefixExEnd        = &lt;/td&gt;
+ 
+ #--------------------------------------
+ #Section2e: Attributes
+ #--------------------------------------
+-attBlockExStart = &nbsp;&lt;b&gt;Attributes&lt;/b&gt;&lt;br/&gt;&lt;table
+-attBlockExEnd  = &lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
++attBlockExStart = watching\ this\ cache.&lt;br\ /&gt;&lt;/small&gt;
++attBlockExEnd  = What\ are\ Attributes?&lt;/a&gt;&lt;/small&gt;&lt;/p&gt;
+ attExStart = /images/attributes/
+-attExEnd = &quot; Alt=&quot;
++attExEnd = &quot;\ alt=&quot;
+
+Modified: trunk/src/CacheWolf/LogList.java
+===================================================================
+--- trunk/src/CacheWolf/LogList.java	2010-01-12 09:33:09 UTC (rev 2401)
++++ trunk/src/CacheWolf/LogList.java	2010-01-14 01:37:42 UTC (rev 2402)
+@@ -93,17 +93,21 @@
+ 	 /**
+ 	  *  Count the number of not-found logs
+ 	  */
+-	 public byte countNotFoundLogs() {
++	public byte countNotFoundLogs() {
+ 		byte countNoFoundLogs = 0;
++		int currentLog = 0;
++		String currentIcon;
+ 		while(countNoFoundLogs &lt; size() &amp;&amp; countNoFoundLogs &lt; 5){
+-			if(getLog(countNoFoundLogs).getIcon().startsWith(&quot;icon_sad&quot;)) {
++			currentIcon = getLog(currentLog).getIcon();
++			if(currentIcon.startsWith(&quot;icon_sad&quot;)) {
+ 				countNoFoundLogs++;
+-			}else if (getLog(countNoFoundLogs).getIcon().startsWith(&quot;icon_smile&quot;)) {
+-        break;
+-      }
++			}else if (currentIcon.startsWith(&quot;icon_smile&quot;) || currentIcon.startsWith(&quot;icon_camera&quot;) || currentIcon.startsWith(&quot;icon_attended&quot;) || currentIcon.startsWith(&quot;icon_rsvp&quot;)) {
++				break;
++			}
++			currentLog++;
+ 		}
+ 		return countNoFoundLogs;
+-	 }
++	}
+ 
+ 	 /** only valid after calling calcRecommendations() */
+ 	 int numRecommended = 0;
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2010-01-12 09:33:09 UTC (rev 2401)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2010-01-14 01:37:42 UTC (rev 2402)
+@@ -115,8 +115,12 @@
+ 	private static String propFirstLine2;
+ 	private static String propMaxDistance;
+ 	private static String propShowOnlyFound;
+-	private static String propListBlockRex;
+-	private static String propLineRex;
++	private static Regex RexPropListBlock;
++	private static Regex RexPropLine;
++	private static Regex RexPropLogDate;
++	private static String propAvailable;
++	private static String propPM;
++	private static Regex RexPropDirection;
+ 
+ 	private int numFoundUpdates=0;
+ 	private int numArchivedUpdates=0;
+@@ -301,18 +305,16 @@
+ 			maxNew=java.lang.Math.min(numFinds-numFoundInDB,maxNew);
+ 			if (maxUpdate==0 &amp;&amp; maxNew == 0) { Vm.showWait(false); infB.close(0); return; }
+ 		}
+-		Regex lineRex = new Regex(propLineRex);
+ 		try {
+ 			//Loop pages till maximum distance has been found or no more caches are in the list
+ 			while(maxDistance &gt; 0){
+-				Regex listBlockRex = new Regex(propListBlockRex); // &quot;&lt;table id=\&quot;dlResults\&quot;((?s).*?)&lt;/table&gt;&quot;
+-				listBlockRex.search(htmlListPage);
+-				String tableOfHtmlListPage = listBlockRex.stringMatched(1);
+-				lineRex.search(tableOfHtmlListPage);
++				RexPropListBlock.search(htmlListPage);
++				String tableOfHtmlListPage = RexPropListBlock.stringMatched(1);
++				RexPropLine.search(tableOfHtmlListPage);
+ 				while (maxDistance &gt; 0){
+-					if (!lineRex.didMatch()) break;
++					if (!RexPropLine.didMatch()) break;
+ 					found_on_page++;
+-					String CacheDescriptionGC=lineRex.stringMatched(1);
++					String CacheDescriptionGC=RexPropLine.stringMatched(1);
+ 					double gotDistance=getDistGC(CacheDescriptionGC);
+ 					String chWaypoint=getWP(CacheDescriptionGC);
+ 					if(gotDistance &lt;= maxDistance){
+@@ -340,7 +342,7 @@
+ 						}
+ 					} else maxDistance = 0; // finish listing
+ 					// get next row of table (next Cache Description) of this htmlListPage
+-					lineRex.searchFrom(tableOfHtmlListPage, lineRex.matchedTo());
++					RexPropLine.searchFrom(tableOfHtmlListPage, RexPropLine.matchedTo());
+ 					if (infB.isClosed) break;
+ 				} // next Cache
+ 				infB.setInfo(MyLocale.getMsg(5521,&quot;Page &quot;) + page_number + &quot;\n&quot; +
+@@ -682,8 +684,12 @@
+ 			propFirstLine2=p.getProp(&quot;firstLine2&quot;);
+ 			propMaxDistance=p.getProp(&quot;maxDistance&quot;);
+ 			propShowOnlyFound=p.getProp(&quot;showOnlyFound&quot;);
+-			propListBlockRex=p.getProp(&quot;listBlockRex&quot;);
+-			propLineRex=p.getProp(&quot;lineRex&quot;);
++			RexPropListBlock = new Regex(p.getProp(&quot;listBlockRex&quot;));
++			RexPropLine = new Regex(p.getProp(&quot;lineRex&quot;));
++			RexPropLogDate = new Regex(p.getProp(&quot;logDateRex&quot;));
++			propAvailable=p.getProp(&quot;availableRex&quot;);
++			propPM=p.getProp(&quot;PMRex&quot;);
++			RexPropDirection=new Regex(p.getProp(&quot;directionRex&quot;));
+ 		}catch(Exception ex){
+ 		}
+ 	}
+@@ -781,8 +787,9 @@
+ 			boolean is_archived_GC=CacheDescription.indexOf(&quot;&lt;font color=\&quot;red\&quot;&gt;&lt;strike&gt;&quot;)!=-1;
+ 			if (is_archived_GC!=ch.is_archived()) { ch.setArchived(is_archived_GC); ch.save(); numArchivedUpdates+=1; return true;}
+ 		}
+-		boolean is_available_GC=CacheDescription.indexOf(&quot;&lt;strike&gt;&quot;)==-1;
+-		if (is_available_GC != ch.is_available()) { ch.setAvailable(is_available_GC); ch.save(); numAvailableUpdates+=1; return true;}
++		boolean is_available_GC=CacheDescription.indexOf(propAvailable)==-1;
++		if (is_available_GC != ch.is_available()) {
++			ch.setAvailable(is_available_GC); ch.save(); numAvailableUpdates+=1; return true;}
+ 		if (newLogExists(ch,CacheDescription)) {numLogUpdates+=1; return true;}
+ 		return false;
+ 	}
+@@ -849,7 +856,10 @@
+ 	private boolean doPMCache(String toCheck) {
+ 		// int linePM=10;
+ 		if (pref.isPremium) return true;
+-		if (toCheck.indexOf(&quot;small_profile.gif&quot;)&gt;0) return false; else return true;
++		if (toCheck.indexOf(propPM)&gt;0)
++			return false;
++		else
++			return true;
+ 	}
+ 
+ 	/**
+@@ -858,11 +868,9 @@
+ 	 * @return direction String
+ 	 */
+ 	private String getDirection(String doc) throws Exception {
+-		// int lineDirection=1;
+-		Regex inRex = new Regex(p.getProp(&quot;directionRex&quot;));
+-		inRex.search(doc);
+-		if (!inRex.didMatch()) return &quot;&quot;;
+-		return inRex.stringMatched(1);
++		RexPropDirection.search(doc);
++		if (!RexPropDirection.didMatch()) return &quot;&quot;;
++		return RexPropDirection.stringMatched(1);
+ 	}
+ 
+ 	/*
+@@ -891,14 +899,7 @@
+ 	 */
+ 	private boolean newLogExists(CacheHolder ch, String cacheDescrition) {
+ 		if(!pref.checkLog) return false;
+-		String[] CacheDesc=mString.split(cacheDescrition,'\n');
+-		int anzLines=38;
+-		int lineLastFound=27;
+-		if(CacheDesc.length!=anzLines) {
+-			maxDistance = 0; //add no more caches
+-			(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), &quot;GC changed table output \nCW must be changed too!&quot;, FormBase.OKB)).execute();
+-			return false;
+-		}
++		// String[] CacheDesc=mString.split(cacheDescrition,'\n');
+ 		Time lastLogCW = new Time();
+ 		CacheHolderDetail chd = ch.getCacheDetails(true);
+ 		String slastLogCW=chd.CacheLogs.getLog(0).getDate();
+@@ -911,11 +912,17 @@
+ 		lastLogGC.second=0;
+ 		lastLogGC.millis=0;
+ 		String[] SDate;
+-		String stmp=CacheDesc[lineLastFound].trim();
++		// String stmp=CacheDesc[lineLastFound].trim();
++		String stmp=&quot;&quot;;
++		RexPropLogDate.search(cacheDescrition);
++		if (RexPropLogDate.didMatch()) {
++			stmp=RexPropLogDate.stringMatched(1);
++		}
++		else return false;
+ 		if (stmp.indexOf(&quot;day&quot;)&gt;0) {
+ 			lastLogGC.day=java.lang.Math.max(1, lastLogGC.day-7); // simplyfied (update if not newer than last week)
+ 		}
+-		else if (stmp.startsWith(&quot;&lt;br /&gt;&quot;)) {
++		else if (stmp.equals(&quot;&quot;)) {
+ 			Vm.debug(&quot;no log yet&quot;);
+ 			return false; // no log yet
+ 		}
+@@ -1395,7 +1402,7 @@
+ 		while(exBug.endOfSearch() == false){
+ 			if (infB.isClosed) break; // Allow user to cancel by closing progress form
+ 			linkPlusBug= exBug.findNext();
+-			int idx=linkPlusBug.indexOf(&quot;'&gt;&quot;);
++			int idx=linkPlusBug.indexOf(&quot;\&quot;&gt;&quot;);
+ 			if (idx&lt;0) break; // No link/bug pair found
+ 			link=linkPlusBug.substring(0,idx);
+ 			bug=linkPlusBug.substring(idx+2);
+@@ -1688,8 +1695,16 @@
+ 			rowBlock = exRowBlock.findNext();
+ 			while(exRowBlock.endOfSearch()==false){
+ 				CacheHolder hd = null;
+-				Extractor exPrefix=new Extractor(rowBlock,p.getProp(&quot;prefixExStart&quot;),p.getProp(&quot;prefixExEnd&quot;),0,true);
++
++				String[] AddiBlock=mString.split(rowBlock,'\n');
++				int linePrefix=3;
++				if(AddiBlock.length &lt; linePrefix + 1) {
++					(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), &quot;GC changed table output \nCW must be changed too!&quot;, FormBase.OKB)).execute();
++					break;
++				}				
++				Extractor exPrefix=new Extractor(AddiBlock[linePrefix].trim(),p.getProp(&quot;prefixExStart&quot;),p.getProp(&quot;prefixExEnd&quot;),0,true);
+ 				String prefix=exPrefix.findNext();
++
+ 				String adWayPoint;
+ 				if (prefix.length()==2)
+ 					adWayPoint=prefix+wayPoint.substring(2);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002325.html">[Cachewolf-svn] r2401 - trunk/src/CacheWolf/imp
+</A></li>
+	<LI>Next message: <A HREF="002327.html">[Cachewolf-svn] r2403 - trunk
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2326">[ date ]</a>
+              <a href="thread.html#2326">[ thread ]</a>
+              <a href="subject.html#2326">[ subject ]</a>
+              <a href="author.html#2326">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

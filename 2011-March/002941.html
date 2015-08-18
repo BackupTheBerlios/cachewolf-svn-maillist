@@ -1,0 +1,331 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2950 - in trunk: res_noewe src/CacheWolf	src/CacheWolf/imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2011-March/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2950%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf%0A%09src/CacheWolf/imp&In-Reply-To=%3C20110306131338.60CF64813CE%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002940.html">
+   <LINK REL="Next"  HREF="002942.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2950 - in trunk: res_noewe src/CacheWolf	src/CacheWolf/imp</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2950%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf%0A%09src/CacheWolf/imp&In-Reply-To=%3C20110306131338.60CF64813CE%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2950 - in trunk: res_noewe src/CacheWolf	src/CacheWolf/imp">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Sun Mar  6 02:13:38 CET 2011</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002940.html">[Cachewolf-svn] r2949 - in trunk: res_noewe src/CacheWolf	src/CacheWolf/imp
+</A></li>
+        <LI>Next message: <A HREF="002942.html">[Cachewolf-svn] r2951 - in trunk: res_noewe res_noewe/languages	src/CacheWolf/exp src/CacheWolf/imp src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2941">[ date ]</a>
+              <a href="thread.html#2941">[ thread ]</a>
+              <a href="subject.html#2941">[ subject ]</a>
+              <a href="author.html#2941">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2011-03-06 14:13:38 +0100 (Sun, 06 Mar 2011)
+New Revision: 2950
+
+Modified:
+   trunk/res_noewe/spider.def
+   trunk/src/CacheWolf/UrlFetcher.java
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+1. recogntion of PM
+2. quick import works again
+
+Modified: trunk/res_noewe/spider.def
+===================================================================
+--- trunk/res_noewe/spider.def	2011-03-06 00:12:24 UTC (rev 2949)
++++ trunk/res_noewe/spider.def	2011-03-06 13:13:38 UTC (rev 2950)
+@@ -107,7 +107,7 @@
+ fetchAllLogs       = &amp;log=y
+ cacheUnavailable   = class=&quot;OldWarning&quot;&gt;&lt;li&gt;This\ cache\ is\ temporarily\ unavailable
+ cacheArchived      = class=&quot;OldWarning&quot;&gt;&lt;li&gt;This\ cache\ has\ been\ archived
+-premiumCachepage   = class=&quot;Warning&quot;&gt;This\ is\ a\ Premium\ Member\ Only\ Cache
++premiumCachepage   = class=&quot;Warning&quot;&gt;listing\ visible\ to\ Premium
+ #latLonRex          = tBody_LatLon&quot;\ style=&quot;font-weight:bold;&quot;&gt;((?s).*?)&lt;/span&gt;
+ latLonRex          = tBody_LatLon&quot;&gt;&lt;b&gt;((?s).*?)&lt;/b&gt;&lt;/span&gt;
+ shortDescRex       = tBody_ShortDescription&quot;&gt;((?s).*?)&lt;/span&gt;
+
+Modified: trunk/src/CacheWolf/UrlFetcher.java
+===================================================================
+--- trunk/src/CacheWolf/UrlFetcher.java	2011-03-06 00:12:24 UTC (rev 2949)
++++ trunk/src/CacheWolf/UrlFetcher.java	2011-03-06 13:13:38 UTC (rev 2950)
+@@ -62,8 +62,8 @@
+ 	}
+ 	private static void initPermanentRequestorProperty() {
+ 		permanentRequestorProperties = new PropertyList();
+-		permanentRequestorProperties.add(&quot;USER_AGENT&quot;, &quot;Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.7.5) Gecko/20041107 Firefox/1.0&quot;);
+-		// permanentRequestorProperties.add(&quot;Connection&quot;, &quot;close&quot;);		
++		permanentRequestorProperties.add(&quot;User_Agent&quot;, &quot;Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.7.5) Gecko/20041107 Firefox/1.0&quot;);
++		permanentRequestorProperties.add(&quot;Connection&quot;, &quot;keep-alive&quot;);		
+ 	}
+ 	public static void setPermanentRequestorProperty(String name, String property) {
+ 		if (permanentRequestorProperties == null) initPermanentRequestorProperty();
+@@ -121,7 +121,7 @@
+ 			if (permanentRequestorProperties == null) initPermanentRequestorProperty();
+ 			if (postData != null) {
+ 				conn.setPostData(postData);
+-				setRequestorProperty(&quot;Content-Type&quot;,&quot;application/x-www-form-urlencoded&quot;);
++				conn.setRequestorProperty(&quot;Content-Type&quot;,&quot;application/x-www-form-urlencoded&quot;);
+ 			}
+ 			conn.setRequestorProperty(permanentRequestorProperties);
+ 			if (requestorProperties != null) conn.setRequestorProperty(requestorProperties);
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2011-03-06 00:12:24 UTC (rev 2949)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2011-03-06 13:13:38 UTC (rev 2950)
+@@ -68,6 +68,7 @@
+ import ewe.io.FileOutputStream;
+ import ewe.io.IOException;
+ import ewe.io.InputStreamReader;
++import ewe.io.JavaUtf8Codec;
+ import ewe.net.Socket;
+ import ewe.net.URL;
+ import ewe.net.UnknownHostException;
+@@ -77,6 +78,7 @@
+ import ewe.ui.FormBase;
+ import ewe.ui.MessageBox;
+ import ewe.util.ByteArray;
++import ewe.util.CharArray;
+ import ewe.util.Enumeration;
+ import ewe.util.Hashtable;
+ import ewe.util.Properties;
+@@ -220,17 +222,18 @@
+ 			infB = new InfoBox(&quot;Status&quot;, MyLocale.getMsg(5502, &quot;Fetching first page...&quot;));
+ 			infB.exec();
+ 
+-			pref.log(&quot;ListPages Properties : &quot; + Preferences.NEWLINE
+-					+ &quot;minDistance: &quot; + minDistance + Preferences.NEWLINE
+-					+ &quot;maxDistance: &quot; + maxDistance + Preferences.NEWLINE
+-					+ &quot;directions: &quot; + direction + Preferences.NEWLINE
+-					+ &quot;maxNew: &quot; + pref.maxSpiderNumber + Preferences.NEWLINE
+-					+ &quot;maxUpdate: &quot; + maxUpdate + Preferences.NEWLINE
+-					+ &quot;with Founds       : &quot; + (doNotgetFound ? &quot;no&quot; : &quot;yes&quot;)
+-					+ Preferences.NEWLINE + &quot;alias is premium m: &quot;
+-					+ (!pref.isPremium ? &quot;no&quot; : &quot;yes&quot;) + Preferences.NEWLINE
+-					+ &quot;Update if new Logs: &quot; + (!pref.checkLog ? &quot;no&quot; : &quot;yes&quot;)
+-					+ Preferences.NEWLINE, null);
++			pref.log( &quot;ListPages Properties : &quot; + Preferences.NEWLINE
++					+ &quot;minDistance          : &quot; + minDistance + Preferences.NEWLINE
++					+ &quot;maxDistance          : &quot; + maxDistance + Preferences.NEWLINE
++					+ &quot;directions           : &quot; + direction + Preferences.NEWLINE
++					+ &quot;maxNew               : &quot; + pref.maxSpiderNumber + Preferences.NEWLINE
++					+ &quot;maxUpdate            : &quot; + maxUpdate + Preferences.NEWLINE
++					+ &quot;with Founds          : &quot; + (doNotgetFound ? &quot;no&quot; : &quot;yes&quot;) + Preferences.NEWLINE 
++					+ &quot;alias is premium memb: &quot;	+ (!pref.isPremium ? &quot;no&quot; : &quot;yes&quot;) + Preferences.NEWLINE
++					+ &quot;Update if new Log    : &quot; + (pref.checkLog ? &quot;yes&quot; : &quot;no&quot;) + Preferences.NEWLINE
++					+ &quot;Update if TB changed : &quot; + (pref.checkTBs ? &quot;yes&quot; : &quot;no&quot;) + Preferences.NEWLINE
++					+ &quot;Update if DTS changed: &quot; + (pref.checkDTS ? &quot;yes&quot; : &quot;no&quot;) + Preferences.NEWLINE
++					, null);
+ 
+ 			Hashtable cachesToUpdate = new Hashtable(cacheDB.size());
+ 
+@@ -602,6 +605,10 @@
+ 		page_number++;
+ 		String listPage = getMapListPage(middle, north, west, south, east);
+ 		int i = listPage.indexOf(&quot;\&quot;count\\\&quot;:&quot;); // \&quot;count\&quot;:
++		if (i==-1) {
++			pref.log(&quot;[getCaches:getMapListPage]got nothing!&quot;+listPage,null);
++			return;
++		}
+ 		pref.log(&quot;&quot; + north + &quot; &quot; + west + &quot; &quot; + south + &quot; &quot; + east + &quot; &quot; + listPage.substring(i) + &quot;\n len=&quot; + len);
+ 		if ((listPage.indexOf(&quot;\&quot;count\\\&quot;:501&quot;) &gt; -1)
+ 		||  (listPage.indexOf(&quot;\&quot;count\\\&quot;:0&quot;) &gt; -1 &amp;&amp; len &gt; 30)) {
+@@ -1021,7 +1028,7 @@
+ 				&quot;Found &quot; + numAvailableUpdates + &quot; caches with changed available status.&quot;+Preferences.NEWLINE+
+ 				&quot;Found &quot; + numLogUpdates + &quot; caches with new found in log.&quot;+Preferences.NEWLINE+
+ 				&quot;Found &quot; + (cExpectedForUpdate.size()-numAvailableUpdates-numLogUpdates) + &quot; caches possibly archived.&quot;+Preferences.NEWLINE+
+-				&quot;Found &quot; + cFoundForUpdate.size() + &quot;?=&quot; + (numFoundUpdates+numArchivedUpdates+numAvailableUpdates+numArchivedUpdates) + &quot; caches to update.&quot;+Preferences.NEWLINE+
++				&quot;Found &quot; + cFoundForUpdate.size() + &quot; ?= &quot; + (numFoundUpdates+numArchivedUpdates+numAvailableUpdates+numArchivedUpdates) + &quot; caches to update.&quot;+Preferences.NEWLINE+
+ 				&quot;Found &quot; + numPrivate + &quot; Premium Caches (for non Premium Member.)&quot;,null);
+ 		if(spiderAllFinds){
+ 			pref.log(&quot;Found &quot; + numFoundUpdates + &quot; caches with no found in profile.&quot;+Preferences.NEWLINE+
+@@ -1228,8 +1235,7 @@
+ 		localInfB = new InfoBox(MyLocale.getMsg(5507, &quot;Status&quot;), MyLocale.getMsg(5508, &quot;Logging in...&quot;));
+ 		localInfB.exec();
+ 		try {
+-			// &quot;<A HREF="http://www.geocaching.com/login/default.aspx?RESETCOMPLETE=Y">http://www.geocaching.com/login/default.aspx?RESETCOMPLETE=Y</A>&quot; | loginPageUrl
+-			loginPage = UrlFetcher.fetch(loginPageUrl); // <A HREF="http://www.geocaching.com/login/Default.aspx">http://www.geocaching.com/login/Default.aspx</A>
++			loginPage = UrlFetcher.fetch(loginPageUrl); // <A HREF="http://www.geocaching.com/login/default.aspx">http://www.geocaching.com/login/default.aspx</A>
+ 			if (loginPage.equals(&quot;&quot;)) {
+ 				localInfB.close(0);
+ 				(new MessageBox(MyLocale.getMsg(5500, &quot;Error&quot;),
+@@ -1279,6 +1285,7 @@
+ 					if (rexViewstate.didMatch()) {
+ 						viewstate = rexViewstate.stringMatched(1);
+ 					} else {
++						localInfB.close(0);
+ 						pref.log(&quot;[login]:__VIEWSTATE not found (before login): no login possible.&quot;, null);
+ 						// we need the __VIEWSTATE for sending loginData, so we should abort here
+ 						return ERR_LOGIN;
+@@ -1299,38 +1306,42 @@
+ 						pref.log(&quot;Login successful: &quot; + pref.myAlias);
+ 						// **3 now we are logged in and get the Cookie (there are two)
+ 						PropertyList pl = UrlFetcher.getDocumentProperties();
+-						cookie = &quot;&quot;;
++						String docprops = &quot;&quot;;
+ 						for (int i = 0; i &lt; pl.size(); i++) {
+ 							Property p = (Property) pl.get(i);
+ 							if (p.name.equalsIgnoreCase(&quot;Set-Cookie&quot;)) {
+-								cookie+=p.value;
++								docprops+=p.value;
+ 							}
+ 						}
+-						/* */
+-						String cookieID=&quot;&quot;;
+-						Regex rexCookieID = new Regex(&quot;(?i)userid=(.*?);.*&quot;);
+-						rexCookieID.search(cookie);
+-						if (!rexCookieID.didMatch()) {
+-							pref.log(&quot;[login]:check rexCookieID in SpiderGC.java --&gt; CookieID not found. Using old one.&quot;);
+-						} else
+-							cookieID = rexCookieID.stringMatched(1);
+-						String cookieSession=&quot;&quot;;
+ 						Regex rexCookieSession = new Regex(&quot;(?i)ASP.NET_SessionId=(.*?);.*&quot;);
+-						rexCookieSession.search(cookie);
+-						if (!rexCookieSession.didMatch()) {
+-							pref.log(&quot;[login]:check rexCookieSession in SpiderGC.java --&gt; CookieSession not found. Using old one.&quot;);
+-						} else
+-							cookieSession = rexCookieSession.stringMatched(1);
+-						cookie=&quot;ASP.NET_SessionId=&quot; + cookieSession + &quot;; userid=&quot; + cookieID;
+-						/* */
++						rexCookieSession.search(docprops);
++						if (rexCookieSession.didMatch()) {
++							cookie = &quot;ASP.NET_SessionId=&quot; + rexCookieSession.stringMatched(1);
++						} 
++						else {
++							localInfB.close(0);
++							pref.log(&quot;[login]:SessionID not found.&quot;, null);
++							return ERR_LOGIN;
++						}
++						Regex rexCookieID = new Regex(&quot;(?i)userid=(.*?);.*&quot;);
++						rexCookieID.search(docprops);
++						if (rexCookieID.didMatch()) {
++							cookie += &quot;; userid=&quot; + rexCookieID.stringMatched(1);
++						} 
++						else {
++							localInfB.close(0);
++							pref.log(&quot;[login]:userID not found.&quot;, null);
++							return ERR_LOGIN;
++						}
+ 						UrlFetcher.setPermanentRequestorProperty(&quot;Cookie&quot;, cookie);
+ 
+ 						// **4 change language to EN 
+-						// viewstate=old one
+ 						rexViewstate.search(loginPage);
+ 						if (rexViewstate.didMatch()) {
+ 							viewstate = rexViewstate.stringMatched(1);
+-						} else {
++						} 
++						else {
++							localInfB.close(0);
+ 							pref.log(&quot;[login]:__VIEWSTATE not found (before Language=EN): can't change language.&quot;, null);
+ 							return ERR_LOGIN;
+ 						}
+@@ -1349,7 +1360,8 @@
+ 					}
+ 					else {
+ 						pref.log(&quot;Login failed. Wrong Account or Password? &quot; + pref.myAlias, null);
+-						pref.log(&quot;[login.LoginUrl]:&quot; + sb.toString(), null);
++						pref.log(&quot;[login.url]:&quot; + loginPageUrl, null);
++						pref.log(&quot;[login.postData]:&quot; + sb.toString(), null);
+ 						pref.log(&quot;[login.Answer]:&quot; + loginPage, null);
+ 						localInfB.close(0);
+ 						(new MessageBox(MyLocale.getMsg(5500, &quot;Error&quot;),
+@@ -1490,23 +1502,15 @@
+ 			pref.log(&quot;[getAListPage] check rexViewstate1 in SpiderGC.java&quot; + Preferences.NEWLINE + htmlListPage);
+ 		}
+ 
+-		/*
+-		 * rexEventvalidation.search(htmlPage);
+-		 * if(rexEventvalidation.didMatch()){ 
+-		 * eventvalidation = rexEventvalidation.stringMatched(1); } 
+-		 * else { eventvalidation = &quot;&quot;; }
+-		 */
+-
+ 		String postData = &quot;__EVENTTARGET=&quot; + URL.encodeURL(whatPage, false) + &quot;&amp;&quot; +
+ 						  &quot;__EVENTARGUMENT=&quot; + &quot;&amp;&quot; +
+ 						  &quot;__VIEWSTATEFIELDCOUNT=2&quot; + &quot;&amp;&quot; +
+ 						  &quot;__VIEWSTATE=&quot; + URL.encodeURL(viewstate, false) + &quot;&amp;&quot; +
+-						  &quot;__VIEWSTATE1=&quot; + URL.encodeURL(viewstate1, false); // + &quot;&amp;&quot; +
+-						  //&quot;__EVENTVALIDATION=&quot; + URL.encodeURL(eventvalidation,false);
++						  &quot;__VIEWSTATE1=&quot; + URL.encodeURL(viewstate1, false);
+ 		try {
+ 			UrlFetcher.setpostData(postData);
+ 			htmlListPage = UrlFetcher.fetch(url);
+-			pref.log(&quot;[getAListPage] Got list page: &quot; + URL.encodeURL(whatPage, false));
++			pref.log(&quot;[getAListPage] Got list page: &quot; + url);
+ 		} catch (Exception ex) {
+ 			pref.log(&quot;[getAListPage] Error getting a list page&quot; + url, ex);
+ 		}
+@@ -1546,18 +1550,9 @@
+ 
+ 		try {
+ 			UrlFetcher.setpostData(postData);
+-			// UrlFetcher.setRequestorProperty(&quot;Accept&quot;,&quot;application/json, text/javascript, */*; q=0.01&quot;);
+-			// UrlFetcher.setRequestorProperty(&quot;Accept-Language&quot;,&quot;de-de,de;q=0.8,en-us;q=0.5,en;q=0.3&quot;);
+-			// UrlFetcher.setRequestorProperty(&quot;Accept-Encoding&quot;,&quot;gzip,deflate&quot;);
+-			// UrlFetcher.setRequestorProperty(&quot;Accept-Charset&quot;,&quot;ISO-8859-1,utf-8;q=0.7,*;q=0.7&quot;);
+-			// UrlFetcher.setRequestorProperty(&quot;Keep-Alive&quot;,&quot;115&quot;);
+-			// UrlFetcher.setRequestorProperty(&quot;Proxy-Connection&quot;,&quot;keep-alive&quot;);
+ 			UrlFetcher.setRequestorProperty(&quot;Content-Type&quot;, &quot;application/json; charset=UTF-8&quot;);
+-			// UrlFetcher.setRequestorProperty(&quot;X-Requested-With&quot;,&quot;XMLHttpRequest&quot;);
+-			// UrlFetcher.setRequestorProperty(&quot;Referer&quot;,referer);
+-			// UrlFetcher.setRequestorProperty(&quot;Pragma&quot;,&quot;no-cache&quot;);
+-			// UrlFetcher.setRequestorProperty(&quot;Cache-Control&quot;,&quot;no-cache&quot;);
+-			ret=UrlFetcher.fetch(url);
++			ret=UrlFetcher.fetch(url);			
++
+ 		} catch (Exception ex) {
+ 			ret = &quot;&quot;;
+ 			pref.log(&quot;[SpiderGC:getMapListPage] Error getting map Cachepage&quot; + url + postData, ex);
+@@ -2206,8 +2201,7 @@
+ 						// deleting existing coordinates
+ 						String latLon = getLatLon(completeWebPage);
+ 						if (latLon.equals(&quot;???&quot;)) {
+-							if (completeWebPage.indexOf(p
+-									.getProp(&quot;premiumCachepage&quot;)) &gt; 0) {
++							if (completeWebPage.indexOf(p.getProp(&quot;premiumCachepage&quot;)) &gt; 0) {
+ 								// Premium cache spidered by non premium member
+ 								pref.log(&quot;Ignoring premium member cache: &quot; + ch.getWayPoint());
+ 								spiderTrys = MAX_SPIDER_TRYS;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002940.html">[Cachewolf-svn] r2949 - in trunk: res_noewe src/CacheWolf	src/CacheWolf/imp
+</A></li>
+	<LI>Next message: <A HREF="002942.html">[Cachewolf-svn] r2951 - in trunk: res_noewe res_noewe/languages	src/CacheWolf/exp src/CacheWolf/imp src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2941">[ date ]</a>
+              <a href="thread.html#2941">[ thread ]</a>
+              <a href="subject.html#2941">[ subject ]</a>
+              <a href="author.html#2941">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

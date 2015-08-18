@@ -1,0 +1,132 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r441 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r441%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701230000.l0N00buD002290%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000208.html">
+   <LINK REL="Next"  HREF="000210.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r441 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r441%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701230000.l0N00buD002290%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r441 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Tue Jan 23 01:00:37 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000208.html">[Cachewolf-svn] r440 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000210.html">[Cachewolf-svn] r442 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#209">[ date ]</a>
+              <a href="thread.html#209">[ thread ]</a>
+              <a href="subject.html#209">[ subject ]</a>
+              <a href="author.html#209">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-01-23 01:00:32 +0100 (Tue, 23 Jan 2007)
+New Revision: 441
+
+Modified:
+   trunk/src/CacheWolf/MovingMap.java
+   trunk/src/CacheWolf/TrackOverlay.java
+Log:
+MovingMap: noch kleine Fehler mit bei manchen gro?\195?\159er Wirkung behoben
+
+Modified: trunk/src/CacheWolf/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/MovingMap.java	2007-01-22 19:52:13 UTC (rev 440)
++++ trunk/src/CacheWolf/MovingMap.java	2007-01-23 00:00:32 UTC (rev 441)
+@@ -130,7 +130,9 @@
+ 		File files = new File(mapsPath);
+ 		String rawFileName = new String();
+ 		String[] dirstmp = files.list(&quot;*.wfl&quot;, File.LIST_ALWAYS_INCLUDE_DIRECTORIES | File.LIST_DIRECTORIES_ONLY);
+-		Vector dirs = new Vector(dirstmp);
++		Vector dirs;
++		if (dirstmp != null) dirs = new Vector(dirstmp);
++		else dirs = new Vector();
+ 		dirs.add(&quot;.&quot;); // include the mapsPath itself
+ 		MapInfoObject tempMIO;
+ 		MessageBox f = null;
+@@ -680,7 +682,7 @@
+ 			updateSymbolPositions();
+ 			if (updateOverlay ) updateOverlayPos(); // &amp;&amp; TrackOverlays != null
+ 			//}
+-			mmp.repaintNow(); // TODO test if the &quot;if&quot; above can be used
++			mmp.repaintNow(); // TODO test if the &quot;if&quot; above can be used: i guess it can be used as long as the posCircle doesn't move autonom without a mapmove
+ 		}
+ 		//Vm.debug(&quot;update only position&quot;);			
+ 	}
+@@ -695,10 +697,9 @@
+ 			setBestMap(lat, lon);
+ 			forceMapLoad = false;
+ 			return;
+-
+ 		}
+-		lastUpatePosition.latDec=lat;
+-		lastUpatePosition.lonDec=lon;
++		lastUpatePosition.latDec = lat;
++		lastUpatePosition.lonDec = lon;
+ 		if(!ignoreGps || forceMapLoad){
+ 			updateOnlyPosition(lat, lon, true);
+ 			if (autoSelectMap || forceMapLoad) {
+
+Modified: trunk/src/CacheWolf/TrackOverlay.java
+===================================================================
+--- trunk/src/CacheWolf/TrackOverlay.java	2007-01-22 19:52:13 UTC (rev 440)
++++ trunk/src/CacheWolf/TrackOverlay.java	2007-01-23 00:00:32 UTC (rev 441)
+@@ -24,7 +24,7 @@
+ 	public Point trackPixels[] = null;
+ 	public Color trackPixelsColor[] = null;
+ 	public int numPixels = 0;
+-	final static int maxPixelsInCache = 500;
++	final static int maxPixelsInCache = 100;
+ 	final static Color transparentColor = Color.White;
+ 	public TrackOverlay (TrackPoint topLefti, int widthi, int highti, MapInfoObject transi) {
+ 		topLeft = new TrackPoint(topLefti);
+@@ -120,7 +120,7 @@
+ 
+ 	public void addPixelIfNeccessary(int x, int y, Color f){
+ 		if (trackPixels != null) {
+-			int ll =(numPixels&lt;50 ? 0 : numPixels-50); // look in the last 50 added Pixels if the same Pixel is already in the list (for performance reasons dont look in the whole list)
++			int ll =(numPixels&lt;30 ? 0 : numPixels-30); // look in the last 50 added Pixels if the same Pixel is already in the list (for performance reasons dont look in the whole list)
+ 			for (int i=numPixels-1; i&gt;=ll; i--) {
+ 				if (trackPixels[i].x == x &amp;&amp; trackPixels[i].y == y &amp;&amp; f.equals(trackPixelsColor[i])) 
+ 					{ return; } 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000208.html">[Cachewolf-svn] r440 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000210.html">[Cachewolf-svn] r442 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#209">[ date ]</a>
+              <a href="thread.html#209">[ thread ]</a>
+              <a href="subject.html#209">[ subject ]</a>
+              <a href="author.html#209">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

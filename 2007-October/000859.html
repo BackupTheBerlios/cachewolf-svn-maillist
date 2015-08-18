@@ -1,0 +1,218 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r966 - in trunk: resources src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-October/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r966%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200710102036.l9AKaDkA020279%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000858.html">
+   <LINK REL="Next"  HREF="000860.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r966 - in trunk: resources src/CacheWolf</H1>
+    <B>mik77 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r966%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200710102036.l9AKaDkA020279%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r966 - in trunk: resources src/CacheWolf">mik77 at mail.berlios.de
+       </A><BR>
+    <I>Wed Oct 10 22:36:13 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000858.html">[Cachewolf-svn] r965 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000860.html">[Cachewolf-svn] r967 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#859">[ date ]</a>
+              <a href="thread.html#859">[ thread ]</a>
+              <a href="subject.html#859">[ subject ]</a>
+              <a href="author.html#859">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mik77
+Date: 2007-10-10 22:36:03 +0200 (Wed, 10 Oct 2007)
+New Revision: 966
+
+Modified:
+   trunk/resources/spider.def
+   trunk/src/CacheWolf/SpiderGC.java
+Log:
+adaption to new GC-design (thanks to blackeye501)
+
+Modified: trunk/resources/spider.def
+===================================================================
+--- trunk/resources/spider.def	2007-10-07 19:57:05 UTC (rev 965)
++++ trunk/resources/spider.def	2007-10-10 20:36:03 UTC (rev 966)
+@@ -13,6 +13,7 @@
+ # Version 2.9 - 20070817 Bessere Unterscheidung zwischen Werbung vs.normalen Caches + Caches ohne Richtung/Entfenung
+ # Version 2.10 - 20070825 Travelbug support
+ # Version 2.11 - 20070907 get travelbug mission by tracking number
++# Version 3.0 - 20071010 adaption to new GC-design
+ #============================================================
+ # A suffix of Rex indicates a regular expression
+ # A suffix of ExStart indicates the start of an Extractor search pattern
+@@ -35,7 +36,7 @@
+ listBlockRex       = &lt;table id=&quot;dlResults&quot;((?s).*?)&lt;/table&gt;
+ lineRex            = &lt;tr\ bgcolor='#.{6}'&gt;(?:(?s).*?)&lt;td\ valign=&quot;top&quot;\ align=&quot;left&quot;&gt;((?s).*?)&lt;/tr&gt;
+ distRex            = &lt;br\ /&gt;(.*?)(km|mi)&lt;/td&gt;
+-waypointRex        = &lt;/a&gt; \\((.*?)\\)&lt;br&gt;
++waypointRex        = \\(GC(.*?)\\)&lt;br\ /&gt;
+ showOnlyFound      = &amp;f=1
+ firstLine          = <A HREF="http://www.geocaching.com/seek/nearest.aspx?">http://www.geocaching.com/seek/nearest.aspx?</A>
+ nextListPage       = /seek/nearest.aspx
+@@ -47,11 +48,11 @@
+ fetchAllLogs       = &amp;log=y
+ cacheUnavailable   = This\ cache\ is\ temporarily\ unavailable
+ cacheArchived      = This cache\ has\ been\ archived
+-latLonRex          = &lt;span\ id=&quot;LatLon&quot;&gt;&lt;b&gt;((?s).*?)&lt;/b&gt;&lt;/span&gt;
++latLonRex          = &lt;span\ id=&quot;LatLon&quot;\ style=&quot;font-weight:bold;&quot;&gt;((?s).*?)&lt;/span&gt;
+ shortDescRex       = &lt;span\ id=&quot;ShortDescription&quot;&gt;((?s).*?)&lt;/span&gt;
+ longDescRex        = &lt;span\ id=&quot;LongDescription&quot;&gt;((?s).*?)&lt;strong&gt;Additional\ Hints
+ cacheNameRex       = &lt;span\ id=&quot;CacheName&quot;&gt;((?s).*?)&lt;/span&gt;
+-cacheOwnerRex      = &lt;span\ id=&quot;CacheOwner&quot;&gt;by\ &lt;a\ href=(?:(?s).*?)&gt;((?s).*?)&lt;/a&gt;&lt;/span&gt;&lt;/b&gt;
++cacheOwnerRex      = &lt;span\ id=&quot;CacheOwner&quot;&gt;by\ &lt;a\ href=(?:(?s).*?)&gt;((?s).*?)&lt;/a&gt;&lt;/span&gt;
+ dateHiddenRex      = &lt;span\ id=&quot;DateHidden&quot;&gt;((?s).*?)&lt;/span&gt;
+ hintsRex           = &lt;span\ id=&quot;Hints&quot;\ class=&quot;displayMe&quot;&gt;((?s).*?)&lt;/span&gt;
+ sizeRex            = alt=&quot;Size:\ ((?s).*?)&quot;\ title=&quot;Size:
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2007-10-07 19:57:05 UTC (rev 965)
++++ trunk/src/CacheWolf/SpiderGC.java	2007-10-10 20:36:03 UTC (rev 966)
+@@ -49,6 +49,7 @@
+ 	private static Preferences pref;
+ 	private Profile profile;
+ 	private static String viewstate = &quot;&quot;;
++	private static String eventvalidation = &quot;&quot;;
+ 	private static String cookieID = &quot;&quot;;
+ 	private static String cookieSession = &quot;&quot;;
+ 	private static double distance = 0;
+@@ -111,14 +112,21 @@
+ 		}
+ 		if (!infB.isClosed) { // If user has not aborted, we continue
+ 			Regex rexCookieID = new Regex(&quot;(?i)Set-Cookie: userid=(.*?);.*&quot;);
+-			Regex rex = new Regex(&quot;name=\&quot;__VIEWSTATE\&quot; value=\&quot;(.*?)\&quot; /&gt;&quot;);
++			Regex rexViewstate = new Regex(&quot;id=\&quot;__VIEWSTATE\&quot; value=\&quot;(.*?)\&quot; /&gt;&quot;);
++			Regex rexEventvalidation = new Regex(&quot;id=\&quot;__EVENTVALIDATION\&quot; value=\&quot;(.*?)\&quot; /&gt;&quot;);
+ 			Regex rexCookieSession = new Regex(&quot;(?i)Set-Cookie: ASP.NET_SessionId=(.*?);.*&quot;);
+-			rex.search(start);
+-			if(rex.didMatch()){
+-				viewstate = rex.stringMatched(1);
++			rexViewstate.search(start);
++			if(rexViewstate.didMatch()){
++				viewstate = rexViewstate.stringMatched(1);
+ 				//Vm.debug(&quot;ViewState: &quot; + viewstate);
+ 			} else
+ 				pref.log(&quot;Viewstate not found before login&quot;);
++			rexEventvalidation.search(start);
++			if(rexEventvalidation.didMatch()){
++				eventvalidation = rexEventvalidation.stringMatched(1);
++				//Vm.debug(&quot;EVENTVALIDATION: &quot; + eventvalidation);
++			} else
++				pref.log(&quot;Eventvalidation not found before login&quot;);
+ 			//Ok now login!
+ 			try{
+ 				pref.log(&quot;Logging in as &quot;+pref.myAlias);
+@@ -126,7 +134,8 @@
+ 					+ &quot;&amp;&quot; + URL.encodeURL(&quot;myUsername&quot;,false) +&quot;=&quot;+ encodeUTF8(new String(Utils.encodeJavaUtf8String(pref.myAlias)))
+ 				    + &quot;&amp;&quot; + URL.encodeURL(&quot;myPassword&quot;,false) +&quot;=&quot;+ encodeUTF8(new String(Utils.encodeJavaUtf8String(passwort)))
+ 				    + &quot;&amp;&quot; + URL.encodeURL(&quot;cookie&quot;,false) +&quot;=&quot;+ URL.encodeURL(&quot;on&quot;,false)
+-				    + &quot;&amp;&quot; + URL.encodeURL(&quot;Button1&quot;,false) +&quot;=&quot;+ URL.encodeURL(&quot;Login&quot;,false);
++				    + &quot;&amp;&quot; + URL.encodeURL(&quot;Button1&quot;,false) +&quot;=&quot;+ URL.encodeURL(&quot;Login&quot;,false)
++	     		    + &quot;&amp;&quot; + URL.encodeURL(&quot;__EVENTVALIDATION&quot;,false) +&quot;=&quot;+ URL.encodeURL(eventvalidation,false);
+ 				start = fetch_post(loginPage, doc, nextPage);  // /login/default.aspx
+ 				if(start.indexOf(loginSuccess) &gt; 0)
+ 					pref.log(&quot;Login successful&quot;);
+@@ -143,11 +152,11 @@
+ 				return ERR_LOGIN;
+ 			}
+ 
+-			rex.search(start);
+-			if (!rex.didMatch()) {
++			rexViewstate.search(start);
++			if (!rexViewstate.didMatch()) {
+ 				pref.log(&quot;Viewstate not found&quot;);
+ 			}
+-			viewstate = rex.stringMatched(1);
++			viewstate = rexViewstate.stringMatched(1);
+ 			rexCookieID.search(start);
+ 			if (!rexCookieID.didMatch()) {
+ 				pref.log(&quot;CookieID not found&quot;);
+@@ -265,7 +274,8 @@
+ 			ch.is_new = false;
+ 		}
+ 		String start = &quot;&quot;;
+-		Regex rex = new Regex(&quot;name=\&quot;__VIEWSTATE\&quot; value=\&quot;(.*)\&quot; /&gt;&quot;);
++		Regex rexViewstate = new Regex(&quot;id=\&quot;__VIEWSTATE\&quot; value=\&quot;(.*)\&quot; /&gt;&quot;);
++		Regex rexEventvalidation = new Regex(&quot;id=\&quot;__EVENTVALIDATION\&quot; value=\&quot;(.*)\&quot; /&gt;&quot;);
+ 		String doc = &quot;&quot;;
+ 
+ 		if (!loggedIn || Global.getPref().forceLogin) {
+@@ -317,8 +327,10 @@
+ 			//Loop till maximum distance has been found or no more caches are in the list
+ 			while(distance &gt; 0){
+ 				if (infB.isClosed) break;
+-				rex.search(start);
+-				viewstate = rex.stringMatched(1);
++				rexViewstate.search(start);
++				viewstate = rexViewstate.stringMatched(1);
++				rexEventvalidation.search(start);
++				eventvalidation = rexEventvalidation.stringMatched(1);
+ 				//Vm.debug(&quot;In loop&quot;);
+ 				Regex listBlockRex = new Regex(p.getProp(&quot;listBlockRex&quot;)); // &quot;&lt;table id=\&quot;dlResults\&quot;((?s).*?)&lt;/table&gt;&quot;
+ 				listBlockRex.search(start);
+@@ -343,10 +355,10 @@
+ 				if(distance &gt; 0){
+ 					page_number++;
+ 					if(page_number &gt;= 15) page_number = 5;
+-					doc = URL.encodeURL(&quot;__VIEWSTATE&quot;,false) +&quot;=&quot;+ URL.encodeURL(viewstate,false)
+-					//if(doNotgetFound) doc += &quot;&amp;f=1&quot;;
+-					    + &quot;&amp;&quot; + URL.encodeURL(&quot;__EVENTTARGET&quot;,false) +&quot;=&quot;+ URL.encodeURL(&quot;ResultsPager:_ctl&quot;+page_number,false)
+-					    + &quot;&amp;&quot; + URL.encodeURL(&quot;__EVENTARGUMENT&quot;,false) +&quot;=&quot;+ URL.encodeURL(&quot;&quot;,false);
++					doc = URL.encodeURL(&quot;__EVENTTARGET&quot;,false) +&quot;=&quot;+ URL.encodeURL(&quot;pgrTop$_ctl16&quot;,false)
++					    + &quot;&amp;&quot; + URL.encodeURL(&quot;__EVENTARGUMENT&quot;,false) +&quot;=&quot;+ URL.encodeURL(&quot;&quot;,false)
++					    + &quot;&amp;&quot; + URL.encodeURL(&quot;__VIEWSTATE&quot;,false) +&quot;=&quot;+ URL.encodeURL(viewstate,false)
++					    + &quot;&amp;&quot; + URL.encodeURL(&quot;__EVENTVALIDATION&quot;,false) +&quot;=&quot;+ URL.encodeURL(eventvalidation,false);
+ 					try{
+ 						start = &quot;&quot;;
+ 						pref.log(&quot;Fetching next list page:&quot; + doc);
+@@ -572,7 +584,7 @@
+ 		inRex = new Regex(p.getProp(&quot;waypointRex&quot;));
+ 		inRex.search(doc);
+ 		if (!inRex.didMatch()) return &quot;???&quot;;
+-		return inRex.stringMatched(1);
++		return &quot;GC&quot;+inRex.stringMatched(1);
+ 	}
+ 
+ 	/**
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000858.html">[Cachewolf-svn] r965 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000860.html">[Cachewolf-svn] r967 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#859">[ date ]</a>
+              <a href="thread.html#859">[ thread ]</a>
+              <a href="subject.html#859">[ subject ]</a>
+              <a href="author.html#859">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

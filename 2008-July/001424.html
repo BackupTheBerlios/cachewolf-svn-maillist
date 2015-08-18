@@ -1,0 +1,141 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1530 - in trunk: res_noewe src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-July/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1530%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf&In-Reply-To=%3C200807250947.m6P9lVQD029610%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001423.html">
+   <LINK REL="Next"  HREF="001425.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1530 - in trunk: res_noewe src/CacheWolf</H1>
+    <B>mik77 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1530%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf&In-Reply-To=%3C200807250947.m6P9lVQD029610%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1530 - in trunk: res_noewe src/CacheWolf">mik77 at mail.berlios.de
+       </A><BR>
+    <I>Fri Jul 25 11:47:31 CEST 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001423.html">[Cachewolf-svn] r1529 - in branches/bugfix_1.0: res_noewe	src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001425.html">[Cachewolf-svn] r1531 - in branches/bugfix_1.0: res_noewe	src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1424">[ date ]</a>
+              <a href="thread.html#1424">[ thread ]</a>
+              <a href="subject.html#1424">[ subject ]</a>
+              <a href="author.html#1424">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mik77
+Date: 2008-07-25 11:47:24 +0200 (Fri, 25 Jul 2008)
+New Revision: 1530
+
+Modified:
+   trunk/res_noewe/spider.def
+   trunk/src/CacheWolf/SpiderGC.java
+Log:
+Adaption to new GC.COM design
+
+Modified: trunk/res_noewe/spider.def
+===================================================================
+--- trunk/res_noewe/spider.def	2008-07-25 09:46:36 UTC (rev 1529)
++++ trunk/res_noewe/spider.def	2008-07-25 09:47:24 UTC (rev 1530)
+@@ -21,6 +21,7 @@
+ # Version 3.5 - 20080529 Modified descRex to allow for linebreaks
+ # Version 3.6 - 20080531 Modified descRex to avoid Stack overflow in exe 
+ # Version 3.7 - 20080613 Some lines generalized for proxies replacing the images.
++# Version 4.0 - 20080725 adaption to new GC-design
+ #============================================================
+ # A suffix of Rex indicates a regular expression
+ # A suffix of ExStart indicates the start of an Extractor search pattern
+@@ -40,9 +41,9 @@
+ firstPage          = <A HREF="http://www.geocaching.com/seek/nearest.aspx?lat=">http://www.geocaching.com/seek/nearest.aspx?lat=</A>
+ firstPage2         = &amp;lon=
+ # Regex to search for cachenames 
+-listBlockRex       = &lt;table id=&quot;dlResults&quot;((?s).*?)&lt;/table&gt;
++listBlockRex       = &lt;table id=&quot;ctl00_ContentBody_dlResults&quot;((?s).*?)&lt;/table&gt;
+ lineRex            = &lt;tr\ bgcolor='#.{6}'&gt;(?:(?s).*?)&lt;td\ valign=&quot;top&quot;\ align=&quot;left&quot;&gt;((?s).*?)&lt;/tr&gt;
+-distRex            = &lt;br\ /&gt;(.*?)(km|mi)&lt;/td&gt;
++distRex            = &lt;br\ /&gt;(.*?)(?:km|mi)(?:\\s*)&lt;/td&gt;
+ waypointRex        = \\(GC(.*?)\\)&lt;br\ /&gt;
+ showOnlyFound      = &amp;f=1
+ firstLine          = <A HREF="http://www.geocaching.com/seek/nearest.aspx?">http://www.geocaching.com/seek/nearest.aspx?</A>
+@@ -74,19 +75,19 @@
+ blockRex           = &lt;span\ id=&quot;CacheLogs&quot;&gt;((?s).*?)&lt;/span&gt;
+ # singleLogEx extrahiert in einer Schleife alle Logs aus dem Logbereich
+ singleLogExStart   = &lt;STRONG&gt;
+-singleLogExEnd     = [&lt;A\ href=
++singleLogExEnd     = [&lt;a\ href=
+ # iconEx, nameTempEx, dateEx, singleLogEx werden auf einen singleLog angewendet
+ iconExStart        = <A HREF="http://www.geocaching.com/images/icons/">http://www.geocaching.com/images/icons/</A>
+ iconExEnd          = '\ align='abs
+-nameTempExStart    = &lt;A\ HREF=&quot;
+-nameTempExEnd      = /A&gt;
++nameTempExStart    = &lt;a\ href=&quot;
++nameTempExEnd      = /a&gt;
+ # Name extrahiert aus nameTemp
+ nameExStart        = &gt;
+ nameExEnd          = &lt;
+ dateExStart        = align='absmiddle'&gt;&nbsp;
+ dateExEnd          = \ by\ &lt;
+-logExStart         = found)&lt;br&gt;
+-logExEnd           = &lt;br&gt;[
++logExStart         = found)&lt;br\ /&gt;
++logExEnd           = &lt;br\ /&gt;[
+ # Die Icons, die einen erfolgreichen Fund signalisieren
+ icon_smile         = icon_smile.gif
+ icon_camera        = icon_camera.gif
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2008-07-25 09:46:36 UTC (rev 1529)
++++ trunk/src/CacheWolf/SpiderGC.java	2008-07-25 09:47:24 UTC (rev 1530)
+@@ -419,7 +419,13 @@
+ 				if(distance &gt; 0){
+ 					page_number++;
+ 					if(page_number &gt;= 15) page_number = 5;
+-					doc = URL.encodeURL(&quot;__EVENTTARGET&quot;,false) +&quot;=&quot;+ URL.encodeURL(&quot;pgrTop$_ctl&quot; +page_number,false)
++					String strNextPage;
++					if (page_number &lt; 10) {
++						strNextPage = &quot;ctl00$ContentBody$pgrTop$ctl0&quot; + page_number;
++					} else {
++						strNextPage = &quot;ctl00$ContentBody$pgrTop$ctl&quot; + page_number;
++					}
++					doc = URL.encodeURL(&quot;__EVENTTARGET&quot;,false) +&quot;=&quot;+ URL.encodeURL(strNextPage,false)
+ 					    + &quot;&amp;&quot; + URL.encodeURL(&quot;__EVENTARGUMENT&quot;,false) +&quot;=&quot;+ URL.encodeURL(&quot;&quot;,false)
+ 					    + &quot;&amp;&quot; + URL.encodeURL(&quot;__VIEWSTATE&quot;,false) +&quot;=&quot;+ URL.encodeURL(viewstate,false)
+ 					    + &quot;&amp;&quot; + URL.encodeURL(&quot;__EVENTVALIDATION&quot;,false) +&quot;=&quot;+ URL.encodeURL(eventvalidation,false);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001423.html">[Cachewolf-svn] r1529 - in branches/bugfix_1.0: res_noewe	src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001425.html">[Cachewolf-svn] r1531 - in branches/bugfix_1.0: res_noewe	src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1424">[ date ]</a>
+              <a href="thread.html#1424">[ thread ]</a>
+              <a href="subject.html#1424">[ subject ]</a>
+              <a href="author.html#1424">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

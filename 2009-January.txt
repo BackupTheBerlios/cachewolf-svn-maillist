@@ -1,0 +1,2689 @@
+From salzkammergut at mail.berlios.de  Fri Jan  9 00:52:15 2009
+From: salzkammergut at mail.berlios.de (salzkammergut at mail.berlios.de)
+Date: Fri, 9 Jan 2009 00:52:15 +0100
+Subject: [Cachewolf-svn] r1587 - trunk/src/CacheWolf
+Message-ID: <200901082352.n08NqFn6029536@sheep.berlios.de>
+
+Author: salzkammergut
+Date: 2009-01-09 00:52:04 +0100 (Fri, 09 Jan 2009)
+New Revision: 1587
+
+Modified:
+   trunk/src/CacheWolf/Parser.java
+Log:
+Bugfix for "Verwirrung im Solver" (http://www.geoclub.de/viewtopic.php?f=40&t=30046)
+
+
+Modified: trunk/src/CacheWolf/Parser.java
+===================================================================
+--- trunk/src/CacheWolf/Parser.java	2008-12-10 21:54:54 UTC (rev 1586)
++++ trunk/src/CacheWolf/Parser.java	2009-01-08 23:52:04 UTC (rev 1587)
+@@ -1,5 +1,5 @@
+ /* A parser that parses the following grammar:
+-  EBNF Meta-Symbols: 
++  EBNF Meta-Symbols:
+     {xx}        xx can occur any number of times incl 0
+     [xx]        xx or empty
+     |           or
+@@ -8,9 +8,9 @@
+ command -> if |
+            simplecommand
+ 
+-simplecommand -> "stop" | "st" | 
++simplecommand -> "stop" | "st" |
+ 		   assign
+-           stringexp | 
++           stringexp |
+ 
+ if -> "IF" stringexpr compop stringexpr "THEN" simplecommand { ";" simplecommand } "ENDIF"          // Nested IF's not allowed
+ 
+@@ -22,20 +22,20 @@
+ 
+ expr -> ["+" | "-"] tailexp [ formatstring ]
+ 
+-tailexp -> term { ("+" | "-") term } 
+-		 
++tailexp -> term { ("+" | "-") term }
++
+ term -> factor { ("*" | "/") factor }
+ 
+ factor -> expfactor { "^" expfactor }
+ 
+-expfactor -> ident | 
+-          number | 
++expfactor -> ident |
++          number |
+           "(" stringexpr ")" |
+           function "(" stringexpr { "," stringexpr }")"
+-          
+-function -> "sin" | "cos" | "tan" | "asin" | "acos" | "atan" | "goto" | "project" | "show"  | "crosstotal" | 
+-            "rot13" | "len" | "mid"         
+ 
++function -> "sin" | "cos" | "tan" | "asin" | "acos" | "atan" | "goto" | "project" | "show"  | "crosstotal" |
++            "rot13" | "len" | "mid"
++
+ ident -> valid identifier
+ number -> valid number
+ 
+@@ -54,7 +54,7 @@
+ 
+ /**
+ *	The wolf language parser. New version - January 2007
+-*   
++*
+ *   New features:
+ *   - Improved error handling
+ *   - Strings and doubles can be freely mixed as appropriate. Depending on context a conversion is performed,
+@@ -70,16 +70,16 @@
+ *   	- Command terminator ; no longer compulsory (only between multiple commands on same line)
+ *   - New functions can easily be added
+ *   - Can select whether variable names are case sensitive
+-*   
++*
+ *   To add a new function:
+ *     1) Add its name and alias and allowed number of args to array functions
+ *     2) Add a new private method in the "functions" section
+-*     3) Add call to private method in executeFunction 
++*     3) Add call to private method in executeFunction
+ *   @author salzkammergut Januay 2007
+-*/ 
++*/
+ public class Parser{
+ 
+-	private class fnType { 
++	private class fnType {
+ 		public String funcName; 	 // the function name in the user input
+ 		public String alias;         // the funcName is mapped to this alias
+ 		public int nargs;            // bitmap for number of args, i.e. 14 = 1 or 2 or 3 args; 5 = 0 or 2 args
+@@ -92,7 +92,7 @@
+ 		}
+ 	}
+     fnType[] functions=new fnType[]{ // in alphabetical order
+-    	new fnType("abs","abs",2),	
++    	new fnType("abs","abs",2),
+     	new fnType("acos","acos",2),
+     	new fnType("asin","asin",2),
+     	new fnType("atan","atan",2),
+@@ -152,21 +152,21 @@
+ 	TokenObj thisToken = new TokenObj();
+ 	Vector tokenStack;
+ 	Vector messageStack;
+-	
++
+ 	public Parser(){
+ 	}
+ 
+ ///////////////////////////////////////////
+ //  Utility functions
+ ///////////////////////////////////////////
+-	
++
+ 	/* All errors are handled via function 'err'. Rather than creating many different Exceptions,
+ 	 * only the standard Exception is used. err raises this exception and thereby causes the stack to be
+ 	 * unwound until 'parse' eventually catches the exception and returns to SolverPanel, which displays
+ 	 * the messageStack containing the error message.
+ 	 */
+-	
+-	/** 
++
++	/**
+      * Add an error message to the message stack and raise an Exception.
+     */
+ 	private void err(String str) throws Exception {
+@@ -176,7 +176,7 @@
+     	if (Global.mainTab.solverP.mText.setSelectionRange(0,thisToken.line-1,thisToken.position+thisToken.token.length()-1,thisToken.line-1))Global.mainTab.solverP.mText.repaintNow();
+     	throw new Exception("Error "+str);
+     }
+-    
++
+     /** Shows global symbols */
+     private void showVars(boolean globals) throws Exception {
+     	Iterator it=symbolTable.entries();
+@@ -197,28 +197,28 @@
+     	Iterator it=symbolTable.entries();
+     	while (it.hasNext()) {
+     		ewe.util.Map.MapEntry sym=(ewe.util.Map.MapEntry) it.next();
+-    		if (!((String)sym.getKey()).startsWith("$")) 
++    		if (!((String)sym.getKey()).startsWith("$"))
+     			symbolTable.remove(sym.getKey());
+     	}
+     	Double pi=new Double(java.lang.Math.PI);
+     	symbolTable.put("PI",pi);
+     	symbolTable.put("pi",pi); // To make it easier for the user we also add a lowercase version of pi
+     }
+-    
++
+ 	private boolean isVariable(String varName) {
+-		return varName.startsWith("$") ||  // Global variables exist per default 
++		return varName.startsWith("$") ||  // Global variables exist per default
+ 		       symbolTable.containsKey(Global.getPref().solverIgnoreCase?varName.toUpperCase():varName);
+ 	}
+-	
++
+ 	private boolean isInteger(double d) {
+ 		return java.lang.Math.ceil(d)==d && java.lang.Math.floor(d)==d;
+ 	}
+-	
++
+     private boolean isValidCoord(String coord) {
+     	cwPt.set(coord);
+     	return cwPt.isValid();
+     }
+-    
++
+ 	private Object getVariable(String varName) throws Exception {
+ 		if (varName.startsWith("$")) { // Potential coordinate
+ 			int idx=Global.getProfile().getCacheIndex(varName.substring(1));
+@@ -226,7 +226,7 @@
+ 				CacheHolder ch=(CacheHolder)Global.getProfile().cacheDB.get(idx);
+ 				// Check whether coordinates are valid
+ 				cwPt.set(ch.pos);
+-				if (cwPt.isValid() ) 
++				if (cwPt.isValid() )
+ 					return cwPt.toString();
+ 				else
+ 					return ""; // Convert invalid coordinates (N 0 0.0 E 0 0.0) into empty string
+@@ -243,10 +243,10 @@
+ 		}
+ 		return result;
+ 	}
+-	
++
+ 	private double toNumber(String str) {
+ 		try {
+-			if (MyLocale.getDigSeparator().equals(","))	
++			if (MyLocale.getDigSeparator().equals(","))
+ 				str = str.replace('.', ',');
+ 			else
+ 				str = str.replace(',','.');
+@@ -255,35 +255,35 @@
+ 			 return java.lang.Double.NaN;
+ 		}
+ 	}
+-	
++
+ 	private Double getNumber(String str) throws Exception {
+ 		double ret=toNumber(str);
+ 		if (java.lang.Double.isNaN(ret))
+ 			err(MyLocale.getMsg(1703,"Not a valid number: ") + str);
+ 		return new java.lang.Double(ret);
+ 	}
+-	
++
+ 	/** Get the top element of the calculation stack and try and convert it to a number if it is a string */
+ 	private double popCalcStackAsNumber(double defaultForEmptyString) throws Exception {
+ 		double num;
+ 		if (calcStack.get(calcStack.size()-1) instanceof String) {
+ 			if (((String)calcStack.get(calcStack.size()-1)).equals(""))
+ 				num=defaultForEmptyString;
+-			else	
++			else
+ 				num = getNumber((String)calcStack.get(calcStack.size()-1)).doubleValue();
+ 		} else {
+ 			num = ((java.lang.Double)calcStack.get(calcStack.size()-1)).doubleValue();
+ 		}
+ 		calcStack.removeElementAt(calcStack.size()-1);
+-		return num;	
++		return num;
+ 	}
+-	
++
+ 	private String popCalcStackAsString() {
+ 		String s;
+ 		if (calcStack.get(calcStack.size()-1) instanceof Double) {
+ 			java.lang.Double D=((java.lang.Double)calcStack.get(calcStack.size()-1));
+ 			// Double.toString() formats numbers > 1E7 and < 1E-3 with exponential notation
+-			// For large integers we therefore use Longs  
++			// For large integers we therefore use Longs
+ 			double d=D.doubleValue();
+ 			// If the double is an integer and within range of longs, use Long
+ 			if (java.lang.Math.floor(d)==d && d<java.lang.Long.MAX_VALUE && d>java.lang.Long.MIN_VALUE) {
+@@ -296,9 +296,9 @@
+ 		} else
+ 			s = (String)calcStack.get(calcStack.size()-1);
+ 		calcStack.removeElementAt(calcStack.size()-1);
+-		return s;	
++		return s;
+ 	}
+-	
++
+ 	private void getToken() throws Exception {
+ 		if(scanpos < tokenStack.size()){
+ 			thisToken = (TokenObj)tokenStack.get(scanpos);
+@@ -306,7 +306,7 @@
+ 			scanpos++;
+ 		} else err(MyLocale.getMsg(1704,"Unexpected end of source"));
+ 	}
+-	
++
+ 	private TokenObj peekToken() {
+ 		if(scanpos < tokenStack.size()){
+ 			return (TokenObj)tokenStack.get(scanpos);
+@@ -317,7 +317,7 @@
+ 	private void getNextTokenOtherThanSemi() throws Exception {
+ 		do {
+ 			getToken();
+-		} while (thisToken.token.equals(";"));	
++		} while (thisToken.token.equals(";"));
+ 	}
+ 
+ 	private void skipPastEndif(TokenObj ifToken) throws Exception {
+@@ -335,7 +335,7 @@
+ 	private TokenObj lookAheadToken() {
+ 		return (TokenObj)tokenStack.get(scanpos);
+ 	}
+-	
++
+ 	private boolean checkNextSymIs(String str) throws Exception {
+ 		if(thisToken.token.toUpperCase().equals(str)){
+ 			return true;
+@@ -364,7 +364,7 @@
+ ///////////////////////////////////////////
+ //  FUNCTIONS
+ ///////////////////////////////////////////
+-	
++
+ 	/** If we are in DEGree mode, convert the argument to RADiants, if not leave it unchanged */
+ 	private double makeRadiant(double arg) {
+ 		if (Global.getPref().solverDegMode)
+@@ -372,7 +372,7 @@
+ 		else
+ 			return arg;
+ 	}
+-	
++
+ 	/** If we are in DEGree mode, convert the argument to degrees */
+ 	private double makeDegree(double arg) {
+ 		if (Global.getPref().solverDegMode)
+@@ -380,7 +380,7 @@
+ 		else
+ 			return arg;
+ 	}
+-    
++
+     /** Calculate brearing from one point to the next */
+     private double funcBearing() throws Exception {
+     	String coordB=popCalcStackAsString();
+@@ -404,21 +404,21 @@
+ 			Global.getProfile().updateBearingDistance();
+ 		}
+ 	}
+-	
++
+ 	/** Clear Screen */
+ 	private void funcCls() {
+ 		// OutputPanel is private, so need to cast to base class
+ 		((ewe.ui.mTextPad) Global.mainTab.solverP.mOutput).setText("");
+ 	}
+-	
++
+ 	private int funcCountChar(String s, char c) {
+     	int count=0;
+     	for (int i=0; i<s.length(); i++)
+     		if (s.charAt(i)==c) count++;
+     	return count;
+     }
+-    
+-    /** count(string1,string2) 
++
++    /** count(string1,string2)
+      * */
+     private void funcCount()throws Exception {
+        	String s2=popCalcStackAsString();
+@@ -432,17 +432,17 @@
+     			res+=s2.charAt(i)+"="+funcCountChar(s1,s2.charAt(i))+" ";
+     		}
+     		calcStack.add(res);
+-    	} 
++    	}
+     }
+-    
++
+     private String funcCp(){
+     	return Global.mainTab.nav.gpsPos.toString();
+     }
+-    
++
+     /**
+      *  Crosstotal: Works for both strings and numbers. For strings any non-numeric character is ignored
+      *  Warning: When the number is non-integer or > 9223372036854775807, it is formatted using the E
+-     *  notation, i.e. x.xxxxxxEyy. In this case the exponent yy is also included in the crosstotal 
++     *  notation, i.e. x.xxxxxxEyy. In this case the exponent yy is also included in the crosstotal
+      */
+     private double funcCrossTotal(int nargs) throws Exception {
+     	int cycles=1;
+@@ -459,21 +459,21 @@
+ 			      a += aString.charAt(i)-'0';
+ 			}
+ 			aString=Convert.toString(a);
+-    	} 
++    	}
+     	return a;
+     }
+-    
++
+     private void funcDeg(boolean arg) {
+     	Global.getPref().solverDegMode=arg;
+     	Global.mainTab.solverP.showSolverMode();
+     }
+-    
++
+     /** Convert degrees into Radiants */
+     private double funcDeg2Rad() throws Exception {
+     	double a=popCalcStackAsNumber(0);
+     	return a/180.0*java.lang.Math.PI;
+     }
+-    	
++
+     	/** Calculate distance between 2 points */
+     private double funcDistance() throws Exception {
+     	String coordB=popCalcStackAsString();
+@@ -484,7 +484,7 @@
+     	cwPt.set(coordA);
+     	return cwPt.getDistance(new CWPoint(coordB))*1000.0;
+     }
+-    
++
+     /**
+      * Encode a string by replacing all characters in a string with their corresponding characters in
+      * another string
+@@ -500,13 +500,13 @@
+     		int pos;
+     		if ((pos=oldChars.indexOf(s.charAt(i)))!=-1) {
+     			encodedStr+=newChars.charAt(pos);
+-    		} else 
++    		} else
+     			encodedStr+=s.charAt(i);
+     	}
+     	 return encodedStr;
+     }
+-    
+-    /** Format a valid coordinate 
++
++    /** Format a valid coordinate
+      *  If called with one args, format the argument on the stack to CW standard
+      *  The optional second argument is one of these strings "UTM","DMS","DD","DMM" or "CW"
+      * @param nargs 1 or 2 args
+@@ -525,13 +525,13 @@
+     	else if (!fmtStr.equals("cw")) err(MyLocale.getMsg(1713,"Invalid coordinate format. Allowed are CW/DD/DMM/DMS/UTM"));
+     	return cwPt.toString(fmt);
+     }
+-    
++
+     /** Implements a goto command goto(coordinate,optionalWaypointName).
+      */
+     private void funcGoto(int nargs) throws Exception {
+     	Navigate nav=Global.mainTab.nav;
+ 		String waypointName=null;
+-        if (nargs==2) waypointName=popCalcStackAsString();  
++        if (nargs==2) waypointName=popCalcStackAsString();
+ 		String coord=popCalcStackAsString();
+ 		if (!isValidCoord(coord)) err(MyLocale.getMsg(1712,"Invalid coordinate: ")+coord);
+ 		// Don't want to switch to goto panel, just set the values
+@@ -543,21 +543,21 @@
+     		CacheHolder ch=((CacheHolder)Global.getProfile().cacheDB.get(i));
+     		ch.LatLon=cwPt.toString(CWPoint.CW);
+     		ch.pos.set(cwPt);
+-    		ch.calcDistance(Global.getPref().curCentrePt); // Update distance/bearing 
++    		ch.calcDistance(Global.getPref().curCentrePt); // Update distance/bearing
+     	    Global.getProfile().selectionChanged=true; // Tell moving map to updated displayed waypoints
+     	}
+     }
+-    
++
+     /** Display or change the case sensitivity of variable names */
+     private void funcIgnoreVariableCase(int nargs) throws Exception {
+-    	if (nargs==0) 
++    	if (nargs==0)
+     		calcStack.add(""+Global.getPref().solverIgnoreCase);
+     	else {
+     		Global.getPref().solverIgnoreCase=(popCalcStackAsNumber(0)!=0)?true:false;
+     	}
+     }
+-    
+-    /** VB instr function 
++
++    /** VB instr function
+      * instr([start],string1,string2)
+      * */
+     private int funcInstr(int nargs) throws Exception {
+@@ -567,7 +567,7 @@
+     	if (nargs==3) start=(int) popCalcStackAsNumber(1);
+     	if (start>s1.length()) err(MyLocale.getMsg(1715,"instr: Start position not in string"));
+     	if(s2.equals("")) {
+-    		if (s1.equals("")) 
++    		if (s1.equals(""))
+     			return 0;
+     		else
+     			return 1;
+@@ -593,7 +593,7 @@
+     		return s.substring((int)start-1,end);
+     	}
+     }
+- 
++
+ 	/** Get or set the profile centre */
+ 	private void funcPz(int nargs) throws Exception {
+ 		if (nargs==0) {
+@@ -604,16 +604,16 @@
+ 			Global.getProfile().centre.set(coordA);
+ 		}
+ 	}
+-    
++
+     /** Project a waypoint at some angle and some distance */
+     private String funcProject() throws Exception {
+     	double distance=popCalcStackAsNumber(0);
+     	if (distance<0) err(MyLocale.getMsg(1718,"Cannot project a negative distance"));
+     	double degrees=popCalcStackAsNumber(0);
+     	// If we are not in degree mode, arg is in radiants ==> convert it
+-    	if (!Global.getPref().solverDegMode) degrees=degrees * 180.0 / java.lang.Math.PI; 
+-    	if (degrees<0 || degrees>360) 
+-    		if (Global.getPref().solverDegMode) 
++    	if (!Global.getPref().solverDegMode) degrees=degrees * 180.0 / java.lang.Math.PI;
++    	if (degrees<0 || degrees>360)
++    		if (Global.getPref().solverDegMode)
+     			err(MyLocale.getMsg(1719,"Projection degrees must be in interval [0;360]"));
+     		else
+     			err(MyLocale.getMsg(1739,"Projection degrees must be in interval [0;2*PI]"));
+@@ -628,7 +628,7 @@
+     	double a=popCalcStackAsNumber(0);
+     	return a*180.0/java.lang.Math.PI;
+     }
+-    
++
+     /** Replace all occurrences of a string with another string */
+     private String funcReplace() throws Exception {
+     	String replaceWith=popCalcStackAsString();
+@@ -637,17 +637,17 @@
+         if (whatToReplace.equals("")) return s;
+         return STRreplace.replace(s,whatToReplace,replaceWith);
+     }
+-    
++
+     /** Reverse a string */
+     private String funcReverse(String s) {
+     	String res="";
+     	for (int i=s.length()-1; i>=0; i--) res+=s.charAt(i);
+     	return res;
+     }
+-    
++
+     /** Create a skeleton for multis. This function can be called in three ways:<br>
+-     *  <pre>sk()                Create skeleton for current cache (must have addi wpts) 
+-     *  sk(number)          Create skeleton for number variables 
++     *  <pre>sk()                Create skeleton for current cache (must have addi wpts)
++     *  sk(number)          Create skeleton for number variables
+      */
+     private void funcSkeleton(int nargs) throws Exception {
+    		String waypointName=Global.mainTab.lastselected;
+@@ -688,7 +688,7 @@
+ 				op.append("  \""+stageName+" = \" "+stageWpt+"\n");
+ 				op.append("  goto("+stageWpt+"); STOP\n");
+ 				op.append("ENDIF\n");
+-			}		
++			}
+ 			Global.mainTab.solverP.mText.appendText(op.toString(),true);
+ 			if (didCreateWp) {
+ 		    	Global.mainTab.updatePendingChanges();
+@@ -729,25 +729,25 @@
+ 			}// if hasAddiWpt
+     	}
+     }
+-    
++
+     private double funcSqrt() throws Exception {
+     	double a=popCalcStackAsNumber(0);
+     	if (a<0) err(MyLocale.getMsg(1720,"Cannot calculate square root of a negative number"));
+     	return java.lang.Math.sqrt(a);
+     }
+-    
++
+     /** Replace each character by its number A=1, B=2 etc. and put result into a string */
+     private String funcSval(String s) {
+        	s=s.toLowerCase();
+     	String res="";
+        	for (int i=0; i<s.length(); i++) {
+     		int pos="abcdefghijklmnopqrstuvwxyz".indexOf(s.charAt(i));
+-    		if (pos>=0) 
++    		if (pos>=0)
+     			res+=(res==""?"":" ")+MyLocale.formatLong(pos+1,"00");
+     	}
+     	return res;
+     }
+-    
++
+     /** Replace each character by its number A=1, B=2 etc. and sum them */
+     private double funcVal(String s) {
+     	s=s.toLowerCase();
+@@ -757,24 +757,24 @@
+     	}
+     	return sum;
+     }
+-    
++
+ ///////////////////////////////////////////
+ //  PARSER
+ ///////////////////////////////////////////
+-   
+-    
++
++
+     /** The following methods implement a recursive descent parser.
+      * Each method is called with 'thisToken' containing a valid token. It must return with 'thisToken' again containing
+      * a valid token.
+      */
+- 
++
+ 	private void parseCommand()  throws Exception {
+ 		while(scanpos < tokenStack.size()) {
+ 			getToken();
+ 			if (thisToken.token.equals(";")) continue;  // skip an empty command
+-			if (thisToken.tt==TokenObj.TT_IF) 
++			if (thisToken.tt==TokenObj.TT_IF)
+ 				parseIf();
+-			else 
++			else
+ 				parseSimpleCommand();
+ 			checkNextSymIs(";");
+ 		}
+@@ -788,14 +788,14 @@
+ 		} else if (thisToken.token.equals("?")) { // Show all local variables
+ 			showVars(false);
+ 			getToken();
+-		} else if (thisToken.tt==TokenObj.TT_VARIABLE && lookAheadToken().tt==TokenObj.TT_EQ) 
++		} else if (thisToken.tt==TokenObj.TT_VARIABLE && lookAheadToken().tt==TokenObj.TT_EQ)
+ 			parseAssign();
+ 		else {
+ 			parseStringExp();
+ 			while (calcStack.size()>0) messageStack.add(popCalcStackAsString());
+ 		}
+ 	}
+-	
++
+ 	private void parseIf() throws Exception{
+ 		int compOp;
+ 		boolean compRes=false;
+@@ -810,7 +810,7 @@
+ 				if (varName.startsWith("$")) { // Could be a cachename
+ 					varName=varName.substring(1);
+ 					compRes=Global.getProfile().getCacheIndex(varName)!=-1;
+-				} else 
++				} else
+ 					compRes=false;
+ 			} else // Found the variable, it must have a value
+ 				compRes=true;
+@@ -869,12 +869,12 @@
+ 		} else // comparison failed
+ 			skipPastEndif(ifToken);
+ 	}
+-	
++
+ 	private void parseAssign() throws Exception  {
+ 		String varName=new String(thisToken.token);
+ 		getToken(); //=
+ 		getToken();
+-		// Assigns of the format A=; are ignored so that they can stay as placeholders and 
++		// Assigns of the format A=; are ignored so that they can stay as placeholders and
+ 		// we can fill the data progressively during a multicache
+ 		if (thisToken.tt==TokenObj.TT_ENDIF || thisToken.token.equals(";")) return;
+ 		parseStringExp();
+@@ -898,7 +898,7 @@
+ 		}
+ 		symbolTable.put(Global.getPref().solverIgnoreCase?varName.toUpperCase():varName, popCalcStackAsString());
+ 	}
+-	
++
+ 	private void parseStringExp()throws Exception {
+ 		if (thisToken.tt==TokenObj.TT_STRING) {
+ 			calcStack.add(thisToken.token);
+@@ -907,8 +907,8 @@
+ 			parseExp();
+ 		}
+ 		//calcStack.add(popCalcStackAsString());
+-		while (thisToken.tt==TokenObj.TT_STRING || 
+-			   thisToken.tt==TokenObj.TT_NUMBER || 
++		while (thisToken.tt==TokenObj.TT_STRING ||
++			   thisToken.tt==TokenObj.TT_NUMBER ||
+ 			   thisToken.tt==TokenObj.TT_VARIABLE ||
+ 			   thisToken.tt==TokenObj.TT_SYMBOL && thisToken.token.equals("(")) {
+ 			if (thisToken.tt==TokenObj.TT_STRING) {
+@@ -922,7 +922,7 @@
+ 			calcStack.add(a+b);
+ 		}
+ 	}
+-	
++
+ 	private void parseExp()throws Exception {
+ 		char unaryOp='+';
+ 		if (thisToken.token.equals("+") || thisToken.token.equals("-") ) {
+@@ -954,7 +954,7 @@
+ 			getToken();
+ 		}
+ 	}
+-	
++
+ 	private void parseTerm() throws Exception{
+ 		parseFactor();
+ 		while (thisToken.token.equals("*") || thisToken.token.equals("/") ) {
+@@ -966,13 +966,13 @@
+ 			if (op=='*')
+ 				calcStack.add(new java.lang.Double(a*b));
+ 			else
+-				if (b==0.0) 
++				if (b==0.0)
+ 					err(MyLocale.getMsg(1729,"Division by 0"));
+-				else 
++				else
+ 					calcStack.add(new java.lang.Double(a/b));
+ 		}
+ 	}
+-	
++
+ 	private void parseFactor() throws Exception{
+ 		parseExpFactor();
+ 		while (thisToken.token.equals("^")) {
+@@ -987,13 +987,13 @@
+ 	private void parseExpFactor() throws Exception {
+ 		fnType funcDef;
+ 		if (thisToken.tt==TokenObj.TT_VARIABLE) {
+-			if (isVariable(thisToken.token))
++			if (isVariable(thisToken.token) && !lookAheadToken().token.equals("(") )
+ 				calcStack.add(getVariable(thisToken.token));
+ 			else if (!lookAheadToken().token.equals("(")) err(MyLocale.getMsg(1724,"Variable not set: ")+thisToken.token);
+ 			    else {// Must be a function definition
+ 				funcDef=getFunctionDefinition(thisToken.token); // Does not return if function not defined or ambiguous
+ 				parseFunction(funcDef);
+-			    } 
++			    }
+ 		} else if (thisToken.tt==TokenObj.TT_NUMBER) {
+ 			calcStack.add(getNumber(thisToken.token));
+ 		} else if (thisToken.tt==TokenObj.TT_STRING) {
+@@ -1006,7 +1006,7 @@
+ 		else err(MyLocale.getMsg(1725,"Unexpected character(s): ")+thisToken.token);
+ 		getToken();
+ 	}
+-	
++
+ 	private void parseFunction(fnType funcDef) throws Exception {
+ 		String funcName=new String(thisToken.token);
+         int nargs=0;
+@@ -1019,7 +1019,7 @@
+ 			while (thisToken.token.equals(",")) {
+ 				if (nargs==4) err(MyLocale.getMsg(1726,"Too many arguments for function ")+funcName);
+ 				getToken();
+-				parseStringExp(); 
++				parseStringExp();
+ 				nargs++;
+ 			}
+ 			checkNextSymIs(")");
+@@ -1027,7 +1027,7 @@
+ 		//getToken(); done in parseFactor
+ 		executeFunction(funcName,nargs,funcDef);
+ 	}
+-	
++
+ 	private void executeFunction(String funcName, int nargs, fnType funcDef) throws Exception {
+ 		if (!funcDef.nargsValid(nargs)) err(MyLocale.getMsg(1727,"Invalid number of arguments"));
+ 	         if (funcDef.alias.equals("asin")) calcStack.add(new java.lang.Double(makeDegree(java.lang.Math.asin(popCalcStackAsNumber(0)))));
+@@ -1039,10 +1039,10 @@
+ 	    else if (funcDef.alias.equals("cls")) funcCls();
+ 	    else if (funcDef.alias.equals("cos")) calcStack.add(new java.lang.Double(java.lang.Math.cos(makeRadiant(popCalcStackAsNumber(0)))));
+ 	    else if (funcDef.alias.equals("count")) funcCount();
+-	    else if (funcDef.alias.equals("cp")) calcStack.add(funcCp());     
++	    else if (funcDef.alias.equals("cp")) calcStack.add(funcCp());
+ 	    else if (funcDef.alias.equals("ct")) calcStack.add(new java.lang.Double(funcCrossTotal(nargs)));
+-	    else if (funcDef.alias.equals("deg")) funcDeg(true);     
+-	    else if (funcDef.alias.equals("deg2rad")) calcStack.add(new java.lang.Double(funcDeg2Rad())); 
++	    else if (funcDef.alias.equals("deg")) funcDeg(true);
++	    else if (funcDef.alias.equals("deg2rad")) calcStack.add(new java.lang.Double(funcDeg2Rad()));
+ 	    else if (funcDef.alias.equals("distance")) calcStack.add(new java.lang.Double(funcDistance()));
+ 	    else if (funcDef.alias.equals("encode")) calcStack.add(funcEncode());
+ 	    else if (funcDef.alias.equals("format")) calcStack.add(funcFormat(nargs));
+@@ -1052,10 +1052,10 @@
+ 	    else if (funcDef.alias.equals("lc")) calcStack.add(popCalcStackAsString().toLowerCase());
+ 	    else if (funcDef.alias.equals("len")) calcStack.add(new Double(popCalcStackAsString().length()));
+ 	    else if (funcDef.alias.equals("mid")) calcStack.add(funcMid(nargs));
+-	    else if (funcDef.alias.equals("project")) calcStack.add(funcProject());     
+-	    else if (funcDef.alias.equals("pz")) funcPz(nargs);     
+-	    else if (funcDef.alias.equals("rad")) funcDeg(false);     
+-	    else if (funcDef.alias.equals("rad2deg")) calcStack.add(new java.lang.Double(funcRad2Deg())); 
++	    else if (funcDef.alias.equals("project")) calcStack.add(funcProject());
++	    else if (funcDef.alias.equals("pz")) funcPz(nargs);
++	    else if (funcDef.alias.equals("rad")) funcDeg(false);
++	    else if (funcDef.alias.equals("rad2deg")) calcStack.add(new java.lang.Double(funcRad2Deg()));
+ 	    else if (funcDef.alias.equals("replace")) calcStack.add(funcReplace());
+ 	    else if (funcDef.alias.equals("reverse")) calcStack.add(funcReverse(popCalcStackAsString()));
+ 	    else if (funcDef.alias.equals("rot13")) calcStack.add(Common.rot13(popCalcStackAsString()));
+@@ -1063,14 +1063,14 @@
+ 	    else if (funcDef.alias.equals("show"));
+ 	    else if (funcDef.alias.equals("sin")) calcStack.add(new java.lang.Double(java.lang.Math.sin(makeRadiant(popCalcStackAsNumber(0)))));
+ 	    else if (funcDef.alias.equals("skeleton")) funcSkeleton(nargs);
+-	    else if (funcDef.alias.equals("sqrt")) calcStack.add(new java.lang.Double(funcSqrt())); 
++	    else if (funcDef.alias.equals("sqrt")) calcStack.add(new java.lang.Double(funcSqrt()));
+ 	    else if (funcDef.alias.equals("sval")) calcStack.add(funcSval(popCalcStackAsString()));
+ 	    else if (funcDef.alias.equals("tan")) calcStack.add(new java.lang.Double(java.lang.Math.tan(makeRadiant(popCalcStackAsNumber(0)))));
+ 	    else if (funcDef.alias.equals("uc")) calcStack.add(popCalcStackAsString().toUpperCase());
+ 	    else if (funcDef.alias.equals("val")) calcStack.add(new java.lang.Double(funcVal(popCalcStackAsString())));
+ 	    else err(MyLocale.getMsg(1728,"Function not yet implemented: ")+funcName);
+ 	}
+-	
++
+ 	public void parse(Vector tck, Vector msgStack){
+ 		calcStack.clear();
+ 		clearLocalSymbols();
+@@ -1083,17 +1083,17 @@
+ 			//Vm.debug(ex.toString());
+ 		}
+ 	}
+-	
++
+ 	private boolean createWptIfNeeded(String wayPoint, String name, String type){
+ 	   	int ci=Global.getProfile().getCacheIndex(wayPoint);
+     	if (ci >= 0) return false;
+-    	
++
+ 		CacheHolder ch = new CacheHolder();
+ 		ch.wayPoint = wayPoint;
+ 		ch.type = type;
+ 		ch.CacheSize = "None";
+ 		ch.CacheName= name;
+-		
++
+ 		Global.getProfile().hasUnsavedChanges=true;
+ 		Global.getProfile().setAddiRef(ch);
+ 
+@@ -1101,5 +1101,5 @@
+ 		Global.mainTab.tbP.myMod.numRows++;
+ 		return true;
+ 	}
+-	
++
+ }
+
+
+
+From salzkammergut at mail.berlios.de  Fri Jan  9 01:01:35 2009
+From: salzkammergut at mail.berlios.de (salzkammergut at mail.berlios.de)
+Date: Fri, 9 Jan 2009 01:01:35 +0100
+Subject: [Cachewolf-svn] r1588 - experiments/EVEhist/src/cachewolf
+Message-ID: <200901090001.n0901ZL5006154@sheep.berlios.de>
+
+Author: salzkammergut
+Date: 2009-01-09 01:01:30 +0100 (Fri, 09 Jan 2009)
+New Revision: 1588
+
+Modified:
+   experiments/EVEhist/src/cachewolf/Parser.java
+Log:
+EVEHist: Bugfix for "Verwirrung im Solver" (http://www.geoclub.de/viewtopic.php?f=40&t=30046)
+
+Modified: experiments/EVEhist/src/cachewolf/Parser.java
+===================================================================
+--- experiments/EVEhist/src/cachewolf/Parser.java	2009-01-08 23:52:04 UTC (rev 1587)
++++ experiments/EVEhist/src/cachewolf/Parser.java	2009-01-09 00:01:30 UTC (rev 1588)
+@@ -1000,7 +1000,7 @@
+ 	private void parseExpFactor() throws Exception {
+ 		fnType funcDef;
+ 		if (thisToken.tt==TokenObj.TT_VARIABLE) {
+-			if (isVariable(thisToken.token))
++			if (isVariable(thisToken.token) && !lookAheadToken().token.equals("("))
+ 				calcStack.add(getVariable(thisToken.token));
+ 			else if (!lookAheadToken().token.equals("(")) err(MyLocale.getMsg(1724,"Variable not set: ")+thisToken.token);
+ 			else {// Must be a function definition
+
+
+
+From salzkammergut at mail.berlios.de  Sat Jan 10 15:23:27 2009
+From: salzkammergut at mail.berlios.de (salzkammergut at mail.berlios.de)
+Date: Sat, 10 Jan 2009 15:23:27 +0100
+Subject: [Cachewolf-svn] r1589 - trunk/src/CacheWolf
+Message-ID: <200901101423.n0AENRmM021220@sheep.berlios.de>
+
+Author: salzkammergut
+Date: 2009-01-10 15:23:21 +0100 (Sat, 10 Jan 2009)
+New Revision: 1589
+
+Modified:
+   trunk/src/CacheWolf/MainForm.java
+   trunk/src/CacheWolf/Preferences.java
+Log:
+Added code to save size of main window
+
+
+Modified: trunk/src/CacheWolf/MainForm.java
+===================================================================
+--- trunk/src/CacheWolf/MainForm.java	2009-01-09 00:01:30 UTC (rev 1588)
++++ trunk/src/CacheWolf/MainForm.java	2009-01-10 14:23:21 UTC (rev 1589)
+@@ -13,7 +13,7 @@
+ 	public boolean cacheListVisible=false;
+     public CacheList cacheList;
+     SplittablePanel split;
+-	
++
+ 	StatusBar statBar=null;
+ 	Preferences pref = Global.getPref(); // Singleton pattern
+ 	Profile profile = Global.getProfile();
+@@ -31,21 +31,21 @@
+ 	public MainForm(){
+ 		doIt();
+ 	}
+-	
++
+ 	public MainForm(boolean dbg, String pathtoprefxml){
+ 		pref.debug = dbg;
+-		pref.setPathToConfigFile(pathtoprefxml); // in case pathtoprefxml == null the preferences will determine the path itself 
++		pref.setPathToConfigFile(pathtoprefxml); // in case pathtoprefxml == null the preferences will determine the path itself
+ 		doIt();
+ 	}
+ 	protected void checkButtons() {
+ 		if (pref.hasCloseButton) super.checkButtons();
+-	} 
++	}
+ 
+ 	protected boolean canExit(int exitCode) {
+ 		mTab.saveUnsavedChanges(true);
+ 		return pref.hasCloseButton;
+ 	}
+-	
++
+ 	public void doIt(){
+ 		//CellPanel [] p = addToolbar();
+ 		Global.mainForm=this;
+@@ -54,22 +54,29 @@
+ 		this.resizable = true;
+ 		this.moveable = true;
+ 		this.windowFlagsToSet = WindowConstants.FLAG_MAXIMIZE_ON_PDA;
+-		if(Vm.isMobile() == true) {
+-			//this.windowFlagsToSet |=Window.FLAG_FULL_SCREEN;
+-			this.resizable = false;
+-			this.moveable = false;
+-		}
+-		Rect screen = ((ewe.fx.Rect) (Window.getGuiInfo(WindowConstants.INFO_SCREEN_RECT,null,new ewe.fx.Rect(),0)));
+-		if ( screen.height >= 600 && screen.width >= 800) this.setPreferredSize(800, 600);
++		//Rect screen = ((ewe.fx.Rect) (Window.getGuiInfo(WindowConstants.INFO_SCREEN_RECT,null,new ewe.fx.Rect(),0)));
++		//if ( screen.height >= 600 && screen.width >= 800) this.setPreferredSize(800, 600);
+ 		this.resizeOnSIP = true;
+-		InfoBox infB = null;  
++		InfoBox infB = null;
+ 		try{
+ 			pref.readPrefFile();
+ 			if (MyLocale.initErrors.length() != 0) {
+ 				new MessageBox("Error", MyLocale.initErrors, FormBase.OKB).execute();
+ 			}
++			if(Vm.isMobile() == true) {
++				//this.windowFlagsToSet |=Window.FLAG_FULL_SCREEN;
++				this.resizable = false;
++				this.moveable = false;
++			} else {
++				int h,w;
++				h=pref.myAppHeight;
++				if (h>MyLocale.getScreenHeight()) h=MyLocale.getScreenHeight();
++				w=pref.myAppWidth;
++				if (w>MyLocale.getScreenWidth()) w=MyLocale.getScreenWidth();
++				this.setPreferredSize(w,h);
++			}
+ 			addGuiFont();
+-			if (!pref.selectProfile(profile,Preferences.PROFILE_SELECTOR_ONOROFF, true)) 
++			if (!pref.selectProfile(profile,Preferences.PROFILE_SELECTOR_ONOROFF, true))
+ 				ewe.sys.Vm.exit(0); // User MUST select or create a profile
+ 			Vm.showWait(true);
+ 			// Load CacheList
+@@ -79,15 +86,15 @@
+ 			profile.readIndex();
+ 			pref.curCentrePt.set(profile.centre);
+ 			profile.updateBearingDistance();
+-			boolean saveHasUnsavedChanges = profile.hasUnsavedChanges; 
+-			profile.restoreFilter(); // this method sets hasUnsavedChanges to true 
++			boolean saveHasUnsavedChanges = profile.hasUnsavedChanges;
++			profile.restoreFilter(); // this method sets hasUnsavedChanges to true
+ 			profile.hasUnsavedChanges = saveHasUnsavedChanges ; // in case that the profile is new, it hasUnsavedChanges, so set it back
+ 			setTitle("Cachewolf "+Version.getRelease()+" - "+profile.name);
+ 		} catch (Exception e){
+ 			if(pref.debug == true) Vm.debug("MainForm:: Exception:: " + e.toString());
+ 		}
+-		
+-		
++
++
+ 		if(pref.fixSIP == true){
+ 			if (Gui.screenIs(Gui.PDA_SCREEN) && Vm.isMobile()) {
+ 				//Vm.setSIP(Vm.SIP_LEAVE_BUTTON|Vm.SIP_ON);
+@@ -95,20 +102,20 @@
+ 				Device.preventIdleState(true);
+ 			}
+ 		} else Vm.setSIP(0);
+-		
++
+         if (pref.showStatus) statBar = new StatusBar(pref, profile.cacheDB);
+ 		mMenu = new MainMenu(this);
+ 		mTab = new MainTab(mMenu,statBar);
+ 		split=new SplittablePanel(PanelSplitter.HORIZONTAL);
+ 		split.theSplitter.thickness=0; split.theSplitter.modify(Invisible,0);
+ 		CellPanel pnlCacheList = split.getNextPanel();
+-		CellPanel pnlMainTab = split.getNextPanel(); 
++		CellPanel pnlMainTab = split.getNextPanel();
+ 		split.setSplitter(PanelSplitter.MIN_SIZE|PanelSplitter.BEFORE,PanelSplitter.HIDDEN|PanelSplitter.BEFORE,PanelSplitter.CLOSED);
+ 		pnlCacheList.addLast(cacheList=new CacheList(),STRETCH,FILL);
+ 		pnlMainTab.addLast(mTab,STRETCH,FILL);
+-		
++
+ 		mTab.dontAutoScroll=true;
+-		
++
+ 		this.addLast(split,STRETCH,FILL);
+ 		/*
+ 		if (pref.menuAtTop) {
+@@ -126,22 +133,22 @@
+ 		Vm.showWait(false);
+ 	}
+ 
+-	
++
+ 	private void addGuiFont(){
+ 		Font defaultGuiFont = mApp.findFont("gui");
+ 		int sz = (pref.fontSize);
+-		Font newGuiFont = new Font(defaultGuiFont.getName(), defaultGuiFont.getStyle(), sz); 
+-		mApp.addFont(newGuiFont, "gui"); 
++		Font newGuiFont = new Font(defaultGuiFont.getName(), defaultGuiFont.getStyle(), sz);
++		mApp.addFont(newGuiFont, "gui");
+ 		mApp.fontsChanged();
+ 		mApp.mainApp.font = newGuiFont;
+ 	}
+-	
++
+ 	public void doPaint(Graphics g, Rect r){
+ 		pref.myAppHeight = this.height;
+ 		pref.myAppWidth = this.width;
+ 		super.doPaint(g,r);
+ 	}
+-	
++
+ 	public void onEvent(Event ev){ // Preferences have been changed by PreferencesScreen
+ 		if(pref.dirty == true){
+ 			mTab.getTablePanel().myMod.setColumnNamesAndWidths();
+@@ -155,7 +162,7 @@
+ 	public void toggleCacheListVisible() {
+ 		cacheListVisible=!cacheListVisible;
+ 		if (cacheListVisible) {
+-			// Make the splitterbar visible with a width of 6 
++			// Make the splitterbar visible with a width of 6
+ 			split.theSplitter.modify(0,Invisible);
+ 			split.theSplitter.resizeTo(6,split.theSplitter.getRect().height);
+ 			Global.mainForm.mMenu.cacheTour.modifiers|=MenuItem.Checked;
+@@ -167,7 +174,7 @@
+ 		}
+ 		split.theSplitter.doOpenClose(cacheListVisible);
+ 		Global.mainForm.mMenu.repaint();
+-		
++
+ 	}
+-	
++
+ }
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2009-01-09 00:01:30 UTC (rev 1588)
++++ trunk/src/CacheWolf/Preferences.java	2009-01-10 14:23:21 UTC (rev 1589)
+@@ -36,9 +36,9 @@
+ 	}
+ 
+ 	private static Preferences _reference;
+-	
++
+ 	private String pathToConfigFile;
+-	
++
+ 	/**
+ 	 * Call this method to set the path of the config file <br>
+ 	 * If you call it with null it defaults to [program-dir]/pref.xml
+@@ -54,7 +54,7 @@
+ 			log("Vm.getenv(APPDATA: " + test); // this works also in win32.exe (ewe-vm on win xp)
+ 			test = Vm.getenv("HOME", "/"); // This should return on *nix system the home dir
+ 			log("Vm.getenv(HOME: " + test);
+-			test = System.getProperty("user.dir"); // return in java-vm on win xp: <working dir> or maybe <program dir> 
++			test = System.getProperty("user.dir"); // return in java-vm on win xp: <working dir> or maybe <program dir>
+ 			log("System.getProperty(user.dir: " + test); // in win32.exe -> null
+ 			test = System.getProperty("user.home"); // in MS-java-VM env variable $HOME is ignored and always <windir>\java returned, see http://support.microsoft.com/kb/177181/en-us/
+ 			log("System.getProperty(user.home: " + test); // in win32.exe -> null
+@@ -65,7 +65,7 @@
+ 		}
+ 		else {
+ 			if (new FileBugfix(p).isDirectory()) p_ = FileBase.makePath(p, "pref.xml");
+-			else p_ = p; 
++			else p_ = p;
+ 		}
+ 		pathToConfigFile = STRreplace.replace(p_, "//", "/"); // this is necessary in case that the root dir is the dir where the pref.xml is stored
+ 		pathToConfigFile = pathToConfigFile.replace('\\', '/');
+@@ -91,31 +91,31 @@
+ 				else
+ 					fontSize = 16;
+ 			}
+-		} else 
++		} else
+ 			fontSize = 11;
+ 	}
+ 
+     //////////////////////////////////////////////////////////////////////////////////////
+     // Public fields stored in pref.xml
+ 	//////////////////////////////////////////////////////////////////////////////////////
+-	
++
+ 	/** The base directory contains one subdirectory for each profile*/
+-	public String baseDir = "";  
++	public String baseDir = "";
+ 	/** Name of last used profile */
+-	public String lastProfile=""; 
++	public String lastProfile="";
+ 	/** If true, the last profile is reloaded automatically without a dialogue */
+-	public boolean autoReloadLastProfile=false; 
++	public boolean autoReloadLastProfile=false;
+ 	/** This is the login alias for geocaching.com and opencaching.de */
+ 	public String myAlias = "";
+ 	/** Optional password */
+ 	public String password="";
+-	/** This is an alternative alias used to identify found caches (i.e. if using multiple IDs) 
++	/** This is an alternative alias used to identify found caches (i.e. if using multiple IDs)
+ 	 *  It is currently not used yet */
+ 	public String myAlias2 = "";
+ 	/** The path to the browser */
+ 	public String browser = "";
+ 	/** Name of proxy for spidering */
+-	public String myproxy = "";    
++	public String myproxy = "";
+ 	/** Proxyport when spidering */
+ 	public String myproxyport = "";
+ 	/** Flag whether proxy is to be used */
+@@ -156,12 +156,12 @@
+ 	/** If this flag is true, only non-logged travelbug journeys will be shown */
+ 	public boolean travelbugShowOnlyNonLogged=false;
+ 	/** If this is true, deleted images are shown with a ? in the imagepanel */
+-	public boolean showDeletedImages=true; 
++	public boolean showDeletedImages=true;
+ 	/** This setting determines how many logs are shown per page of hintlogs (default 5) */
+ 	public int logsPerPage=DEFAULT_LOGS_PER_PAGE;
+ 	/** Initial height of hints field (set to 0 to hide them initially) */
+-	public int initialHintHeight=DEFAULT_INITIAL_HINT_HEIGHT; 
+-	/** Maximum logs to spider */ 
++	public int initialHintHeight=DEFAULT_INITIAL_HINT_HEIGHT;
++	/** Maximum logs to spider */
+ 	public int maxLogsToSpider = DEFAULT_MAX_LOGS_TO_SPIDER;
+ 	/** True if the Solver should ignore the case of variables */
+ 	public boolean solverIgnoreCase=true;
+@@ -170,9 +170,9 @@
+ 	/** True if the description panel should show images */
+ 	public boolean descShowImg=true;
+ 	/** The type of connection which GPSBABEL uses: com1 OR usb. */
+-	public String garminConn="com1";  
++	public String garminConn="com1";
+ 	/** Additional options for GPSBabel, i.e. -s to synthethise short names */
+-	public String garminGPSBabelOptions=""; 
++	public String garminGPSBabelOptions="";
+ 	/** Max. length for Garmin waypoint names (for etrex which can only accept 6 chars) */
+ 	public int garminMaxLen=0;
+ 	public boolean downloadPicsOC = true; //TODO Sollten die auch im Profil gespeichert werden mit Preferences als default Werte ?
+@@ -186,14 +186,14 @@
+ 	/** True if the goto panel is North centered */
+ 	public boolean northCenteredGoto = true;
+ 	/** If not null, a customs map path has been specified by the user */
+-	private String customMapsPath=null; 
++	private String customMapsPath=null;
+ 	/** Number of CacheHolder details that are kept in memory */
+ 	public int maxDetails=50;
+ 	/** Number of details to delete when maxDetails have been stored in cachesWithLoadedDetails */
+ 	public int deleteDetails=5;
+ 	/** The locale code (DE, EN, ...) */
+-	public String language=""; 
+-	
++	public String language="";
++
+ 	//////////////////////////////////////////////
+ 	/** The debug switch (Can be used to activate dormant code) by adding
+ 	 * the line: <pre><debug value="true"></pre>
+@@ -205,25 +205,25 @@
+     //////////////////////////////////////////////////////////////////////////////////////
+     // Public fields not stored in pref.xml
+ 	//////////////////////////////////////////////////////////////////////////////////////
+-	
++
+ 	/** The height of the application */
+-	public int myAppHeight = 0;
++	public int myAppHeight = 600;
+ 	/** The width of the application */
+-	public int myAppWidth = 0;
++	public int myAppWidth = 800;
+ 	/** True if the preferences were changed and need to be saved */
+ 	public boolean dirty = false;
+-	
++
+     //////////////////////////////////////////////////////////////////////////////////////
+     // Read pref.xml file
+ 	//////////////////////////////////////////////////////////////////////////////////////
+-	
++
+ 	/**
+ 	 * Method to open and parse the config file (pref.xml). Results are stored in the
+ 	 * public variables of this class.
+ 	 * If you want to specify a non default config file call setPathToConfigFile() first.
+ 	 */
+ 	public void readPrefFile(){
+-		if (pathToConfigFile == null) setPathToConfigFile(null); // this sets the default value 
++		if (pathToConfigFile == null) setPathToConfigFile(null); // this sets the default value
+ 		try{
+ 			ewe.io.Reader r = new ewe.io.InputStreamReader(new ewe.io.FileInputStream(pathToConfigFile));
+ 			parse(r);
+@@ -234,13 +234,13 @@
+ 		}catch(Exception e){
+ 			if (e instanceof NullPointerException)
+ 				log("Error reading pref.xml: NullPointerException in Element "+lastName +". Wrong attribute?",e,true);
+-			else 
++			else
+ 				log("Error reading pref.xml: ", e);
+ 		}
+ 	}
+ 
+-	/** Helper variables for XML parser */ 
+-	private StringBuffer collectElement=null; 
++	/** Helper variables for XML parser */
++	private StringBuffer collectElement=null;
+ 	private String lastName; // The string to the last XML that was processed
+ 
+ 	/**
+@@ -295,7 +295,7 @@
+ 		}
+ 		else if (name.equals("listview")) {
+ 			listColMap=atts.getValue("colmap");
+-			listColWidth=atts.getValue("colwidths")+",30,30"; // append default values for older versions	
++			listColWidth=atts.getValue("colwidths")+",30,30"; // append default values for older versions
+ 			if((new StringTokenizer(listColWidth,",")).countTokens()<15) listColWidth+=",30,30"; // for older versions
+ 		}
+ 		else if(name.equals("proxy")) {
+@@ -316,13 +316,17 @@
+ 		}
+ 		else if (name.equals("descpanel")) {
+ 			descShowImg = Boolean.valueOf(atts.getValue("showimages")).booleanValue();
+-		} 
++		}
+ 		else if (name.equals("screen")) {
+ 			menuAtTop=Boolean.valueOf(atts.getValue("menuattop")).booleanValue();
+ 			tabsAtTop=Boolean.valueOf(atts.getValue("tabsattop")).booleanValue();
+ 			showStatus=Boolean.valueOf(atts.getValue("showstatus")).booleanValue();
+ 			if (atts.getValue("hasclosebutton")!=null)
+ 				hasCloseButton=Boolean.valueOf(atts.getValue("hasclosebutton")).booleanValue();
++			if (atts.getValue("h")!=null) {
++				myAppHeight=Convert.toInt(atts.getValue("h"));
++				myAppWidth=Convert.toInt(atts.getValue("w"));
++			}
+ 		}
+ 		else if (name.equals("hintlogpanel")) {
+ 			logsPerPage = Convert.parseInt(atts.getValue("logsperpage"));
+@@ -340,13 +344,13 @@
+ 			customMapsPath=atts.getValue("dir").replace('\\', '/');
+ 		}
+ 		else if (name.equals("debug")) debug=Boolean.valueOf(atts.getValue("value")).booleanValue();
+-		
++
+ 		else if (name.equals("expPath")){
+ 			exporterPaths.put(atts.getValue("key"),atts.getValue("value"));
+ 		}
+ 		else if (name.equals("travelbugs")) {
+ 			travelbugColMap=atts.getValue("colmap");
+-			travelbugColWidth=atts.getValue("colwidths");	
++			travelbugColWidth=atts.getValue("colwidths");
+ 			travelbugShowOnlyNonLogged=Boolean.valueOf(atts.getValue("shownonlogged")).booleanValue();
+ 		}
+ 		else if (name.equals("gotopanel")) {
+@@ -370,7 +374,7 @@
+ 		if (collectElement!=null) {
+ 			collectElement.append(ch,start,length); // Collect the name of the last profile
+ 		}
+-	}	
++	}
+ 
+ 	/**
+ 	 * Method that gets called when the end of an element has been identified in pref.xml
+@@ -385,12 +389,12 @@
+     //////////////////////////////////////////////////////////////////////////////////////
+     // Write pref.xml file
+ 	//////////////////////////////////////////////////////////////////////////////////////
+-	
++
+ 	/**
+ 	 * Method to save current preferences in the pref.xml file
+ 	 */
+ 	public void savePreferences(){
+-		if (pathToConfigFile == null) setPathToConfigFile(null); // this sets the default value 
++		if (pathToConfigFile == null) setPathToConfigFile(null); // this sets the default value
+ 		try{
+ 			PrintWriter outp =  new PrintWriter(new BufferedWriter(new FileWriter(pathToConfigFile)));
+ 			outp.print("<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n");
+@@ -406,7 +410,8 @@
+ 			outp.print("	<portforward active= \"" + SafeXML.strxmlencode(Convert.toString(forwardGPS)) + "\" destinationHost = \"" + SafeXML.strxmlencode(forwardGpsHost) + "\"/>\n");
+ 			outp.print("	<portlog active= \"" + SafeXML.strxmlencode(Convert.toString(logGPS)) + "\" logTimer = \"" + SafeXML.strxmlencode(logGPSTimer) + "\"/>\n");
+ 			outp.print("    <font size =\"" + SafeXML.strxmlencode(fontSize) + "\"/>\n");
+-			outp.print("    <screen menuattop=\"" + SafeXML.strxmlencode(menuAtTop) + "\" tabsattop=\"" + SafeXML.strxmlencode(tabsAtTop) + "\" showstatus=\"" + SafeXML.strxmlencode(showStatus) + "\" hasclosebutton=\"" + SafeXML.strxmlencode(hasCloseButton) + "\"/>\n");
++			outp.print("    <screen menuattop=\""+menuAtTop+"\" tabsattop=\""+tabsAtTop+"\" showstatus=\""+showStatus+"\" hasclosebutton=\""+hasCloseButton+
++	                "\" h=\""+myAppHeight+"\" w=\""+myAppWidth+"\" />\n");
+ 			outp.print("    <fixedsip state = \"" + SafeXML.strxmlencode(fixSIP) + "\"/>\n");
+ 			outp.print("    <listview colmap=\"" + SafeXML.strxmlencode(listColMap) + "\" colwidths=\"" + SafeXML.strxmlencode(listColWidth) + "\" />\n");
+ 			outp.print("    <travelbugs colmap=\"" + SafeXML.strxmlencode(travelbugColMap) + "\" colwidths=\"" + SafeXML.strxmlencode(travelbugColWidth) + "\" shownonlogged=\"" + SafeXML.strxmlencode(travelbugShowOnlyNonLogged) + "\" />\n");
+@@ -441,32 +446,32 @@
+ 	//////////////////////////////////////////////////////////////////////////////////////
+ 
+ 	private static final String mapsPath = "maps/standard";
+-	
++
+ 	/**
+ 	 * custom = set by the user
+ 	 * @return custom Maps Path, null if not set
+ 	 */
+ 	public String getCustomMapsPath() {
+-	   return customMapsPath;	
++	   return customMapsPath;
+ 	}
+-	
++
+ 	public void saveCustomMapsPath(String mapspath_) {
+ 		if (customMapsPath == null || !customMapsPath.equals(mapspath_)) {
+ 			customMapsPath=new String(mapspath_).replace('\\', '/');
+ 			savePreferences();
+ 		}
+ 	}
+-	
++
+ 	/**
+ 	 * gets the path to the calibrated maps
+ 	 * it first tries if there are manually imported maps
+-	 * in <baseDir>/maps/standard then it tries 
++	 * in <baseDir>/maps/standard then it tries
+ 	 * the legacy dir: <program-dir>/maps
+ 	 * In case in both locations are no .wfl-files
+ 	 * it returns  <baseDir>/maps/expedia - the place where
+ 	 * the automatically downloaded maps are placed.
+-	 * 
+-	 * 
++	 *
++	 *
+ 	 */
+ 	public String getMapLoadPath() {
+ 		saveCustomMapsPath(getMapLoadPathInternal());
+@@ -475,8 +480,8 @@
+ 	private String getMapLoadPathInternal() {
+ 		// here could also a list of map-types displayed...
+ 		// standard dir
+-		String ret = getCustomMapsPath(); 
+-		if (ret != null) return ret; 
++		String ret = getCustomMapsPath();
++		if (ret != null) return ret;
+ 		ret = getMapManuallySavePath(false);
+ 		File t = new FileBugfix(ret);
+ 		String[] f = t.list("*.wfl", FileBase.LIST_FILES_ONLY);
+@@ -490,7 +495,7 @@
+ 				if (f2 != null && f2.length > 0) return  ret;
+ 			}
+ 		}
+-		// lagacy dir 
++		// lagacy dir
+ 		ret = FileBase.getProgramDirectory() + "/maps";
+ 		t.set(null, ret);
+ 		f = t.list("*.wfl", FileBase.LIST_FILES_ONLY);
+@@ -519,7 +524,7 @@
+ 		}
+ 		// expedia dir
+ 		// return getMapExpediaLoadPath();
+-		
++
+ 		//whole maps directory
+ 		return Global.getPref().baseDir.replace('\\', '/') + "maps";
+ 	}
+@@ -531,7 +536,7 @@
+ 	 */
+ 	public String getMapManuallySavePath(boolean create) {
+ 		String mapsDir = baseDir + mapsPath;
+-		if (create && !(new FileBugfix(mapsDir).isDirectory())) { // dir exists? 
++		if (create && !(new FileBugfix(mapsDir).isDirectory())) { // dir exists?
+ 			if (new FileBugfix(mapsDir).mkdirs() == false) {// dir creation failed?
+ 				(new MessageBox(MyLocale.getMsg(321,"Error"), MyLocale.getMsg(172,"Error: cannot create maps directory: \n")+mapsDir, FormBase.OKB)).exec();
+ 				return null;
+@@ -546,7 +551,7 @@
+ 	public String getMapDownloadSavePath(String mapkind) {
+ 		String subdir = Global.getProfile().dataDir.substring(Global.getPref().baseDir.length()).replace('\\', '/');
+ 		String mapsDir = Global.getPref().baseDir + "maps/" + Common.ClearForFileName(mapkind)+ "/" + subdir;
+-		if (!(new FileBugfix(mapsDir).isDirectory())) { // dir exists? 
++		if (!(new FileBugfix(mapsDir).isDirectory())) { // dir exists?
+ 			if (new FileBugfix(mapsDir).mkdirs() == false) // dir creation failed?
+ 			{(new MessageBox(MyLocale.getMsg(321,"Error"), MyLocale.getMsg(172,"Error: cannot create maps directory: \n")+new FileBugfix(mapsDir).getParentFile(), FormBase.OKB)).exec();
+ 			return null;
+@@ -558,17 +563,17 @@
+ 	public String getMapExpediaLoadPath() {
+ 		return Global.getPref().baseDir.replace('\\', '/') + "maps/expedia"; // baseDir has trailing /
+ 	}
+-	
++
+     //////////////////////////////////////////////////////////////////////////////////////
+     // Profile Selector
+ 	//////////////////////////////////////////////////////////////////////////////////////
+-	
++
+ 	static protected final int PROFILE_SELECTOR_FORCED_ON=0;
+ 	static protected final int PROFILE_SELECTOR_FORCED_OFF=1;
+ 	static protected final int PROFILE_SELECTOR_ONOROFF=2;
+ 
+ 	/**
+-	 * Open Profile selector screen 
++	 * Open Profile selector screen
+ 	 * @param prof
+ 	 * @param showProfileSelector
+ 	 * @return True if a profile was selected
+@@ -587,8 +592,8 @@
+ 		baseDir=baseDir.replace('\\','/');
+ 		if (!baseDir.endsWith("/")) baseDir+="/";
+ 		boolean profileExists=true;  // Assume that the profile exists
+-		do {	
+-			if(!profileExists || (showProfileSelector==PROFILE_SELECTOR_FORCED_ON) || 
++		do {
++			if(!profileExists || (showProfileSelector==PROFILE_SELECTOR_FORCED_ON) ||
+ 					(showProfileSelector==PROFILE_SELECTOR_ONOROFF && !autoReloadLastProfile)){ // Ask for the profile
+ 				ProfilesForm f = new ProfilesForm(baseDir,lastProfile,!profileExists || hasNewButton);
+ 				int code = f.execute();
+@@ -620,7 +625,7 @@
+ 
+ 	/** Log file is in program directory and called log.txt */
+ 	private final String LOGFILENAME=FileBase.getProgramDirectory()+"/log.txt";
+-	
++
+ 	/**
+ 	 * Method to delete an existing log file. Called on every SpiderGC.
+ 	 * The log file is also cleared when Preferences is created and the filesize > 60KB
+@@ -630,7 +635,7 @@
+ 		logFile.delete();
+ 		log("CW Version "+Version.getReleaseDetailed());
+ 	}
+-	
++
+ 	/**
+ 	 * Method to log messages to a file called log.txt
+ 	 * It will always append to an existing file.
+@@ -662,7 +667,7 @@
+ 	}
+ 
+ 	/** Log an exception to the log file with or without a stack trace
+-	 * 
++	 *
+ 	 * @param text Optional message (Can be empty string)
+ 	 * @param e The exception
+ 	 * @param withStackTrace If true and the debug switch is true, the stack trace is appended to the log
+@@ -675,24 +680,24 @@
+ 		String msg;
+ 		if (text.equals("")) msg=text; else msg=text+"\n";
+ 		if (e!=null) {
+-			if (withStackTrace && debug) 
++			if (withStackTrace && debug)
+ 				msg+=ewe.sys.Vm.getAStackTrace(e);
+ 			else
+ 				msg+=e.toString();
+ 		}
+ 		log(msg);
+ 	}
+-	
++
+ 	/** Log an exception to the log file without a stack trace, i.e.
+-	 * where a stack trace is not needed because the location/cause of the error is clear 
+-	 * 
++	 * where a stack trace is not needed because the location/cause of the error is clear
++	 *
+ 	 * @param message Optional message (Can be empty string)
+ 	 * @param e The exception
+ 	 */
+ 	public void log(String message,Exception e) {
+ 		log (message,e,false);
+ 	}
+-		
++
+     //////////////////////////////////////////////////////////////////////////////////////
+     // Exporter path functions
+ 	//////////////////////////////////////////////////////////////////////////////////////
+
+
+
+From salzkammergut at mail.berlios.de  Sat Jan 10 15:26:45 2009
+From: salzkammergut at mail.berlios.de (salzkammergut at mail.berlios.de)
+Date: Sat, 10 Jan 2009 15:26:45 +0100
+Subject: [Cachewolf-svn] r1590 - experiments/EVEhist/src/cachewolf
+Message-ID: <200901101426.n0AEQjDu021513@sheep.berlios.de>
+
+Author: salzkammergut
+Date: 2009-01-10 15:26:42 +0100 (Sat, 10 Jan 2009)
+New Revision: 1590
+
+Modified:
+   experiments/EVEhist/src/cachewolf/MainForm.java
+Log:
+EVEHist: Added code to save size of main window on PC
+
+Modified: experiments/EVEhist/src/cachewolf/MainForm.java
+===================================================================
+--- experiments/EVEhist/src/cachewolf/MainForm.java	2009-01-10 14:23:21 UTC (rev 1589)
++++ experiments/EVEhist/src/cachewolf/MainForm.java	2009-01-10 14:26:42 UTC (rev 1590)
+@@ -56,16 +56,6 @@
+ 		this.resizable = true;
+ 		this.moveable = true;
+ 		this.windowFlagsToSet = Window.FLAG_MAXIMIZE_ON_PDA;
+-		if (!Device.isMobile()) {
+-			this.resizable = false;
+-			this.moveable = false;
+-			int h,w;
+-			h=pref.myAppHeight;
+-			if (h>MyLocale.getScreenHeight()) h=MyLocale.getScreenHeight();
+-			w=pref.myAppWidth;
+-			if (w>MyLocale.getScreenWidth()) w=MyLocale.getScreenWidth();
+-			this.setPreferredSize(w,h);
+-		}
+ 		this.resizeOnSIP = true;
+ 		InfoBox infB = null;
+ 		// Load CacheList
+@@ -74,6 +64,16 @@
+ 			if (MyLocale.initErrors.length() != 0) {
+ 				new MessageBox("Error", MyLocale.initErrors, FormBase.OKB).execute();
+ 			}
++			if (!Device.isMobile()) {
++				this.resizable = false;
++				this.moveable = false;
++				int h,w;
++				h=pref.myAppHeight;
++				if (h>MyLocale.getScreenHeight()) h=MyLocale.getScreenHeight();
++				w=pref.myAppWidth;
++				if (w>MyLocale.getScreenWidth()) w=MyLocale.getScreenWidth();
++				this.setPreferredSize(w,h);
++			}
+ 			addGuiFont();
+ 			if (!pref.selectProfile(profile,Preferences.PROFILE_SELECTOR_ONOROFF, true))
+ 				eve.sys.Vm.exit(0); // User MUST select or create a profile
+
+
+
+From engywuck at mail.berlios.de  Tue Jan 27 18:26:42 2009
+From: engywuck at mail.berlios.de (engywuck at mail.berlios.de)
+Date: Tue, 27 Jan 2009 18:26:42 +0100
+Subject: [Cachewolf-svn] r1591 - in experiments/EVEhist: deploy lib programs
+	programs/resources
+Message-ID: <200901271726.n0RHQgOT011652@sheep.berlios.de>
+
+Author: engywuck
+Date: 2009-01-27 18:24:00 +0100 (Tue, 27 Jan 2009)
+New Revision: 1591
+
+Added:
+   experiments/EVEhist/deploy/cw-eve-pda.enf
+   experiments/EVEhist/programs/RunEveMaker_PC.bat
+   experiments/EVEhist/programs/RunEveMaker_PDA.bat
+   experiments/EVEhist/programs/buildexe.bat
+Modified:
+   experiments/EVEhist/deploy/cw-eve-pc.enf
+   experiments/EVEhist/lib/CompileEve.zip
+   experiments/EVEhist/lib/JavaEve.zip
+   experiments/EVEhist/programs/EveMaker.eve
+   experiments/EVEhist/programs/RunEveMaker.bat
+   experiments/EVEhist/programs/resources/Linux-x86-cl_stub
+   experiments/EVEhist/programs/resources/Linux-x86-gtk2_stub
+   experiments/EVEhist/programs/resources/Linux-x86-x_stub
+   experiments/EVEhist/programs/resources/PocketPC2003SE_arm_stub.exe
+   experiments/EVEhist/programs/resources/PocketPCWindowsMobile5_arm_stub.exe
+   experiments/EVEhist/programs/resources/PocketPCWindowsMobile6_arm_stub.exe
+   experiments/EVEhist/programs/resources/SmartPhone2003SE_arm_stub.exe
+   experiments/EVEhist/programs/resources/SmartPhoneWindowsMobile5_arm_stub.exe
+   experiments/EVEhist/programs/resources/SmartPhoneWindowsMobile6_arm_stub.exe
+   experiments/EVEhist/programs/resources/eve-cl-classes.zip
+   experiments/EVEhist/programs/resources/eve-classes.zip
+   experiments/EVEhist/programs/resources/eve_stub.exe
+   experiments/EVEhist/programs/resources/evew_stub.exe
+   experiments/EVEhist/programs/resources/javaeve-cl-classes.zip
+   experiments/EVEhist/programs/resources/javaeve-classes.zip
+Log:
+EveHist: Changed to EVE 1.30 - Now building exe-files in batch mode is working!
+
+Modified: experiments/EVEhist/deploy/cw-eve-pc.enf
+===================================================================
+--- experiments/EVEhist/deploy/cw-eve-pc.enf	2009-01-10 14:26:42 UTC (rev 1590)
++++ experiments/EVEhist/deploy/cw-eve-pc.enf	2009-01-27 17:24:00 UTC (rev 1591)
+@@ -1 +1 @@
+-advancedExes=&command=programName%3DCacheWolf%26width%3D0%26height%3D0%26startingClass%3Dcachewolf.CacheWolf%26windowTitle%3DWindow%2BTitle%26eves%3D%26extra%3D%26pathToEve%3D\Program%2BFiles\Eve\Eve.exe%26nativeStack%3D0%26vmStack%3D0%26locale%3D%26vmOptions%3D&eveFiles=&targets=eve/data/Property%3Dname%253D%25253DTarget%2526value%253Deve/data/MultiListSelect$SelectedItems%25253D%2525253DExe%2525252B-%2525252BDesktop&createWithPnf=true&eveInfo=outputFile%3D../deploy/cachewolf.eve%26entries%3Dcom/eve/evemaker/EveDirEntry%253Dpath%25253D../bin%252526mask%25253D*.class%252526includeSubdirectories%25253Dtrue%252526pathInEve%25253D%2526com/eve/evemaker/EveDirEntry%253Dpath%25253D../lib/lib-folder%252526mask%25253D*.class%252526includeSubdirectories%25253Dtrue%252526pathInEve%25253D%2526com/eve/evemaker/EveDirEntry%253Dpath%25253D../work%252526mask%25253D*.gif;*.png;*.wms;*.cfg%252526includeSubdirectories%25253Dtrue%252526pathInEve%25253D%26addCommandLine%3Dtrue%26commandLine%3D!
+ programName%253DCacheWolf%2526width%253D0%2526height%253D0%2526startingClass%253Dcachewolf.CacheWolf%2526windowTitle%253DWindow%252BTitle%2526eves%253D%2526extra%253D%2526pathToEve%253D\Program%252BFiles\Eve\Eve.exe%2526nativeStack%253D0%2526vmStack%253D0%2526locale%253D%2526vmOptions%253D%26install%3Dtitle%253D%2526category%253DApplications%2526location%253D%2526icon%253D%2526args%253D%2526vmArgs%253D%26addInstallFile%3Dfalse%26makeZip%3Dfalse%26usePool%3Dfalse%26useClassPool%3Dfalse&icon=(Default)&librarySelect=0&exeClasses=2&alwaysShowClassTree=false&debugExternalZips=false&appletWidth=800&appletHeight=600&useResources=true&appletDisplay=0&splashScreens=splashScreens%3Dcom/eve/evemaker/SplashScreen%253DimageFile%25253D../resources/logo.png%252526changeSizeTo%25253Dtrue%252526width%25253D48%252526height%25253D43%252526keepAspect%25253Dtrue%252526trueWidth%25253D48%252526trueHeight%25253D43%26screenTitle%3DSplash%2BScreen&chosenMenuItem=&textEncoderName=UTF-8
++advancedExes=&command=programName%3DCacheWolf%26width%3D0%26height%3D0%26startingClass%3Dcachewolf.CacheWolf%26windowTitle%3DWindow%2BTitle%26eves%3D%26extra%3D%26pathToEve%3D\Program%2BFiles\Eve\Eve.exe%26nativeStack%3D0%26vmStack%3D0%26locale%3D%26vmOptions%3D&eveFiles=&targets=eve/data/Property%3Dname%253D%25253DTarget%2526value%253Deve/data/MultiListSelect$SelectedItems%25253D%2525253DExe%2525252B-%2525252BDesktop&createWithPnf=true&eveInfo=outputFile%3D../deploy/cachewolf.eve%26entries%3Dcom/eve/evemaker/EveDirEntry%253Dpath%25253D../bin%252526mask%25253D*.class%252526includeSubdirectories%25253Dtrue%252526pathInEve%25253D%2526com/eve/evemaker/EveDirEntry%253Dpath%25253D../lib/lib-folder%252526mask%25253D*.class%252526includeSubdirectories%25253Dtrue%252526pathInEve%25253D%2526com/eve/evemaker/EveDirEntry%253Dpath%25253D../work%252526mask%25253D*.gif;*.png;*.wms;*.cfg%252526includeSubdirectories%25253Dtrue%252526pathInEve%25253D%26addCommandLine%3Dtrue%26commandLine%3D!
+ programName%253DCacheWolf%2526width%253D0%2526height%253D0%2526startingClass%253Dcachewolf.CacheWolf%2526windowTitle%253DWindow%252BTitle%2526eves%253D%2526extra%253D%2526pathToEve%253D\Program%252BFiles\Eve\Eve.exe%2526nativeStack%253D0%2526vmStack%253D0%2526locale%253D%2526vmOptions%253D%26install%3Dtitle%253D%2526category%253DApplications%2526location%253D%2526icon%253D%2526args%253D%2526vmArgs%253D%26addInstallFile%3Dfalse%26makeZip%3Dfalse%26usePool%3Dfalse%26useClassPool%3Dfalse%26dontCreateEveInCommandLine%3Dfalse&icon=(Default)&librarySelect=0&exeClasses=2&alwaysShowClassTree=false&debugExternalZips=false&appletWidth=800&appletHeight=600&useResources=true&appletDisplay=0&splashScreens=splashScreens%3Dcom/eve/evemaker/SplashScreen%253DimageFile%25253D../resources/logo.png%252526changeSizeTo%25253Dtrue%252526width%25253D48%252526height%25253D43%252526keepAspect%25253Dtrue%252526trueWidth%25253D48%252526trueHeight%25253D43%26screenTitle%3DSplash%2BScreen&chosenMenuItem!
+ =&textEncoderName=UTF-8
+
+Added: experiments/EVEhist/deploy/cw-eve-pda.enf
+===================================================================
+--- experiments/EVEhist/deploy/cw-eve-pda.enf	2009-01-10 14:26:42 UTC (rev 1590)
++++ experiments/EVEhist/deploy/cw-eve-pda.enf	2009-01-27 17:24:00 UTC (rev 1591)
+@@ -0,0 +1 @@
++advancedExes=&command=programName%3DCacheWolf%26width%3D0%26height%3D0%26startingClass%3Dcachewolf.CacheWolf%26windowTitle%3DWindow%2BTitle%26eves%3D%26extra%3D%26pathToEve%3D\Program%2BFiles\Eve\Eve.exe%26nativeStack%3D0%26vmStack%3D0%26locale%3D%26vmOptions%3D&eveFiles=&targets=eve/data/Property%3Dname%253D%25253DTarget%2526value%253Deve/data/MultiListSelect$SelectedItems%25253D%2525253DPocketPC%2525252B2003%2525252BSE%25252526%2525253DPocketPC%2525252BWindows%2525252BMobile%2525252B5%25252526%2525253DPocketPC%2525252BWindows%2525252BMobile%2525252B6&createWithPnf=true&eveInfo=outputFile%3D../deploy/cachewolf.eve%26entries%3Dcom/eve/evemaker/EveDirEntry%253Dpath%25253D../bin%252526mask%25253D*.class%252526includeSubdirectories%25253Dtrue%252526pathInEve%25253D%2526com/eve/evemaker/EveDirEntry%253Dpath%25253D../lib/lib-folder%252526mask%25253D*.class%252526includeSubdirectories%25253Dtrue%252526pathInEve%25253D%2526com/eve/evemaker/EveDirEntry%253Dpath%25253D../work%252526!
+ mask%25253D*.gif;*.png;*.wms;*.cfg%252526includeSubdirectories%25253Dtrue%252526pathInEve%25253D%26addCommandLine%3Dtrue%26commandLine%3DprogramName%253DCacheWolf%2526width%253D0%2526height%253D0%2526startingClass%253Dcachewolf.CacheWolf%2526windowTitle%253DWindow%252BTitle%2526eves%253D%2526extra%253D%2526pathToEve%253D\Program%252BFiles\Eve\Eve.exe%2526nativeStack%253D0%2526vmStack%253D0%2526locale%253D%2526vmOptions%253D%26install%3Dtitle%253D%2526category%253DApplications%2526location%253D%2526icon%253D%2526args%253D%2526vmArgs%253D%26addInstallFile%3Dfalse%26makeZip%3Dfalse%26usePool%3Dfalse%26useClassPool%3Dfalse%26dontCreateEveInCommandLine%3Dfalse&icon=(Default)&librarySelect=0&exeClasses=2&alwaysShowClassTree=false&debugExternalZips=false&appletWidth=800&appletHeight=600&useResources=true&appletDisplay=0&splashScreens=splashScreens%3Dcom/eve/evemaker/SplashScreen%253DimageFile%25253D../resources/logo.png%252526changeSizeTo%25253Dtrue%252526width%25253D48%252526heig!
+ ht%25253D43%252526keepAspect%25253Dtrue%252526trueWidth%25253D!
+ 48%25252
+6trueHeight%25253D43%26screenTitle%3DSplash%2BScreen&chosenMenuItem=&textEncoderName=UTF-8
+
+Modified: experiments/EVEhist/lib/CompileEve.zip
+===================================================================
+(Binary files differ)
+
+Modified: experiments/EVEhist/lib/JavaEve.zip
+===================================================================
+(Binary files differ)
+
+Modified: experiments/EVEhist/programs/EveMaker.eve
+===================================================================
+(Binary files differ)
+
+Modified: experiments/EVEhist/programs/RunEveMaker.bat
+===================================================================
+--- experiments/EVEhist/programs/RunEveMaker.bat	2009-01-10 14:26:42 UTC (rev 1590)
++++ experiments/EVEhist/programs/RunEveMaker.bat	2009-01-27 17:24:00 UTC (rev 1591)
+@@ -1,3 +1,2 @@
+-java -cp eve.jar Eve EveMaker.eve
+ 
+-rem -c deploy/cw-eve-pc-relpath.enf
+\ No newline at end of file
++java -cp eve.jar Eve EveMaker.eve
+\ No newline at end of file
+
+Added: experiments/EVEhist/programs/RunEveMaker_PC.bat
+===================================================================
+--- experiments/EVEhist/programs/RunEveMaker_PC.bat	2009-01-10 14:26:42 UTC (rev 1590)
++++ experiments/EVEhist/programs/RunEveMaker_PC.bat	2009-01-27 17:24:00 UTC (rev 1591)
+@@ -0,0 +1,2 @@
++
++java -cp eve.jar Eve EveMaker.eve ../deploy/cw-eve-pc.enf
+\ No newline at end of file
+
+Added: experiments/EVEhist/programs/RunEveMaker_PDA.bat
+===================================================================
+--- experiments/EVEhist/programs/RunEveMaker_PDA.bat	2009-01-10 14:26:42 UTC (rev 1590)
++++ experiments/EVEhist/programs/RunEveMaker_PDA.bat	2009-01-27 17:24:00 UTC (rev 1591)
+@@ -0,0 +1,2 @@
++
++java -cp eve.jar Eve EveMaker.eve ../deploy/cw-eve-pda.enf
+\ No newline at end of file
+
+Added: experiments/EVEhist/programs/buildexe.bat
+===================================================================
+--- experiments/EVEhist/programs/buildexe.bat	2009-01-10 14:26:42 UTC (rev 1590)
++++ experiments/EVEhist/programs/buildexe.bat	2009-01-27 17:24:00 UTC (rev 1591)
+@@ -0,0 +1,7 @@
++
++rem call getres.bat
++
++java -cp eve.jar Eve EveMaker.eve -c ../deploy/cw-eve-pc.enf
++java -cp eve.jar Eve EveMaker.eve -c ../deploy/cw-eve-pda.enf
++ at REM Dont change the order above because the PC version has to overwrite the PDA version of the EWE-file
++pause
+
+Modified: experiments/EVEhist/programs/resources/Linux-x86-cl_stub
+===================================================================
+(Binary files differ)
+
+Modified: experiments/EVEhist/programs/resources/Linux-x86-gtk2_stub
+===================================================================
+(Binary files differ)
+
+Modified: experiments/EVEhist/programs/resources/Linux-x86-x_stub
+===================================================================
+(Binary files differ)
+
+Modified: experiments/EVEhist/programs/resources/PocketPC2003SE_arm_stub.exe
+===================================================================
+(Binary files differ)
+
+Modified: experiments/EVEhist/programs/resources/PocketPCWindowsMobile5_arm_stub.exe
+===================================================================
+(Binary files differ)
+
+Modified: experiments/EVEhist/programs/resources/PocketPCWindowsMobile6_arm_stub.exe
+===================================================================
+(Binary files differ)
+
+Modified: experiments/EVEhist/programs/resources/SmartPhone2003SE_arm_stub.exe
+===================================================================
+(Binary files differ)
+
+Modified: experiments/EVEhist/programs/resources/SmartPhoneWindowsMobile5_arm_stub.exe
+===================================================================
+(Binary files differ)
+
+Modified: experiments/EVEhist/programs/resources/SmartPhoneWindowsMobile6_arm_stub.exe
+===================================================================
+(Binary files differ)
+
+Modified: experiments/EVEhist/programs/resources/eve-cl-classes.zip
+===================================================================
+(Binary files differ)
+
+Modified: experiments/EVEhist/programs/resources/eve-classes.zip
+===================================================================
+(Binary files differ)
+
+Modified: experiments/EVEhist/programs/resources/eve_stub.exe
+===================================================================
+(Binary files differ)
+
+Modified: experiments/EVEhist/programs/resources/evew_stub.exe
+===================================================================
+(Binary files differ)
+
+Modified: experiments/EVEhist/programs/resources/javaeve-cl-classes.zip
+===================================================================
+(Binary files differ)
+
+Modified: experiments/EVEhist/programs/resources/javaeve-classes.zip
+===================================================================
+(Binary files differ)
+
+
+
+From engywuck at mail.berlios.de  Tue Jan 27 19:36:04 2009
+From: engywuck at mail.berlios.de (engywuck at mail.berlios.de)
+Date: Tue, 27 Jan 2009 19:36:04 +0100
+Subject: [Cachewolf-svn] r1592 - in experiments/EVEhist/src/cachewolf: . exp
+Message-ID: <200901271836.n0RIa4BZ009140@sheep.berlios.de>
+
+Author: engywuck
+Date: 2009-01-27 19:35:58 +0100 (Tue, 27 Jan 2009)
+New Revision: 1592
+
+Modified:
+   experiments/EVEhist/src/cachewolf/DescriptionPanel.java
+   experiments/EVEhist/src/cachewolf/exp/HTMLExporter.java
+Log:
+Ignoring Perl scripts when displaying images.
+
+Modified: experiments/EVEhist/src/cachewolf/DescriptionPanel.java
+===================================================================
+--- experiments/EVEhist/src/cachewolf/DescriptionPanel.java	2009-01-27 17:24:00 UTC (rev 1591)
++++ experiments/EVEhist/src/cachewolf/DescriptionPanel.java	2009-01-27 18:35:58 UTC (rev 1592)
+@@ -79,7 +79,7 @@
+ 							if (imgUrl.lastIndexOf('.')>0 && imgUrl.toLowerCase().startsWith("http")) {
+ 								String imgType = (imgUrl.substring(imgUrl.lastIndexOf(".")).toLowerCase()+"    ").substring(0,4).trim();
+ 								// If we have an image which we stored when spidering, we can display it
+-								if(!imgType.startsWith(".com") && !imgType.startsWith(".php") && !imgType.startsWith(".exe")){
++								if(!imgType.startsWith(".com") && !imgType.startsWith(".php") && !imgType.startsWith(".exe") && !imgType.startsWith(".pl")){
+ 									s.append("<img src=\""+
+ 											//Global.getProfile().dataDir+
+ 											Images.get(imageNo)+"\">");
+
+Modified: experiments/EVEhist/src/cachewolf/exp/HTMLExporter.java
+===================================================================
+--- experiments/EVEhist/src/cachewolf/exp/HTMLExporter.java	2009-01-27 17:24:00 UTC (rev 1591)
++++ experiments/EVEhist/src/cachewolf/exp/HTMLExporter.java	2009-01-27 18:35:58 UTC (rev 1592)
+@@ -265,7 +265,7 @@
+ 			if (imgUrl.lastIndexOf('.')>0 && imgUrl.toLowerCase().startsWith("http")) {
+ 				String imgType = (imgUrl.substring(imgUrl.lastIndexOf(".")).toLowerCase()+"    ").substring(0,4).trim();
+ 				// If we have an image which we stored when spidering, we can display it
+-				if(!imgType.startsWith(".com") && !imgType.startsWith(".php") && !imgType.startsWith(".exe")){
++				if(!imgType.startsWith(".com") && !imgType.startsWith(".php") && !imgType.startsWith(".exe") && !imgType.startsWith(".pl")){
+ 					s.append("<img src=\""+chD.images.get(imageNo)+"\">");
+ 					// The actual immages are copied elswhere
+ 					//DataMover.copy(profile.dataDir + chD.Images.get(imageNo),targetDir + chD.Images.get(imageNo));
+
+
+
+From engywuck at mail.berlios.de  Tue Jan 27 20:04:44 2009
+From: engywuck at mail.berlios.de (engywuck at mail.berlios.de)
+Date: Tue, 27 Jan 2009 20:04:44 +0100
+Subject: [Cachewolf-svn] r1593 - in experiments/EVEhist/src/cachewolf: . exp
+Message-ID: <200901271904.n0RJ4iT9005750@sheep.berlios.de>
+
+Author: engywuck
+Date: 2009-01-27 20:04:42 +0100 (Tue, 27 Jan 2009)
+New Revision: 1593
+
+Modified:
+   experiments/EVEhist/src/cachewolf/Log.java
+   experiments/EVEhist/src/cachewolf/exp/HTMLExporter.java
+Log:
+Fixed unintentional copy of nonexistant icons when doing HTML export.
+
+Modified: experiments/EVEhist/src/cachewolf/Log.java
+===================================================================
+--- experiments/EVEhist/src/cachewolf/Log.java	2009-01-27 18:35:58 UTC (rev 1592)
++++ experiments/EVEhist/src/cachewolf/Log.java	2009-01-27 19:04:42 UTC (rev 1593)
+@@ -3,7 +3,6 @@
+ import cachewolf.imp.GPXImporter;
+ 
+ public class Log {
+-	private static String MAXLOGICON="MAXLOG";
+ 	private static String INVALIDLOGICON=null;
+ 	/** The icon which describes the log e.g. icon_sad */
+ 	private String icon;
+@@ -16,6 +15,7 @@
+ 	/** true, if the logger recommended the cache */
+ 	private boolean recommended = false;
+ 	
++	public static String MAXLOGICON="MAXLOG";
+ 	/** Create a log from a single line in format<br>
+ 	 * <pre>RECOMMENDED="1"<img src='ICON'>&nbsp;DATE LOGGER<br>MESSAGE
+ 	 * or <img src='ICON'>&nbsp;DATE by LOGGER<br>MESSAGE</pre>
+
+Modified: experiments/EVEhist/src/cachewolf/exp/HTMLExporter.java
+===================================================================
+--- experiments/EVEhist/src/cachewolf/exp/HTMLExporter.java	2009-01-27 18:35:58 UTC (rev 1592)
++++ experiments/EVEhist/src/cachewolf/exp/HTMLExporter.java	2009-01-27 19:04:42 UTC (rev 1593)
+@@ -215,8 +215,10 @@
+ 			// Copy the log-icons to the destination directory
+ 			for (int j=0; j<logIcons.size(); j++) {
+ 				icon=(String) logIcons.elementAt(j);
+-				DataMover.copy(eve.io.File.getProgramDirectory() + "/"+icon,targetDir + icon);
+-				
++				// Copy icons only if they are not the "virtual" MAXLOGICON
++				if (!icon.equals(Log.MAXLOGICON)) {
++				    DataMover.copy(eve.io.File.getProgramDirectory() + "/"+icon,targetDir + icon);
++				}
+ 			}
+ 			DataMover.copy(eve.io.File.getProgramDirectory() + "/recommendedlog.gif",targetDir + "recommendedlog.gif");
+ 			try{
+
+
+
+From engywuck at mail.berlios.de  Tue Jan 27 20:30:36 2009
+From: engywuck at mail.berlios.de (engywuck at mail.berlios.de)
+Date: Tue, 27 Jan 2009 20:30:36 +0100
+Subject: [Cachewolf-svn] r1594 - experiments/EVEhist/src/cachewolf/exp
+Message-ID: <200901271930.n0RJUaQH007546@sheep.berlios.de>
+
+Author: engywuck
+Date: 2009-01-27 20:30:35 +0100 (Tue, 27 Jan 2009)
+New Revision: 1594
+
+Modified:
+   experiments/EVEhist/src/cachewolf/exp/HTMLExporter.java
+Log:
+Fixed issue when cache html code has empty image links, like GC1CT4B. Prevented that html export could be done for the cache.
+
+Modified: experiments/EVEhist/src/cachewolf/exp/HTMLExporter.java
+===================================================================
+--- experiments/EVEhist/src/cachewolf/exp/HTMLExporter.java	2009-01-27 19:04:42 UTC (rev 1593)
++++ experiments/EVEhist/src/cachewolf/exp/HTMLExporter.java	2009-01-27 19:30:35 UTC (rev 1594)
+@@ -264,7 +264,7 @@
+ 			imgRex.searchFrom(chD.longDescription,pos);
+ 			String imgUrl=imgRex.stringMatched(1);
+ 			//Vm.debug("imgUrl "+imgUrl);
+-			if (imgUrl.lastIndexOf('.')>0 && imgUrl.toLowerCase().startsWith("http")) {
++			if (imgUrl != null && imgUrl.lastIndexOf('.')>0 && imgUrl.toLowerCase().startsWith("http")) {
+ 				String imgType = (imgUrl.substring(imgUrl.lastIndexOf(".")).toLowerCase()+"    ").substring(0,4).trim();
+ 				// If we have an image which we stored when spidering, we can display it
+ 				if(!imgType.startsWith(".com") && !imgType.startsWith(".php") && !imgType.startsWith(".exe") && !imgType.startsWith(".pl")){
+
+
+
+From admin at berlios.de  Wed Jan 28 20:34:43 2009
+From: admin at berlios.de (admin at berlios.de)
+Date: Wed, 28 Jan 2009 20:34:43 +0100 (CET)
+Subject: [Bug #15146] GPX Importer erkennt Funddatum nicht für Events und Webcams
+Message-ID: <200901281934.n0SJYhrR021927@unicorn.berlios.de>
+
+Bug #15146, was updated on 2009-Jan-28 20:34
+Here is a current snapshot of the bug.
+
+Project: CacheWolf
+Category: None
+Status: Open
+Resolution: None
+Bug Group: None
+Priority: 5
+Submitted by: greiol
+Assigned to : none
+Summary: GPX Importer erkennt Funddatum nicht f?r Events und Webcams
+
+Details: Der GPX Importer erkennt das Funddatum bei Webcams und Events nicht, da nur auf icon_smile, nicht aber auf 11.png und icon_attended gepr?ft wird.
+
+fix:
+in GPXImporter.java die zeile
+if(logIcon.equals("icon_smile.gif") &&
+durch die zeile
+if((logIcon.equals("icon_smile.gif") || logIcon.equals("11.png") || logIcon.equals("icon_attended.gif")) &&
+ersetzen. 
+
+leider kann ich kein patchfile anh?ngen
+
+For detailed info, follow this link:
+http://developer.berlios.de/bugs/?func=detailbug&bug_id=15146&group_id=2211
+
+
+From admin at berlios.de  Wed Jan 28 20:39:15 2009
+From: admin at berlios.de (admin at berlios.de)
+Date: Wed, 28 Jan 2009 20:39:15 +0100 (CET)
+Subject: [Cachewolf-svn] [Bug #15147] Garmin Export obsolet
+Message-ID: <200901281939.n0SJdFmw001670@unicorn.berlios.de>
+
+Bug #15147, was updated on 2009-Jan-28 20:39
+Here is a current snapshot of the bug.
+
+Project: CacheWolf
+Category: None
+Status: Open
+Resolution: None
+Bug Group: None
+Priority: 5
+Submitted by: greiol
+Assigned to : none
+Summary: Garmin Export obsolet
+
+Details: Der derzeitige Garmin Export via Men? erzeugt PCX5 Dateien. PCX5 wird seit vielen Versionen nicht mehr von Garmin unterst?tzt und kommt auch mit den "neuen langen" WP Identifiern von GC.com zurecht.
+
+Vorschlag: entfernen
+
+For detailed info, follow this link:
+http://developer.berlios.de/bugs/?func=detailbug&bug_id=15147&group_id=2211
+
+
+From admin at berlios.de  Wed Jan 28 20:41:48 2009
+From: admin at berlios.de (admin at berlios.de)
+Date: Wed, 28 Jan 2009 20:41:48 +0100 (CET)
+Subject: [Cachewolf-svn] [Bug #15148] Memory Leak in der Java Version beim
+	Spidern/Aktualisieren
+Message-ID: <200901281941.n0SJfmnN007163@unicorn.berlios.de>
+
+Bug #15148, was updated on 2009-Jan-28 20:41
+Here is a current snapshot of the bug.
+
+Project: CacheWolf
+Category: None
+Status: Open
+Resolution: None
+Bug Group: None
+Priority: 5
+Submitted by: greiol
+Assigned to : none
+Summary: Memory Leak in der Java Version beim Spidern/Aktualisieren
+
+Details: Die Javaversion verliert bei Spidern / Aktualisieren immer mehr Old-Generation Heap der auch nach dem Ende des Speicherns mit einer erzwungenen GC nicht freigegebn wird. Dazu kommt es immer wieder zu Out of Memory Exceptions (siehe diverse Freds im Forum).
+
+For detailed info, follow this link:
+http://developer.berlios.de/bugs/?func=detailbug&bug_id=15148&group_id=2211
+
+
+From natureshadow at mail.berlios.de  Wed Jan 28 22:04:54 2009
+From: natureshadow at mail.berlios.de (natureshadow at mail.berlios.de)
+Date: Wed, 28 Jan 2009 22:04:54 +0100
+Subject: [Cachewolf-svn] r1595 - experiments/EVEhist/programs
+Message-ID: <200901282104.n0SL4sGN014082@sheep.berlios.de>
+
+Author: natureshadow
+Date: 2009-01-28 22:04:35 +0100 (Wed, 28 Jan 2009)
+New Revision: 1595
+
+Added:
+   experiments/EVEhist/programs/RunEveMaker.sh
+   experiments/EVEhist/programs/RunEveMaker_PC.sh
+   experiments/EVEhist/programs/RunEveMaker_PDA.sh
+   experiments/EVEhist/programs/buildexe.sh
+Log:
+Ported build scripts to bash.
+Added modification draft of fwrtsnapshot script (not working !).
+
+
+Added: experiments/EVEhist/programs/RunEveMaker.sh
+===================================================================
+--- experiments/EVEhist/programs/RunEveMaker.sh	2009-01-27 19:30:35 UTC (rev 1594)
++++ experiments/EVEhist/programs/RunEveMaker.sh	2009-01-28 21:04:35 UTC (rev 1595)
+@@ -0,0 +1,2 @@
++#!/bin/bash
++java -cp eve.jar Eve EveMaker.eve
+
+Added: experiments/EVEhist/programs/RunEveMaker_PC.sh
+===================================================================
+--- experiments/EVEhist/programs/RunEveMaker_PC.sh	2009-01-27 19:30:35 UTC (rev 1594)
++++ experiments/EVEhist/programs/RunEveMaker_PC.sh	2009-01-28 21:04:35 UTC (rev 1595)
+@@ -0,0 +1,2 @@
++#!/bin/bash
++java -cp eve.jar Eve EveMaker.eve ../deploy/cw-eve-pc.enf
+
+Added: experiments/EVEhist/programs/RunEveMaker_PDA.sh
+===================================================================
+--- experiments/EVEhist/programs/RunEveMaker_PDA.sh	2009-01-27 19:30:35 UTC (rev 1594)
++++ experiments/EVEhist/programs/RunEveMaker_PDA.sh	2009-01-28 21:04:35 UTC (rev 1595)
+@@ -0,0 +1,2 @@
++#!/bin/bash
++java -cp eve.jar Eve EveMaker.eve ../deploy/cw-eve-pda.enf
+
+Added: experiments/EVEhist/programs/buildexe.sh
+===================================================================
+--- experiments/EVEhist/programs/buildexe.sh	2009-01-27 19:30:35 UTC (rev 1594)
++++ experiments/EVEhist/programs/buildexe.sh	2009-01-28 21:04:35 UTC (rev 1595)
+@@ -0,0 +1,5 @@
++#!/bin/bash
++
++java -cp eve.jar Eve EveMaker.eve -c ../deploy/cw-eve-pc.enf
++java -cp eve.jar Eve EveMaker.eve -c ../deploy/cw-eve-pda.enf
++# Dont change the order above because the PC version has to overwrite the PDA version of the EWE-file
+
+
+
+From mirabilos at mail.berlios.de  Wed Jan 28 22:13:11 2009
+From: mirabilos at mail.berlios.de (mirabilos at BerliOS)
+Date: Wed, 28 Jan 2009 22:13:11 +0100
+Subject: [Cachewolf-svn] r1596 - experiments/EVEhist/programs
+Message-ID: <200901282113.n0SLDBJu015092@sheep.berlios.de>
+
+Author: mirabilos
+Date: 2009-01-28 22:13:11 +0100 (Wed, 28 Jan 2009)
+New Revision: 1596
+
+Modified:
+   experiments/EVEhist/programs/RunEveMaker.sh
+   experiments/EVEhist/programs/RunEveMaker_PC.sh
+   experiments/EVEhist/programs/RunEveMaker_PDA.sh
+   experiments/EVEhist/programs/buildexe.sh
+Log:
+? GNU bash is an abomination ? port to POSIX shell
+? fix line endings while here
+? break lines to below 80c while here
+
+
+Modified: experiments/EVEhist/programs/RunEveMaker.sh
+===================================================================
+--- experiments/EVEhist/programs/RunEveMaker.sh	2009-01-28 21:04:35 UTC (rev 1595)
++++ experiments/EVEhist/programs/RunEveMaker.sh	2009-01-28 21:13:11 UTC (rev 1596)
+@@ -1,2 +1,2 @@
+-#!/bin/bash
+-java -cp eve.jar Eve EveMaker.eve
++#!/bin/sh
++java -cp eve.jar Eve EveMaker.eve
+
+
+Property changes on: experiments/EVEhist/programs/RunEveMaker.sh
+___________________________________________________________________
+Name: svn:eol-style
+   + native
+
+Modified: experiments/EVEhist/programs/RunEveMaker_PC.sh
+===================================================================
+--- experiments/EVEhist/programs/RunEveMaker_PC.sh	2009-01-28 21:04:35 UTC (rev 1595)
++++ experiments/EVEhist/programs/RunEveMaker_PC.sh	2009-01-28 21:13:11 UTC (rev 1596)
+@@ -1,2 +1,2 @@
+-#!/bin/bash
+-java -cp eve.jar Eve EveMaker.eve ../deploy/cw-eve-pc.enf
++#!/bin/sh
++java -cp eve.jar Eve EveMaker.eve ../deploy/cw-eve-pc.enf
+
+
+Property changes on: experiments/EVEhist/programs/RunEveMaker_PC.sh
+___________________________________________________________________
+Name: svn:eol-style
+   + native
+
+Modified: experiments/EVEhist/programs/RunEveMaker_PDA.sh
+===================================================================
+--- experiments/EVEhist/programs/RunEveMaker_PDA.sh	2009-01-28 21:04:35 UTC (rev 1595)
++++ experiments/EVEhist/programs/RunEveMaker_PDA.sh	2009-01-28 21:13:11 UTC (rev 1596)
+@@ -1,2 +1,2 @@
+-#!/bin/bash
+-java -cp eve.jar Eve EveMaker.eve ../deploy/cw-eve-pda.enf
++#!/bin/sh
++java -cp eve.jar Eve EveMaker.eve ../deploy/cw-eve-pda.enf
+
+
+Property changes on: experiments/EVEhist/programs/RunEveMaker_PDA.sh
+___________________________________________________________________
+Name: svn:eol-style
+   + native
+
+Modified: experiments/EVEhist/programs/buildexe.sh
+===================================================================
+--- experiments/EVEhist/programs/buildexe.sh	2009-01-28 21:04:35 UTC (rev 1595)
++++ experiments/EVEhist/programs/buildexe.sh	2009-01-28 21:13:11 UTC (rev 1596)
+@@ -1,5 +1,7 @@
+-#!/bin/bash
+-
+-java -cp eve.jar Eve EveMaker.eve -c ../deploy/cw-eve-pc.enf
+-java -cp eve.jar Eve EveMaker.eve -c ../deploy/cw-eve-pda.enf
+-# Dont change the order above because the PC version has to overwrite the PDA version of the EWE-file
++#!/bin/sh
++
++java -cp eve.jar Eve EveMaker.eve -c ../deploy/cw-eve-pc.enf
++java -cp eve.jar Eve EveMaker.eve -c ../deploy/cw-eve-pda.enf
++
++# Don't change the order above because the PC version has to
++# overwrite the PDA version of the EWE-file
+
+
+Property changes on: experiments/EVEhist/programs/buildexe.sh
+___________________________________________________________________
+Name: svn:eol-style
+   + native
+
+
+
+From engywuck at mail.berlios.de  Thu Jan 29 10:03:02 2009
+From: engywuck at mail.berlios.de (engywuck at mail.berlios.de)
+Date: Thu, 29 Jan 2009 10:03:02 +0100
+Subject: [Cachewolf-svn] r1597 - in trunk: . src/exp
+Message-ID: <200901290903.n0T932qc002590@sheep.berlios.de>
+
+Author: engywuck
+Date: 2009-01-29 10:03:00 +0100 (Thu, 29 Jan 2009)
+New Revision: 1597
+
+Modified:
+   trunk/runjewel.bat
+   trunk/src/exp/KMLExporter.java
+Log:
+KML-Export now only exports visible Waypoints. Additional waypoint which are not visible are not exported. (http://www.geoclub.de/viewtopic.php?f=40&t=27773)
+
+Modified: trunk/runjewel.bat
+===================================================================
+--- trunk/runjewel.bat	2009-01-28 21:13:11 UTC (rev 1596)
++++ trunk/runjewel.bat	2009-01-29 09:03:00 UTC (rev 1597)
+@@ -1 +1 @@
+-java -cp lib/ewe.jar Ewe ../Ewe/programs/Jewel.ewe
++java -cp lib/ewe.jar Ewe programs/Jewel.ewe cw-pda.jnf
+
+Modified: trunk/src/exp/KMLExporter.java
+===================================================================
+--- trunk/src/exp/KMLExporter.java	2009-01-28 21:13:11 UTC (rev 1596)
++++ trunk/src/exp/KMLExporter.java	2009-01-29 09:03:00 UTC (rev 1597)
+@@ -121,19 +121,25 @@
+ 							if (str != null) outp.print(str);
+ 						}
+ 						if (ch.hasAddiWpt()){
+-						outp.print(startFolder("Additional Waypoints", false));
++							boolean createdAdditionalWaypointsFolder = false;
+ 							for(int j = 0; j<ch.addiWpts.size(); j++){
+ 								addiWpt = (CacheHolder) ch.addiWpts.get(j);
+ 								holder=new CacheHolderDetail(addiWpt);
+ 								expCount++;
+-								if (holder.pos.isValid()){
++								if (holder.pos.isValid() &&  ! holder.is_filtered){
++									if (! createdAdditionalWaypointsFolder) {
++										outp.print(startFolder("Additional Waypoints", false));
++										createdAdditionalWaypointsFolder = true;
++									}
+ 									str = record(holder, holder.pos.getLatDeg(CWPoint.DD).replace('.', this.decimalSeparator),
+ 										     holder.pos.getLonDeg(CWPoint.DD).replace('.', this.decimalSeparator));
+ 									if (str != null) outp.print(str);
+ 								}
+ 								
+ 							}
+-						outp.print(endFolder());// addi wpts
++							if (createdAdditionalWaypointsFolder) {
++								outp.print(endFolder());// addi wpts
++							}
+ 						}
+ 					}
+ 					outp.print(endFolder());// cachetype
+
+
+
+From engywuck at mail.berlios.de  Thu Jan 29 10:03:20 2009
+From: engywuck at mail.berlios.de (engywuck at mail.berlios.de)
+Date: Thu, 29 Jan 2009 10:03:20 +0100
+Subject: [Cachewolf-svn] r1598 - experiments/EVEhist/src/cachewolf/exp
+Message-ID: <200901290903.n0T93KFa002627@sheep.berlios.de>
+
+Author: engywuck
+Date: 2009-01-29 10:03:18 +0100 (Thu, 29 Jan 2009)
+New Revision: 1598
+
+Modified:
+   experiments/EVEhist/src/cachewolf/exp/KMLExporter.java
+Log:
+KML-Export now only exports visible Waypoints. Additional waypoint which are not visible are not exported. (http://www.geoclub.de/viewtopic.php?f=40&t=27773)
+
+Modified: experiments/EVEhist/src/cachewolf/exp/KMLExporter.java
+===================================================================
+--- experiments/EVEhist/src/cachewolf/exp/KMLExporter.java	2009-01-29 09:03:00 UTC (rev 1597)
++++ experiments/EVEhist/src/cachewolf/exp/KMLExporter.java	2009-01-29 09:03:18 UTC (rev 1598)
+@@ -122,19 +122,24 @@
+ 							if (str != null) outp.print(str);
+ 						}
+ 						if (ch.hasAddiWpt()){
+-							outp.print(startFolder("Additional Waypoints", false));
+-							for(int j = 0; j<ch.addiWpts.size(); j++){
+-								addiWpt = (CacheHolder) ch.addiWpts.get(j);
+-								chD=new CacheHolderDetail(addiWpt);
+-								expCount++;
+-								if (chD.pos.isValid()){
+-									str = record(chD, chD.pos.getLatDeg(CWPoint.DD).replace('.', this.decimalSeparator),
+-										     chD.pos.getLonDeg(CWPoint.DD).replace('.', this.decimalSeparator));
+-									if (str != null) outp.print(str);
+-								}
+-
+-							}
+-						outp.print(endFolder());// addi wpts
++                            boolean createdAdditionalWaypointsFolder = false;
++                            for(int j = 0; j<ch.addiWpts.size(); j++){
++                            	addiWpt = (CacheHolder) ch.addiWpts.get(j);
++                            	chD=new CacheHolderDetail(addiWpt);
++                            	expCount++;
++                            	if (chD.pos.isValid() &&  ! chD.is_filtered){
++                            		if (! createdAdditionalWaypointsFolder) {
++                            			outp.print(startFolder("Additional Waypoints", false));
++                                        createdAdditionalWaypointsFolder = true;
++                                    }
++                            		str = record(chD, chD.pos.getLatDeg(CWPoint.DD).replace('.', this.decimalSeparator),
++                            		chD.pos.getLonDeg(CWPoint.DD).replace('.', this.decimalSeparator));
++                            		if (str != null) outp.print(str);
++                            	}
++                            }
++                            if (createdAdditionalWaypointsFolder) {
++                            	outp.print(endFolder());// addi wpts
++                            }
+ 						}
+ 					}
+ 					outp.print(endFolder());// cachetype
+
+
+
+From engywuck at mail.berlios.de  Thu Jan 29 20:40:34 2009
+From: engywuck at mail.berlios.de (engywuck at mail.berlios.de)
+Date: Thu, 29 Jan 2009 20:40:34 +0100
+Subject: [Cachewolf-svn] r1599 - experiments/EVEhist
+Message-ID: <200901291940.n0TJeYOV027663@sheep.berlios.de>
+
+Author: engywuck
+Date: 2009-01-29 20:40:30 +0100 (Thu, 29 Jan 2009)
+New Revision: 1599
+
+Modified:
+   experiments/EVEhist/CW-Eve.launch
+Log:
+Correcting launch configuration.
+
+Modified: experiments/EVEhist/CW-Eve.launch
+===================================================================
+--- experiments/EVEhist/CW-Eve.launch	2009-01-29 09:03:18 UTC (rev 1598)
++++ experiments/EVEhist/CW-Eve.launch	2009-01-29 19:40:30 UTC (rev 1599)
+@@ -12,7 +12,8 @@
+ </listAttribute>
+ <listAttribute key="org.eclipse.jdt.launching.CLASSPATH">
+ <listEntry value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;&#13;&#10;&lt;runtimeClasspathEntry internalArchive=&quot;/cachewolf-eve/lib/JavaEve.zip&quot; path=&quot;3&quot; type=&quot;2&quot;/&gt;&#13;&#10;"/>
+-<listEntry value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;&#13;&#10;&lt;runtimeClasspathEntry id=&quot;org.eclipse.jdt.launching.classpathentry.defaultClasspath&quot;&gt;&#13;&#10;&lt;memento exportedEntriesOnly=&quot;false&quot; project=&quot;cachewolf-eve&quot;/&gt;&#13;&#10;&lt;/runtimeClasspathEntry&gt;&#13;&#10;"/>
++<listEntry value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;&#13;&#10;&lt;runtimeClasspathEntry path=&quot;3&quot; projectName=&quot;cachewolf-eve&quot; type=&quot;1&quot;/&gt;&#13;&#10;"/>
++<listEntry value="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;&#13;&#10;&lt;runtimeClasspathEntry internalArchive=&quot;/cachewolf-eve/lib/lib-folder&quot; path=&quot;3&quot; type=&quot;2&quot;/&gt;&#13;&#10;"/>
+ </listAttribute>
+ <booleanAttribute key="org.eclipse.jdt.launching.DEFAULT_CLASSPATH" value="false"/>
+ <stringAttribute key="org.eclipse.jdt.launching.MAIN_TYPE" value="Eve"/>
+
+
+
+From pfeffer at mail.berlios.de  Fri Jan 30 02:07:46 2009
+From: pfeffer at mail.berlios.de (pfeffer at mail.berlios.de)
+Date: Fri, 30 Jan 2009 02:07:46 +0100
+Subject: [Cachewolf-svn] r1600 - in experiments/EVEhist: . programs
+Message-ID: <200901300107.n0U17kt1012841@sheep.berlios.de>
+
+Author: pfeffer
+Date: 2009-01-30 02:07:44 +0100 (Fri, 30 Jan 2009)
+New Revision: 1600
+
+Added:
+   experiments/EVEhist/programs/getres.bat
+Removed:
+   experiments/EVEhist/getres.bat
+Modified:
+   experiments/EVEhist/programs/buildexe.bat
+Log:
+Eve Build-system: moved getres.bat into dir programs
+Eve Build-system: getres.bat and buildexe.bat can now be called from any dir (double click in eclipse to start them, works now if you select "open with system editor" with right click before)
+
+Deleted: experiments/EVEhist/getres.bat
+===================================================================
+--- experiments/EVEhist/getres.bat	2009-01-29 19:40:30 UTC (rev 1599)
++++ experiments/EVEhist/getres.bat	2009-01-30 01:07:44 UTC (rev 1600)
+@@ -1,17 +0,0 @@
+-mkdir work\attributes
+-mkdir work\attributes-big
+-copy resources\attributes\*.gif work\attributes
+-copy resources\attributes-big\*.gif work\attributes-big
+-copy resources\*.gif work
+-copy resources\*.png work
+-mkdir work\languages
+-mkdir work\webmapservices
+-copy res_noewe\languages\*.cfg work\languages
+-copy res_noewe\webmapservices\*.wms work\webmapservices
+-copy res_noewe\webmapservices\*.txt work\webmapservices
+-copy res_noewe\*.def work
+-copy res_noewe\*.html work
+-copy res_noewe\*.png work
+-copy res_noewe\*.gif work
+-copy res_noewe\*.tpl work
+-copy res_noewe\*.zip work
+
+Modified: experiments/EVEhist/programs/buildexe.bat
+===================================================================
+--- experiments/EVEhist/programs/buildexe.bat	2009-01-29 19:40:30 UTC (rev 1599)
++++ experiments/EVEhist/programs/buildexe.bat	2009-01-30 01:07:44 UTC (rev 1600)
+@@ -1,4 +1,5 @@
+-
++rem make the working dir the one this file is in
++cd %~d0%~p0
+ rem call getres.bat
+ 
+ java -cp eve.jar Eve EveMaker.eve -c ../deploy/cw-eve-pc.enf
+
+Added: experiments/EVEhist/programs/getres.bat
+===================================================================
+--- experiments/EVEhist/programs/getres.bat	2009-01-29 19:40:30 UTC (rev 1599)
++++ experiments/EVEhist/programs/getres.bat	2009-01-30 01:07:44 UTC (rev 1600)
+@@ -0,0 +1,22 @@
++ at echo off
++rem make the working dir the one this file is in
++cd %~d0%~p0
++mkdir ..\work
++mkdir ..\work\attributes
++mkdir ..\work\attributes-big
++copy ..\resources\attributes\*.gif ..\work\attributes
++copy ..\resources\attributes-big\*.gif ..\work\attributes-big
++copy ..\resources\*.gif ..\work
++copy ..\resources\*.png ..\work
++mkdir ..\work\languages
++mkdir ..\work\webmapservices
++copy ..\res_noewe\languages\*.cfg ..\work\languages
++copy ..\res_noewe\webmapservices\*.wms ..\work\webmapservices
++copy ..\res_noewe\webmapservices\*.txt ..\work\webmapservices
++copy ..\res_noewe\*.def ..\work
++copy ..\res_noewe\*.html ..\work
++copy ..\res_noewe\*.png ..\work
++copy ..\res_noewe\*.gif ..\work
++copy ..\res_noewe\*.tpl ..\work
++copy ..\res_noewe\*.zip ..\work
++pause
+\ No newline at end of file
+
+
+
+From pfeffer at mail.berlios.de  Fri Jan 30 03:12:07 2009
+From: pfeffer at mail.berlios.de (pfeffer at mail.berlios.de)
+Date: Fri, 30 Jan 2009 03:12:07 +0100
+Subject: [Cachewolf-svn] r1601 - in experiments/EVEhist: . programs
+Message-ID: <200901300212.n0U2C7oH025480@sheep.berlios.de>
+
+Author: pfeffer
+Date: 2009-01-30 03:12:05 +0100 (Fri, 30 Jan 2009)
+New Revision: 1601
+
+Added:
+   experiments/EVEhist/CW-Eve-Exe.launch
+Modified:
+   experiments/EVEhist/programs/RunEveMaker.bat
+   experiments/EVEhist/programs/RunEveMaker_PC.bat
+   experiments/EVEhist/programs/RunEveMaker_PDA.bat
+Log:
+Eve-Build: You can run/test Cachewolf in the exe-VM directly by starting CW-Eve-Exe.launch as external launch config
+
+Added: experiments/EVEhist/CW-Eve-Exe.launch
+===================================================================
+--- experiments/EVEhist/CW-Eve-Exe.launch	2009-01-30 01:07:44 UTC (rev 1600)
++++ experiments/EVEhist/CW-Eve-Exe.launch	2009-01-30 02:12:05 UTC (rev 1601)
+@@ -0,0 +1,10 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<launchConfiguration type="org.eclipse.ui.externaltools.ProgramLaunchConfigurationType">
++<stringAttribute key="bad_container_name" value="\cachewolf-eve\C"/>
++<booleanAttribute key="org.eclipse.debug.core.appendEnvironmentVariables" value="true"/>
++<listAttribute key="org.eclipse.debug.ui.favoriteGroups">
++<listEntry value="org.eclipse.ui.externaltools.launchGroup"/>
++</listAttribute>
++<stringAttribute key="org.eclipse.ui.externaltools.ATTR_LOCATION" value="${workspace_loc:/cachewolf-eve/programs/RunCacheWolfEveVM.bat}"/>
++<stringAttribute key="org.eclipse.ui.externaltools.ATTR_WORKING_DIRECTORY" value="${workspace_loc:/cachewolf-eve/programs}"/>
++</launchConfiguration>
+
+Modified: experiments/EVEhist/programs/RunEveMaker.bat
+===================================================================
+--- experiments/EVEhist/programs/RunEveMaker.bat	2009-01-30 01:07:44 UTC (rev 1600)
++++ experiments/EVEhist/programs/RunEveMaker.bat	2009-01-30 02:12:05 UTC (rev 1601)
+@@ -1,2 +1,3 @@
+-
+-java -cp eve.jar Eve EveMaker.eve
+\ No newline at end of file
++rem make the working dir the one this file is in
++cd %~d0%~p0
++java -cp eve.jar Eve EveMaker.eve
+
+Modified: experiments/EVEhist/programs/RunEveMaker_PC.bat
+===================================================================
+--- experiments/EVEhist/programs/RunEveMaker_PC.bat	2009-01-30 01:07:44 UTC (rev 1600)
++++ experiments/EVEhist/programs/RunEveMaker_PC.bat	2009-01-30 02:12:05 UTC (rev 1601)
+@@ -1,2 +1,3 @@
+-
+-java -cp eve.jar Eve EveMaker.eve ../deploy/cw-eve-pc.enf
+\ No newline at end of file
++rem make the working dir the one this file is in
++cd %~d0%~p0
++java -cp eve.jar Eve EveMaker.eve ../deploy/cw-eve-pc.enf
+
+Modified: experiments/EVEhist/programs/RunEveMaker_PDA.bat
+===================================================================
+--- experiments/EVEhist/programs/RunEveMaker_PDA.bat	2009-01-30 01:07:44 UTC (rev 1600)
++++ experiments/EVEhist/programs/RunEveMaker_PDA.bat	2009-01-30 02:12:05 UTC (rev 1601)
+@@ -1,2 +1,3 @@
+-
+-java -cp eve.jar Eve EveMaker.eve ../deploy/cw-eve-pda.enf
+\ No newline at end of file
++rem make the working dir the one this file is in
++cd %~d0%~p0
++java -cp eve.jar Eve EveMaker.eve ../deploy/cw-eve-pda.enf
+
+
+
+From natureshadow at mail.berlios.de  Sat Jan 31 14:08:45 2009
+From: natureshadow at mail.berlios.de (natureshadow at mail.berlios.de)
+Date: Sat, 31 Jan 2009 14:08:45 +0100
+Subject: [Cachewolf-svn] r1602 - in experiments/EVEhist: . programs
+Message-ID: <200901311308.n0VD8jw5016156@sheep.berlios.de>
+
+Author: natureshadow
+Date: 2009-01-31 14:08:39 +0100 (Sat, 31 Jan 2009)
+New Revision: 1602
+
+Added:
+   experiments/EVEhist/getres.sh
+   experiments/EVEhist/programs/snapshot.sh
+Removed:
+   experiments/EVEhist/programs/EveMaker.zip
+   experiments/EVEhist/programs/eve.jar
+Modified:
+   experiments/EVEhist/programs/EveMaker.eve
+Log:
+First dratft of snapshot script.
+Updated EveMaker toolchain.
+
+
+Added: experiments/EVEhist/getres.sh
+===================================================================
+--- experiments/EVEhist/getres.sh	2009-01-30 02:12:05 UTC (rev 1601)
++++ experiments/EVEhist/getres.sh	2009-01-31 13:08:39 UTC (rev 1602)
+@@ -0,0 +1,18 @@
++#!/bin/bash
++mkdir work/attributes
++mkdir work/attributes-big
++cp resources/attributes\*.gif work/attributes
++cp resources/attributes-big\*.gif work/attributes-big
++cp resources/*.gif work
++cp resources/*.png work
++mkdir work/languages
++mkdir work/webmapservices
++cp res_noewe/languages\*.cfg work/languages
++cp res_noewe/webmapservices\*.wms work/webmapservices
++cp res_noewe/webmapservices\*.txt work/webmapservices
++cp res_noewe/*.def work
++cp res_noewe/*.html work
++cp res_noewe/*.png work
++cp res_noewe/*.gif work
++cp res_noewe/*.tpl work
++cp res_noewe/*.zip work
+
+Modified: experiments/EVEhist/programs/EveMaker.eve
+===================================================================
+(Binary files differ)
+
+Deleted: experiments/EVEhist/programs/EveMaker.zip
+===================================================================
+(Binary files differ)
+
+Deleted: experiments/EVEhist/programs/eve.jar
+===================================================================
+(Binary files differ)
+
+Added: experiments/EVEhist/programs/snapshot.sh
+===================================================================
+--- experiments/EVEhist/programs/snapshot.sh	2009-01-30 02:12:05 UTC (rev 1601)
++++ experiments/EVEhist/programs/snapshot.sh	2009-01-31 13:08:39 UTC (rev 1602)
+@@ -0,0 +1,59 @@
++#!/bin/sh
++
++if [ ! -e snapshot.sh ]; then
++ echo "This script must be run from inside the programs/ directory!"
++ exit 1
++fi
++
++cd ..
++
++echo Updating SVN ...
++svn update
++
++echo Updating version number in code ...
++v=$(svn info | sed -n '/Revision: /s///p')
++printf '/VER_SVN =/s/\$.*\$/$LastChangedRevision: %s $/\nwq\n' $v | \
++    ed -s src/cachewolf/Version.java
++
++echo Removing old build ...
++rm -rf bin
++
++echo Compiling Java classes ...
++mkdir -p bin/cachewolf
++javac -source 1.3 -target 1.1 -encoding windows-1252 \
++    -cp lib/CompileEve.zip:lib/JavaEve.zip:lib/lib-folder -d bin -deprecation -nowarn \
++    src/cachewolf/*.java src/cachewolf/*/*.java
++
++echo Linking executables ...
++cd programs
++java -cp evecl-gui.jar Eve EveMaker.eve -c ../deploy/cw-eve-pc.enf
++java -cp evecl-gui.jar Eve EveMaker.eve -c ../deploy/cw-eve-pda.enf
++
++#mkdir -p published/dat/attributes
++#mkdir -p published/dat/webmapservices
++#mkdir -p published/dat/languages
++#mv programs/CacheWolf/* published/
++#chmod 755 published/*
++#cp lib/java_ewe.dll published/Jar/
++#chmod 644 published/*/*
++#chmod 755 published/dat/attributes
++#chmod 755 published/dat/webmapservices
++#chmod 755 published/dat/languages
++#printf '1,$g/ 12M/s///\nwq\n' | ed -s published/Jar/CacheWolf.bat
++#install -c -m 644 work/CacheWolf.ewe published/
++#install -c -m 644 res_noewe/* published/dat/
++#install -c -m 644 resources/attributes-big/*.gif published/dat/attributes/
++#install -c -m 644 resources/attributes/*-non.gif published/dat/attributes/
++#install -c -m 644 res_noewe/webmapservices/* published/dat/webmapservices/
++#install -c -m 644 res_noewe/languages/* published/dat/languages/
++#(
++#	cd published/dat
++#	find * -type f | sort >../flst
++#	$CPIO -oC512 -Hustar -Mdist <../flst | gzip -n9 >../datfiles.tgz
++#	zip -X ../datfiles.zip -@ <../flst
++#)
++#rm -rf published/dat published/flst
++#chmod 644 published/datfiles.tgz published/datfiles.zip
++#mkdir -p $HOME/public_html/CacheWolf-BE/r$v
++#mv published/* $HOME/public_html/CacheWolf-BE/r$v/
++#rm -rf bin published
+
+
+
+From natureshadow at mail.berlios.de  Sat Jan 31 14:30:14 2009
+From: natureshadow at mail.berlios.de (natureshadow at mail.berlios.de)
+Date: Sat, 31 Jan 2009 14:30:14 +0100
+Subject: [Cachewolf-svn] r1603 - experiments/EVEhist/programs
+Message-ID: <200901311330.n0VDUEnj020171@sheep.berlios.de>
+
+Author: natureshadow
+Date: 2009-01-31 14:29:48 +0100 (Sat, 31 Jan 2009)
+New Revision: 1603
+
+Added:
+   experiments/EVEhist/programs/evecl-gui.jar
+Log:
+Added evecl-gui.jar.
+
+
+Added: experiments/EVEhist/programs/evecl-gui.jar
+===================================================================
+(Binary files differ)
+
+
+Property changes on: experiments/EVEhist/programs/evecl-gui.jar
+___________________________________________________________________
+Name: svn:mime-type
+   + application/octet-stream
+
+
+
+From natureshadow at mail.berlios.de  Sat Jan 31 14:41:30 2009
+From: natureshadow at mail.berlios.de (natureshadow at mail.berlios.de)
+Date: Sat, 31 Jan 2009 14:41:30 +0100
+Subject: [Cachewolf-svn] r1604 - experiments/EVEhist/programs
+Message-ID: <200901311341.n0VDfUCn023284@sheep.berlios.de>
+
+Author: natureshadow
+Date: 2009-01-31 14:40:45 +0100 (Sat, 31 Jan 2009)
+New Revision: 1604
+
+Added:
+   experiments/EVEhist/programs/eve.jar
+Log:
+Re-added eve.jar.
+
+
+Added: experiments/EVEhist/programs/eve.jar
+===================================================================
+(Binary files differ)
+
+
+Property changes on: experiments/EVEhist/programs/eve.jar
+___________________________________________________________________
+Name: svn:mime-type
+   + application/octet-stream
+
+
+
+From pfeffer at mail.berlios.de  Sat Jan 31 14:46:54 2009
+From: pfeffer at mail.berlios.de (pfeffer at mail.berlios.de)
+Date: Sat, 31 Jan 2009 14:46:54 +0100
+Subject: [Cachewolf-svn] r1605 - experiments/EVEhist/programs
+Message-ID: <200901311346.n0VDkstA024754@sheep.berlios.de>
+
+Author: pfeffer
+Date: 2009-01-31 14:46:53 +0100 (Sat, 31 Jan 2009)
+New Revision: 1605
+
+Added:
+   experiments/EVEhist/programs/RunCacheWolfEveVM.bat
+Log:
+Eve Build: make an cachewolf.exe and run it direktlich from eclipse
+
+Added: experiments/EVEhist/programs/RunCacheWolfEveVM.bat
+===================================================================
+--- experiments/EVEhist/programs/RunCacheWolfEveVM.bat	2009-01-31 13:40:45 UTC (rev 1604)
++++ experiments/EVEhist/programs/RunCacheWolfEveVM.bat	2009-01-31 13:46:53 UTC (rev 1605)
+@@ -0,0 +1,7 @@
++rem make the working dir the one this file is in
++cd %~d0%~p0
++java -cp eve.jar Eve EveMaker.eve -c ../deploy/cw-eve-pc.enf
++copy ..\deploy\Exe\CacheWolf.exe ..\work
++cd ..\work
++cachewolf.exe
++rem "\Program Files\eve\Eve.exe" cachewolf.eve
+
+
+
+From mirabilos at mail.berlios.de  Sat Jan 31 14:48:31 2009
+From: mirabilos at mail.berlios.de (mirabilos at BerliOS)
+Date: Sat, 31 Jan 2009 14:48:31 +0100
+Subject: [Cachewolf-svn] r1606 - in experiments/EVEhist: . programs
+Message-ID: <200901311348.n0VDmVHK025652@sheep.berlios.de>
+
+Author: mirabilos
+Date: 2009-01-31 14:48:30 +0100 (Sat, 31 Jan 2009)
+New Revision: 1606
+
+Modified:
+   experiments/EVEhist/getres.sh
+   experiments/EVEhist/programs/snapshot.sh
+Log:
+* GNU bash is *still* an abomination
+* line endings, indentation, ...
+
+
+Modified: experiments/EVEhist/getres.sh
+===================================================================
+--- experiments/EVEhist/getres.sh	2009-01-31 13:46:53 UTC (rev 1605)
++++ experiments/EVEhist/getres.sh	2009-01-31 13:48:30 UTC (rev 1606)
+@@ -1,18 +1,16 @@
+-#!/bin/bash
+-mkdir work/attributes
+-mkdir work/attributes-big
+-cp resources/attributes\*.gif work/attributes
+-cp resources/attributes-big\*.gif work/attributes-big
+-cp resources/*.gif work
+-cp resources/*.png work
+-mkdir work/languages
+-mkdir work/webmapservices
+-cp res_noewe/languages\*.cfg work/languages
+-cp res_noewe/webmapservices\*.wms work/webmapservices
+-cp res_noewe/webmapservices\*.txt work/webmapservices
+-cp res_noewe/*.def work
+-cp res_noewe/*.html work
+-cp res_noewe/*.png work
+-cp res_noewe/*.gif work
+-cp res_noewe/*.tpl work
+-cp res_noewe/*.zip work
++#!/bin/sh
++mkdir -p work/attributes work/attributes-big \
++    work/languages work/webmapservices
++cp resources/attributes/*.gif work/attributes/
++cp resources/attributes-big/*.gif work/attributes-big/
++cp resources/*.gif work/
++cp resources/*.png work/
++cp res_noewe/languages/*.cfg work/languages/
++cp res_noewe/webmapservices/*.wms work/webmapservices/
++cp res_noewe/webmapservices/*.txt work/webmapservices/
++cp res_noewe/*.def work/
++cp res_noewe/*.html work/
++cp res_noewe/*.png work/
++cp res_noewe/*.gif work/
++cp res_noewe/*.tpl work/
++cp res_noewe/*.zip work/
+
+
+Property changes on: experiments/EVEhist/getres.sh
+___________________________________________________________________
+Name: svn:eol-style
+   + native
+
+Modified: experiments/EVEhist/programs/snapshot.sh
+===================================================================
+--- experiments/EVEhist/programs/snapshot.sh	2009-01-31 13:46:53 UTC (rev 1605)
++++ experiments/EVEhist/programs/snapshot.sh	2009-01-31 13:48:30 UTC (rev 1606)
+@@ -1,8 +1,8 @@
+ #!/bin/sh
+ 
+ if [ ! -e snapshot.sh ]; then
+- echo "This script must be run from inside the programs/ directory!"
+- exit 1
++	echo "This script must be run from inside the programs/ directory!"
++	exit 1
+ fi
+ 
+ cd ..
+@@ -12,7 +12,8 @@
+ 
+ echo Updating version number in code ...
+ v=$(svn info | sed -n '/Revision: /s///p')
+-printf '/VER_SVN =/s/\$.*\$/$LastChangedRevision: %s $/\nwq\n' $v | \
++# the '' below are so that svn doesn't ever fuck up _this_ file
++printf '/VER_SVN =/s/\$.*\$/$LastChangedRe''vision: %s $/\nwq\n' $v | \
+     ed -s src/cachewolf/Version.java
+ 
+ echo Removing old build ...
+@@ -21,8 +22,8 @@
+ echo Compiling Java classes ...
+ mkdir -p bin/cachewolf
+ javac -source 1.3 -target 1.1 -encoding windows-1252 \
+-    -cp lib/CompileEve.zip:lib/JavaEve.zip:lib/lib-folder -d bin -deprecation -nowarn \
+-    src/cachewolf/*.java src/cachewolf/*/*.java
++    -cp lib/CompileEve.zip:lib/JavaEve.zip:lib/lib-folder -d bin \
++    -deprecation -nowarn src/cachewolf/*.java src/cachewolf/*/*.java
+ 
+ echo Linking executables ...
+ cd programs
+
+
+Property changes on: experiments/EVEhist/programs/snapshot.sh
+___________________________________________________________________
+Name: svn:eol-style
+   + native
+
+
+

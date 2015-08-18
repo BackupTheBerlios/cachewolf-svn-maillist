@@ -1,0 +1,497 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2242 - in trunk/tools/MakeWMSFile/capxml2wms: .	bin bin/Debug
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-October/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2242%20-%20in%20trunk/tools/MakeWMSFile/capxml2wms%3A%20.%0A%09bin%20bin/Debug&In-Reply-To=%3C200910051204.n95C4RQc002099%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002164.html">
+   <LINK REL="Next"  HREF="002167.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2242 - in trunk/tools/MakeWMSFile/capxml2wms: .	bin bin/Debug</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2242%20-%20in%20trunk/tools/MakeWMSFile/capxml2wms%3A%20.%0A%09bin%20bin/Debug&In-Reply-To=%3C200910051204.n95C4RQc002099%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2242 - in trunk/tools/MakeWMSFile/capxml2wms: .	bin bin/Debug">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Mon Oct  5 14:04:27 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002164.html">[Cachewolf-svn] r2241 - in trunk/src/CacheWolf: . navi
+</A></li>
+        <LI>Next message: <A HREF="002167.html">[Cachewolf-svn] r2243 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2166">[ date ]</a>
+              <a href="thread.html#2166">[ thread ]</a>
+              <a href="subject.html#2166">[ subject ]</a>
+              <a href="author.html#2166">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2009-10-05 14:04:15 +0200 (Mon, 05 Oct 2009)
+New Revision: 2242
+
+Added:
+   trunk/tools/MakeWMSFile/capxml2wms/bin/
+   trunk/tools/MakeWMSFile/capxml2wms/bin/Debug/
+   trunk/tools/MakeWMSFile/capxml2wms/bin/Debug/capxml2wms.exe
+Modified:
+   trunk/tools/MakeWMSFile/capxml2wms/
+   trunk/tools/MakeWMSFile/capxml2wms/Map.Designer.vb
+   trunk/tools/MakeWMSFile/capxml2wms/Map.vb
+   trunk/tools/MakeWMSFile/capxml2wms/capxml2wms.vb
+Log:
+wms creating tool: can cope with epsg other than 4326 (WGS84)
+wms creating tool: finding maximal / recommended / minimal scales integrated
+
+
+Property changes on: trunk/tools/MakeWMSFile/capxml2wms
+___________________________________________________________________
+Name: svn:ignore
+   + obj
+
+
+Modified: trunk/tools/MakeWMSFile/capxml2wms/Map.Designer.vb
+===================================================================
+--- trunk/tools/MakeWMSFile/capxml2wms/Map.Designer.vb	2009-10-05 08:02:04 UTC (rev 2241)
++++ trunk/tools/MakeWMSFile/capxml2wms/Map.Designer.vb	2009-10-05 12:04:15 UTC (rev 2242)
+@@ -26,6 +26,11 @@
+         Me.LabelScaleVertical = New System.Windows.Forms.Label
+         Me.ButtonScaleDown = New System.Windows.Forms.Button
+         Me.ButtonScaleUp = New System.Windows.Forms.Button
++        Me.LabelScaleDiagonal = New System.Windows.Forms.Label
++        Me.ButtonUseAsMaxScale = New System.Windows.Forms.Button
++        Me.ButtonAddToRecommendedScale = New System.Windows.Forms.Button
++        Me.ButtonUseAsMinScale = New System.Windows.Forms.Button
++        Me.ButtonHelp = New System.Windows.Forms.Button
+         CType(Me.PictureBox, System.ComponentModel.ISupportInitialize).BeginInit()
+         Me.SuspendLayout()
+         '
+@@ -34,7 +39,7 @@
+         Me.PictureBox.Dock = System.Windows.Forms.DockStyle.Fill
+         Me.PictureBox.Location = New System.Drawing.Point(0, 0)
+         Me.PictureBox.Name = &quot;PictureBox&quot;
+-        Me.PictureBox.Size = New System.Drawing.Size(548, 505)
++        Me.PictureBox.Size = New System.Drawing.Size(674, 521)
+         Me.PictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.Zoom
+         Me.PictureBox.TabIndex = 0
+         Me.PictureBox.TabStop = False
+@@ -42,11 +47,11 @@
+         'LabelScaleVertical
+         '
+         Me.LabelScaleVertical.AutoSize = True
+-        Me.LabelScaleVertical.Location = New System.Drawing.Point(224, 470)
++        Me.LabelScaleVertical.Location = New System.Drawing.Point(179, 470)
+         Me.LabelScaleVertical.Name = &quot;LabelScaleVertical&quot;
+-        Me.LabelScaleVertical.Size = New System.Drawing.Size(39, 13)
++        Me.LabelScaleVertical.Size = New System.Drawing.Size(98, 13)
+         Me.LabelScaleVertical.TabIndex = 1
+-        Me.LabelScaleVertical.Text = &quot;Label1&quot;
++        Me.LabelScaleVertical.Text = &quot;LabelScale Vertikal&quot;
+         '
+         'ButtonScaleDown
+         '
+@@ -66,11 +71,61 @@
+         Me.ButtonScaleUp.Text = &quot;Scale up&quot;
+         Me.ButtonScaleUp.UseVisualStyleBackColor = True
+         '
++        'LabelScaleDiagonal
++        '
++        Me.LabelScaleDiagonal.AutoSize = True
++        Me.LabelScaleDiagonal.Location = New System.Drawing.Point(179, 444)
++        Me.LabelScaleDiagonal.Name = &quot;LabelScaleDiagonal&quot;
++        Me.LabelScaleDiagonal.Size = New System.Drawing.Size(102, 13)
++        Me.LabelScaleDiagonal.TabIndex = 4
++        Me.LabelScaleDiagonal.Text = &quot;LabelScaleDiagonal&quot;
++        '
++        'ButtonUseAsMaxScale
++        '
++        Me.ButtonUseAsMaxScale.Location = New System.Drawing.Point(452, 385)
++        Me.ButtonUseAsMaxScale.Name = &quot;ButtonUseAsMaxScale&quot;
++        Me.ButtonUseAsMaxScale.Size = New System.Drawing.Size(195, 33)
++        Me.ButtonUseAsMaxScale.TabIndex = 5
++        Me.ButtonUseAsMaxScale.Text = &quot;Use as MaxScale&quot;
++        Me.ButtonUseAsMaxScale.UseVisualStyleBackColor = True
++        '
++        'ButtonAddToRecommendedScale
++        '
++        Me.ButtonAddToRecommendedScale.Location = New System.Drawing.Point(452, 427)
++        Me.ButtonAddToRecommendedScale.Name = &quot;ButtonAddToRecommendedScale&quot;
++        Me.ButtonAddToRecommendedScale.Size = New System.Drawing.Size(194, 30)
++        Me.ButtonAddToRecommendedScale.TabIndex = 6
++        Me.ButtonAddToRecommendedScale.Text = &quot;Add to recommended scale&quot;
++        Me.ButtonAddToRecommendedScale.UseVisualStyleBackColor = True
++        '
++        'ButtonUseAsMinScale
++        '
++        Me.ButtonUseAsMinScale.Location = New System.Drawing.Point(452, 463)
++        Me.ButtonUseAsMinScale.Name = &quot;ButtonUseAsMinScale&quot;
++        Me.ButtonUseAsMinScale.Size = New System.Drawing.Size(195, 30)
++        Me.ButtonUseAsMinScale.TabIndex = 7
++        Me.ButtonUseAsMinScale.Text = &quot;Use as MinScale&quot;
++        Me.ButtonUseAsMinScale.UseVisualStyleBackColor = True
++        '
++        'ButtonHelp
++        '
++        Me.ButtonHelp.Location = New System.Drawing.Point(529, 346)
++        Me.ButtonHelp.Name = &quot;ButtonHelp&quot;
++        Me.ButtonHelp.Size = New System.Drawing.Size(41, 22)
++        Me.ButtonHelp.TabIndex = 8
++        Me.ButtonHelp.Text = &quot;Help&quot;
++        Me.ButtonHelp.UseVisualStyleBackColor = True
++        '
+         'Map
+         '
+         Me.AutoScaleDimensions = New System.Drawing.SizeF(6.0!, 13.0!)
+         Me.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font
+-        Me.ClientSize = New System.Drawing.Size(548, 505)
++        Me.ClientSize = New System.Drawing.Size(674, 521)
++        Me.Controls.Add(Me.ButtonHelp)
++        Me.Controls.Add(Me.ButtonUseAsMinScale)
++        Me.Controls.Add(Me.ButtonAddToRecommendedScale)
++        Me.Controls.Add(Me.ButtonUseAsMaxScale)
++        Me.Controls.Add(Me.LabelScaleDiagonal)
+         Me.Controls.Add(Me.ButtonScaleUp)
+         Me.Controls.Add(Me.ButtonScaleDown)
+         Me.Controls.Add(Me.LabelScaleVertical)
+@@ -88,4 +143,9 @@
+     Friend WithEvents LabelScaleVertical As System.Windows.Forms.Label
+     Friend WithEvents ButtonScaleDown As System.Windows.Forms.Button
+     Friend WithEvents ButtonScaleUp As System.Windows.Forms.Button
++    Friend WithEvents LabelScaleDiagonal As System.Windows.Forms.Label
++    Friend WithEvents ButtonUseAsMaxScale As System.Windows.Forms.Button
++    Friend WithEvents ButtonAddToRecommendedScale As System.Windows.Forms.Button
++    Friend WithEvents ButtonUseAsMinScale As System.Windows.Forms.Button
++    Friend WithEvents ButtonHelp As System.Windows.Forms.Button
+ End Class
+
+Modified: trunk/tools/MakeWMSFile/capxml2wms/Map.vb
+===================================================================
+--- trunk/tools/MakeWMSFile/capxml2wms/Map.vb	2009-10-05 08:02:04 UTC (rev 2241)
++++ trunk/tools/MakeWMSFile/capxml2wms/Map.vb	2009-10-05 12:04:15 UTC (rev 2242)
+@@ -44,6 +44,7 @@
+         GetMapUrl = _GetMapUrl
+         scale_ = scale
+         LabelScaleVertical.Text = &quot;Vertical scale m/pixel: &quot; &amp; scale
++        LabelScaleDiagonal.Text = &quot;Diagonal scale m/pixel: &quot; &amp; scale * Math.Sqrt(2)
+     End Sub
+ 
+     Private Sub ButtonScaleUp_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles ButtonScaleUp.Click
+@@ -67,4 +68,59 @@
+         exitcode = 5
+         Close()
+     End Sub
+-End Class
+\ No newline at end of file
++
++    Private Sub ButtonUseAsMaxScale_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles ButtonUseAsMaxScale.Click
++        exitcode = 101
++        Close()
++    End Sub
++
++    Private Sub ButtonAddToRecommendedScale_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles ButtonAddToRecommendedScale.Click
++        exitcode = 100
++        Close()
++    End Sub
++
++    Private Sub ButtonUseAsMinScale_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles ButtonUseAsMinScale.Click
++        exitcode = 99
++        Close()
++    End Sub
++
++    Private Sub Button1_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles ButtonHelp.Click
++        MsgBox(&quot;Diese Funktion dient dazu, eine Aufl&#246;sung zu finden, die bestimmten Kriterien entspricht. Welche Kriterien dies sind &quot; &amp; _
++        &quot;legen sie selbst fest, in dem Sie die angezeigt Karte beurteilen und dem Progamm durch klich auf 'scale up' oder &quot; &amp; _
++        &quot;'scale down' mitteilen, ob die gesuchte Karte weniger Meter pro Pixel (scale down) oder mehr Meter pro &quot; &amp; _
++        &quot;Pixel hat als die angezeigt Karte. &quot; &amp; _
++        Chr(13) &amp; _
++        &quot;Nach der Aufl&#246;sung wird in der Spanne zwischen 0 und 1000m/Pixel nach der gew&#252;nschten Aufl&#246;sung gesucht. &quot; &amp; _
++        &quot;Dazu wird die Spanne jeweils in 2 gleich gro&#223;e Teile geteilt und Sie beurteilen anhand der gezeigten Karte&quot; &amp; _
++        &quot;, ob die gesuchte Aufl&#246;sung &quot; &amp; _
++        &quot;in der unteren oder der oberen H&#228;lfte zu finden ist. Damit Sie diese Aussage machen k&#246;nnen, wird Ihnen die &quot; &amp; _
++        &quot;Karte in der Aufl&#246;ung genau in der Mitte der jeweiligen Spanne gezeigt (zu Beginn also mit 500m/Pixel) &quot; &amp; _
++        &quot;und Sie teilen den Computer mit, ob die gesuchte Karte eine gr&#246;&#223;ere oder eine kleinere Aufl&#246;sung hat. &quot; &amp; _
++        &quot;Danach wird die verbliebene Spanne wieder in der Mitte geteilt und die entsprechende Karte pr&#228;sentiert. &quot; &amp; _
++        &quot; Auf diese Weise kann die gew&#252;nschte Aufl&#246;sung mit nur wenigen Klicks sehr genau bestimmt werden. &quot; &amp; Chr(13) &amp; _
++        &quot;Begonnen wird mit der Spanne 0 bis 1000m/Pixel. Die erste Abfrage lautet daher, ob die gesuchte Karte &quot; &amp; _
++        &quot;eine Aufl&#246;sung gr&#246;&#223;er oder kleiner 500m/Pixel hat. Wenn sie beispielseweise kleiner ist, dann dr&#252;cken Sie &quot; &amp; _
++        &quot;auf 'scale down'. Damit liegt die gesuchte Aufl&#246;sung zwischen 0 und 500m/Pixel. Das Programm wird Ihnen &quot; &amp; _
++        &quot;daher eine Karte mit 250m/Pixel zeigen und fragen, ob die gesuchte Aufl&#246;sung kleiner oder gr&#246;&#223;er ist.&quot; &amp; _
++        &quot; Wenn sie gr&#246;&#223;er ist, dann ist liegt die gesuchte Aufl&#246;sung zwischen 250 und 500 m/Pixel. Der Computer &quot; &amp; _
++        &quot;wird Ihnen daher eine Karte mit (250+500)/2 = 375m/Pixel pr&#228;sentieren.&quot; &amp; _
++        &quot;Konkret ist diese Methode dazu gedacht, a) die Maximale b) die minimale und c) evtl. mehrere empfohlene &quot; &amp; _
++        &quot;Aufl&#246;sungen zu ermitteln. Es wird empfohlen, zuerst die maximal, dann die minimale und schlie&#223;lich ggf. &quot; &amp; _
++        &quot;mehrere Aufl&#246;sungen zu empfehlen. &quot; &amp; Chr(13) &amp; _
++        &quot;Nehmen wir dann, dass bei 1000m/Pixel die maximale Aufl&#246;sung &#252;berschritten ist. Vermutlich erhalten Sie &quot; &amp; _
++        &quot;dann eine wei&#223;e, also leere Karte. Dr&#252;cken Sie nun so oft auf 'scale down' bis eine Karte angezeigt wird. &quot; &amp; _
++        &quot; Wenn eine Karte angezeigt wird, dr&#252;cken sie so oft auf 'scale up' bis wieder eine leere Karte erscheint. &quot; &amp; _
++        &quot;Nun dr&#252;cken Sie wieder auf 'scale down' bis wieder eine Karte erscheint. Beenden Sie die Suche nach der &quot; &amp; _
++        &quot; maximalen Aufl&#246;sung, wenn sich die Aufl&#246;sung um weniger als 0.5 m/Pixel &#228;ndert. Dr&#252;cken Sie zum Abschluss &quot; &amp; _
++        &quot;auf 'Use as MaxScale'. Dadurch wird die aktuelle Aufl&#246;sung als MaxScale in die .wms &#252;bernommen.&quot; &amp; _
++        &quot;Au&#223;erdem wird eine neue Karte geladen und als Startspanne zur Suche der Minscale 0 bis MaxScale verwendet.&quot; &amp; _
++        Chr(13) &amp; _
++        &quot;MinScale, MaxScale und RecommendeScales werden zur&#252;ckgesetzt, wenn man im Hauptfenster auf 'M&#246;glichkeiten abfragen' &quot; &amp; _
++        &quot; dr&#252;ckt&quot; &amp; _
++        Chr(13) &amp; _
++        &quot;Damit Sie die Karte besser beurteilen k&#246;nnen, k&#246;nnen Sie sie verschieben. Klicken Sie dazu an die Stelle &quot; &amp; _
++        &quot;in der Karte, die in die Mitte des Bildes verschoben werden soll. Ein Klick in die Karte bewirkt, dass &quot; &amp; _
++        &quot;die Karte so verschoben wird, dass die Stelle, an die man geklickt hat, &quot; &amp; _
++        &quot;in der Mitte des Bildes erscheint.&quot;)
++    End Sub
++End Class
+
+
+Property changes on: trunk/tools/MakeWMSFile/capxml2wms/bin/Debug
+___________________________________________________________________
+Name: svn:ignore
+   + capxml2wms.pdb
+
+
+Added: trunk/tools/MakeWMSFile/capxml2wms/bin/Debug/capxml2wms.exe
+===================================================================
+(Binary files differ)
+
+
+Property changes on: trunk/tools/MakeWMSFile/capxml2wms/bin/Debug/capxml2wms.exe
+___________________________________________________________________
+Name: svn:mime-type
+   + application/octet-stream
+
+Modified: trunk/tools/MakeWMSFile/capxml2wms/capxml2wms.vb
+===================================================================
+--- trunk/tools/MakeWMSFile/capxml2wms/capxml2wms.vb	2009-10-05 08:02:04 UTC (rev 2241)
++++ trunk/tools/MakeWMSFile/capxml2wms/capxml2wms.vb	2009-10-05 12:04:15 UTC (rev 2242)
+@@ -42,7 +42,11 @@
+ 
+     Dim WGS84 As Ellipsoid
+     Dim OBBoxes As Dictionary(Of String, XmlElement)
++    Dim minScale As Double = 0
++    Dim maxScale As Double = 1000
++    Dim recScale As ArrayList
+ 
++
+     Private Sub capxml2wms_FormClosing(ByVal sender As Object, ByVal e As System.Windows.Forms.FormClosingEventArgs) Handles Me.FormClosing
+         Try
+             IO.File.Delete(xmlFileName)
+@@ -84,6 +88,11 @@
+ 
+     Private Sub ButtonGetCapabilities_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles ButtonGetCapabilities.Click
+         GotCapabilities = GetCapabilities()
++        maxScale = 1000
++        minScale = 0
++        If Not recScale Is Nothing Then
++            recScale.Clear()
++        End If
+     End Sub
+ 
+     Private Sub ButtonShowMap_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles ButtonShowMap.Click
+@@ -97,20 +106,28 @@
+     Private Sub ButtonFindScale_Click(ByVal sender As System.Object, ByVal e As System.EventArgs) Handles ButtonFindScale.Click
+         Dim BBoxString As String
+ 
++        Dim srs As Integer
++        srs = Me.ComboBoxEPSG.SelectedItem
++
+         Dim center As point
+         ' find center
+         Dim bb As XmlElement
+-        Me.ComboBoxBBoxI.SelectedIndex = Me.ComboBoxBBox.SelectedIndex
+-        bb = Me.ComboBoxBBoxI.SelectedItem
+-        minx = bb.GetAttribute(&quot;minx&quot;)
+-        rminx = Double.Parse(minx, DPunkt.NumberFormat)
+-        miny = bb.GetAttribute(&quot;miny&quot;)
+-        rminy = Double.Parse(miny, DPunkt.NumberFormat)
+-        maxx = bb.GetAttribute(&quot;maxx&quot;)
+-        rmaxx = Double.Parse(maxx, DPunkt.NumberFormat)
+-        maxy = bb.GetAttribute(&quot;maxy&quot;)
+-        rmaxy = Double.Parse(maxy, DPunkt.NumberFormat)
+- 
++        If (Me.OBBoxes.ContainsKey(&quot;EPSG:&quot; &amp; Me.ComboBoxEPSG.SelectedItem)) Then
++            bb = Me.OBBoxes.Item(&quot;EPSG:&quot; &amp; Me.ComboBoxEPSG.SelectedItem)
++            minx = bb.GetAttribute(&quot;minx&quot;)
++            rminx = Double.Parse(minx, DPunkt.NumberFormat)
++            miny = bb.GetAttribute(&quot;miny&quot;)
++            rminy = Double.Parse(miny, DPunkt.NumberFormat)
++            maxx = bb.GetAttribute(&quot;maxx&quot;)
++            rmaxx = Double.Parse(maxx, DPunkt.NumberFormat)
++            maxy = bb.GetAttribute(&quot;maxy&quot;)
++            rmaxy = Double.Parse(maxy, DPunkt.NumberFormat)
++        Else
++            MsgBox(&quot;In dem ausgew&#228;hltem Raumbezugssystem (EPSG-code) ist die BoundingBox leider nicht angegeben.&quot; &amp; _
++                   &quot;Daher kann kein Zentrum automatisch bestimmt werden.&quot;)
++            Return
++        End If
++
+         rxmitte = (rminx + rmaxx) / 2
+         rymitte = (rminy + rmaxy) / 2
+         center.x = rxmitte
+@@ -120,14 +137,14 @@
+         Dim pixelwidth As Integer
+         pixelwidth = 500
+ 
+-        scale_ll = 0.1
+-        scale_ul = 1000
++        scale_ll = minScale
++        scale_ul = maxScale
+ 
+         Dim SM As Map
+         Dim mapUrl As String
+         Do
+             scale_m = (scale_ll + scale_ul) / 2
+-            BBoxString = ToBBox(center, metersToBBoxVertical(4326) * pixelwidth * scale_m)
++            BBoxString = ToBBox(center, srs, pixelwidth * scale_m)
+             mapUrl = makeGetMapUrlFromBBox(BBoxString)
+             SM = New Map(mapUrl, scale_m)
+             SM.ShowDialog()
+@@ -138,18 +155,39 @@
+                     scale_ll = scale_m
+                 Case 5
+                     ' shift center to the clicked pos
+-                    center.x = center.x + SM.clickedAt.X * scale_m * metersToBBoxVertical(4326)
+-                    center.y = center.y - SM.clickedAt.Y * scale_m * metersToBBoxVertical(4326)
++                    center.x = center.x + SM.clickedAt.X * scale_m * metersToBBoxHorizontal(srs, center)
++                    center.y = center.y - SM.clickedAt.Y * scale_m * metersToBBoxVertical(srs)
++                Case 99
++                    Me.minScale = scale_m * Math.Sqrt(2)
++                    scale_ll = scale_m
++                    scale_ul = Me.maxScale / Math.Sqrt(2)
++                Case 100
++                    If recScale Is Nothing Then
++                        recScale = New ArrayList
++                    End If
++                    recScale.Add(scale_m)
++                    scale_ll = Me.minScale / Math.Sqrt(2)
++                    scale_ul = Me.maxScale / Math.Sqrt(2)
++                Case 101
++                    Me.maxScale = scale_m * Math.Sqrt(2)
++                    scale_ul = scale_m
++                    scale_ll = Me.minScale / Math.Sqrt(2)
+             End Select
+ 
+         Loop Until SM.exitcode = 0
+     End Sub
+-    Private Function metersToBBoxVertical(ByVal epsg) As Double
++    Private Function metersToBBoxVertical(ByVal epsg As Integer) As Double
+         If epsg = 4326 Then
+             metersToBBoxVertical = 360 / (WGS84.a * Math.PI * 2)
+         Else : metersToBBoxVertical = 1
+         End If
+     End Function
++    Private Function metersToBBoxHorizontal(ByVal epsg As Integer, ByRef center As point) As Double
++        If epsg = 4326 Then
++            metersToBBoxHorizontal = (360 / (WGS84.a * Math.PI * 2)) / Math.Cos(center.y / 180 * Math.PI)
++        Else : metersToBBoxHorizontal = 1
++        End If
++    End Function
+     Private Function makeGetMapUrlFromBBox(ByVal bb As String) As String
+         '<A HREF="http://">http://</A> www.lv-bw.de/dv/service/getrds2.asp?login=dv&amp;pw=anonymous
+         '&amp;SERVICE=WMS&amp;VERSION=1.1.1&amp;REQUEST=GetMap
+@@ -176,6 +214,11 @@
+         For Each s As String In CheckedListBoxLayers.CheckedItems
+             SelectedLayers += &quot;,&quot; &amp; s.Split(&quot;|&quot;)(0)
+         Next
++        If SelectedLayers.Length = 0 Then
++            MsgBox(&quot;Mindestens 1 Layer muss ausgew&#228;hlt werden&quot;)
++            Return &quot;&quot;
++        End If
++
+         If SelectedLayers &lt;&gt; &quot;&quot; Then
+             mapUrl += &quot;&amp;LAYERS=&quot; &amp; SelectedLayers.Substring(1).Replace(&quot; &quot;, &quot;%20&quot;)
+         End If
+@@ -252,13 +295,16 @@
+         makeGetMapUrl = mapUrl
+     End Function
+ 
+-    Private Function ToBBox(ByRef center As point, ByVal sizeBboxVertically As Double) As String
++    Private Function ToBBox(ByRef center As point, ByVal srs As Integer, ByVal meter As Double) As String
+         Dim tl As point
+         Dim br As point
+-        tl.x = center.x - sizeBboxVertically / 2
+-        tl.y = center.y + sizeBboxVertically / 2
+-        br.x = center.x + sizeBboxVertically / 2
+-        br.y = center.y - sizeBboxVertically / 2
++        Dim diff_v, diff_h As Double
++        diff_h = metersToBBoxHorizontal(srs, center) * meter
++        diff_v = metersToBBoxVertical(srs) * meter
++        tl.x = center.x - diff_h / 2
++        tl.y = center.y + diff_v / 2
++        br.x = center.x + diff_h / 2
++        br.y = center.y - diff_v / 2
+         Dim BBox As String
+         BBox = tl.x.ToString(DPunkt) + &quot;,&quot; + br.y.ToString(DPunkt) + &quot;,&quot; + br.x.ToString(DPunkt) + &quot;,&quot; + tl.y.ToString(DPunkt)
+         ToBBox = BBox
+@@ -307,9 +353,18 @@
+         F.WriteLine(&quot;BoundingBoxTopLeftWGS84: &quot; &amp; maxy &amp; &quot; &quot; &amp; minx)
+         F.WriteLine(&quot;BoundingBoxButtomRightWGS84: &quot; &amp; miny &amp; &quot; &quot; &amp; maxx)
+         F.WriteLine(&quot;#BBox_Mitte: &quot; &amp; mittey &amp; &quot; &quot; &amp; mittex)
+-        F.WriteLine(&quot;MinScale:   0&quot;)
+-        F.WriteLine(&quot;MaxScale:   45&quot;)
+-        F.WriteLine(&quot;RecommendedScale:   5&quot;)
++        F.WriteLine(&quot;MinScale:   &quot; &amp; (Math.Ceiling(minScale * 10000) / 10000).ToString(DPunkt))
++        F.WriteLine(&quot;MaxScale:   &quot; &amp; (Math.Floor(maxScale * 10000) / 10000).ToString(DPunkt))
++        Dim recsscales As String = &quot;&quot;
++        If Not recScale Is Nothing Then
++            For Each d As Double In recScale
++                recsscales = recsscales &amp; &quot; &quot; &amp; (Math.Floor(d * 10000) / 10000).ToString(DPunkt)
++            Next
++            recsscales.Trim()
++        Else
++            recsscales = &quot;5&quot;
++        End If
++        F.WriteLine(&quot;RecommendedScale:   &quot; &amp; recsscales)
+         'Me.ComboBoxFormat.SelectedItem.ToString.Split(&quot;/&quot;)(1)
+         Dim rk As Microsoft.Win32.RegistryKey = My.Computer.Registry.ClassesRoot.OpenSubKey(&quot;Mime\Database\Content Type\&quot; &amp; Me.ComboBoxFormat.SelectedItem.ToString)
+         Dim stmp As String = rk.GetValue(&quot;Extension&quot;)
+@@ -640,7 +695,19 @@
+                 End If
+             End If
+         Next
++        If Not OBBoxes.ContainsKey(&quot;EPSG:4326&quot;) Then
++            For Each n As XmlNode In Layer.GetElementsByTagName(&quot;LatLonBoundingBox&quot;)
++                If n.NodeType = XmlNodeType.Element Then
++                    Dim e As XmlElement = n
++                    Dim stmp As String = e.GetAttribute(&quot;SRS&quot;)
++                    If Not OBBoxes.ContainsKey(stmp) Then
++                        OBBoxes.Add(&quot;EPSG:4326&quot;, e)
++                    End If
++                End If
++            Next
++        End If
+ 
++        ButtonCheckAll_Click(Nothing, Nothing)
+         Return True
+ 
+     End Function
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002164.html">[Cachewolf-svn] r2241 - in trunk/src/CacheWolf: . navi
+</A></li>
+	<LI>Next message: <A HREF="002167.html">[Cachewolf-svn] r2243 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2166">[ date ]</a>
+              <a href="thread.html#2166">[ thread ]</a>
+              <a href="subject.html#2166">[ subject ]</a>
+              <a href="author.html#2166">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

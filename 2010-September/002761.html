@@ -1,0 +1,571 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2773 - in trunk/src/CacheWolf: . imp navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-September/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2773%20-%20in%20trunk/src/CacheWolf%3A%20.%20imp%20navi&In-Reply-To=%3C20100909180424.0C44B480020%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002760.html">
+   <LINK REL="Next"  HREF="002762.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2773 - in trunk/src/CacheWolf: . imp navi</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2773%20-%20in%20trunk/src/CacheWolf%3A%20.%20imp%20navi&In-Reply-To=%3C20100909180424.0C44B480020%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2773 - in trunk/src/CacheWolf: . imp navi">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Thu Sep  9 08:04:23 CEST 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002760.html">[Cachewolf-svn] r2772 - in trunk/src/CacheWolf: . exp imp
+</A></li>
+        <LI>Next message: <A HREF="002762.html">[Cachewolf-svn] r2774 - trunk/src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2761">[ date ]</a>
+              <a href="thread.html#2761">[ thread ]</a>
+              <a href="subject.html#2761">[ subject ]</a>
+              <a href="author.html#2761">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2010-09-09 20:04:23 +0200 (Thu, 09 Sep 2010)
+New Revision: 2773
+
+Modified:
+   trunk/src/CacheWolf/CWPoint.java
+   trunk/src/CacheWolf/Common.java
+   trunk/src/CacheWolf/CoordsScreen.java
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/imp/SpiderGC.java
+   trunk/src/CacheWolf/navi/MapLoader.java
+Log:
+new function for quick loading of caches with minimal gc traffic. (todo message files)
+
+Modified: trunk/src/CacheWolf/CWPoint.java
+===================================================================
+--- trunk/src/CacheWolf/CWPoint.java	2010-09-07 10:38:41 UTC (rev 2772)
++++ trunk/src/CacheWolf/CWPoint.java	2010-09-09 18:04:23 UTC (rev 2773)
+@@ -274,13 +274,15 @@
+ 	/**
+ 	 * shift the point
+ 	 * @param meters positiv to north (east), negativ to south (west)
+-	 * @param direction 0 north-south, 1 east-west
++	 * @param direction 0 north(meters negative=south), 1 east(meters negative=west) 2 south(meters negative=north) 3 west(meters negative=east)
+ 	 */
+ 	public void shift(double meters, int direction) {
+ 		double meters2deglon = 1/(1000*(new CWPoint(0,0)).getDistance(new CWPoint(1,0)));
+ 		switch (direction) { // TODO use ellipsoid distance calculations for better accuracy
+ 			case 0: latDec += meters *  meters2deglon; return;
+ 			case 1: lonDec += meters * (meters2deglon / Math.cos(latDec / 180 * Math.PI));return;
++			case 2: latDec += -meters *  meters2deglon; return;
++			case 3: lonDec += -meters * (meters2deglon / Math.cos(latDec / 180 * Math.PI));return;
+ 		}
+ 	}
+ 
+
+Modified: trunk/src/CacheWolf/Common.java
+===================================================================
+--- trunk/src/CacheWolf/Common.java	2010-09-07 10:38:41 UTC (rev 2772)
++++ trunk/src/CacheWolf/Common.java	2010-09-09 18:04:23 UTC (rev 2773)
+@@ -2,7 +2,6 @@
+ 
+ 
+ import CacheWolf.utils.FileBugfix;
+-import ewe.sys.Convert;
+ 
+ public final class Common {
+ 
+@@ -94,7 +93,7 @@
+ 		}// for
+ 		return new String(dummy);
+ 	}
+-	
++/*	
+ 	public static String stringToHex(String str){
+ 		StringBuffer strBuf = new StringBuffer();
+ 		StringBuffer strHex = new StringBuffer();
+@@ -108,7 +107,7 @@
+ 		strBuf.append(strHex);
+ 		return strBuf.toString();
+ 	}
+-	
++*/	
+ 	public static String ClearForFileName(String str) {
+ 		String ret = str.replace('?', '_');
+ 		ret = ret.replace(' ', '-');
+@@ -147,11 +146,10 @@
+ 		return fn.substring(dot, fn.length());
+ 	}
+ 	
+-	public static String DoubleToString(double d, int decimalplaces) {
++	public static String DoubleToString(double d, int length, int decimalplaces) {
+ 		ewe.sys.Double e = new ewe.sys.Double();
+ 		e.set(d);
+-		e.decimalPlaces = decimalplaces;
+-		return e.toString().replace(',', '.');
++		return e.toString(length,decimalplaces,0).replace(',', '.');
+ 
+ 	}
+ 	
+
+Modified: trunk/src/CacheWolf/CoordsScreen.java
+===================================================================
+--- trunk/src/CacheWolf/CoordsScreen.java	2010-09-07 10:38:41 UTC (rev 2772)
++++ trunk/src/CacheWolf/CoordsScreen.java	2010-09-09 18:04:23 UTC (rev 2773)
+@@ -198,8 +198,8 @@
+ 				localCooSystem.setInt(formatsel - formatSelToLocalSystem.length);
+ 				ProjectedPoint pp = TransformCoordinates.wgs84ToLocalsystem(coords, format);
+ 				inpText.setText(pp.toHumanReadableString());
+-				inpUTMNorthing.setText(Common.DoubleToString(pp.getNorthing(),0));
+-				inpUTMEasting.setText(Common.DoubleToString(pp.getEasting(),0));
++				inpUTMNorthing.setText(Common.DoubleToString(pp.getNorthing(),0,0));
++				inpUTMEasting.setText(Common.DoubleToString(pp.getEasting(),0,0));
+ 				if (TransformCoordinates.getLocalSystem(format).zoneSeperatly) inpUTMZone.setText(pp.getZoneString()); 
+ 				else inpUTMZone.setText(&quot;&quot;);
+ 			}
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2010-09-07 10:38:41 UTC (rev 2772)
++++ trunk/src/CacheWolf/MainMenu.java	2010-09-09 18:04:23 UTC (rev 2773)
+@@ -55,7 +55,7 @@
+ public class MainMenu extends MenuBar {
+ 	private MenuItem preferences, mnuContext,loadcaches,loadOC, /* savenexit, */ savenoxit,exit,search,searchAll,searchClr;
+ 	private MenuItem downloadmap, kalibmap, importmap, selectMapPath;
+-	private MenuItem spider, spiderRoute, spiderAllFinds, loadGCVotes, update, chkVersion;
++	private MenuItem spider, spiderRoute, spiderQuick, spiderAllFinds, loadGCVotes, update, chkVersion;
+ 	private MenuItem about, wolflang, sysinfo, legend;
+ 	private MenuItem exportGpxNg, exporthtml, exporttop50, exportASC, exportTomTom, exportMSARCSV, exportSpoilerPOI;
+ 	private MenuItem exportOZI, exportKML, exportTPL, exportExplorist;
+@@ -97,6 +97,7 @@
+ 				loadcaches     = new MenuItem(MyLocale.getMsg(129,&quot;Import GPX&quot;)),
+ 				loadOC         = new MenuItem(MyLocale.getMsg(130,&quot;Download from opencaching&quot;)),
+ 				spider         = new MenuItem(MyLocale.getMsg(131,&quot;Download from geocaching.com&quot;)),
++				spiderQuick    = new MenuItem(MyLocale.getMsg(0,&quot;from GC quick&quot;)),
+ 				spiderRoute,
+ 				spiderAllFinds = new MenuItem(MyLocale.getMsg(217,&quot;Spider all finds from geocaching.com&quot;)),
+ 				update         = new MenuItem(MyLocale.getMsg(1014,&quot;Update cache data&quot;)),
+@@ -349,6 +350,14 @@
+ 				profile.readIndex();
+ 				tbp.resetModel();
+ 			}
++			if(mev.selectedItem == spiderQuick){
++				SpiderGC spGC = new SpiderGC(pref, profile, true);
++				Global.mainTab.saveUnsavedChanges(false);
++				spGC.doItQuickFillFromMapList();
++				cacheDB.clear();
++				profile.readIndex();
++				tbp.resetModel();
++			}
+ 			if(mev.selectedItem == spiderAllFinds){
+ 				SpiderGC spGC = new SpiderGC(pref, profile, true);
+ 				Global.mainTab.saveUnsavedChanges(false);
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2010-09-07 10:38:41 UTC (rev 2772)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2010-09-09 18:04:23 UTC (rev 2773)
+@@ -64,7 +64,6 @@
+ import ewe.net.URL;
+ import ewe.net.UnknownHostException;
+ import ewe.sys.Convert;
+-import ewe.sys.Double;
+ import ewe.sys.Time;
+ import ewe.sys.Vm;
+ import ewe.ui.FormBase;
+@@ -166,6 +165,8 @@
+ 	private int numAvailableUpdates=0;
+ 	private int numLogUpdates=0;
+ 	private int numPrivate=0;
++	private int page_number=1;
++	private int num_added=0;
+ 
+ 	public SpiderGC(Preferences prf, Profile profile, boolean bypass){
+ 		this.profile=profile;
+@@ -332,6 +333,7 @@
+ 		Global.getProfile().saveIndex(Global.getPref(),true);
+ 	}
+ 	
++	
+ 	private int nextRoutePoint(CWPoint startPos, double lateralDistance) {
+ 		// get next Destination
+ 		double nextDistance = 0;
+@@ -368,7 +370,133 @@
+ 		return index;
+ 	}
+ 
++	public void doItQuickFillFromMapList() {
++
++		CWPoint origin = pref.getCurCentrePt();
++		if (!origin.isValid()) return; //
++		if (!doDownloadGui(2)) return;
++
++		Vm.showWait(true);
++		infB = new InfoBox(&quot;Status&quot;, MyLocale.getMsg(0,&quot;getting the caches.&quot;));
++		infB.exec();
++
++		// Reset states for all caches when spidering (<A HREF="http://tinyurl.com/dzjh7p">http://tinyurl.com/dzjh7p</A>)
++		for(int i = 0; i&lt;cacheDB.size();i++){
++			CacheHolder ch = cacheDB.get(i);
++			if (ch.mainCache == null) ch.initStates(false);
++		}
++
++		double halfSideLength=maxDistance; // halbe Seitenl&#228;nge eines Quadrats ums Zentrum in km
++		if ( pref.metricSystem == Metrics.IMPERIAL ) {
++			halfSideLength = Metrics.convertUnit(maxDistance, Metrics.MILES, Metrics.KILOMETER);
++		}
++
++		if (!loggedIn || pref.forceLogin) {
++			if(login() != FormBase.IDOK) return;
++		}
++
++		page_number = 1;
++		num_added = 0;
++		getCaches(origin,halfSideLength);
++		
++		if (!infB.isClosed) infB.close(0);
++		Vm.showWait(false);
++
++		Global.getProfile().restoreFilter();
++		Global.getProfile().saveIndex(Global.getPref(),true);
++				
++	}
+ 	
++	private void getCaches(CWPoint middleOfSquare, double halfSideLength) {
++		if (infB.isClosed) return;
++		page_number++;
++		String listPage=getMapListPage(middleOfSquare, halfSideLength, halfSideLength);
++		if (listPage.indexOf(&quot;\&quot;count\&quot;: 501&quot;)&gt;-1 || halfSideLength &lt; 1.0 ) {
++			Vm.debug(&quot;split &quot;+middleOfSquare.toString());
++			double quarterSideLength = halfSideLength/2.0;
++			double metersQuarterSideLength = quarterSideLength * 1000;
++			int north = 0;
++			int east = 1;
++			int south = 2;
++			int west = 3;
++
++			CWPoint northwest = new CWPoint(middleOfSquare); 
++			northwest.shift(metersQuarterSideLength, north);
++			CWPoint northeast = new CWPoint(northwest);
++			northwest.shift(metersQuarterSideLength , west);
++			northeast.shift(metersQuarterSideLength, east);
++			
++			CWPoint southwest = new CWPoint(middleOfSquare);
++			southwest.shift(metersQuarterSideLength, south);
++			CWPoint southeast = new CWPoint(southwest);
++			southwest.shift(metersQuarterSideLength, west);
++			southeast.shift(metersQuarterSideLength, east);
++			
++			Vm.debug(&quot;get northwest&quot;);
++			getCaches(northwest, quarterSideLength);
++			Vm.debug(&quot;get northeast&quot;);
++			getCaches(northeast, quarterSideLength);
++			Vm.debug(&quot;get southwest&quot;);
++			getCaches(southwest, quarterSideLength);
++			Vm.debug(&quot;get southeast&quot;);
++			getCaches(southeast, quarterSideLength);
++			
++		}
++		else {
++			Vm.debug(&quot;add Caches &quot;+middleOfSquare.toString());
++			addCaches(listPage);
++		}
++		Vm.debug(&quot;ready &quot;+middleOfSquare.toString());
++	}
++	
++	private void addCaches(String listPage) {
++		String[] caches = mString.split(listPage, '{');
++		for (int i = 0; i &lt; caches.length; i++) {
++			if (infB.isClosed) return;
++			String elements[] = mString.split(caches[i],',');
++			String e1[]= mString.split(elements[0],' '); //.indexOf(&quot;\&quot;lat\&quot;: &quot;);
++			if ( e1[0].indexOf(&quot;lat&quot;) &gt; -1) {
++				boolean found=mString.split(elements[5],' ')[1].equals(&quot;true&quot;);
++				if (found &amp;&amp; doNotgetFound) continue;
++				byte cacheType=CacheType.gcSpider2CwType(mString.split(elements[4],' ')[1]);
++				if (restrictedCacheType != CacheType.CW_TYPE_ERROR ) {
++					if (restrictedCacheType!=cacheType) continue;
++				}
++				String lat=e1[1];
++				String lon=mString.split(elements[2],' ')[1];
++				String wp=mString.split(elements[3],'\&quot;')[3];
++				String own=mString.split(elements[6],' ')[1];
++				String available=mString.split(elements[7],' ')[1];
++				String cacheName=mString.split(elements[8],'\&quot;')[3];;
++				CacheHolder ch=cacheDB.get(wp);
++				if (ch==null) {
++					ch = new CacheHolder();
++					ch.setWayPoint(wp);
++					ch.setLatLon(lat+&quot; &quot;+lon);
++					ch.setType(cacheType);
++					if (own.equals(&quot;true&quot;)) {
++						ch.setOwned(true);
++					}
++					else {
++						if (found) {
++							ch.setFound(true);
++							ch.setCacheStatus(ch.getFoundText());
++						}
++					}
++					ch.setAvailable(available.equals(&quot;true&quot;)? true : false);
++					ch.setCacheName(cacheName);
++					ch.save();
++					num_added++;
++					cacheDB.add(ch);
++					if (Global.mainTab.statBar!=null) Global.mainTab.statBar.updateDisplay(&quot;GC pages: &quot;+page_number+&quot; Caches added to CW: &quot;+num_added);
++				}
++				else {
++					Vm.debug(&quot;uups&quot;);
++				}
++			}			
++		}
++	}
++	
+ 	private boolean doDownloadGui(int menu){
+ 
+ 		OCXMLImporterScreen options;
+@@ -411,10 +539,7 @@
+ 			String minDist = options.minDistanceInput.getText();
+ 			if (minDist.length() == 0) minDist=&quot;0&quot;;
+ 			minDistance = Common.parseDouble(minDist);
+-			Double distDouble = new Double();
+-			distDouble.value = minDistance;
+-			minDist = distDouble.toString(0, 1, 0).replace(',', '.');
+-			profile.setMinDistGC(minDist);
++			profile.setMinDistGC(Double.toString(minDistance).replace(',', '.'));
+ 
+ 			direction=options.directionInput.getText().toUpperCase();
+ 			direction=direction.replace(' ',','); // separator blank to ,
+@@ -427,7 +552,7 @@
+ 			doNotgetFound = options.foundCheckBox.getState();
+ 
+ 		}
+-		else { // menu=1 input values for get Caches along a route
++		else if (menu == 1) { // menu = 1 input values for get Caches along a route
+ 			options = new OCXMLImporterScreen(MyLocale.getMsg(137,&quot;Download along a Route from geocaching.com&quot;),
+ 					OCXMLImporterScreen.ISGC|
+ 					OCXMLImporterScreen.DIST|
+@@ -445,6 +570,17 @@
+ 			direction=&quot;&quot;;
+ 			maxUpdate=0;
+ 		}
++		else { // if (menu == 2) {
++			options = new OCXMLImporterScreen(MyLocale.getMsg(0,&quot;Qick Import&quot;),
++					OCXMLImporterScreen.ISGC|
++					OCXMLImporterScreen.DIST|
++					OCXMLImporterScreen.INCLUDEFOUND|
++					OCXMLImporterScreen.TYPE);
++			// setting defaults for input 
++			// doing the input
++			if (options.execute() == FormBase.IDCANCEL) {return false; }
++			doNotgetFound = options.foundCheckBox.getState();
++		}
+ 
+ 		if (menu==0) {
+ 			
+@@ -477,14 +613,10 @@
+ 		if (options.maxDistanceInput != null){
+ 			String maxDist = options.maxDistanceInput.getText();
+ 			if (maxDist.length() ==  0) return false;
+-			maxDistance = Common.parseDouble(maxDist.replace(',', '.'));
++			maxDistance = Common.parseDouble(maxDist);
+ 			if (maxDistance ==  0) return false;
+ 			if (maxDistance&lt;0.5) maxDistance=0.5; // zur Sicherheit mindenstens 500 meter Umkreis
+-			//save last radius to profile
+-			Double distDouble = new Double();
+-			distDouble.value = maxDistance;
+-			maxDist = distDouble.toString(0, 1, 0).replace(',', '.');
+-			profile.setDistGC(maxDist);
++			profile.setDistGC(Double.toString(maxDistance));
+ 		}
+ 
+ 		directions=mString.split(direction, ',');
+@@ -573,7 +705,7 @@
+ 		int startSize=cExpectedForUpdate.size(); //for save reasons
+ 
+ 		Hashtable cFoundForUpdate = new Hashtable(cacheDB.size()); // for don't loose the already done work
+-		int page_number = 1;
++		page_number = 1;
+ 		int found_on_page = 0;
+ 		try {
+ 			//Loop pages till maximum distance has been found or no more caches are in the list
+@@ -894,7 +1026,7 @@
+ 					sb.append(&quot;=&quot;); sb.append(URL.encodeURL(&quot;Login&quot;,false));
+ //					sb.append(&quot;&amp;&quot;); sb.append(URL.encodeURL(&quot;__EVENTVALIDATION&quot;,false));
+ //					sb.append(&quot;=&quot;); sb.append(URL.encodeURL(eventvalidation,false));
+-					loginPage = fetch_post(loginPageUrl, sb.toString(), nextPage);  // /login/default.aspx
++					loginPage = fetch_post(loginPageUrl, sb.toString(), nextPage, true);  // /login/default.aspx
+ 					if(loginPage.indexOf(loginSuccess) &gt; 0)
+ 						pref.log(&quot;Login successful: &quot;+pref.myAlias);
+ 					else {
+@@ -958,7 +1090,7 @@
+ //		    + &quot;&amp;&quot; + URL.encodeURL(&quot;__VIEWSTATE1&quot;,false) +&quot;=&quot;+ URL.encodeURL(viewstate1,false);
+ //		    + &quot;&amp;&quot; + URL.encodeURL(&quot;__EVENTVALIDATION&quot;,false) +&quot;=&quot;+ URL.encodeURL(eventvalidation,false);
+ 			try{
+-				loginPage = fetch_post(loginPageUrl, postStr, nextPage);
++				loginPage = fetch_post(loginPageUrl, postStr, nextPage, true);
+ 				pref.log(&quot;Switched to English&quot;);
+ 			}catch(Exception ex){
+ 				pref.log(&quot;Error switching to English: check/n&quot; + loginPageUrl + &quot;/n&quot; + postStr + &quot;/n&quot; + nextPage + &quot;/n&quot;,ex);
+@@ -1093,13 +1225,57 @@
+ 	    + &quot;&amp;&quot; + URL.encodeURL(&quot;__VIEWSTATE1&quot;,false) + &quot;=&quot; + URL.encodeURL(viewstate1,false);
+ //	    + &quot;&amp;&quot; + URL.encodeURL(&quot;__EVENTVALIDATION&quot;,false) + &quot;=&quot; + URL.encodeURL(eventvalidation,false);
+ 		try{
+-			htmlListPage = fetch_post(postStr, url, p.getProp(&quot;nextListPage&quot;));
++			htmlListPage = fetch_post(postStr, url, p.getProp(&quot;nextListPage&quot;), true);
+ 			pref.log(&quot;[getAListPage] Got list page: &quot;+URL.encodeURL(whatPage,false));
+ 		}catch(Exception ex){
+ 			pref.log(&quot;[getAListPage] Error getting a list page&quot;+url,ex);
+ 		}
+ 	}
++	/* */
++	private String getMapListPage(CWPoint origin, double kmlat, double kmlon) {
++		double km2latdeg=1/(origin.getDistance(new CWPoint(origin.latDec+1,origin.lonDec)));
++		double km2londeg=1/(origin.getDistance(new CWPoint(origin.latDec,origin.lonDec+1)));
++		double dlat = kmlat * km2latdeg;
++		double dlon = kmlon * km2londeg;
++		String url=&quot;<A HREF="http://www.geocaching.com/map/default.aspx">http://www.geocaching.com/map/default.aspx</A>&quot;+
++			&quot;?lat=&quot;+origin.getLatDeg(TransformCoordinates.DD)+
++			&quot;&amp;lng=&quot;+origin.getLonDeg(TransformCoordinates.DD);
++		double left = origin.lonDec - dlon;
++		double up = origin.latDec + dlat;
++		double right = origin.lonDec + dlon;
++		double down = origin.latDec - dlat;
++		String strLeft=MyLocale.formatDouble(left, &quot;00.00000&quot;).replace(',','.');
++		String strUp=MyLocale.formatDouble(up, &quot;00.00000&quot;).replace(',','.');
++		String strRight=MyLocale.formatDouble(right, &quot;00.00000&quot;).replace(',','.');
++		String strDown=MyLocale.formatDouble(down, &quot;00.00000&quot;).replace(',','.');
+ 
++		String eo_cb_param1 = &quot;eo_cb_param=%7B%22c%22%3A%201%2C%20%22m%22%3A%20%22%22%2C%20%22d%22%3A%20%22&quot;;
++		String eo_cb_param2 = strUp+&quot;|&quot;+strDown+&quot;|&quot;+strRight+&quot;|&quot;+strLeft+&quot;%22%7D&quot;;
++		String ret;
++		String doc=&quot;&quot;;
++		try{
++
++			doc=&quot;eo_cb_id=ctl00_ContentBody_cbAjax&quot; +
++			&quot;&amp;&quot;+eo_cb_param1 + eo_cb_param2 +
++			&quot;&amp;__eo_obj_states=&quot;+
++			//&quot;&amp;__VIEWSTATE=&quot;+viewstate+
++			&quot;&amp;__VIEWSTATE=%2FwEPDwULLTEyOTYyNjYwNjkPZBYCZg9kFgZmD2QWAgIODxYCHgdWaXNpYmxlaGQCAQ9kFhICBQ8WAh4EVGV4dGRkAgkPFgIfAQUWWW91IGFyZSBub3QgbG9nZ2VkIGluLmQCCw8PFgQeC05hdmlnYXRlVXJsBZEBaHR0cDovL3d3dy5nZW9jYWNoaW5nLmNvbS9sb2dpbi9kZWZhdWx0LmFzcHg%2FUkVTRVQ9WSZyZWRpcj1odHRwJTNhJTJmJTJmd3d3Lmdlb2NhY2hpbmcuY29tJTJmbWFwJTJmZGVmYXVsdC5hc3B4JTNmbGF0JTNkNDYuNjE1OTclMjZsbmclM2QxMy44NDg3Mx8BBQZMb2cgaW5kZAIPD2QWAgIBDw8WAh8BZGRkAhEPZBYCAgEPD2QPZAUMRFFJQkFBQUFBQUE9ZAIfDxYCHwBnZAInDw8WBB8CBQwvcmV2aWV3cy9ncHMfAQULR1BTIFJldmlld3NkZAIrD2QWAgIBDw8WAh8BBZcCPGlmcmFtZSBzcmM9Imh0dHA6Ly9iYW5tYW41Lmdyb3VuZHNwZWFrLmNvbS9iYW5tYW41L2FkLmFzcHg%2FWm9uZUlEPTkmVGFzaz1HZXQmU2l0ZUlEPTEmWD0nMzdlYWVjMTQzODVjNDc1Y2JiZjFhODk0YTgzOTNiMGMnIiB3aWR0aD0iMTIwIiBoZWlnaHQ9IjI0MCIgTWFyZ2lud2lkdGg9IjAiIE1hcmdpbmhlaWdodD0iMCIgSHNwYWNlPSIwIiBWc3BhY2U9IjAiIEZyYW1lYm9yZGVyPSIwIiBTY3JvbGxpbmc9Im5vIiBzdHlsZT0id2lkdGg6MTIwcHg7SGVpZ2h0OjI0MHB4OyI%2BPC9pZnJhbWU%2BZGQCLQ9kFgJmD2QWAmYPFgIeC18hSXRlbUNvdW50AgYWDAIBD2QWAgIBDw8WCB4PQ29tbWFuZE
+ FyZ3VtZW50BQVlbi1VUx4LQ29tbWFuZE5hbWUFDVNldFRlbXBMb2NhbGUfAQUHRW5nbGlzaB4QQ2F1c2VzVmFsaWRhdGlvbmhkZAICD2QWAgIBDw8WCB8EBQVkZS1ERR8FBQ1TZXRUZW1wTG9jYWxlHwEFB0RldXRzY2gfBmhkZAIDD2QWAgIBDw8WCB8EBQVmci1GUh8FBQ1TZXRUZW1wTG9jYWxlHwEFCUZyYW7Dp2Fpcx8GaGRkAgQPZBYCAgEPDxYIHwQFBXB0LVBUHwUFDVNldFRlbXBMb2NhbGUfAQUKUG9ydHVndcOqcx8GaGRkAgUPZBYCAgEPDxYIHwQFBWNzLUNaHwUFDVNldFRlbXBMb2NhbGUfAQUJxIxlxaF0aW5hHwZoZGQCBg9kFgICAQ8PFggfBAUFc3YtU0UfBQUNU2V0VGVtcExvY2FsZR8BBQdTdmVuc2thHwZoZGQCAw8WAh8BBSxTZXJ2ZXI6IFdFQjA4OyBCdWlsZDogVEZTLlJlbGVhc2VfMjAxMDA4MzAuMWRkkWJYA8UHbJ38zIk7cJhELr1nbU4%3D&quot;+
++			&quot;&amp;eo_version=5.0.51.2&quot;+
++			&quot;&amp;=on&amp;=&amp;=&amp;=2&amp;=3&amp;=4&amp;=5&amp;=1858&amp;=6&amp;=8&amp;=11&amp;=137&amp;=13&amp;=453&amp;=3653&amp;=on&amp;=&quot; +
++			&quot;&amp;__EVENTVALIDATION=&quot;+
++			&quot;&amp;__EVENTTARGET=&quot;+
++			&quot;&amp;__EVENTARGUMENT=&quot;;
++
++			ret = fetch_post(url, doc, &quot;/map/default.aspx&quot;, false);
++			pref.log(&quot;[getAListPage] Got map Cachepage: &quot;);
++		}catch(Exception ex){
++			ret=&quot;&quot;;
++			pref.log(&quot;[getAListPage] Error getting map Cachepage&quot;+url+doc,ex);
++		}
++		return ret;
++	}
++	 /* */
++
+ 	/**
+ 	 * check if new Update exists
+ 	 * @param ch CacheHolder
+@@ -1141,7 +1317,7 @@
+ 	private int getNumFound(String doc) {
+ 		RexNumFinds.search(doc);
+ 		if (RexNumFinds.didMatch()) {
+-			 return Convert.toInt(RexNumFinds.stringMatched(1));}
++			 return Common.parseInt(RexNumFinds.stringMatched(1));}
+ 		else {
+ 			pref.log(&quot;check RexNumFinds in SpiderGC.java / initialiseProperties&quot;+Preferences.NEWLINE+doc);
+ 			return 0;
+@@ -1338,14 +1514,14 @@
+ 					&quot;June&quot;, &quot;July&quot;, &quot;August&quot;, &quot;September&quot;, &quot;October&quot;, &quot;November&quot;,
+ 					&quot;December&quot; };
+ 			SDate=mString.split(stmp,' ');
+-			lastLogGC.day=Integer.parseInt(SDate[0]);
++			lastLogGC.day=Common.parseInt(SDate[0]);
+ 			for (int m = 0; m &lt; 12; m++) {
+ 				if (monthNames[m].startsWith(SDate[1])) {
+ 					lastLogGC.month=m+1;
+ 					m=12;
+ 				}
+ 			}
+-			lastLogGC.year=2000+Integer.parseInt(SDate[2].substring(0,2));
++			lastLogGC.year=2000+Common.parseInt(SDate[2].substring(0,2));
+ 		}
+ 		boolean ret = lastLogCW.compareTo(lastLogGC) &lt; 0;
+ 		return ret;
+@@ -2251,7 +2427,7 @@
+ 	*	This method does exactly that. Actually this method is generic in the sense
+ 	*	that it can be used to post to a URL using http post.
+ 	*/
+-	private static String fetch_post(String address, String document, String path) {
++	private static String fetch_post(String address, String document, String path, boolean withResponseHeaders) {
+ 		HttpConnection conn;
+ 		try {
+ 			conn = new HttpConnection(address);
+@@ -2274,7 +2450,9 @@
+ 			pref.log(&quot;[fetch_post]:Read data ok &quot;+address);
+ 			// CharArray c_data = codec.decodeText(daten.data, 0, daten.length, true, null);
+ 			sock.close();
+-			return getResponseHeaders(conn)+c_data.toString();
++			if (withResponseHeaders)
++				return getResponseHeaders(conn)+c_data.toString();
++			else return c_data.toString();
+ 		} catch (Exception e) {
+ 			pref.log(&quot;[fetch_post] Ignored Exception&quot;, e, true);
+ 		}
+
+Modified: trunk/src/CacheWolf/navi/MapLoader.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MapLoader.java	2010-09-07 10:38:41 UTC (rev 2772)
++++ trunk/src/CacheWolf/navi/MapLoader.java	2010-09-09 18:04:23 UTC (rev 2773)
+@@ -245,7 +245,7 @@
+ 	}
+ 
+ 	public String createFilename(CWPoint center, float scale) {
+-		String filename = Common.ClearForFileName(currentOnlineMapService.getNameForFileSystem()+&quot;_s&quot;+Common.DoubleToString(scale, 1)
++		String filename = Common.ClearForFileName(currentOnlineMapService.getNameForFileSystem()+&quot;_s&quot;+Common.DoubleToString(scale,0,1)
+ 				+ &quot;_c&quot; + center.toString(TransformCoordinates.LAT_LON).replace(',', '-'));
+ 		return filename;
+ 	}
+@@ -472,7 +472,7 @@
+ 		String[] tmp2 = mString.split(tmp, ' ');
+ 		coordinateReferenceSystem = new int[tmp2.length];
+ 		for (int i = 0; i &lt; tmp2.length; i++) {
+-			coordinateReferenceSystem[i] = Convert.toInt(tmp2[i].trim());
++			coordinateReferenceSystem[i] = Common.parseInt(tmp2[i].trim());
+ 			if (!TransformCoordinates.isSupported(coordinateReferenceSystem[i])) throw new IllegalArgumentException(MyLocale.getMsg(4815, &quot;Coordinate reference system not supported by CacheWolf:\n&quot;) + coordinateReferenceSystem[i]);
+ 		}
+ 		tmp = wms.getProperty(&quot;CoordinateReferenceSystemUrlPart&quot;, &quot;&quot;).trim();
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002760.html">[Cachewolf-svn] r2772 - in trunk/src/CacheWolf: . exp imp
+</A></li>
+	<LI>Next message: <A HREF="002762.html">[Cachewolf-svn] r2774 - trunk/src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2761">[ date ]</a>
+              <a href="thread.html#2761">[ thread ]</a>
+              <a href="subject.html#2761">[ subject ]</a>
+              <a href="author.html#2761">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

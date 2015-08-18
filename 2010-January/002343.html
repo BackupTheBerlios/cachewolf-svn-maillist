@@ -1,0 +1,180 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2419 - trunk/src/CacheWolf/exp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2419%20-%20trunk/src/CacheWolf/exp&In-Reply-To=%3C201001191903.o0JJ38oC000097%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002342.html">
+   <LINK REL="Next"  HREF="002344.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2419 - trunk/src/CacheWolf/exp</H1>
+    <B>kalli at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2419%20-%20trunk/src/CacheWolf/exp&In-Reply-To=%3C201001191903.o0JJ38oC000097%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2419 - trunk/src/CacheWolf/exp">kalli at mail.berlios.de
+       </A><BR>
+    <I>Tue Jan 19 20:03:08 CET 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002342.html">[Cachewolf-svn] r2418 - trunk/res_noewe/templates
+</A></li>
+        <LI>Next message: <A HREF="002344.html">[Cachewolf-svn] r2420 - trunk
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2343">[ date ]</a>
+              <a href="thread.html#2343">[ thread ]</a>
+              <a href="subject.html#2343">[ subject ]</a>
+              <a href="author.html#2343">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: kalli
+Date: 2010-01-19 20:03:06 +0100 (Tue, 19 Jan 2010)
+New Revision: 2419
+
+Added:
+   trunk/src/CacheWolf/exp/SpoilerPOIExporterScreen.java
+Modified:
+   trunk/src/CacheWolf/exp/SpoilerPOIExporter.java
+Log:
+Options for all pics or only spoiler. Prefix for name changed.
+
+Modified: trunk/src/CacheWolf/exp/SpoilerPOIExporter.java
+===================================================================
+--- trunk/src/CacheWolf/exp/SpoilerPOIExporter.java	2010-01-18 08:00:51 UTC (rev 2418)
++++ trunk/src/CacheWolf/exp/SpoilerPOIExporter.java	2010-01-19 19:03:06 UTC (rev 2419)
+@@ -1,5 +1,6 @@
+ package CacheWolf.exp;
+ import ewe.sys.Time;
++import ewe.ui.FormBase;
+ import CacheWolf.*;
+ 
+ /** 
+@@ -10,7 +11,8 @@
+  */
+ 
+ public class SpoilerPOIExporter extends Exporter {
+-
++	private SpoilerPOIExporterScreen infoScreen;
++	private boolean onlySpoiler;
+ 	
+ 	public SpoilerPOIExporter(Preferences p, Profile prof){
+ 		super();
+@@ -19,6 +21,12 @@
+ 		this.setNeedCacheDetails(true);
+ 	}
+ 
++	public void doIt() {
++		infoScreen = new SpoilerPOIExporterScreen(&quot;SpoilerPOIExport&quot;);
++		if (infoScreen.execute() == FormBase.IDCANCEL) return;
++		onlySpoiler = infoScreen.getOnlySpoiler();
++		super.doIt();
++	}
+ 	
+ 	public String header () {
+ 		StringBuffer strBuf = new StringBuffer(200);
+@@ -57,10 +65,10 @@
+ 			// POILoader can only work with JPG-Files
+ 			if ( !filename.endsWith(&quot;.jpg&quot;)) continue;
+ 			// Try to export only Spoiler
+-			if ( comment.indexOf(&quot;oiler&quot;) &lt; 1) continue;
++			if ( onlySpoiler &amp;&amp; (comment.indexOf(&quot;oiler&quot;) &lt; 1)) continue;
+ 			
+ 			strBuf.append(&quot;&lt;wpt lat=\&quot;&quot; + lat + &quot;\&quot; lon=\&quot;&quot; + lon + &quot;\&quot;&gt;\r\n&quot;);
+-			strBuf.append(&quot;  &lt;name&gt;Spoiler: &quot; + SafeXML.cleanGPX(ch.cacheName) + &quot;&lt;/name&gt;\r\n&quot;);
++			strBuf.append(&quot;  &lt;name&gt;Sp &quot; + i + &quot;: &quot; + SafeXML.cleanGPX(ch.cacheName) + &quot;&lt;/name&gt;\r\n&quot;);
+ 			strBuf.append(&quot;  &lt;cmt&gt;\r\n&quot;);
+ 			if (ch.details.Hints.length()&gt; 0){
+ 				strBuf.append(&quot;  Hint: &quot; + SafeXML.cleanGPX(Common.rot13(ch.details.Hints)) + &quot;\r\n&quot;);
+
+Added: trunk/src/CacheWolf/exp/SpoilerPOIExporterScreen.java
+===================================================================
+--- trunk/src/CacheWolf/exp/SpoilerPOIExporterScreen.java	2010-01-18 08:00:51 UTC (rev 2418)
++++ trunk/src/CacheWolf/exp/SpoilerPOIExporterScreen.java	2010-01-19 19:03:06 UTC (rev 2419)
+@@ -0,0 +1,54 @@
++package CacheWolf.exp;
++
++import CacheWolf.MyLocale;
++import ewe.ui.*;
++
++public class SpoilerPOIExporterScreen extends Form {
++	mButton cancelB, okB;
++	mCheckBox chkAllPic, chkOnlySpoiler;
++	CheckBoxGroup chkGroupFormat;
++	
++	public SpoilerPOIExporterScreen(String title){
++		super();
++		this.title = title;
++
++		// checkboxgroup for all pictures or Spoiler only
++		chkGroupFormat = new CheckBoxGroup();
++		chkAllPic = new mCheckBox(&quot;all Pics&quot;); 
++		chkAllPic.setGroup(chkGroupFormat);
++		chkOnlySpoiler = new mCheckBox(&quot;only Spoiler&quot;);
++		chkOnlySpoiler.setGroup(chkGroupFormat);
++		chkGroupFormat.selectIndex(1);
++		
++		this.addNext(chkAllPic);
++		this.addLast(chkOnlySpoiler);
++		
++		// cancel and ok Button
++		cancelB = new mButton(MyLocale.getMsg(1604,&quot;Cancel&quot;));
++		cancelB.setHotKey(0, IKeys.ESCAPE);
++		this.addNext(cancelB,CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
++		okB = new mButton(MyLocale.getMsg(1605,&quot;OK&quot;));
++		okB.setHotKey(0, IKeys.ACTION);
++		okB.setHotKey(0, IKeys.ENTER);
++		this.addLast(okB,CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
++	}
++	
++	public boolean getOnlySpoiler() {
++		if ( chkGroupFormat.getSelectedIndex() == 1) return true;
++		else return false;
++	}
++	
++
++	public void onEvent(Event ev){
++		if (ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.PRESSED){
++			if (ev.target == cancelB){
++				this.close(FormBase.IDCANCEL);
++			}
++			if (ev.target == okB){
++				this.close(FormBase.IDOK);
++			}
++		}
++		super.onEvent(ev);
++	}
++
++}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002342.html">[Cachewolf-svn] r2418 - trunk/res_noewe/templates
+</A></li>
+	<LI>Next message: <A HREF="002344.html">[Cachewolf-svn] r2420 - trunk
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2343">[ date ]</a>
+              <a href="thread.html#2343">[ thread ]</a>
+              <a href="subject.html#2343">[ subject ]</a>
+              <a href="author.html#2343">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,485 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r683 - in trunk: resources src/CacheWolf src/exp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-May/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r683%20-%20in%20trunk%3A%20resources%20src/CacheWolf%20src/exp&In-Reply-To=%3C200705202108.l4KL8QDT006554%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000508.html">
+   <LINK REL="Next"  HREF="000510.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r683 - in trunk: resources src/CacheWolf src/exp</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r683%20-%20in%20trunk%3A%20resources%20src/CacheWolf%20src/exp&In-Reply-To=%3C200705202108.l4KL8QDT006554%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r683 - in trunk: resources src/CacheWolf src/exp">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sun May 20 23:08:26 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000508.html">[Cachewolf-svn] r682 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000510.html">[Cachewolf-svn] r684 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#509">[ date ]</a>
+              <a href="thread.html#509">[ thread ]</a>
+              <a href="subject.html#509">[ subject ]</a>
+              <a href="author.html#509">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-05-20 23:08:14 +0200 (Sun, 20 May 2007)
+New Revision: 683
+
+Added:
+   trunk/resources/calendar.png
+   trunk/src/CacheWolf/DateFormat.java
+Modified:
+   trunk/resources/cachewolf.Languages.cfg
+   trunk/src/CacheWolf/DetailsPanel.java
+   trunk/src/CacheWolf/GPXImporter.java
+   trunk/src/CacheWolf/MyComparer.java
+   trunk/src/CacheWolf/OCXMLImporter.java
+   trunk/src/CacheWolf/Profile.java
+   trunk/src/CacheWolf/SpiderGC.java
+   trunk/src/exp/GPXExporter.java
+Log:
+Ueberarbeitung der Datumsdarstellung:
+- Einheitliches format yyyy-mm-dd fuer versteckt und gefunden Datum
+  (Die Index.xml wird dynamisch auf dieses Format umgestellt)
+- Wenn im Cachestatus ein Datum steht, ist dies das Gefunden Datum
+  (Dadurch kann jetzt nach Gefunden Datum sortiert werden)
+- Im Detailspanel Verwendung von DatumsPicker zur leichteren Auswahl
+  des versteckt/gefunden Datums
+- GCSpider, Opencaching Import und GPX Import setzten ueber die Logs 
+  automatisch das Gefunden Datum
+
+Modified: trunk/resources/cachewolf.Languages.cfg
+===================================================================
+--- trunk/resources/cachewolf.Languages.cfg	2007-05-18 19:02:36 UTC (rev 682)
++++ trunk/resources/cachewolf.Languages.cfg	2007-05-20 21:08:14 UTC (rev 683)
+@@ -56,7 +56,7 @@
+ 		160=Selektierte
+ 		161=Zeige Blacklist
+ 		162=kalibrierte herunterladen
+-		170=Basisverzeichnis f%fc die Profile w%e4hlen
++		170=Basisverzeichnis f%fcr die Profile w%e4hlen
+ 		171=Profil existiert nicht:+
+ 		172=Kann das Kartenverzeichnis nicht erstellen:%0a
+ 		173=Garmin: PC Port:
+@@ -96,6 +96,8 @@
+ 		325=Zuwenige Referenzpunkte, Karte nicht kalibriert
+ 		326=Es steht keine kalibrierte Karte zur Verf%fcgung %0a Bitte w%e4hlen Sie einen Ma%dfstab,%0a in dem der Track und die markierten Caches angezeigt werden sollen
+ 		327=Information
++		328=Gefunden am
++		329=Versteckt am
+ 		340=Cachebilder:
+ 		341=Eigene Bilder:
+ 		342=Gel%f6scht
+@@ -442,6 +444,8 @@
+ 		325=Not enough reference points, map not calibrated
+ 		326=No calibrated map available. %0a Please select a scale to display the track and caches.
+ 		327=Information
++		328=Date found
++		329=Hidden on
+ 		340=Cache Images:
+ 		341=User Images:
+ 		342=Deleted
+
+Added: trunk/resources/calendar.png
+===================================================================
+(Binary files differ)
+
+
+Property changes on: trunk/resources/calendar.png
+___________________________________________________________________
+Name: svn:mime-type
+   + application/octet-stream
+
+Added: trunk/src/CacheWolf/DateFormat.java
+===================================================================
+--- trunk/src/CacheWolf/DateFormat.java	2007-05-18 19:02:36 UTC (rev 682)
++++ trunk/src/CacheWolf/DateFormat.java	2007-05-20 21:08:14 UTC (rev 683)
+@@ -0,0 +1,53 @@
++package CacheWolf;
++/* Several date formats are used by GC.COM
++ *    2/27/2004   - Hidden dates are in format mm/dd/yyyy (=US style)
++ *    February 27 - Found dates which happened this year
++ *    February 27, 2004 - Found date in previous year
++ * The internal standard is sortable:
++ *    2004-02-27    - YYYY-MM-DD   
++ */
++import ewe.sys.*;
++
++public class DateFormat {
++
++/** Convert the US Format into a sortable format */
++static String MDY2YMD(String date) {
++	// Dates are in format M/D/Y
++	int p1,p2=-1;
++	p1=date.indexOf(&quot;/&quot;);
++	if (p1&gt;0) p2=date.indexOf(&quot;/&quot;,p1+1);
++	if (p1&gt;0 &amp;&amp; p2&gt;0) {
++		return date.substring(p2+1)+&quot;-&quot;+
++		        (p1==1?&quot;0&quot;:&quot;&quot;)+date.substring(0,p1)+&quot;-&quot;+
++		        (p1+2==p2?&quot;0&quot;:&quot;&quot;)+date.substring(p1+1,p2);
++	} else
++		return date;
++}
++
++/* Convert the sortable date into a US date */
++//static String YMD2MDY(String date) {
++//	return date.substring(4,6)+&quot;/&quot;+date.substring(6,8)+&quot;/&quot;+date.substring(0,4);
++//}
++
++/** Convert the log format into a sortable format */
++static String logdate2YMD(String logdate) {
++   String monthNames[]={&quot;January&quot;,&quot;February&quot;,&quot;March&quot;,&quot;April&quot;,&quot;May&quot;,&quot;June&quot;,&quot;July&quot;,&quot;August&quot;,&quot;September&quot;,&quot;October&quot;,&quot;November&quot;,&quot;December&quot;};
++   Time t=new Time();
++   String year,month,day;
++   int i,m;
++   logdate+=&quot;, &quot;+t.year; // If logdate already has a year, this one is ignored
++   i=logdate.indexOf(',');
++   year=logdate.substring(i+2,i+6);
++   for (m=0; m&lt;12; m++) {
++	   if (logdate.startsWith(monthNames[m])) {
++		   month=(m&lt;9?&quot;0&quot;:&quot;&quot;)+Convert.formatInt(m+1);
++		   day=logdate.substring(monthNames[m].length()+1,i);
++		   if (day.length()==1)day=&quot;0&quot;+day;
++		   return year+&quot;-&quot;+month+&quot;-&quot;+day;
++	   }
++   }
++   return &quot;&quot;;
++}
++
++
++}
+
+Modified: trunk/src/CacheWolf/DetailsPanel.java
+===================================================================
+--- trunk/src/CacheWolf/DetailsPanel.java	2007-05-18 19:02:36 UTC (rev 682)
++++ trunk/src/CacheWolf/DetailsPanel.java	2007-05-20 21:08:14 UTC (rev 683)
+@@ -23,6 +23,7 @@
+ 	mChoice chcSize = new mChoice(new String[]{&quot;&quot;, &quot;Micro&quot;, &quot;Small&quot;, &quot;Regular&quot;, &quot;Large&quot;,&quot;Other&quot;,&quot;Very Large&quot;,&quot;None&quot;},0);
+ 	mComboBox chcStatus = new mComboBox(new String[]{&quot;&quot;, MyLocale.getMsg(313,&quot;Flag 1&quot;), MyLocale.getMsg(314,&quot;Flag 2&quot;), MyLocale.getMsg(315,&quot;Flag 3&quot;), MyLocale.getMsg(316,&quot;Flag 4&quot;), MyLocale.getMsg(317,&quot;Search&quot;), MyLocale.getMsg(318,&quot;Found&quot;), MyLocale.getMsg(319,&quot;Not Found&quot;), MyLocale.getMsg(320,&quot;Owner&quot;)},0);
+ 	mButton btnNewWpt, btnShowBug, btnShowMap, btnGoto, btnAddPicture, btnBlack, btnNotes, btnSave, btnCancel;
++	mButton btnFoundDate,btnHiddenDate;
+ 	Vector cacheDB;
+ 	CacheHolder thisCache;
+ 	CellPanel pnlTools = new CellPanel(); 
+@@ -96,13 +97,21 @@
+ 		this.addLast(btnWayLoc.setTag(Control.SPAN, new Dimension(2,1)),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 		
+ 		this.addNext(new mLabel(MyLocale.getMsg(305,&quot;Hidden on:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		this.addLast(inpHidden.setTag(Control.SPAN, new Dimension(2,1)),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 		
++		CellPanel ip=new CellPanel();
++		ip.addNext(inpHidden,CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
++		ip.addLast(btnHiddenDate=new mButton(new mImage(&quot;calendar.png&quot;)),DONTSTRETCH,DONTFILL);
++		this.addLast(ip,DONTSTRETCH,HFILL).setTag(Control.SPAN, new Dimension(2,1));
++		inpHidden.modifyAll(DisplayOnly,0);
++		
+ 		this.addNext(new mLabel(MyLocale.getMsg(306,&quot;Owner:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		this.addLast(inpOwner.setTag(Control.SPAN, new Dimension(2,1)),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 		
+ 		this.addNext(new mLabel(MyLocale.getMsg(307,&quot;Status:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		this.addLast(chcStatus.setTag(Control.SPAN, new Dimension(2,1)),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
++		CellPanel cp=new CellPanel();
++		cp.addNext(chcStatus,CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
++		cp.addLast(btnFoundDate=new mButton(new mImage(&quot;calendar.png&quot;)),DONTSTRETCH,DONTFILL);
++		this.addLast(cp,DONTSTRETCH,HFILL).setTag(Control.SPAN, new Dimension(2,1));
+ 		
+ 		btnNotes = new mButton(&quot;Notes&quot;);
+ 		this.addLast(btnNotes.setTag(Control.SPAN, new Dimension(3,1)),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+@@ -129,8 +138,13 @@
+ 	    btnWayLoc.setText(ch.pos.toString());
+ 		inpHidden.setText(ch.DateHidden);
+ 		inpOwner.setText(ch.CacheOwner);
+-		chcStatus.setText(ch.CacheStatus);
+-		
++		if (ch.CacheStatus.length()&gt;=10 &amp;&amp; ch.CacheStatus.charAt(4)=='-')
++			chcStatus.setText(MyLocale.getMsg(318,&quot;Found&quot;)+&quot; &quot;+ch.CacheStatus);
++		else {
++			chcStatus.setText(ch.CacheStatus);
++			// If the cache status contains a date, do not overwrite it with 'found' message
++			if(ch.is_found == true) chcStatus.setText(MyLocale.getMsg(318,&quot;Found&quot;));
++		}
+ 		chcType.setInt(transType(ch.type));
+ 		if(ch.is_black){
+ 			btnBlack.image = imgBlack;
+@@ -155,8 +169,6 @@
+ 		if(ch.CacheSize.equals(&quot;Very Large&quot;)) chcSize.setInt(6);
+ 		if(ch.CacheSize.equals(&quot;None&quot;)) chcSize.setInt(7);
+ 		if(ch.CacheSize.equals(&quot;Not chosen&quot;)) chcSize.setInt(7);
+-
+-		if(ch.is_found == true) chcStatus.setText(MyLocale.getMsg(318,&quot;Found&quot;));
+ 	}
+ 	
+ 	
+@@ -317,6 +329,35 @@
+ 					if (center.isValid()) thisCache.calcDistance(center);
+ 				}
+ 			}
++			else if (ev.target==btnFoundDate) {
++				DateChooser.dayFirst=true;
++				DateChooser dc=new DateChooser(Vm.getLocale());
++				dc.title=MyLocale.getMsg(328,&quot;Date found&quot;); 
++				dc.setPreferredSize(240,240);
++				if (dc.execute()==ewe.ui.FormBase.IDOK) {
++				  chcStatus.setText(MyLocale.getMsg(318,&quot;Found&quot;)+&quot; &quot;+Convert.toString(dc.year)+&quot;-&quot;+MyLocale.formatLong(dc.month,&quot;00&quot;)+&quot;-&quot;+MyLocale.formatLong(dc.day,&quot;00&quot;));
++				  dirty_details=true;
++				}
++			}
++			else if (ev.target==btnHiddenDate) {
++				DateChooser.dayFirst=true;
++				DateChooser dc=new DateChooser(Vm.getLocale());
++				dc.title=MyLocale.getMsg(329,&quot;Hidden date&quot;); 
++				dc.setPreferredSize(240,240);
++				if (inpHidden.getText().length()==10)
++				try {
++					dc.setDate(new Time(
++						Convert.parseInt(inpHidden.getText().substring(8)),
++					    Convert.parseInt(inpHidden.getText().substring(5,7)),
++						Convert.parseInt(inpHidden.getText().substring(0,4))));
++				} catch (NumberFormatException e) {
++					dc.reset(new Time());
++				}
++				if (dc.execute()==ewe.ui.FormBase.IDOK) {
++				  inpHidden.setText(Convert.toString(dc.year)+&quot;-&quot;+MyLocale.formatLong(dc.month,&quot;00&quot;)+&quot;-&quot;+MyLocale.formatLong(dc.day,&quot;00&quot;));
++				  dirty_details=true;
++				}
++			}
+ 			ev.consumed=true;
+ 		}
+ 	}
+@@ -324,13 +365,18 @@
+ 	public void saveDirtyWaypoint() {
+ 		CacheHolder ch;
+ 		  ch = (CacheHolder)cacheDB.get(Global.mainTab.tbP.getSelectedCache());
+-		  ch.CacheStatus = chcStatus.getText();
+-		  ch.is_found = ch.CacheStatus.equals(MyLocale.getMsg(318,&quot;Found&quot;));
++		  // Strip the found message if the status contains a date
++		  if (chcStatus.getText().startsWith(MyLocale.getMsg(318,&quot;Found&quot;)) &amp;&amp; 
++				  chcStatus.getText().length()==MyLocale.getMsg(318,&quot;Found&quot;).length()+11)
++			  ch.CacheStatus = chcStatus.getText().substring(MyLocale.getMsg(318,&quot;Found&quot;).length()+1);
++		  else	  
++			  ch.CacheStatus = chcStatus.getText();
++		  ch.is_found = chcStatus.getText().startsWith(MyLocale.getMsg(318,&quot;Found&quot;));
+ 		  ch.is_owned = ch.CacheStatus.equals(MyLocale.getMsg(320,&quot;Owner&quot;));
+ 		  // Avoid setting is_owned if alias is empty and username is empty
+ 		  if(ch.is_owned == false){
+-		  ch.is_owned = (!pref.myAlias.equals(&quot;&quot;) &amp;&amp; pref.myAlias.equals(ch.CacheOwner)) || 
+-				        (!pref.myAlias2.equals(&quot;&quot;) &amp;&amp; pref.myAlias2.equals(ch.CacheOwner));
++			  ch.is_owned = (!pref.myAlias.equals(&quot;&quot;) &amp;&amp; pref.myAlias.equals(ch.CacheOwner)) || 
++					        (!pref.myAlias2.equals(&quot;&quot;) &amp;&amp; pref.myAlias2.equals(ch.CacheOwner));
+ 		  }
+ 		  ch.is_black = blackStatus;
+ 		  ch.wayPoint = inpWaypoint.getText().trim();
+
+Modified: trunk/src/CacheWolf/GPXImporter.java
+===================================================================
+--- trunk/src/CacheWolf/GPXImporter.java	2007-05-18 19:02:36 UTC (rev 682)
++++ trunk/src/CacheWolf/GPXImporter.java	2007-05-20 21:08:14 UTC (rev 683)
+@@ -231,6 +231,11 @@
+ 			}
+ 			if (name.equals(&quot;groundspeak:finder&quot;)|| name.equals(&quot;geocacher&quot;)){
+ 				logFinder = new String(strData);
++				if(logIcon.equals(&quot;&lt;img src='icon_smile.gif'&gt;&nbsp;&quot;) &amp;&amp; 
++				  (logFinder.equalsIgnoreCase(pref.myAlias) || (pref.myAlias2.length()&gt;0 &amp;&amp; logFinder.equalsIgnoreCase(pref.myAlias2)))) {
++					holder.CacheStatus=logDate;
++					holder.is_found=true;
++				}
+ 				return;
+ 			}
+ 			if (name.equals(&quot;groundspeak:text&quot;) || name.equals(&quot;text&quot;)){ 
+@@ -262,7 +267,7 @@
+ 				}
+ 				holder.noFindLogs = z;
+ 				zaehlerGel++;
+-				infB.setInfo( (MyLocale.getMsg(4000,&quot;Loaded caches&quot;) + &quot;:&quot; + zaehlerGel));
++				if (zaehlerGel % 5==1) infB.setInfo( (MyLocale.getMsg(4000,&quot;Loaded caches&quot;) + &quot;:&quot; + zaehlerGel));
+ 				holder.is_new = true;
+ 				cacheDB.add(holder);
+ 				//Vm.debug(&quot;here B&quot;);
+@@ -341,11 +346,11 @@
+ 		}
+ 		
+ 		if (name.equals(&quot;time&quot;) &amp;&amp; inWpt) {
+-			String Date = new String();
+-			Date = strData.substring(5,7); // month
+-			Date += &quot;/&quot; + strData.substring(8,10); // day
+-			Date += &quot;/&quot; + strData.substring(0,4); // year
+-			holder.DateHidden = Date;
++			//String Date = new String();
++			//Date = strData.substring(5,7); // month
++			//Date += &quot;/&quot; + strData.substring(8,10); // day
++			//Date += &quot;/&quot; + strData.substring(0,4); // year
++			holder.DateHidden = strData.substring(0,10); //Date;
+ 			return;
+ 		}
+ 		// cache information
+
+Modified: trunk/src/CacheWolf/MyComparer.java
+===================================================================
+--- trunk/src/CacheWolf/MyComparer.java	2007-05-18 19:02:36 UTC (rev 682)
++++ trunk/src/CacheWolf/MyComparer.java	2007-05-20 21:08:14 UTC (rev 683)
+@@ -71,16 +71,7 @@
+ 		} else if (what.equals(nmHid)) {
+ 			for (int i=0; i&lt;visibleSize; i++) {
+ 				CacheHolder ch=(CacheHolder) cacheDB.get(i);
+-				// Dates are in format M/D/Y
+-				int p1,p2=-1;
+-				p1=ch.DateHidden.indexOf(&quot;/&quot;);
+-				if (p1&gt;0) p2=ch.DateHidden.indexOf(&quot;/&quot;,p1+1);
+-				if (p1&gt;0 &amp;&amp; p2&gt;0) {
+-					ch.sort=ch.DateHidden.substring(p2+1)+
+-					        (p1==1?&quot;0&quot;:&quot;&quot;)+ch.DateHidden.substring(0,p1)+
+-					        (p1+2==p2?&quot;0&quot;:&quot;&quot;)+ch.DateHidden.substring(p1+1,p2);
+-				} else
+-					ch.sort=&quot;&quot;;
++				ch.sort=ch.DateHidden;
+ 			}
+ 		} else if (what.equals(nmStat)) {
+ 			for (int i=0; i&lt;visibleSize; i++) {
+
+Modified: trunk/src/CacheWolf/OCXMLImporter.java
+===================================================================
+--- trunk/src/CacheWolf/OCXMLImporter.java	2007-05-18 19:02:36 UTC (rev 682)
++++ trunk/src/CacheWolf/OCXMLImporter.java	2007-05-20 21:08:14 UTC (rev 683)
+@@ -311,8 +311,8 @@
+ 			switch (logtype) {
+ 			case 1: 
+ 				logIcon = GPXImporter.typeText2Image(&quot;Found&quot;); 
+-				if (logFinder.equalsIgnoreCase(user)) { // see also endCacheLog
+-					holder.is_found = true;
++				if (logFinder.equalsIgnoreCase(user) || logFinder.equalsIgnoreCase(pref.myAlias2)) { // see also endCacheLog
++					holder.is_found = true; 
+ 					holder.CacheStatus = MyLocale.getMsg(318,&quot;Found&quot;);
+ 				}
+ 				break;
+@@ -419,11 +419,11 @@
+ 			return;
+ 		}
+ 		if(name.equals(&quot;datehidden&quot;)) {
+-			String Date = new String();
+-			Date = strData.substring(5,7); // month
+-			Date += &quot;/&quot; + strData.substring(8,10); // day
+-			Date += &quot;/&quot; + strData.substring(0,4); // year
+-			holder.DateHidden = Date;
++			//String Date = new String();
++			//Date = strData.substring(5,7); // month
++			//Date += &quot;/&quot; + strData.substring(8,10); // day
++			//Date += &quot;/&quot; + strData.substring(0,4); // year
++			holder.DateHidden = strData.substring(0,10); //Date;
+ 			return;
+ 		}
+ 	}
+@@ -565,11 +565,14 @@
+ 
+ 		if (name.equals(&quot;date&quot;))  {
+ 			logDate = new String(strData);
++			if (holder.is_found) {
++				holder.CacheStatus=strData.substring(0,10);
++			}
+ 			return;
+ 		}
+ 		if (name.equals(&quot;userid&quot;)){
+ 			logFinder = new String(strData);
+-			if(logFinder.toLowerCase().compareTo(user) == 0 &amp;&amp; logtype == 1){
++			if((logFinder.toLowerCase().compareTo(user) == 0 || logFinder.equalsIgnoreCase(pref.myAlias2)) &amp;&amp; logtype == 1){
+ 				holder.is_found = true; // see startCacheLog - in the current .xml this is set by startCacheLog but we sequence in the xml from opencaching might change, so I leave this also here
+ 				holder.CacheStatus = MyLocale.getMsg(318,&quot;Found&quot;);
+ 			}
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2007-05-18 19:02:36 UTC (rev 682)
++++ trunk/src/CacheWolf/Profile.java	2007-05-20 21:08:14 UTC (rev 683)
+@@ -289,7 +289,9 @@
+ 						ch.LatLon = SafeXML.cleanback(ex.findNext());
+ 						ch.pos.set(ch.LatLon,CWPoint.CW);
+ 					}
+-					ch.DateHidden = ex.findNext();
++					ch.DateHidden = ex.findNext(); 
++					// Convert the US format to YYYY-MM-DD if necessary
++					if (ch.DateHidden.indexOf('/')&gt;-1) ch.DateHidden=DateFormat.MDY2YMD(ch.DateHidden);
+ 					ch.wayPoint = SafeXML.cleanback(ex.findNext());
+ 					ch.CacheStatus = ex.findNext();
+ 					ch.type = ex.findNext();
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2007-05-18 19:02:36 UTC (rev 682)
++++ trunk/src/CacheWolf/SpiderGC.java	2007-05-20 21:08:14 UTC (rev 683)
+@@ -200,7 +200,7 @@
+ 				pref.log(&quot;Got owner&quot;);
+ 				//Vm.debug(&quot;Owner: &quot; + ch.CacheOwner);
+ 				pref.log(&quot;Trying date hidden&quot;);
+-				ch.DateHidden = getDateHidden(start);
++				ch.DateHidden = DateFormat.MDY2YMD(getDateHidden(start));
+ 				pref.log(&quot;Got date hidden&quot;);
+ 				//Vm.debug(&quot;Hidden: &quot; + ch.DateHidden);
+ 				pref.log(&quot;Trying hints&quot;);
+@@ -846,12 +846,13 @@
+ 			//Vm.debug(&quot;--------------------------------------------&quot;);
+ 			icon = exIcon.findNext();
+ 			name = exName.findNext();
++			String d=DateFormat.logdate2YMD(exDate.findNext());
+ 			if((icon.equals(&quot;icon_smile.gif&quot;) || icon.equals(&quot;icon_camera.gif&quot;)) &amp;&amp; 
+ 				(name.equals(pref.myAlias) || (pref.myAlias2.length()&gt;0 &amp;&amp; name.equals(pref.myAlias2))) )  {
+ 				ch.is_found = true;
+-				ch.CacheStatus = MyLocale.getMsg(318,&quot;Found&quot;);
++				ch.CacheStatus = d;
+ 			}
+-			reslts.add(&quot;&lt;img src='&quot;+ icon +&quot;'&gt;&nbsp;&quot; + exDate.findNext()+ &quot; &quot; + name + exLog.findNext());
++			reslts.add(&quot;&lt;img src='&quot;+ icon +&quot;'&gt;&nbsp;&quot; + d + &quot; &quot; + name + exLog.findNext());
+ 			
+ 			singleLog = exSingleLog.findNext();
+ 			exIcon.setSource(singleLog);
+
+Modified: trunk/src/exp/GPXExporter.java
+===================================================================
+--- trunk/src/exp/GPXExporter.java	2007-05-18 19:02:36 UTC (rev 682)
++++ trunk/src/exp/GPXExporter.java	2007-05-20 21:08:14 UTC (rev 683)
+@@ -51,7 +51,7 @@
+ 		try{
+ 			strBuf.append(&quot;  &lt;wpt lat=\&quot;&quot;+lat+&quot;\&quot; lon=\&quot;&quot;+lon+&quot;\&quot;&gt;\r\n&quot;);
+ 			if (ch.DateHidden.length()&gt; 0){
+-				tim.parse(ch.DateHidden, &quot;M/d/y&quot;);
++				tim.parse(ch.DateHidden, &quot;y-M-d&quot;);
+ 			}
+ 			else {
+ 				tim.setText(&quot;2000-01-01&quot;);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000508.html">[Cachewolf-svn] r682 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000510.html">[Cachewolf-svn] r684 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#509">[ date ]</a>
+              <a href="thread.html#509">[ thread ]</a>
+              <a href="subject.html#509">[ subject ]</a>
+              <a href="author.html#509">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

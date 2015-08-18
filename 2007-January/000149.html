@@ -1,0 +1,1197 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r403 - in trunk: resources src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r403%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200701190225.l0J2PkxQ004407%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000148.html">
+   <LINK REL="Next"  HREF="000150.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r403 - in trunk: resources src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r403%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200701190225.l0J2PkxQ004407%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r403 - in trunk: resources src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Fri Jan 19 03:25:46 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000148.html">[Cachewolf-svn] [Feature #3062] MovingMap: Kartendownload von	Expedia
+</A></li>
+        <LI>Next message: <A HREF="000150.html">[Cachewolf-svn] r404 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#149">[ date ]</a>
+              <a href="thread.html#149">[ thread ]</a>
+              <a href="subject.html#149">[ subject ]</a>
+              <a href="author.html#149">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-01-19 03:25:29 +0100 (Fri, 19 Jan 2007)
+New Revision: 403
+
+Added:
+   trunk/src/CacheWolf/MapLoaderGui.java
+Modified:
+   trunk/resources/cachewolf.Languages.cfg
+   trunk/src/CacheWolf/CacheHolder.java
+   trunk/src/CacheWolf/DetailsPanel.java
+   trunk/src/CacheWolf/GPXImporter.java
+   trunk/src/CacheWolf/GotoPanel.java
+   trunk/src/CacheWolf/InfoBox.java
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/Map.java
+   trunk/src/CacheWolf/MapInfoObject.java
+   trunk/src/CacheWolf/MapLoader.java
+   trunk/src/CacheWolf/MovingMap.java
+   trunk/src/CacheWolf/OCXMLImporter.java
+   trunk/src/CacheWolf/SpiderGC.java
+   trunk/src/CacheWolf/TablePanel.java
+   trunk/src/CacheWolf/myTableControl.java
+Log:
+funktioniert, aber aus den Importern muss der Kartendownload noch entfernt werden: [ Feature Request #3062 ] MovingMap: Kartendownload von Expedia
+Ich habe der Cacheholder-Klasse einen Member CWPoint pos spendiert. pos wird gesetzt von updatebearing, wenn es null war. - Sollte vielleicht noch direkt in den Einleseprozess verlagert werden? 
+&lt;ctrl-a&gt; makiert alle Caches in der Listenansicht
+
+Modified: trunk/resources/cachewolf.Languages.cfg
+===================================================================
+--- trunk/resources/cachewolf.Languages.cfg	2007-01-18 21:18:14 UTC (rev 402)
++++ trunk/resources/cachewolf.Languages.cfg	2007-01-19 02:25:29 UTC (rev 403)
+@@ -55,6 +55,7 @@
+ 		159=Filter
+ 		160=Selektierte
+ 		161=Zeige Blacklist
++		162=kalibrierte herunterladen
+ 		200=Details
+ 		201=Beschreibung
+ 		202=Bilder
+@@ -100,7 +101,7 @@
+ 		600=Pr%e4ferenzen
+ 		601=Dein Alias:
+ 		602=Heimatkoordinaten:
+-		603=Profilverzeichnis
++		603=Verzeichnis f%dcr Profile
+ 		604=Suchen
+ 		605=Tabellenspalten:
+ 		606=Schwierigkeit
+@@ -239,6 +240,8 @@
+ 		1619=: konnte Bild von folgender URL nicht downloaden:+
+ 		1620=download eingebundener Bilder:+
+ 		1621=Fehler beim Interpretieren\n der Update-Datei,\nDies ist vermutlich ein Fehler bei Opencaching.de\nSp&#228;ter erneut versuchen\n Status:
++		1700=Georeferenzierte Karten herunterladen
++		1701=Kacheln herunterladen
+ 		1700=Fehler in Zeile: 
+ 		1701=Spalte: 
+ 		1702=Variable nicht definiert: 
+@@ -344,6 +347,7 @@
+ 		158=Version Check
+ 		159=Filter
+ 		161=Show Blacklist
++		162=Download calibrated
+ 		200=Details
+ 		201=Description
+ 		202=Images
+@@ -528,6 +532,8 @@
+ 		1619=: could not download image from URL:+
+ 		1620=downloading embedded images:+
+ 		1621=Error while interpreting data\n from Opencaching.de,\nThis is most probaly a bug at Opencaching.de\nRetry later\n Status:
++		1700=Download georeferenced maps
++		1701=Download tiles
+ 		1700=Error on line: 
+ 		1701= position: 
+ 		1702=Variable not defined: 
+
+Modified: trunk/src/CacheWolf/CacheHolder.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolder.java	2007-01-18 21:18:14 UTC (rev 402)
++++ trunk/src/CacheWolf/CacheHolder.java	2007-01-19 02:25:29 UTC (rev 403)
+@@ -23,6 +23,7 @@
+   public String CacheName = new String();
+   public String CacheOwner = new String();
+   public String LatLon = new String();
++  public CWPoint pos = null;
+   public String DateHidden = new String();
+   public String LastUpdate = new String();
+   public String Hints = new String();
+
+Modified: trunk/src/CacheWolf/DetailsPanel.java
+===================================================================
+--- trunk/src/CacheWolf/DetailsPanel.java	2007-01-18 21:18:14 UTC (rev 402)
++++ trunk/src/CacheWolf/DetailsPanel.java	2007-01-19 02:25:29 UTC (rev 403)
+@@ -247,7 +247,8 @@
+ 		//CacheHolder ch = new CacheHolder();
+ 		thisCache.wayPoint = wayPoint.getText();
+ 		thisCache.CacheName = wayName.getText();
+-		thisCache.LatLon = new CWPoint(btnWayLoc.getText(),CWPoint.REGEX).toString();
++		thisCache.pos = new CWPoint(btnWayLoc.getText(),CWPoint.REGEX);
++		thisCache.LatLon = thisCache.pos.toString();
+ 		thisCache.DateHidden = wayHidden.getText();
+ 		thisCache.CacheOwner = wayOwner.getText();
+ 		thisCache.CacheStatus = wayStatus.getText();
+
+Modified: trunk/src/CacheWolf/GPXImporter.java
+===================================================================
+--- trunk/src/CacheWolf/GPXImporter.java	2007-01-18 21:18:14 UTC (rev 402)
++++ trunk/src/CacheWolf/GPXImporter.java	2007-01-19 02:25:29 UTC (rev 403)
+@@ -273,7 +273,7 @@
+ 							if(getMaps){
+ 								ParseLatLon pll = new ParseLatLon(holder.LatLon,&quot;.&quot;);
+ 								pll.parse();
+-								MapLoader mpl = new MapLoader(pll.getLatDeg(),pll.getLonDeg(), pref.myproxy, pref.myproxyport);
++								MapLoader mpl = new MapLoader(pref.myproxy, pref.myproxyport);
+ 								mpl.loadTo(profile.dataDir + &quot;/&quot; + holder.wayPoint + &quot;_map.gif&quot;, &quot;3&quot;);
+ 								mpl.loadTo(profile.dataDir + &quot;/&quot; + holder.wayPoint + &quot;_map_2.gif&quot;, &quot;10&quot;);
+ 							}
+
+Modified: trunk/src/CacheWolf/GotoPanel.java
+===================================================================
+--- trunk/src/CacheWolf/GotoPanel.java	2007-01-18 21:18:14 UTC (rev 402)
++++ trunk/src/CacheWolf/GotoPanel.java	2007-01-19 02:25:29 UTC (rev 403)
+@@ -593,12 +593,13 @@
+ 				if (mainT.tbP.myMod.cacheSelectionChanged) {
+ 					mainT.tbP.myMod.cacheSelectionChanged = false;
+ 					mmp.removeAllMapSymbolsButGoto();
++					CacheHolder ch;
+ 					for (int i=cacheDB.size()-1; i&gt;=0; i--) {
+-						CacheHolder ch = (CacheHolder) cacheDB.get(i);
++						ch = (CacheHolder) cacheDB.get(i);
+ 						if (ch.is_Checked) {
+-							CWPoint tmpll = new CWPoint(ch.LatLon);
++							//CWPoint tmpll = new CWPoint(ch.LatLon);
+ 							int ct = Convert.parseInt(ch.type);
+-							mmp.addSymbol(ch.CacheName, new AniImage(myTableModel.cacheImages[ct]), tmpll.latDec, tmpll.lonDec);
++							mmp.addSymbol(ch.CacheName, new AniImage(myTableModel.cacheImages[ct]), ch.pos.latDec, ch.pos.lonDec);
+ 						}
+ 					}
+ 				}
+
+Modified: trunk/src/CacheWolf/InfoBox.java
+===================================================================
+--- trunk/src/CacheWolf/InfoBox.java	2007-01-18 21:18:14 UTC (rev 402)
++++ trunk/src/CacheWolf/InfoBox.java	2007-01-19 02:25:29 UTC (rev 403)
+@@ -11,8 +11,8 @@
+ 	mButton mB = new mButton(&quot;OK&quot;);
+ 	mButton mC = new mButton(&quot;Cancel&quot;);
+ 	mInput feedback = new mInput();
+-	public static int CHECKBOX = 1;
+-	public static int INPUT = 2;
++	public final static int CHECKBOX = 1;
++	public final static int INPUT = 2;
+ 	private int type = 0;
+ 		
+ 	public InfoBox(String title, String info){
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2007-01-18 21:18:14 UTC (rev 402)
++++ trunk/src/CacheWolf/MainMenu.java	2007-01-19 02:25:29 UTC (rev 403)
+@@ -20,7 +20,7 @@
+ */
+ public class MainMenu extends MenuBar {
+ 	private MenuItem profiles, preferences,loadcaches,loadOC,savenexit,savenoxit,exit,search,searchClr;
+-	private MenuItem kalibmap,importmap;
++	private MenuItem downloadmap, kalibmap, importmap;
+ 	private MenuItem spider, chkVersion;
+ 	private MenuItem about, wolflang, sysinfo, legend;
+ 	private MenuItem exportpcx5, exporthtml, exporttop50, exportGPX, exportASC, exportTomTomASC, exportMSARCSV;
+@@ -70,9 +70,10 @@
+ 		///////////////////////////////////////////////////////////////////////
+ 		// subMenu for maps, part of &quot;Application&quot; menu below
+ 		///////////////////////////////////////////////////////////////////////
+-		MenuItem[] mapMenuItems = new MenuItem[2];
+-		mapMenuItems[0] = importmap = new MenuItem(MyLocale.getMsg(150,&quot;Import&quot;));
+-		mapMenuItems[1] = kalibmap = new MenuItem(MyLocale.getMsg(151,&quot;Calibrate&quot;));
++		MenuItem[] mapMenuItems = new MenuItem[3];
++		mapMenuItems[0] = downloadmap = new MenuItem(MyLocale.getMsg(162,&quot;Download calibrated&quot;));
++		mapMenuItems[1] = importmap = new MenuItem(MyLocale.getMsg(150,&quot;Import&quot;));
++		mapMenuItems[2] = kalibmap = new MenuItem(MyLocale.getMsg(151,&quot;Calibrate&quot;));
+ 		Menu mapsMenu = new Menu(mapMenuItems, null);
+ 
+ 		// Now we start with the horizontal menu bar &quot;Application&quot;, &quot;Search&quot;, &quot;Filter&quot;, &quot;Organize&quot;, &quot;About&quot;
+@@ -421,6 +422,10 @@
+ 				tbp.saveColWith(pref);
+ 				ewe.sys.Vm.exit(0);
+ 			}
++			if(mev.selectedItem == downloadmap){
++				MapLoaderGui mLG = new MapLoaderGui(cacheDB);
++				mLG.exec(); // .execute doesn't work because the tcp-socket uses another thread which cannot be startet if here .execute() is used!
++			}
+ 			if(mev.selectedItem == kalibmap){
+ 				SelectMap sM = new SelectMap();
+ 				sM.execute();
+
+Modified: trunk/src/CacheWolf/Map.java
+===================================================================
+--- trunk/src/CacheWolf/Map.java	2007-01-18 21:18:14 UTC (rev 402)
++++ trunk/src/CacheWolf/Map.java	2007-01-19 02:25:29 UTC (rev 403)
+@@ -39,7 +39,7 @@
+ 	*/
+ 	public Map(Preferences pref){
+ 		this.pref = pref;
+-		mapsPath = File.getProgramDirectory() + &quot;/maps/&quot;;
++		mapsPath = File.getProgramDirectory() + &quot;/maps/&quot;; // TODO veraltet
+ 	}
+ 	
+ 	/**
+@@ -70,7 +70,7 @@
+ 		//this.windowFlagsToSet = Window.FLAG_MAXIMIZE;
+ 		this.setPreferredSize(pref.myAppWidth, pref.myAppHeight);
+ 		thisMap = mapToLoad;
+-		mapsPath = File.getProgramDirectory() + &quot;/maps/&quot;;
++		mapsPath = File.getProgramDirectory() + &quot;/maps/&quot;; // TDO veraltet
+ 		try {
+ 			wfl.loadwfl(mapsPath, thisMap);
+ 		}catch(FileNotFoundException ex){
+
+Modified: trunk/src/CacheWolf/MapInfoObject.java
+===================================================================
+--- trunk/src/CacheWolf/MapInfoObject.java	2007-01-18 21:18:14 UTC (rev 402)
++++ trunk/src/CacheWolf/MapInfoObject.java	2007-01-19 02:25:29 UTC (rev 403)
+@@ -5,6 +5,7 @@
+ import ewe.io.FileReader;
+ import ewe.io.FileWriter;
+ import ewe.io.FilenameFilter;
++import ewe.io.File;
+ import ewe.io.IOException;
+ import ewe.io.PrintWriter;
+ import ewe.sys.*;
+@@ -56,13 +57,13 @@
+ 	 * constructes an MapInfoObject without an associated map
+ 	 * but with 1 Pixel = scale meters
+ 	 */
+-	public MapInfoObject(double scale) {
++	public MapInfoObject(double scale, double lat) {
+ 		digSep = MyLocale.getDigSeparator();
+ 		mapName=&quot;empty 1 Pixel = &quot;+scale+&quot;meters&quot;;
+ 		double meters2deg = 1/(1000*(new CWPoint(0,0)).getDistance(new CWPoint(1,0)));
+ 		double pixel2deg = meters2deg * scale;
+ 		affine[0]=0; //x2lat
+-		affine[1]=pixel2deg; //x2lon
++		affine[1]=pixel2deg / java.lang.Math.cos(lat); //x2lon
+ 		affine[2]=-pixel2deg; //y2lat
+ 		affine[3]=0; //y2lon
+ 		affine[4]=1; //top
+@@ -74,6 +75,52 @@
+ 	}
+ 
+ 	/**
++	 * constructs an MapInfoObject with an associated map
++	 * with 1 Pixel = scale meters, center and width, hight in pixels
++	 * @param name path and filename of .wfl file without the extension (it is needed because the image will be searched in the same directory)
++	 */
++	public MapInfoObject(double scale, CWPoint center, int width, int hight, String name) {
++		digSep = MyLocale.getDigSeparator();
++		mapName = name+&quot;.wfl&quot;;
++
++		double meters2deg = 1/(1000*(new CWPoint(0,0)).getDistance(new CWPoint(1,0)));
++		double pixel2deg = meters2deg * scale;
++		double pixel2deghorizontal = pixel2deg / java.lang.Math.cos(center.latDec*java.lang.Math.PI / 180); 
++		affine[0]=0; //x2lat
++		affine[1]=pixel2deghorizontal; //x2lon
++		affine[2]=-pixel2deg; //y2lat
++		affine[3]=0; //y2lon
++		affine[4]=center.latDec + hight / 2 *pixel2deg; //top
++		affine[5]=center.lonDec - width / 2 *pixel2deghorizontal; //left
++		lowlat = center.latDec - hight / 2 *pixel2deg; //buttom
++		lowlon = center.lonDec + width / 2 *pixel2deghorizontal; //right
++		fileNameWFL = name;
++		OrigUpperLeft = new CWPoint(affine[4], affine[5]);
++		doCalculations();
++	}
++	
++
++	/** 
++	 * @return the filename of the associated map image, &quot;&quot; if no file is associated, null if associated file could not be found
++	 */
++	public String getImageFilename() {
++		if (fileName == null || fileName.length() &gt; 0) return fileName;
++		if (fileNameWFL.length() == 0) return &quot;&quot;;
++		String n = fileNameWFL.substring(0, fileNameWFL.lastIndexOf(&quot;.&quot;));
++		File tmp;
++		String[] t = {&quot;.png&quot;, &quot;.gif&quot;, &quot;.jpg&quot;, &quot;.bmp&quot;};
++		int i;
++		for (i = 0; i&lt;t.length; i++) {
++			tmp = new File(n+t[i]);
++			if (tmp.exists()) break;
++		}
++		
++		if (i &gt;=t.length) fileName = null;
++		else fileName = n+t[i];
++		return fileName;
++	}
++	
++	/**
+ 	 * Method to load a .wfl-file
+ 	 * @throws IOException when there was a problem reading .wfl-file
+ 	 * @throws IOException when lat/lon were out of range
+@@ -99,7 +146,7 @@
+ 			lowlon = Convert.toDouble(line);
+ 
+ 			fileNameWFL = mapsPath + thisMap + &quot;.wfl&quot;;
+-			fileName = mapsPath + thisMap + &quot;.png&quot;;
++			fileName = &quot;&quot;; //mapsPath + thisMap + &quot;.png&quot;;
+ 			mapName = thisMap;
+ 			in.close();
+ 			if(affine[4] &gt; 90 || affine[4] &lt; -90 || affine[5] &lt; -180 || affine[5] &gt; 360 ||
+@@ -145,6 +192,8 @@
+ 
+ 	/**
+ 	 *	Method to save a world file (.wfl)
++	 * @param mapsPath without &quot;/&quot; at the end
++	 * @param mapFileName without file extension
+ 	 * @throws IOException when there was a problem writing .wfl-file
+ 	 * @throws IllegalArgumentException when affine[x] for all x == 0 (&quot;map not calibrated&quot;).
+ 	 */
+@@ -163,7 +212,7 @@
+ 		if (digSep.equals(&quot;,&quot;)) towrite=towrite.replace(',', '.');
+ 		outp.print(towrite);
+ 		outp.close();
+-		this.fileName = mapsPath + &quot;/&quot; + mapFileName + &quot;.png&quot;;
++		this.fileName = &quot;&quot;; // this will be set in getImageFilenam //mapsPath + &quot;/&quot; + mapFileName + &quot;.png&quot;;
+ 		this.fileNameWFL = mapsPath + &quot;/&quot; + mapFileName + &quot;.wfl&quot;;
+ 		this.mapName = mapFileName;
+ 	}
+
+Modified: trunk/src/CacheWolf/MapLoader.java
+===================================================================
+--- trunk/src/CacheWolf/MapLoader.java	2007-01-18 21:18:14 UTC (rev 402)
++++ trunk/src/CacheWolf/MapLoader.java	2007-01-19 02:25:29 UTC (rev 403)
+@@ -5,6 +5,7 @@
+ import ewe.fx.*;
+ import ewe.util.*;
+ import ewe.sys.*;
++import ewe.sys.Double;
+ import ewe.net.*;
+ 
+ /**
+@@ -17,39 +18,148 @@
+ // <A HREF="http://www.expedia.de/pub/agent.dll?qscr=mrdt&amp;ID=3kQaz.&amp;CenP=48.15,11.5833&amp;Alti=2&amp;Lang=EUR0407&amp;Size=900,900&amp;Offs=0,0&amp;MapS=0&amp;Pins=|48.15,11.5833|4|48.15,11.5833&amp;Pins=|48.15,11.5833|1|48.15,%2011.5833||">http://www.expedia.de/pub/agent.dll?qscr=mrdt&amp;ID=3kQaz.&amp;CenP=48.15,11.5833&amp;Alti=2&amp;Lang=EUR0407&amp;Size=900,900&amp;Offs=0,0&amp;MapS=0&amp;Pins=|48.15,11.5833|4|48.15,11.5833&amp;Pins=|48.15,11.5833|1|48.15,%2011.5833||</A>
+ 
+ 
+-public class MapLoader{
++public class MapLoader {
+ 	String proxy = new String();
+ 	String port = new String();
+-	String lat = new String();
+-	String lon = new String();
+-	String zone = new String();
+-	public MapLoader(String lt, String ln, String prxy, String prt){
++	InfoBox progressInfobox;
++	
++	final static float downloadMapScaleFactorExpedia_east = 3950;
++	final static float MAPBLAST_METERS_PER_PIXEL = 1.0f/2817.947378f;
++	final static float EXPEDIA_METERS_PER_PIXEL = downloadMapScaleFactorExpedia_east * MAPBLAST_METERS_PER_PIXEL; 
++
++	int numMapsY;
++	int numMapsX;
++	double latinc;
++	double loninc;
++	CWPoint topleft;
++	CWPoint buttomright;
++	Point tilesSize;
++	int tileScale;
++
++	public MapLoader(String prxy, String prt){
+ 		port = prt;
+ 		proxy = prxy;
+-		lat = lt;
+-		lon = ln;
+-		zone = &quot;EUR0407&quot;;
+-		try{
+-			if(Convert.parseDouble(ln) &lt;= -10) zone = &quot;USA0409&quot;;
+-		}catch(Exception ex){
+-			ln = ln.replace('.',',');
+-			//Vm.debug(&quot;Nach &#228;nderung: &quot; +ln);
+-			if(Convert.parseDouble(ln) &lt;= -10) zone = &quot;USA0409&quot;;
++		progressInfobox = null;
++	}
++	
++	/**
++	 * download maps from expedia at zoomlevel alti and save the maps and the .wfl 
++	 * in path
++	 * @param center center of all tiles
++	 * @param radius in meters
++	 * @param scale in &quot;alti&quot; value 1 alti =  3950 /2817.947378 = 1,046861280317350198581316446428 meters per pixel
++	 * @param size in pixels
++	 * @param overlapping 1.2 means 20% overlapping
++	 * @param path without &quot;/&quot; at the end
++	 * 
++	 */
++	public void setTiles (CWPoint center, float radius, int scale, Point size, float overlapping) {
++		double metersPerLat = (1000*(new CWPoint(0,0)).getDistance(new CWPoint(1,0)));
++		double pixels =  radius * 2 / EXPEDIA_METERS_PER_PIXEL / scale;
++		numMapsY = (int) java.lang.Math.ceil(pixels * overlapping / (float)size.y);
++		numMapsX = (int) java.lang.Math.ceil(pixels * overlapping / (float)size.x);
++		latinc =  -(radius * 2 / metersPerLat) / (float)numMapsY; // = lat difference from buttom to top / number of tiles
++		loninc = ( radius * 2 / metersPerLat / java.lang.Math.cos(center.latDec/180*java.lang.Math.PI) ) / numMapsX;
++		topleft = new CWPoint(center.latDec - latinc * numMapsY / 2, center.lonDec - loninc * numMapsX /2);
++		buttomright = new CWPoint(center.latDec + latinc * numMapsY / 2, center.lonDec + loninc * numMapsX /2);
++		this.tilesSize = new Point();
++		this.tilesSize.set(size);
++		this.tileScale = scale;
++	}
++	
++	public void setTiles(CWPoint toplefti, CWPoint buttomrighti, int scale, Point size, float overlapping) {
++		//if (toplefti.latDec &lt;= buttomrighti.latDec || toplefti.lonDec &gt;= toplefti.lonDec) throw new IllegalArgumentException(&quot;topleft must be left and above buttom right&quot;);
++		topleft = new CWPoint(toplefti);
++		buttomright = new CWPoint(buttomrighti);
++		double metersPerLat = (1000*(new CWPoint(0,0)).getDistance(new CWPoint(1,0)));
++		double metersPerLon = metersPerLat * java.lang.Math.cos((toplefti.latDec + buttomright.latDec)/2/180*java.lang.Math.PI);
++		double metersY = (topleft.latDec - buttomright.latDec) * metersPerLat; 
++		double pixelsY =  metersY / EXPEDIA_METERS_PER_PIXEL / scale;
++		double metersX = -(topleft.lonDec - buttomright.lonDec) * metersPerLon ; 
++		double pixelsX =  metersX / EXPEDIA_METERS_PER_PIXEL / scale;
++		numMapsY = (int) java.lang.Math.ceil(pixelsY * overlapping / (float)size.y);
++		numMapsX = (int) java.lang.Math.ceil(pixelsX * overlapping / (float)size.x);
++		latinc = -(topleft.latDec - buttomright.latDec)/ (double)numMapsY; // = lat difference from buttom to top / number of tiles
++		loninc = -(topleft.lonDec - buttomright.lonDec)/ (double)numMapsX;
++		this.tilesSize = new Point();
++		this.tilesSize.set(size);
++		this.tileScale = scale;
++	}
++
++	public void downlaodTiles(String tilesPath) {
++		int row = 0, col;
++		for (double lat = topleft.latDec; lat &gt;= buttomright.latDec; lat += latinc) {
++			row++;
++			col = 1;
++			for (double lon = topleft.lonDec; lon &lt;= buttomright.lonDec; lon += loninc) {
++				if (progressInfobox != null)
++					progressInfobox.setInfo(&quot;Downloading calibrated (georeferenced) \n map image from www.expedia.com \n Downloading tile row: &quot;+row+&quot; / &quot;+numMapsY+&quot; coloumn &quot;+ col + &quot;/&quot;+numMapsX);
++				col++;
++				downloadMap(lat, lon, tileScale, tilesSize.x, tilesSize.y, tilesPath);
++			}
+ 		}
+ 	}
+ 	
+-	public void loadTo(String datei, String alti){
++	public void loadTo(String a, String b) {
++		//loadTo(a, b, &quot;50.74&quot;, &quot;7.095&quot;);
++	}
++
++	public void setProgressInfoBox (InfoBox progrssInfoboxi) {
++		progressInfobox = progrssInfoboxi;
++	}
++	/**
++	 * calculates the Expedia Alti = scale which fits in distance to its edges
++	 * @param center
++	 * @param distance in meters
++	 */
++	public static int getExpediaAlti(CWPoint center, float distance, Point size) {
++		int scaleLatO = (int) java.lang.Math.ceil(( distance * 2 / EXPEDIA_METERS_PER_PIXEL / size.y));
++		int scaleLonO = (int) java.lang.Math.ceil(( distance * 2 / EXPEDIA_METERS_PER_PIXEL / size.x));
++		int scaleO = (scaleLatO &lt; scaleLonO ? scaleLonO : scaleLatO);
++		//loadTo((topleft.latDec + buttomright.latDec)/2, (topleft.lonDec + buttomright.lonDec)/2, scaleO, size.x, size.y, path+&quot;/expedia_alti&quot;+scaleO+&quot;_lat&quot;+latD.toString()+&quot;_lon&quot;+lonD.toString());
++		return scaleO;
++	}
++	
++	public static String createExpediaFilename(double lat, double lon, int alti) {
++		Double latD = new Double(), lonD = new Double();
++		latD.decimalPlaces = 4;
++		lonD.decimalPlaces = 4;
++		latD.set(lat);
++		lonD.set(lon);
++		return &quot;expedia_alti&quot;+alti+&quot;_lat&quot;+latD.toString()+&quot;_lon&quot;+lonD.toString()+&quot;.gif&quot;;
++	}
++	
++	public void downloadMap(double lat, double lon, int alti, int PixelWidth, int PixelHeight, String path){
++		loadTo(lat, lon, alti, PixelWidth, PixelHeight, path+&quot;/&quot;+createExpediaFilename(lat, lon, alti));
++	}
++
++	public void loadTo(double lat, double lon, int alti, int PixelWidth, int PixelHeight, String datei){
+ 		HttpConnection connImg, conn2;
+ 		Socket sockImg, sock2;
+ 		InputStream is;
+ 		FileOutputStream fos;
+ 		ByteArray daten;
+ 		String quelle = new String();
+-		
++		String zone;
++		if (lon &lt;= -10) zone = &quot;USA0409&quot;;
++		else zone = &quot;EUR0809&quot;;
++
++		/*
++		 * information from: DownloadMouseMode.properties in project GPSylon ( in directory gpsylon_src-0.5.2\plugins\downloadmousemode\auxiliary\org\dinopolis\gpstool\plugin\downloadmousemode and DownloadMapCalculator.java in Dir gpsylon_src-0.5.2\plugins\downloadmousemode\src\org\dinopolis\gpstool\plugin\downloadmousemode 
++		 * download.map.url.expedia_east=http\://www.expedia.com/pub/agent.dll?qscr=mrdt&amp;ID=3XNsF.&amp;CenP={0,number,#.########},{1,number,#.########}&amp;Lang=EUR0809&amp;Alti={2,number,#}&amp;Size={3,number,#},{4,number,#}&amp;Offs=0.000000,0.000000\&amp;BCheck=1
++		 * download.map.url.expedia_east.title=Url of Expedia Europe
++		 * download.map.scale_factor.expedia_east=3950
++		 */
++		Double latD = new Double();
++		latD.decimalPlaces = 8;
++		latD.set(lat);
++		Double lonD = new Double();
++		lonD.decimalPlaces = 8;
++		lonD.set(lon);
+ 		quelle = &quot;<A HREF="http://www.expedia.de/pub/agent.dll?qscr=mrdt">http://www.expedia.de/pub/agent.dll?qscr=mrdt</A>&quot;;
+ 		quelle = quelle + &quot;&amp;ID=3kQaz.&quot;;
+-		quelle = quelle + &quot;&amp;CenP=&quot; + lat + &quot;,&quot; + lon;
+-		quelle = quelle + &quot;&amp;Alti=&quot;+alti+&quot;&amp;Lang=&quot;+zone+&quot;&amp;Size=500,500&amp;Offs=0,0&amp;MapS=0&amp;Pins=|&quot; + lat + &quot;,&quot; + lon + &quot;|5|&quot;;
++		quelle = quelle + &quot;&amp;CenP=&quot; + latD.toString() + &quot;,&quot; + lonD.toString();
++		quelle = quelle + &quot;&amp;Alti=&quot;+Convert.toString(alti)+&quot;&amp;Lang=&quot;+zone+&quot;&amp;Size=&quot;+Convert.toString(PixelWidth)+&quot;,&quot;+Convert.toString(PixelHeight)+&quot;&amp;Offs=0,0&amp;MapS=0&quot;; //&amp;Pins=|&quot; + latD.toString() + &quot;,&quot; + lonD.toString() + &quot;|5|&quot;;
+ 		//Vm.debug(lat + &quot;,&quot; + lon);
+ 		if(proxy.length()&gt;0){
+ 			connImg = new HttpConnection(proxy, Convert.parseInt(port), quelle);
+@@ -86,8 +196,18 @@
+ 				sock2.close();
+ 			}
+ 			//Vm.debug(&quot;done&quot;);
+-		}catch(Exception ex){
+-			//Vm.debug(&quot;Problem loading map: &quot; + ex.toString());
++		}catch(IOException e){
++			(new MessageBox(&quot;Error&quot;, &quot;Error while downloading or saving map:\n&quot;+e.getMessage(), MessageBox.OKB)).exec();
+ 		}
++		File dateiF = new File(datei); // change!!!
++		String tmp = dateiF.getName(); // contains the name and the extension
++		String name = tmp.substring(0, tmp.lastIndexOf(&quot;.&quot;));
++		float metersPerPixel = (float) (alti)*EXPEDIA_METERS_PER_PIXEL;
++		MapInfoObject cal = new MapInfoObject(metersPerPixel, new CWPoint(lat,lon),  PixelWidth, PixelHeight, dateiF.getPath()+&quot;/&quot;+name);
++		try {
++		cal.saveWFL(dateiF.getDrivePath(), name);
++		} catch (IOException e) {
++			(new MessageBox(&quot;Error&quot;, &quot;Error saving calibration file:\n&quot;+e.getMessage(), MessageBox.OKB)).exec();
++		}
+ 	}
+-}
++}
+\ No newline at end of file
+
+Added: trunk/src/CacheWolf/MapLoaderGui.java
+===================================================================
+--- trunk/src/CacheWolf/MapLoaderGui.java	2007-01-18 21:18:14 UTC (rev 402)
++++ trunk/src/CacheWolf/MapLoaderGui.java	2007-01-19 02:25:29 UTC (rev 403)
+@@ -0,0 +1,283 @@
++package CacheWolf;
++
++import ewe.io.File;
++import ewe.sys.Convert;
++import ewe.sys.Vm;
++import ewe.ui.*;
++import ewe.util.Vector;
++
++/**
++ * @author pfeffer
++ * This Class is the Dialog for Download calibrated from expedia.com
++ * is called from 
++ */
++
++public class MapLoaderGui extends Form {
++	mButton cancelB, okBtiles, okBPerCache, cancelBPerCache;
++	Preferences pref;
++	mTabbedPanel mTab = new mTabbedPanel();
++	CellPanel pnlTiles = new CellPanel();
++	CellPanel pnlPerCache = new CellPanel();
++
++	final String descString = &quot;Download georeferenced maps from expedia.com&quot;;
++	mCheckBox forCachesChkBox = new mCheckBox(&quot;for&quot;);
++	mChoice forSelectedChkBox = new mChoice(new String[] {&quot;all&quot;, &quot;selected&quot;}, 0);
++	mChoice forSelectedChkBoxPerCache = new mChoice(new String[] {&quot;all&quot;, &quot;selected&quot;}, 1);
++	mLabel cachesLbl = new mLabel(&quot;caches&quot;);
++	mInput distanceInput;
++	mLabel distLbl;
++	mLabel km = new mLabel(&quot;km&quot;);
++	mLabel coosLbl;
++	mButton coosBtn;
++	mLabel scaleLbl = new mLabel(&quot;Approx. m per pixel:&quot;);
++	mInput scaleInput = new mInput (&quot;3&quot;);
++	mInput scaleInputPerCache = new mInput (&quot;3&quot;);
++	mLabel overlappingLbl = new mLabel(&quot;overlapping in %&quot;);
++	mInput overlappingInput = new mInput(&quot;20&quot;);
++	mCheckBox overviewChkBox = new mCheckBox(&quot;download an overview map&quot;);
++	mCheckBox overviewChkBoxPerCache = new mCheckBox(&quot;download an overview map&quot;);
++
++	Vector cacheDB;
++	CWPoint topleft, buttomright;
++	CWPoint center;
++	boolean perCache;
++	boolean onlySelected;
++	float radius;
++	float scale;
++	float overlapping;
++	boolean overviewmap;
++	int numCaches;
++
++	public MapLoaderGui(Vector cacheDBi) {
++		super();
++		cacheDB = cacheDBi;
++		this.title = MyLocale.getMsg(1700, &quot;Download georeferenced maps&quot;); 
++		pref = Global.getPref(); // myPreferences sollte sp&#228;ter auch diese Einstellungen speichern
++		center = new CWPoint(pref.curCentrePt);
++		// tiles panel
++		MessageArea desc = new MessageArea(descString);
++		desc.modifyAll(mTextPad.NotEditable | mTextPad.DisplayOnly | mTextPad.NoFocus, mTextPad.TakesKeyFocus);
++		desc.borderStyle = mTextPad.BDR_NOBORDER;
++		pnlTiles.addLast(desc);
++		pnlTiles.addNext(forCachesChkBox);
++		pnlTiles.addNext(forSelectedChkBox);
++		pnlTiles.addLast(cachesLbl);
++		pnlTiles.addNext(distLbl = new mLabel(MyLocale.getMsg(1702,&quot;Within a rectangle of:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		distanceInput = new mInput();
++		int tmp = Convert.toInt((Global.getProfile().distOC));
++		distanceInput.setText(Convert.toString((tmp &gt; 0 ? tmp : 15)));
++		pnlTiles.addNext(distanceInput,CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		pnlTiles.addLast(km);
++		pnlTiles.addNext(coosLbl = new mLabel(MyLocale.getMsg(1703, &quot;around the center: &quot;)));
++		pnlTiles.addLast(coosBtn = new mButton(center.toString()));
++		pnlTiles.addNext(scaleLbl);
++		scaleInput.setText(&quot;3&quot;);
++		this.focusFirst();
++		pnlTiles.addLast(scaleInput);
++		//	pnlTiles.addLast(resolutionLbl);
++		pnlTiles.addNext(overlappingLbl);
++		pnlTiles.addLast(overlappingInput);
++		overviewChkBox.setState(true);
++		pnlTiles.addLast(overviewChkBox);
++		cancelB = new mButton(MyLocale.getMsg(1604,&quot;Cancel&quot;));
++		cancelB.setHotKey(0, IKeys.ESCAPE);
++		pnlTiles.addNext(cancelB,CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		okBtiles = new mButton(MyLocale.getMsg(1605,&quot;OK&quot;));
++		okBtiles.setHotKey(0, IKeys.ACTION);
++		okBtiles.setHotKey(0, IKeys.ENTER);
++		pnlTiles.addLast(okBtiles,CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		updateForCachesState();
++		mTab.addCard(pnlTiles, MyLocale.getMsg(1704, &quot;Tiles&quot;), MyLocale.getMsg(1704, &quot;Tiles&quot;));
++
++		// per cache panel
++		pnlPerCache.addLast(new MessageArea(descString));
++		pnlPerCache.addNext(new mLabel(&quot;Download one map for&quot;), CellConstants.DONTSTRETCH, (CellConstants.DONTFILL));
++		pnlPerCache.addNext(forSelectedChkBoxPerCache, CellConstants.DONTSTRETCH, (CellConstants.DONTFILL));
++		pnlPerCache.addLast(new mLabel(&quot;caches&quot;), CellConstants.DONTSTRETCH, (CellConstants.DONTFILL));
++		pnlPerCache.addNext(new mLabel(&quot;Approx. m per pixel&quot;), CellConstants.DONTSTRETCH, (CellConstants.DONTFILL));
++		pnlPerCache.addLast(scaleInputPerCache, CellConstants.DONTSTRETCH, (CellConstants.DONTFILL));
++
++		cancelBPerCache = new mButton(MyLocale.getMsg(1604,&quot;Cancel&quot;));
++		cancelBPerCache.setHotKey(0, IKeys.ESCAPE);
++		pnlPerCache.addNext(cancelBPerCache, CellConstants.DONTSTRETCH, (CellConstants.DONTFILL));
++		okBPerCache = new mButton(MyLocale.getMsg(1605,&quot;OK&quot;));
++		okBPerCache.setHotKey(0, IKeys.ACTION);
++		okBPerCache.setHotKey(0, IKeys.ENTER);
++		pnlPerCache.addLast(okBPerCache, CellConstants.DONTSTRETCH, (CellConstants.DONTFILL));
++
++
++		mTab.addCard(pnlPerCache, MyLocale.getMsg(1705, &quot;Per cache&quot;), MyLocale.getMsg(1705, &quot;Per Cache&quot;));
++		this.addLast(mTab);
++	}
++	public String getMapsDir() {
++		String subdir = Global.getProfile().dataDir.substring(Global.getPref().baseDir.length());
++		String mapsDir = Global.getPref().baseDir + &quot;/maps/expedia/&quot; + subdir;
++		if (!(new File(mapsDir).isDirectory())) { // dir exists? 
++			if (new File(mapsDir).mkdir() == false) // dir creation failed?
++			{(new MessageBox(&quot;Error&quot;, &quot;Error: cannot create maps directory: \n&quot;+new File(mapsDir).getParentFile(), MessageBox.OKB)).exec();
++			return null;
++			}
++		}
++		return mapsDir;
++	}
++	public void downloadTiles() {
++		String mapsDir = getMapsDir();
++		if (mapsDir == null) return;
++		InfoBox progressBox = new InfoBox(&quot;Downloading georeferenced maps&quot;, &quot;Downloading georeferenced maps\n from www.expedia.com&quot;);
++		progressBox.setPreferredSize(230, 150);
++		progressBox.exec();
++		Vm.showWait(true);
++		ewe.fx.Point size = new ewe.fx.Point(700,700); // Size of the downloaded maps
++		MapLoader ml = new MapLoader(Global.getPref().myproxy, Global.getPref().myproxyport);
++		if (forCachesChkBox.getState() || perCache) {
++			calcDownloadRect(); // calculate map boundaries from cacheDB
++			if (topleft == null) {
++				(new MessageBox(&quot;Error&quot;, &quot;No Caches are seleted&quot;, MessageBox.OKB)).execute();
++				Vm.showWait(false);
++				progressBox.close(0);
++				return;
++			}
++			ml.setTiles(topleft, buttomright, (int)scale, size, 1+ overlapping /100);
++			// calculate radius and center for overview map
++			center = new CWPoint((topleft.latDec + buttomright.latDec)/2, (topleft.lonDec + buttomright.lonDec)/2);
++			double radiuslat = (new CWPoint(center.latDec, buttomright.lonDec)).getDistance(buttomright);
++			double radiuslon = (new CWPoint(buttomright.latDec, center.lonDec)).getDistance(buttomright);
++			radius = (float) (radiuslat &lt; radiuslon ? radiuslon : radiuslat);
++		} else 
++		{ // calculate from center point an radius
++			ml.setTiles(center, radius, (int)scale, size, 1+ overlapping/100);
++		}
++		if (overviewmap) {
++			progressBox.setInfo(&quot;downloading overview map&quot;); 
++			int expediaAlti = MapLoader.getExpediaAlti(center, radius * 1000, size);
++			ml.downloadMap(center.latDec, center.lonDec, expediaAlti, size.x, size.y, mapsDir);
++		}
++		if (!perCache){  // download tiles
++			ml.setProgressInfoBox(progressBox);
++			ml.downlaodTiles(mapsDir);
++		} else { // per cache
++			CacheHolder ch; 
++			CWPoint tmpca=new CWPoint();
++			int numdownloaded = 0;
++			for (int i=cacheDB.size()-1; i &gt;= 0; i--) {
++				ch = (CacheHolder) cacheDB.get(i);
++				if (!this.onlySelected || ch.is_Checked) {
++					if (ch.pos == null) { // this can not happen
++						tmpca.set(ch.LatLon);
++						ch.pos = new CWPoint(tmpca);
++					}
++					if (ch.pos.isValid()) {
++						numdownloaded++;
++						progressBox.setInfo(&quot;Downloading map from expedia.de\n&quot;+numdownloaded+&quot; / &quot;+numCaches+&quot;\n for cache:\n&quot;+ch.CacheName);
++						ml.downloadMap(ch.pos.latDec, ch.pos.lonDec, (int)scale, size.x, size.y, mapsDir);
++					}
++				}
++			}
++		}
++		Vm.showWait(false);
++		ml.setProgressInfoBox(null);
++		progressBox.close(0);
++		(new MessageBox(&quot;Expedia maps&quot;, &quot;Downloaded and calibrated the maps successfully&quot;, MessageBox.OKB)).execute();
++	}
++
++	public void calcDownloadRect() {
++		CacheHolder ch;
++		topleft = null;
++		buttomright = null;
++		CWPoint tmpca = new CWPoint();
++		numCaches = 0;
++		for (int i=cacheDB.size()-1; i &gt;= 0; i--) {
++			ch = (CacheHolder) cacheDB.get(i);
++			if (!onlySelected || ch.is_Checked) {
++				if (ch.pos == null) { // this can not happen
++					tmpca.set(ch.LatLon);
++					ch.pos = new CWPoint(tmpca);
++				}
++				if (ch.pos.isValid()) {
++					if (topleft == null) topleft = new CWPoint(ch.pos);
++					if (buttomright == null) buttomright = new CWPoint(ch.pos);
++					if (topleft.latDec &lt; ch.pos.latDec) topleft.latDec = ch.pos.latDec;
++					if (topleft.lonDec &gt; ch.pos.lonDec) topleft.lonDec = ch.pos.lonDec;
++					if (buttomright.latDec &gt; ch.pos.latDec) buttomright.latDec = ch.pos.latDec;
++					if (buttomright.lonDec &lt; ch.pos.lonDec) buttomright.lonDec = ch.pos.lonDec;
++					numCaches++;
++				}
++			}
++		}
++	}
++
++	private void updateForCachesState() {
++		int a, b;
++		if (forCachesChkBox.getState()) {
++			// create map rectangle from caches
++			a = 0;
++			b = Control.Disabled;
++		}
++		else { // use center and distance input
++			a = Control.Disabled;
++			b = 0;
++		}
++		forSelectedChkBox.modify(a, b);
++		cachesLbl.modify(a, b);
++		distanceInput.modify(b, a);
++		distLbl.modify(b, a);
++		coosBtn.modify(b, a);
++		coosLbl.modify(b, a);
++		km.modify(b,a);
++		repaintNow();
++
++	}
++
++	public void onEvent(Event ev){
++		if (ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.PRESSED){
++			if (ev.target == cancelB || ev.target == cancelBPerCache){
++				this.close(Form.IDCANCEL);
++			}
++			if (ev.target == okBtiles || ev.target == okBPerCache){
++				if (ev.target == okBtiles) { // get tiles
++					perCache = false;
++					if (forSelectedChkBox.getSelectedItem().toString().equalsIgnoreCase(&quot;all&quot;)) onlySelected = false;
++					else onlySelected = true;
++					overviewmap = overviewChkBox.getState();
++					radius = Convert.toFloat(distanceInput.getText());
++					scale = Convert.toFloat(scaleInput.getText());
++					overlapping = Convert.toFloat(overlappingInput.getText());
++					if (!forCachesChkBox.getState()) {
++						if (radius &lt;= 0) { 
++							(new MessageBox(&quot;Error&quot;, &quot;'radius' must be graeter than null&quot;, MessageBox.OKB)).execute();
++							return;
++						}
++						if (overlapping &lt; 1 || overlapping &gt; 99) { 
++							(new MessageBox(&quot;Error&quot;, &quot;'overlapping' must between 1 and 99 &quot;, MessageBox.OKB)).execute();
++							return;
++						}
++					}
++				} else { // per cache
++					perCache = true;
++					if (forSelectedChkBoxPerCache.getSelectedItem().toString().equalsIgnoreCase(&quot;all&quot;)) onlySelected = false;
++					else onlySelected = true;
++					overviewmap = overviewChkBoxPerCache.getState();
++					scale = Convert.toFloat(scaleInputPerCache.getText());
++				}
++				if (scale &lt; 1 || scale != java.lang.Math.floor(scale)) {
++					(new MessageBox(&quot;Error&quot;, &quot;'Approx. meter pro pixel' must be greater than 0 and must not contain a point&quot;, MessageBox.OKB)).execute();
++					return;
++				}
++			}
++			this.close(Form.IDOK); 
++			this.downloadTiles();
++		}
++		if (ev.target == coosBtn) {
++			CoordsScreen cs = new CoordsScreen();
++			cs.setFields(center, CWPoint.CW);
++			if (cs.execute() != CoordsScreen.IDCANCEL) {
++				center = cs.getCoords();
++				coosBtn.setText(center.toString());
++			}
++		}
++		if (ev.target == forCachesChkBox) {
++			updateForCachesState();
++		}
++		super.onEvent(ev);
++	}
++}
+
+Modified: trunk/src/CacheWolf/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/MovingMap.java	2007-01-18 21:18:14 UTC (rev 402)
++++ trunk/src/CacheWolf/MovingMap.java	2007-01-19 02:25:29 UTC (rev 403)
+@@ -31,6 +31,7 @@
+ 	TrackOverlay[] TrackOverlays;
+ 	Vector tracks;
+ 	MapInfoObject currentMap;
++	String mapPath;
+ 	
+ 	AniImage mapImage1to1;
+ 	ArrowsOnMap directionArrows = new ArrowsOnMap();
+@@ -58,6 +59,7 @@
+ 	boolean mapHidden = false;
+ 	boolean noMapsAvailable;
+ 	boolean zoomingMode = false;
++	boolean mapsloaded = false;
+ 
+ 	public MovingMap(Preferences pref, GotoPanel gP, Vector cacheDB){
+ 		this.cacheDB = cacheDB;
+@@ -70,6 +72,7 @@
+ 		this.setPreferredSize(pref.myAppWidth, pref.myAppHeight);
+ 		this.title = &quot;Moving Map&quot;;
+ 		this.backGround = Color.Black;
++		this.mapPath = Global.getPref().baseDir+&quot;maps/expedia/&quot;;
+ 		mmp = new MovingMapPanel(this);
+ 		this.addLast(mmp);
+ 		DrawnIcon closeX = new DrawnIcon(DrawnIcon.CROSS,15,15,new Color(0,0,0));
+@@ -81,7 +84,7 @@
+ 		bottonImageClose.properties |= AniImage.AlwaysOnTop;
+ 		bottonImageClose.setLocation(Global.getPref().myAppWidth - bottonImageClose.getWidth()- 5, 5);
+ 		mmp.addImage(bottonImageClose);
+-		buttonImageGpsOn.setLocation(pref.myAppWidth - bottonImageChooseMap.getWidth()-5, bottonImageClose.getHeight() + 10);
++		buttonImageGpsOn.setLocation(pref.myAppWidth - bottonImageChooseMap.getWidth()-5, bottonImageClose.getHeight() + 20);
+ 		buttonImageGpsOn.properties = AniImage.AlwaysOnTop;
+ 		mmp.addImage(buttonImageGpsOn);
+ 		bottonImageChooseMap.setLocation(10,10);
+@@ -113,14 +116,15 @@
+ 		setGpsStatus(noGPS);
+ 		posCircle.properties = AniImage.AlwaysOnTop;
+ 		mmp.addImage(posCircle);
+-		loadMaps(Global.getPref().baseDir+&quot;maps/standard/&quot;);
++		//loadMaps(Global.getPref().baseDir+&quot;maps/standard/&quot;);
+ 	}
+ 
+ 	/**
+ 	 * loads the list of maps
+ 	 *
+ 	 */
+-	public void loadMaps(String mapsPath){
++	public void loadMaps(String mapsPath, double lat){
++		this.mapPath = mapsPath;
+ 		Vm.showWait(true);
+ 		resetCenterOfMap();
+ 		InfoBox inf = new InfoBox(&quot;Info&quot;, &quot;Loading list of maps...&quot;);
+@@ -129,36 +133,46 @@
+ 		//if (mmp.mapImage != null) 
+ 		String dateien[];
+ 		File files = new File(mapsPath);
+-		Extractor ext;
+ 		String rawFileName = new String();
+-		dateien = files.list(&quot;*.png&quot;, File.LIST_FILES_ONLY);
++		String[] dirstmp = files.list(&quot;*.wfl&quot;, File.LIST_ALWAYS_INCLUDE_DIRECTORIES | File.LIST_DIRECTORIES_ONLY);
++		Vector dirs = new Vector(dirstmp);
++		dirs.add(&quot;.&quot;); // include the mapsPath itself
+ 		MapInfoObject tempMIO;
+-		for(int i = 0; i &lt; dateien.length;i++){
+-			ext = new Extractor(dateien[i], &quot;&quot;, &quot;.&quot;, 0, true);
+-			rawFileName = ext.findNext();
+-			try {
+-				tempMIO = new MapInfoObject();
+-				tempMIO.loadwfl(mapsPath, rawFileName);
+-				maps.add(tempMIO);
+-			}catch(IOException ex){ } // TODO etwas genauer auch Fehlermeldung ausgeben? Bei vorhandenen .wfl-Datei mit ung&#252;ltigen Werten Fehler ausgeben oder wie jetz einfach ignorieren?
++		MessageBox f = null;
++		for (int j = dirs.size()-1; j &gt;= 0; j--) {
++			files = new File(mapsPath+&quot;/&quot;+dirs.get(j));
++			dateien = files.list(&quot;*.wfl&quot;, File.LIST_FILES_ONLY);
++			for(int i = 0; i &lt; dateien.length;i++){
++				rawFileName = dateien[i].substring(0, dateien[i].lastIndexOf(&quot;.&quot;));
++				try {
++					tempMIO = new MapInfoObject();
++					tempMIO.loadwfl(mapsPath+dirs.get(j)+&quot;/&quot;, rawFileName);
++					maps.add(tempMIO);
++				}catch(IOException ex){ 
++					if (f == null) (f=new MessageBox(&quot;Warning&quot;, &quot;Ignoring error while \n reading calibration file \n&quot;+ex.toString(), MessageBox.OKB)).exec();
++				}catch(ArithmeticException ex){ // affine contain not allowed values 
++					if (f == null) (f=new MessageBox(&quot;Warning&quot;, &quot;Ignoring error while \n reading calibration file \n&quot;+ex.toString(), MessageBox.OKB)).exec();
++				} 
++			}
+ 		}
+ 		if (maps.isEmpty())
+-			{
++		{
+ 			(new MessageBox(MyLocale.getMsg(327, &quot;Information&quot;), MyLocale.getMsg(326, &quot;Es steht keine kalibrierte Karte zur Verf&#252;gung&quot;), MessageBox.OKB)).execute();
+ 			noMapsAvailable = true;
+-			} else noMapsAvailable = false;
+-		tempMIO = new MapInfoObject(1.0);
++		} else noMapsAvailable = false;
++		tempMIO = new MapInfoObject(1.0, lat);
+ 		maps.add(tempMIO);
+-		tempMIO = new MapInfoObject(5.0);
++		tempMIO = new MapInfoObject(5.0, lat);
+ 		maps.add(tempMIO);
+-		tempMIO = new MapInfoObject(50.0);
++		tempMIO = new MapInfoObject(50.0, lat);
+ 		maps.add(tempMIO);
+-		tempMIO = new MapInfoObject(250.0);
++		tempMIO = new MapInfoObject(250.0, lat);
+ 		maps.add(tempMIO);
+-		tempMIO = new MapInfoObject(1000.0);
++		tempMIO = new MapInfoObject(1000.0, lat);
+ 		maps.add(tempMIO);
+ 		inf.close(0);
+ 		Vm.showWait(false);
++		this.mapsloaded = true;
+ 	}
+ 
+ 	public void forceMapLoad() {
+@@ -534,7 +548,7 @@
+ 		public void removeAllMapSymbolsButGoto(){
+ 			if (symbols == null) return;
+ 			symbols.removeAllElements();
+-			symbols.add(gotoPos);
++			if (gotoPos != null) symbols.add(gotoPos);
+ /*			for (int i=symbols.size()-1; i&gt;=0; i--) {
+ 				if (((MapSymbol)symbols.get(i)).name != &quot;goto&quot;) removeMapSymbol(i);
+ 			}
+@@ -588,6 +602,7 @@
+ 		 * Method to laod the best map for lat/lon and move the map so that the posCircle is at lat/lon
+ 		 */
+ 		public void updatePosition(double lat, double lon){
++			if (!mapsloaded) loadMaps(mapPath, lat);
+ 			lastUpatePosition.latDec=lat;
+ 			lastUpatePosition.lonDec=lon;
+ 			if(!ignoreGps || forceMapLoad){
+@@ -673,9 +688,15 @@
+ 
+ 					//Vm.debug(&quot;free: &quot;+Vm.getUsedMemory(false)+&quot;classMemory: &quot;+Vm.getClassMemory()+ &quot;after garbage collection: &quot;+Vm.getUsedMemory(false));
+ 					Vm.getUsedMemory(true); // calls the garbage collection
+-				} // give memory free before loading the new map to avoid out of memory error  
+-				if (currentMap.fileName.length()&gt;0) mmp.mapImage = new AniImage(currentMap.fileName); // attention: when running in native java-vm, no exception will be thrown, not even OutOfMemeoryError
+-				else mmp.mapImage = new AniImage();
++				} // give memory free before loading the new map to avoid out of memory error
++				if (currentMap.getImageFilename() == null ) {
++					mmp.mapImage = new AniImage();
++					(new MessageBox(&quot;Error&quot;, &quot;Could not find image associated with: \n&quot;+currentMap.fileNameWFL, MessageBox.OKB)).execute();
++				}
++				else { 
++					if (currentMap.getImageFilename().length()&gt;0) mmp.mapImage = new AniImage(currentMap.getImageFilename()); // attention: when running in native java-vm, no exception will be thrown, not even OutOfMemeoryError
++					else mmp.mapImage = new AniImage();
++				}
+ 				mapImage1to1 = mmp.mapImage;
+ 				mmp.mapImage.properties = mmp.mapImage.properties | AniImage.IsMoveable;
+ 				if (mapHidden) mmp.mapImage.properties |= AniImage.IsInvisible;
+@@ -700,7 +721,7 @@
+ 				updateOnlyPosition(lat, lon, false);
+ 				inf.close(0);
+ 				Vm.showWait(false);
+-				(new MessageBox(&quot;Error&quot;, &quot;Could not load map: &quot;+ newmap.fileName, MessageBox.OKB)).execute();
++				(new MessageBox(&quot;Error&quot;, &quot;Could not load map: &quot;+ newmap.getImageFilename(), MessageBox.OKB)).execute();
+ 				ignoreGps = saveIgnoreStatus;
+ 			} catch (OutOfMemoryError e) {
+ 				if (mmp.mapImage != null) {
+@@ -712,7 +733,7 @@
+ 				updateOnlyPosition(lat, lon, false);
+ 				inf.close(0);
+ 				Vm.showWait(false);
+-				(new MessageBox(&quot;Error&quot;, &quot;Not enough memory to load map: &quot;+ newmap.fileName+&quot;\nYou can try to close\n all prgrams and \nrestart CacheWolf&quot;, MessageBox.OKB)).execute();
++				(new MessageBox(&quot;Error&quot;, &quot;Not enough memory to load map: &quot;+ newmap.getImageFilename()+&quot;\nYou can try to close\n all prgrams and \nrestart CacheWolf&quot;, MessageBox.OKB)).execute();
+ 				ignoreGps = saveIgnoreStatus;
+ 			}catch (SystemResourceException e) {
+ 				if (mmp.mapImage != null) {
+@@ -724,7 +745,7 @@
+ 				updateOnlyPosition(lat, lon, false);
+ 				inf.close(0);
+ 				Vm.showWait(false);
+-				(new MessageBox(&quot;Error&quot;, &quot;Not enough ressources to load map: &quot;+ newmap.fileName+&quot;\nYou can try to close\n all prgrams and \nrestart CacheWolf&quot;, MessageBox.OKB)).execute();
++				(new MessageBox(&quot;Error&quot;, &quot;Not enough ressources to load map: &quot;+ newmap.getImageFilename()+&quot;\nYou can try to close\n all prgrams and \nrestart CacheWolf&quot;, MessageBox.OKB)).execute();
+ 				ignoreGps = saveIgnoreStatus;
+ 			}
+ 		}
+@@ -984,14 +1005,15 @@
+ 			if(l.execute() == FormBase.IDOK){
+ //				Vm.debug(&quot;Trying map: &quot; + l.selectedMap.fileName);
+ 				mm.autoSelectMap = false;
+-				if (l.selectedMap.inBound(mm.posCircleLat, mm.posCircleLon) || l.selectedMap.fileName.length()==0) {
++				if (l.selectedMap.inBound(mm.posCircleLat, mm.posCircleLon) || l.selectedMap.getImageFilename().length()==0) {
+ 					mm.setMap(l.selectedMap, mm.posCircleLat, mm.posCircleLon);
+ 					mm.ignoreGpsStatutsChanges = false;
+ 				} else {
+ 					mm.ignoreGpsStatutsChanges = false;
+ 					mm.setGpsStatus(MovingMap.noGPS);
+ 					mm.ignoreGpsStatutsChanges = true;
+-					mm.setMap(l.selectedMap, -361, -361); // don't adjust Image to lat/lon
++					mm.setMap(l.selectedMap, mm.posCircleLat, mm.posCircleLon); // don't adjust Image to lat/lon
++					mm.setCenterOfScreen(l.selectedMap.center);
+ //					Point posCXY = new Point (0,0); mm.getXYinMap(mm.posCircleLat, mm.posCircleLat);
+ 					//			double lat = mm.currentMap.affine[0]*posCXY.x + mm.currentMap.affine[2]*posCXY.y + mm.currentMap.affine[4]; 
+ 					mm.posCircleX = 0; // place map to the upper left corner of windows
+@@ -1057,7 +1079,7 @@
+ 							fc.addMask(&quot;*.wfl&quot;);
+ 							fc.setTitle((String)MyLocale.getMsg(4200,&quot;Select map directory:&quot;));
+ 							if(fc.execute() != FileChooser.IDCANCEL){
+-								mm.loadMaps(fc.getChosen().toString()+&quot;/&quot;);
++								mm.loadMaps(fc.getChosen().toString()+&quot;/&quot;, mm.posCircleLat);
+ 								mm.addOverlaySet();
+ 								mm.forceMapLoad();
+ 							}
+
+Modified: trunk/src/CacheWolf/OCXMLImporter.java
+===================================================================
+--- trunk/src/CacheWolf/OCXMLImporter.java	2007-01-18 21:18:14 UTC (rev 402)
++++ trunk/src/CacheWolf/OCXMLImporter.java	2007-01-19 02:25:29 UTC (rev 403)
+@@ -342,13 +342,20 @@
+ 				
+ 				ParseLatLon pll = new ParseLatLon(holder.LatLon,&quot;.&quot;);
+ 				pll.parse();
+-				MapLoader mpl = new MapLoader(pll.getLatDeg(),pll.getLonDeg(), pref.myproxy, pref.myproxyport);
++				MapLoader mpl = new MapLoader(pref.myproxy, pref.myproxyport);
+ 				// MapLoader tests itself if the file already exists and doesnt download if so.
+-				String filename = profile.dataDir + &quot;/&quot; + holder.wayPoint + &quot;_map.gif&quot;;
++				String filename = Global.getPref().baseDir + &quot;/maps/expedia/&quot; + holder.wayPoint + &quot;_map.gif&quot;;
++				if (!(new File(filename).getParentFile().isDirectory())) { // dir exists? 
++					if (new File(filename).getParentFile().mkdir() == false) // dir creation failed?
++					{ pref.downloadMapsOC = false;
++					(new MessageBox(&quot;Warning&quot;, &quot;Ignoring error (stopping to download maps):\n cannot create maps directory: \n&quot;+new File(filename).getParentFile(), MessageBox.OKB)).exec(); 
++					}
++				}
+ 				if (!fileExits(filename)){
+ 					inf.setInfo(MyLocale.getMsg(1609,&quot;Importing Cache:&quot;)+&quot; &quot; + numCacheImported + &quot;\n&quot;+MyLocale.getMsg(1610,&quot;Downloading missing map&quot;)+&quot; 1&quot;);
+ 					mpl.loadTo(filename, &quot;3&quot;); }
+-				filename = profile.dataDir + &quot;/&quot; + holder.wayPoint + &quot;_map_2.gif&quot;;
++				//filename = profile.dataDir + &quot;/&quot; + holder.wayPoint + &quot;_map_2.gif&quot;;
++				filename = Global.getPref().baseDir + &quot;/maps/expedia/&quot; + holder.wayPoint + &quot;_map_2.gif&quot;;
+ 				if (!fileExits(filename)){
+ 					inf.setInfo(MyLocale.getMsg(1609,&quot;Importing Cache: &quot;)+&quot; &quot; + numCacheImported + &quot;\n&quot;+MyLocale.getMsg(1610,&quot;Downloading missing map&quot;)+&quot; 2&quot;);
+ 					mpl.loadTo(filename, &quot;10&quot;); }
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2007-01-18 21:18:14 UTC (rev 402)
++++ trunk/src/CacheWolf/SpiderGC.java	2007-01-19 02:25:29 UTC (rev 403)
+@@ -407,7 +407,7 @@
+ 		if(holder.LatLon.length() &gt; 4){
+ 			ParseLatLon pll = new ParseLatLon(holder.LatLon,&quot;.&quot;);
+ 			pll.parse();
+-			MapLoader mpl = new MapLoader(pll.getLatDeg(),pll.getLonDeg(), pref.myproxy, pref.myproxyport);
++			MapLoader mpl = new MapLoader(pref.myproxy, pref.myproxyport);
+ 			mpl.loadTo(profile.dataDir + &quot;/&quot; + holder.wayPoint + &quot;_map.gif&quot;, &quot;3&quot;);
+ 			mpl.loadTo(profile.dataDir + &quot;/&quot; + holder.wayPoint + &quot;_map_2.gif&quot;, &quot;10&quot;);
+ 		}
+
+Modified: trunk/src/CacheWolf/TablePanel.java
+===================================================================
+--- trunk/src/CacheWolf/TablePanel.java	2007-01-18 21:18:14 UTC (rev 402)
++++ trunk/src/CacheWolf/TablePanel.java	2007-01-19 02:25:29 UTC (rev 403)
+@@ -139,7 +139,10 @@
+ 		while(--anz &gt;= 0){
+ 			ch = (CacheHolder)cacheDB.get(anz); // This returns a pointer to the CacheHolder object
+ 			if(ch.LatLon.length()&gt;4){
+-				toPoint.set(ch.LatLon, CWPoint.CW); // Fast parse with traditional parse algorithm
++				if (ch.pos == null) { // only calculate once
++					toPoint.set(ch.LatLon, CWPoint.CW); // Fast parse with traditional parse algorithm
++					ch.pos = new CWPoint(toPoint);
++				} else toPoint = ch.pos;
+ 				ch.kilom = fromPoint.getDistance(toPoint);
+ 				ch.degrees = fromPoint.getBearing(toPoint);
+ 				ch.bearing = CWPoint.getDirection(ch.degrees);
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2007-01-18 21:18:14 UTC (rev 402)
++++ trunk/src/CacheWolf/myTableControl.java	2007-01-19 02:25:29 UTC (rev 403)
+@@ -21,13 +21,22 @@
+ 		menuState.doShowMenu(p,true,null); // direct call (not through doMenu) is neccesary because it will exclude the whole table
+ 	}
+ 	public void penHeld(Point p){
+-		menuState.doShowMenu(p,true,null);
++		menuState.doShowMenu(p,true,null); 
+ 	}
+ 	
+-	public void popupMenuEvent(Object selectedItem){
+-		CacheHolder ch;
++	public void onKeyEvent(KeyEvent ev) {
++		if (ev.type == KeyEvent.KEY_PRESS &amp;&amp; ev.target == this){
++			if ( (ev.modifiers &amp; IKeys.CONTROL) &gt; 0 &amp;&amp; ev.key == 'a'-'a'+1){ // &lt;ctrl-a&gt; gives 1, &lt;ctrl-b&gt; == 2
++				// select all on &lt;ctrl-a&gt;
++				selectAll();
++				ev.consumed = true;
++			}
++		}
++		super.onKeyEvent(ev);
++	}
+ 		
+-		if (selectedItem.toString().equals(MyLocale.getMsg(1015,&quot;Select all&quot;))){
++		public void selectAll() {
++			CacheHolder ch;
+ 			for(int i = 0; i &lt;	db.size(); i++){
+ 				ch = (CacheHolder)db.get(i);
+ 				ch.is_Checked = true;
+@@ -36,7 +45,15 @@
+ 			tbp.myMod.cacheSelectionChanged = true;
+ 			tbp.refreshTable();
+ 		}
++	
++	
++	public void popupMenuEvent(Object selectedItem){
++		CacheHolder ch;
+ 		
++		if (selectedItem.toString().equals(MyLocale.getMsg(1015,&quot;Select all&quot;))){
++			selectAll();
++		}
++		
+ 		if (selectedItem.toString().equals(MyLocale.getMsg(1016,&quot;De-select all&quot;))){
+ 			for(int i = 0; i &lt;	db.size(); i++){
+ 				ch = (CacheHolder)db.get(i);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000148.html">[Cachewolf-svn] [Feature #3062] MovingMap: Kartendownload von	Expedia
+</A></li>
+	<LI>Next message: <A HREF="000150.html">[Cachewolf-svn] r404 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#149">[ date ]</a>
+              <a href="thread.html#149">[ thread ]</a>
+              <a href="subject.html#149">[ subject ]</a>
+              <a href="author.html#149">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

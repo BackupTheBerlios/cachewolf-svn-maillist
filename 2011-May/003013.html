@@ -1,0 +1,329 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r3022 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2011-May/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r3022%20-%20trunk/src/CacheWolf&In-Reply-To=%3C20110531102354.103984805EB%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003012.html">
+   
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r3022 - trunk/src/CacheWolf</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r3022%20-%20trunk/src/CacheWolf&In-Reply-To=%3C20110531102354.103984805EB%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r3022 - trunk/src/CacheWolf">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Tue May 31 12:23:53 CEST 2011</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003012.html">[Cachewolf-svn] r3021 - trunk/src/CacheWolf
+</A></li>
+        
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3013">[ date ]</a>
+              <a href="thread.html#3013">[ thread ]</a>
+              <a href="subject.html#3013">[ subject ]</a>
+              <a href="author.html#3013">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2011-05-31 12:23:53 +0200 (Tue, 31 May 2011)
+New Revision: 3022
+
+Modified:
+   trunk/src/CacheWolf/CacheHolder.java
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/MyComparer.java
+   trunk/src/CacheWolf/OC.java
+   trunk/src/CacheWolf/myTableControl.java
+   trunk/src/CacheWolf/myTableModel.java
+Log:
+1. correct check for  main waypoint to update (that have type set to custom with meaning type not yet set, loc-import or just created)
+2. correct getting GC waypoint from OC waypoint (if there is more than one reference)
+
+Modified: trunk/src/CacheWolf/CacheHolder.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolder.java	2011-05-30 08:47:18 UTC (rev 3021)
++++ trunk/src/CacheWolf/CacheHolder.java	2011-05-31 10:23:53 UTC (rev 3022)
+@@ -982,10 +982,7 @@
+ 	}
+ 
+ 	public boolean isOC() {
+-		if (this.isCacheWpt()) {
+-			return OC.isOC(wayPoint);
+-		} else
+-			return false;
++		return OC.isOC(wayPoint);
+ 	}
+ 
+ 	public void calcDistance(CWPoint toPoint) {
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2011-05-30 08:47:18 UTC (rev 3021)
++++ trunk/src/CacheWolf/MainMenu.java	2011-05-31 10:23:53 UTC (rev 3022)
+@@ -864,7 +864,8 @@
+ 		for (int i = 0; i &lt; cacheDB.size(); i++) {
+ 			ch = cacheDB.get(i);
+ 			if (ch.is_Checked == true &amp;&amp; ch.isVisible()) {
+-				if (ch.getWayPoint().length() &gt; 1 &amp;&amp; ch.isCacheWpt())
++				// should work even if only the wayPoint is created
++				if ((ch.getWayPoint().toUpperCase().startsWith(&quot;GC&quot;) || ch.isOC()))
+ 				// Notiz: Wenn es ein addi Wpt ist, sollte eigentlich der Maincache gespidert werden
+ 				// Alter code prft aber nur ob ein Maincache von GC existiert und versucht dann den addi direkt zu spidern, was nicht funktioniert
+ 				{
+
+Modified: trunk/src/CacheWolf/MyComparer.java
+===================================================================
+--- trunk/src/CacheWolf/MyComparer.java	2011-05-30 08:47:18 UTC (rev 3021)
++++ trunk/src/CacheWolf/MyComparer.java	2011-05-31 10:23:53 UTC (rev 3022)
+@@ -27,7 +27,6 @@
+ 
+ import ewe.util.Comparer;
+ import ewe.util.Vector;
+-import ewe.util.mString;
+ 
+ /**
+  * This class handles the sorting for most of the sorting tasks. If a cache is to be displayed in the table or not is handled in the table model
+@@ -141,15 +140,8 @@
+ 					else
+ 						ch.sort = ch.getOcCacheID();
+ 				else {
+-					String[] stmp = mString.split(ch.getCacheOwner(), '/');
+-					int l = stmp.length - 1;
+-					if (l &gt; 0) {
+-						String s = stmp[l].trim();
+-						if (s.startsWith(&quot;GC&quot;))
+-							ch.sort = s;
+-						else
+-							ch.sort = &quot;\uFFFF&quot;;
+-					} else
++					ch.sort = OC.getGCWayPoint(ch.getCacheOwner());
++					if (ch.sort.length() == 0)
+ 						ch.sort = &quot;\uFFFF&quot;; // ans Ende
+ 				}
+ 			}
+
+Modified: trunk/src/CacheWolf/OC.java
+===================================================================
+--- trunk/src/CacheWolf/OC.java	2011-05-30 08:47:18 UTC (rev 3021)
++++ trunk/src/CacheWolf/OC.java	2011-05-31 10:23:53 UTC (rev 3022)
+@@ -1,30 +1,31 @@
+-    /*
+-    GNU General Public License
+-    CacheWolf is a software for PocketPC, Win and Linux that
+-    enables paperless caching.
+-    It supports the sites geocaching.com and opencaching.de
++/*
++GNU General Public License
++CacheWolf is a software for PocketPC, Win and Linux that
++enables paperless caching.
++It supports the sites geocaching.com and opencaching.de
+ 
+-    Copyright (C) 2006  CacheWolf development team
+-    See <A HREF="http://developer.berlios.de/projects/cachewolf/">http://developer.berlios.de/projects/cachewolf/</A>
+-    for more information.
+-    Contact: 	<A HREF="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">bilbowolf at users.berlios.de</A>
+-    			<A HREF="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">kalli at users.berlios.de</A>
++Copyright (C) 2006  CacheWolf development team
++See <A HREF="http://developer.berlios.de/projects/cachewolf/">http://developer.berlios.de/projects/cachewolf/</A>
++for more information.
++Contact: 	<A HREF="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">bilbowolf at users.berlios.de</A>
++			<A HREF="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">kalli at users.berlios.de</A>
+ 
+-    This program is free software; you can redistribute it and/or modify
+-    it under the terms of the GNU General Public License as published by
+-    the Free Software Foundation; version 2 of the License.
++This program is free software; you can redistribute it and/or modify
++it under the terms of the GNU General Public License as published by
++the Free Software Foundation; version 2 of the License.
+ 
+-    This program is distributed in the hope that it will be useful,
+-    but WITHOUT ANY WARRANTY; without even the implied warranty of
+-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-    GNU General Public License for more details.
++This program is distributed in the hope that it will be useful,
++but WITHOUT ANY WARRANTY; without even the implied warranty of
++MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++GNU General Public License for more details.
+ 
+-    You should have received a copy of the GNU General Public License
+-    along with this program; if not, write to the Free Software
+-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+-    */
++You should have received a copy of the GNU General Public License
++along with this program; if not, write to the Free Software
++Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ */
+ package CacheWolf;
+ 
++
+ public final class OC {
+ 
+ 	/** thou shallst not instantiate this object */
+@@ -32,45 +33,51 @@
+ 		// Nothing to do
+ 	}
+ 
+-	public final static int OC_HOSTNAME = 0; 
+-	public final static int OC_PREFIX = 1; 
+-	public final static String[][] OCSites = {
+-		{&quot;www.opencaching.de&quot;, &quot;OC&quot;},
+-		{&quot;www.opencaching.pl&quot;, &quot;OP&quot;},
+-		{&quot;www.opencaching.cz&quot;, &quot;OZ&quot;},
+-		{&quot;www.opencaching.org.uk&quot;, &quot;OK&quot;},
+-		{&quot;www.opencaching.se&quot;, &quot;OS&quot;},
+-		{&quot;www.opencaching.no&quot;, &quot;ON&quot;},
+-		{&quot;www.opencaching.us&quot;, &quot;OU&quot;}
+-		};
++	public final static int OC_HOSTNAME = 0;
++	public final static int OC_PREFIX = 1;
++	public final static String[][] OCSites = { { &quot;www.opencaching.de&quot;, &quot;OC&quot; }, { &quot;www.opencaching.pl&quot;, &quot;OP&quot; }, { &quot;www.opencaching.cz&quot;, &quot;OZ&quot; }, { &quot;www.opencaching.org.uk&quot;, &quot;OK&quot; }, { &quot;www.opencaching.se&quot;, &quot;OS&quot; }, { &quot;www.opencaching.no&quot;, &quot;ON&quot; },
++			{ &quot;www.opencaching.us&quot;, &quot;OU&quot; } };
+ 
+ 	public final static String[] OCHostNames() {
+-		String[] ret=new String[OCSites.length];
++		String[] ret = new String[OCSites.length];
+ 		for (int i = 0; i &lt; OCSites.length; i++) {
+-			ret[i]=OCSites[i][OC_HOSTNAME];
++			ret[i] = OCSites[i][OC_HOSTNAME];
+ 		}
+ 		return ret;
+ 	}
+-	
+-	public final static String getOCHostName(String wpName){
++
++	public final static String getOCHostName(String wpName) {
+ 		for (int i = 0; i &lt; OCSites.length; i++) {
+-			if(wpName.startsWith(OCSites[i][OC_PREFIX])) {
++			if (wpName.startsWith(OCSites[i][OC_PREFIX])) {
+ 				return OCSites[i][OC_HOSTNAME];
+ 			}
+ 		}
+ 		return null;
+ 	}
+-	
++
+ 	public final static boolean isOC(String wpName) {
+-		return (getOCHostName(wpName.toUpperCase()) != null);		
++		return (getOCHostName(wpName.toUpperCase()) != null);
+ 	}
+-	
++
+ 	public final static int getSiteIndex(String site) {
+ 		for (int i = 0; i &lt; OCSites.length; i++) {
+-			if(site.equalsIgnoreCase(OCSites[i][OC_HOSTNAME])) {
++			if (site.equalsIgnoreCase(OCSites[i][OC_HOSTNAME])) {
+ 				return i;
+ 			}
+ 		}
+ 		return 0; // don't get a fault
+ 	}
++
++	public final static String getGCWayPoint(String owner) {
++		owner = owner + &quot; &quot;;
++		int l = owner.lastIndexOf('/');
++		if (l &gt; 0) {
++			int i = owner.indexOf(&quot;GC&quot;, l);
++			if (i &gt; -1) {
++				int j = owner.indexOf(&quot; &quot;, i);
++				return owner.substring(i, j);
++			}
++		}
++		return &quot;&quot;;
++	}
+ }
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2011-05-30 08:47:18 UTC (rev 3021)
++++ trunk/src/CacheWolf/myTableControl.java	2011-05-31 10:23:53 UTC (rev 3022)
+@@ -51,7 +51,6 @@
+ import ewe.ui.TableControl;
+ import ewe.ui.TableEvent;
+ import ewe.ui.mList;
+-import ewe.util.mString;
+ 
+ /**
+  * Implements the user interaction of the list view. Works together with myTableModel and TablePanel
+@@ -356,14 +355,9 @@
+ 			String wpName = mainCache.getOcCacheID();
+ 			if (clickedColumn == 14) {
+ 				if (mainCache.isOC()) {
+-					String[] stmp = mString.split(ch.getCacheOwner(), '/');
+-					int l = stmp.length - 1;
+-					if (l &gt; 0) {
+-						String s = stmp[l].trim();
+-						if (s.startsWith(&quot;GC&quot;)) {
+-							url = &quot;<A HREF="http://www.geocaching.com/seek/cache_details.aspx?wp=">http://www.geocaching.com/seek/cache_details.aspx?wp=</A>&quot; + s;
+-						}
+-					}
++					String s = OC.getGCWayPoint(ch.getCacheOwner());
++					if (s.length() &gt; 0)
++						url = &quot;<A HREF="http://www.geocaching.com/seek/cache_details.aspx?wp=">http://www.geocaching.com/seek/cache_details.aspx?wp=</A>&quot; + s;
+ 				} else {
+ 					if (wpName.length() &gt; 0) {
+ 						if (wpName.charAt(0) &lt; 65)
+
+Modified: trunk/src/CacheWolf/myTableModel.java
+===================================================================
+--- trunk/src/CacheWolf/myTableModel.java	2011-05-30 08:47:18 UTC (rev 3021)
++++ trunk/src/CacheWolf/myTableModel.java	2011-05-31 10:23:53 UTC (rev 3022)
+@@ -38,7 +38,6 @@
+ import ewe.ui.TableCellAttributes;
+ import ewe.ui.TableModel;
+ import ewe.util.Vector;
+-import ewe.util.mString;
+ 
+ /**
+  * Table model used to display the cache list. Used by the table control in the first panel of CacheWolf. 20061212 salzkammergut, patch to speed up scrolling, Used MyLocale
+@@ -441,16 +440,7 @@
+ 					if (ch.getWayPoint().startsWith(&quot;GC&quot;))
+ 						return ch.getOcCacheID();
+ 					else {
+-						String[] stmp = mString.split(ch.getCacheOwner(), '/');
+-						int l = stmp.length - 1;
+-						if (l &gt; 0) {
+-							String s = stmp[l].trim();
+-							if (s.startsWith(&quot;GC&quot;))
+-								return s;
+-							else
+-								return &quot;&quot;;
+-						} else
+-							return &quot;&quot;;
++						return OC.getGCWayPoint(ch.getCacheOwner());
+ 					}
+ 				case 15: // Is solver filled?
+ 					if (ch.hasSolver())
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003012.html">[Cachewolf-svn] r3021 - trunk/src/CacheWolf
+</A></li>
+	
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3013">[ date ]</a>
+              <a href="thread.html#3013">[ thread ]</a>
+              <a href="subject.html#3013">[ subject ]</a>
+              <a href="author.html#3013">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,422 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2260 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-October/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2260%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200910102207.n9AM77NT021523%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002183.html">
+   <LINK REL="Next"  HREF="002185.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2260 - trunk/src/CacheWolf</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2260%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200910102207.n9AM77NT021523%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2260 - trunk/src/CacheWolf">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Sun Oct 11 00:07:07 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002183.html">[Cachewolf-svn] r2259 - in trunk/tools/MakeWMSFile/capxml2wms: .	bin/Debug
+</A></li>
+        <LI>Next message: <A HREF="002185.html">[Cachewolf-svn] r2261 - trunk/res_noewe/languages
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2184">[ date ]</a>
+              <a href="thread.html#2184">[ thread ]</a>
+              <a href="subject.html#2184">[ subject ]</a>
+              <a href="author.html#2184">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2009-10-11 00:07:05 +0200 (Sun, 11 Oct 2009)
+New Revision: 2260
+
+Modified:
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/Preferences.java
+   trunk/src/CacheWolf/ProfilesForm.java
+Log:
+Deleting Profile
+Renaming Profile (in work)
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2009-10-10 16:28:59 UTC (rev 2259)
++++ trunk/src/CacheWolf/MainMenu.java	2009-10-10 22:07:05 UTC (rev 2260)
+@@ -62,7 +62,7 @@
+ 	private MenuItem exportLOC, exportGPS, mnuSeparator;
+ 	private MenuItem orgNewWP, orgCopy, orgMove, orgDelete,orgRebuild,orgCheckNotesAndSolver, orgRater;
+ 	public MenuItem cacheTour,orgTravelbugs, mnuForceLogin;
+-	private MenuItem mnuNewProfile, mnuOpenProfile, mnuEditCenter;
++	private MenuItem mnuNewProfile, mnuOpenProfile, mnuDeleteProfile, mnuRenameProfile, mnuEditCenter;
+ 	private Form father;
+ 	private TablePanel tbp;
+ 	private FilterScreen scnFilter=new FilterScreen();
+@@ -78,9 +78,11 @@
+ 		///////////////////////////////////////////////////////////////////////
+ 		// subMenu for profiles, part of &quot;Application&quot; menu below
+ 		///////////////////////////////////////////////////////////////////////
+-		MenuItem[] mnuProfile = new MenuItem[2];
++		MenuItem[] mnuProfile = new MenuItem[4];
+ 		mnuProfile[0] = mnuNewProfile = new MenuItem(MyLocale.getMsg(1107,&quot;New&quot;));
+ 		mnuProfile[1] = mnuOpenProfile = new MenuItem(MyLocale.getMsg(1109,&quot;Open&quot;));
++		mnuProfile[2] = mnuDeleteProfile = new MenuItem(MyLocale.getMsg(1125,&quot;Delete&quot;));
++		mnuProfile[3] = mnuRenameProfile = new MenuItem(MyLocale.getMsg(1126,&quot;Rename&quot;));
+ 		Menu profileMenu = new Menu(mnuProfile,MyLocale.getMsg(121,&quot;Profiles&quot;));
+ 
+ 		///////////////////////////////////////////////////////////////////////
+@@ -304,6 +306,12 @@
+ 					tbp.resetModel();
+ 				}
+ 			}
++			if(mev.selectedItem == mnuDeleteProfile) {
++				pref.deleteProfile();
++			}
++			if(mev.selectedItem == mnuRenameProfile) {
++				pref.renameProfile(getFrame());
++			}
+ 			if(mev.selectedItem == mnuEditCenter){
+ 				ProfileDataForm f=new ProfileDataForm(pref,profile);
+ 				f.execute(getFrame(), Gui.CENTER_FRAME);
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2009-10-10 16:28:59 UTC (rev 2259)
++++ trunk/src/CacheWolf/Preferences.java	2009-10-10 22:07:05 UTC (rev 2260)
+@@ -277,7 +277,7 @@
+ 	public int myAppWidth = 800;
+ 	/** True if the preferences were changed and need to be saved */
+ 	public boolean dirty = false;
+-	
++
+ 	private String pathToProfile;
+ 
+     //////////////////////////////////////////////////////////////////////////////////////
+@@ -340,8 +340,8 @@
+ 		}
+ 		if (testlist != null) {
+ 			for (int i=0; i &lt; testlist.length; i++)
+-				if ((new FileBugfix(testlist[i])).exists()) { 
+-					return testlist[i]; 
++				if ((new FileBugfix(testlist[i])).exists()) {
++					return testlist[i];
+ 				}
+ 		}
+ 		return &quot;&quot;;
+@@ -354,7 +354,7 @@
+ 	/**
+ 	 * Method that gets called when a new element has been identified in pref.xml
+ 	 */
+-	
++
+ 	public void startElement(String name, AttributeList atts){
+ 		//Vm.debug(&quot;name = &quot;+name);
+ 		lastName=name;
+@@ -552,13 +552,13 @@
+ 		}
+ 		else if (name.equals(&quot;logkeeping&quot;)) {
+ 			tmp = atts.getValue(&quot;maximum&quot;);
+-			if (tmp != null) 
++			if (tmp != null)
+ 				maxLogsToKeep = Convert.parseInt(tmp);
+ 			if (maxLogsToKeep &lt; 0) maxLogsToKeep = 0;
+-			
++
+ 			tmp = atts.getValue(&quot;keepown&quot;);
+ 			if (tmp != null)
+-				alwaysKeepOwnLogs = Boolean.valueOf(tmp).booleanValue();  
++				alwaysKeepOwnLogs = Boolean.valueOf(tmp).booleanValue();
+ 		}
+ 		else if (name.equals(&quot;fillWhiteArea&quot;)){
+ 			tmp = atts.getValue(&quot;on&quot;);
+@@ -694,7 +694,7 @@
+ 			return absoluteBaseDir+&quot;maps&quot;+rCMP;
+ 		}
+ 	}
+-	
++
+ 	public void saveCustomMapsPath(String mapspath_) {
+ 		if (customMapsPath == null || !customMapsPath.equals(mapspath_)) {
+ 			customMapsPath=new String(mapspath_).replace('\\', '/');
+@@ -822,7 +822,7 @@
+ 
+ 	/**
+ 	 * tries to get the home data dir of the user
+-	 * e.g. &quot;c:\documents and...\&lt;user&gt;\my documents&quot; or &quot;/home/&lt;user&gt;&quot; in linux 
++	 * e.g. &quot;c:\documents and...\&lt;user&gt;\my documents&quot; or &quot;/home/&lt;user&gt;&quot; in linux
+ 	 * if none could be identified, &quot;/&quot; is returned.
+ 	 * @return
+ 	 */
+@@ -836,13 +836,8 @@
+ 		if (test.length() == 0)	test = &quot;/&quot;;
+ 		return test;
+ 	}
+-	/**
+-	 * Open Profile selector screen
+-	 * @param prof
+-	 * @param showProfileSelector
+-	 * @return True if a profile was selected
+-	 */
+-	public boolean selectProfile(Profile prof, int showProfileSelector, boolean hasNewButton) {
++
++	private void checkAbsoluteBaseDir() {
+ 		// If datadir is empty, ask for one
+ 		if (absoluteBaseDir.length()==0 || !(new FileBugfix(absoluteBaseDir)).exists()) {
+ 			do {
+@@ -853,11 +848,21 @@
+ 				setBaseDir(fc.getChosenFile().toString());
+ 			}while (!(new FileBugfix(absoluteBaseDir)).exists());
+ 		}
++	}
++
++	/**
++	 * Open Profile selector screen
++	 * @param prof
++	 * @param showProfileSelector
++	 * @return True if a profile was selected
++	 */
++	public boolean selectProfile(Profile prof, int showProfileSelector, boolean hasNewButton) {
++		checkAbsoluteBaseDir();
+ 		boolean profileExists=true;  // Assume that the profile exists
+ 		do {
+ 			if(!profileExists || (showProfileSelector==PROFILE_SELECTOR_FORCED_ON) ||
+ 					(showProfileSelector==PROFILE_SELECTOR_ONOROFF &amp;&amp; !autoReloadLastProfile)){ // Ask for the profile
+-				ProfilesForm f = new ProfilesForm(absoluteBaseDir,lastProfile,!profileExists || hasNewButton);
++				ProfilesForm f = new ProfilesForm(absoluteBaseDir,lastProfile,!profileExists || hasNewButton ? 0 : 1);
+ 				int code = f.execute();
+ 				// If no profile chosen (includes a new one), terminate
+ 				if (code==-1) return false; // Cancel pressed
+@@ -882,6 +887,47 @@
+ 		return true;
+ 	}
+ 
++	public void deleteProfile() {
++		checkAbsoluteBaseDir(); // perhaps not necessary
++		ProfilesForm f = new ProfilesForm(absoluteBaseDir,&quot;&quot;,2);
++		int code = f.execute();
++		// If no profile chosen (includes a new one), terminate
++		if (code==-1) return; // Cancel pressed
++		if (lastProfile.equals(f.newSelectedProfile)) {
++			// aktives Profil kann nicht gel&#246;scht / umbenannt werden;
++			new MessageBox(MyLocale.getMsg(321,&quot;Error&quot;),MyLocale.getMsg(227,&quot;[active profile cannot be deleted.]&quot;),FormBase.MBOK).execute();
++		}
++		else {
++			if (!(new FileBugfix(absoluteBaseDir+f.newSelectedProfile).delete()) ) {
++				// Fehler beim l&#246;schen des Profils;
++				new MessageBox(MyLocale.getMsg(321,&quot;Error&quot;),MyLocale.getMsg(226,&quot;[Profile cannot be deleted.]&quot;),FormBase.MBOK).execute();
++			}
++		}
++	}
++
++	public void renameProfile(ewe.ui.Frame parent) {
++		// not yet implemented
++		/*
++		checkAbsoluteBaseDir(); // perhaps not necessary
++		ProfilesForm f = new ProfilesForm(absoluteBaseDir,&quot;&quot;,3);
++		int code = f.execute();
++		// If no profile chosen (includes a new one), terminate
++		if (code==-1) return; // Cancel pressed
++		if (lastProfile.equals(f.newSelectedProfile)) {
++			// aktives Profil kann nicht gel&#246;scht / umbenannt werden;
++			new MessageBox(MyLocale.getMsg(321,&quot;Error&quot;),MyLocale.getMsg(228,&quot;[active profile cannot be renamed.]&quot;),FormBase.MBOK).execute();
++		}
++		else {
++			NewProfileForm x=new NewProfileForm(absoluteBaseDir);
++			x.execute(parent, Gui.CENTER_FRAME);
++			if (!(new FileBugfix(absoluteBaseDir+f.newSelectedProfile).rename(x.profileDir))) {
++				// Fehler beim l&#246;schen des Profils;
++				new MessageBox(MyLocale.getMsg(321,&quot;Error&quot;),MyLocale.getMsg(229,&quot;[Profile cannot be renamed.]&quot;),FormBase.MBOK).execute();
++			}
++		}
++		*/		
++		new MessageBox(MyLocale.getMsg(321,&quot;Error&quot;),&quot;Noch nicht implementiert. Nutzen Sie solange das Betriebssystem um das Profilverzeichnis umzubenennen!&quot;,FormBase.MBOK).execute();
++	}
+     //////////////////////////////////////////////////////////////////////////////////////
+     // Log functions
+ 	//////////////////////////////////////////////////////////////////////////////////////
+@@ -1063,9 +1109,9 @@
+ 		Utils.sort(result, comp, false);
+ 		return result;
+ 	}
+-	
++
+ 	public String gpsbabel = null;
+-	
++
+ 	public void setgpsbabel() {
+ 		try{
+ 			ewe.sys.Process p = Vm.exec(&quot;gpsbabel -V&quot;);
+@@ -1084,17 +1130,17 @@
+ 			}
+ 		}
+ 	}
+-	
++
+ 	/** get directory where pref.xml is stored&lt;br&gt;
+ 	 *  use this if you need a path where the user has sufficient rights to create a file */
+ 	public String getPathToConfigFile() {
+ 		return pathToConfigFile;
+ 	}
+-	
++
+ 	public String getBaseDir() {
+ 		return baseDir;
+ 	}
+-	
++
+ 	public void setBaseDir(String dir) {
+ 		baseDir = dir;
+ 		baseDir=baseDir.replace('\\','/');
+
+Modified: trunk/src/CacheWolf/ProfilesForm.java
+===================================================================
+--- trunk/src/CacheWolf/ProfilesForm.java	2009-10-10 16:28:59 UTC (rev 2259)
++++ trunk/src/CacheWolf/ProfilesForm.java	2009-10-10 22:07:05 UTC (rev 2260)
+@@ -17,21 +17,21 @@
+ 	private class MyList extends mList {
+ 		private int first=1;
+ 		private int select;
+-	    
++
+ 		public MyList() {
+ 			super(1,1,false);
+ 		}
+-		
++
+ 		public void selectLastProfile(String selectedItem) {
+ 			selectItem(selectedItem);
+ 			select=getSelectedIndex(0);
+ 		}
+ 
+ 		public void doPaint(Graphics gr,Rect area) {
+-			if (first==1) { 
++			if (first==1) {
+ 				first=0;
+ 				selectAndView(select);
+-				makeVisible(select); 
++				makeVisible(select);
+ 			}
+ 			super.doPaint(gr,area);
+ 		}
+@@ -45,7 +45,7 @@
+ 			sp.modify(0,TakeControlEvents);
+ 			return sp;
+ 		}
+-		
++
+ 	}
+ 
+ 	private MyList choice;
+@@ -55,13 +55,13 @@
+ 	public String newSelectedProfile;	// This is only used if a new profile is being created
+ 
+ 	/**
+-	*	Constructor to create a form to select profiles. It requires that the preferences 
++	*	Constructor to create a form to select profiles. It requires that the preferences
+ 	*	have been loaded so that the calling parameters can be set.
+ 	* @param baseDir The base directory which holds one subdirectory per profile
+ 	* @param oldProfiles List of names of old profiles
+ 	* @param selectedProfile Name of the last used profile
+ 	*/
+-	public ProfilesForm(String baseDir, String selectedProfile, boolean hasNewButton){
++	public ProfilesForm(String baseDir, String selectedProfile, int outfit){
+ 		super();
+     	resizable =  false;
+ 		int w=MyLocale.getScreenWidth();
+@@ -69,22 +69,39 @@
+ 		if (w&gt;240) w=240;
+ 		if (h&gt;320) h=320;
+ 		setPreferredSize(w,h);
+-	    defaultTags.set(CellConstants.INSETS,new Insets(2,2,2,2));		
++	    defaultTags.set(CellConstants.INSETS,new Insets(2,2,2,2));
+ 		title = MyLocale.getMsg(1301,&quot;Select Profile:&quot;);
+-		if (hasNewButton) {
++		if (outfit==0) {
+ 			addNext(new mLabel(MyLocale.getMsg(1106,&quot;Choose profile or New&quot;)),DONTSTRETCH,DONTSTRETCH|LEFT);
+ 			addLast(btnNew=new mButton(MyLocale.getMsg(1107,&quot;New&quot;)),HSTRETCH,HFILL|RIGHT);
+-		} else {
+-			addLast(new mLabel(MyLocale.getMsg(1108,&quot;Choose profile&quot;)),DONTSTRETCH,DONTSTRETCH|LEFT);
+ 		}
+-		
++		else {
++			if (outfit==1) {
++				addLast(new mLabel(MyLocale.getMsg(1108,&quot;Choose profile&quot;)),DONTSTRETCH,DONTSTRETCH|LEFT);
++			}
++			else {
++				if (outfit==2) {
++					//delete
++					String msg = MyLocale.getMsg(1118,&quot;profile&quot;) + &quot; &quot; + MyLocale.getMsg(1125,&quot;delete&quot;) ; 
++					addLast(new mLabel(msg),DONTSTRETCH,DONTSTRETCH|LEFT);
++				}
++				else {
++					if (outfit==3) {
++						// rename
++						String msg = MyLocale.getMsg(1118,&quot;profile&quot;) + &quot; &quot; + MyLocale.getMsg(1126,&quot;rename&quot;) ; 
++						addLast(new mLabel(msg),DONTSTRETCH,DONTSTRETCH|LEFT);
++					}
++				}
++			}
++		}
++
+ 		choice=new MyList();
+ 		// Get all subdirectories in the base directory
+ 		File fileBaseDir=new FileBugfix(baseDir);
+ 		String[] existingProfiles=fileBaseDir.list(&quot;*.*&quot;,FileBase.LIST_DIRECTORIES_ONLY);
+         // Now add these subdirectories to the list of profiles but
+         // exclude the &quot;maps&quot; directory which will contain the moving maps
+-        for (int i=0; i&lt;existingProfiles.length; i++) 
++        for (int i=0; i&lt;existingProfiles.length; i++)
+ 			if (!existingProfiles[i].equalsIgnoreCase(&quot;maps&quot;)) choice.addItem(existingProfiles[i]);
+         // Highlight the profile that was used last
+         choice.selectLastProfile(selectedProfile);
+@@ -101,7 +118,7 @@
+ 		this.baseDir=baseDir;
+ 		choice.takeFocus(ControlConstants.ByKeyboard);
+ 	}
+-	
++
+ 	/**
+ 	 * Ask for a new profile directory. If it exists, cancel. If it does not exist, create it
+ 	 * @return Name of directory (just the part below baseDir)
+@@ -109,7 +126,7 @@
+ 	public String createNewProfile() {
+ 		NewProfileForm f=new NewProfileForm(baseDir);
+ 	    int code=f.execute(getFrame(), Gui.CENTER_FRAME);
+-		if (code==0) { 
++		if (code==0) {
+ 			 return f.profileDir;
+ 		} else
+ 			 return &quot;&quot;;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002183.html">[Cachewolf-svn] r2259 - in trunk/tools/MakeWMSFile/capxml2wms: .	bin/Debug
+</A></li>
+	<LI>Next message: <A HREF="002185.html">[Cachewolf-svn] r2261 - trunk/res_noewe/languages
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2184">[ date ]</a>
+              <a href="thread.html#2184">[ thread ]</a>
+              <a href="subject.html#2184">[ subject ]</a>
+              <a href="author.html#2184">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,134 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2188 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-September/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2188%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200909141831.n8EIVIeo003843%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002111.html">
+   <LINK REL="Next"  HREF="002113.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2188 - trunk/src/CacheWolf</H1>
+    <B>mik77 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2188%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200909141831.n8EIVIeo003843%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2188 - trunk/src/CacheWolf">mik77 at mail.berlios.de
+       </A><BR>
+    <I>Mon Sep 14 20:31:18 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002111.html">[Cachewolf-svn] r2187 - trunk/src/CacheWolf/imp
+</A></li>
+        <LI>Next message: <A HREF="002113.html">[Cachewolf-svn] r2189 - in trunk/src/CacheWolf: . navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2112">[ date ]</a>
+              <a href="thread.html#2112">[ thread ]</a>
+              <a href="subject.html#2112">[ subject ]</a>
+              <a href="author.html#2112">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mik77
+Date: 2009-09-14 20:31:15 +0200 (Mon, 14 Sep 2009)
+New Revision: 2188
+
+Modified:
+   trunk/src/CacheWolf/CacheHolderDetail.java
+   trunk/src/CacheWolf/Profile.java
+Log:
+Some more bugfixes for relative path to data dir
+
+Modified: trunk/src/CacheWolf/CacheHolderDetail.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolderDetail.java	2009-09-13 23:29:11 UTC (rev 2187)
++++ trunk/src/CacheWolf/CacheHolderDetail.java	2009-09-14 18:31:15 UTC (rev 2188)
+@@ -185,11 +185,21 @@
+ 			// If parent cache has empty waypoint then don't do anything. This might happen
+ 			// when a cache object is freshly created to serve as container for imported data
+ 			if (this.getParent().getWayPoint().equals(CacheHolder.EMPTY)) return;
+-			
+-			if (new FileBugfix(dir + getParent().getWayPoint().toLowerCase() + &quot;.xml&quot;).exists()) in = new FileReader(dir+getParent().getWayPoint().toLowerCase() + &quot;.xml&quot;);
++			FileBugfix cacheFile = new FileBugfix(dir + getParent().getWayPoint().toLowerCase() + &quot;.xml&quot;);			
++			if (cacheFile.exists()) {
++				try {
++					in = new FileReader(cacheFile.getAbsolutePath());
++				} catch (FileNotFoundException e) {
++					in = null; //exception is thrown again below, if file could not be found in upper case, too
++				}
++			}
+ 			if (in == null) {
+-				if (new FileBugfix(dir + getParent().getWayPoint() + &quot;.xml&quot;).exists()) in = new FileReader(dir+getParent().getWayPoint() + &quot;.xml&quot;);
++				cacheFile = new FileBugfix(dir + getParent().getWayPoint() + &quot;.xml&quot;);			
++				if (cacheFile.exists()) {
++					in = new FileReader(cacheFile.getAbsolutePath());
++				}
+ 			}
++
+ 			if (in == null) throw new FileNotFoundException(dir+getParent().getWayPoint().toLowerCase()+&quot;.xml&quot;);
+ 			if (Global.getPref().debug) Global.getPref().log(&quot;Reading file &quot;+getParent().getWayPoint() + &quot;.xml&quot;);
+ 			String text= in.readAll();
+@@ -343,7 +353,7 @@
+ 			}
+ 			//Vm.debug(&quot;Writing to: &quot; +dir + &quot;for: &quot; + wayPoint);
+ 			try{
+-			  detfile = new PrintWriter(new BufferedWriter(new FileWriter(dir + getParent().getWayPoint().toLowerCase() + &quot;.xml&quot;)));
++			  detfile = new PrintWriter(new BufferedWriter(new FileWriter(new FileBugfix(dir + getParent().getWayPoint().toLowerCase() + &quot;.xml&quot;).getAbsolutePath())));
+ 			} catch (Exception e) {
+ 				Global.getPref().log(&quot;Problem creating details file&quot;,e,true);
+ 				return;
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2009-09-13 23:29:11 UTC (rev 2187)
++++ trunk/src/CacheWolf/Profile.java	2009-09-14 18:31:15 UTC (rev 2188)
+@@ -148,14 +148,16 @@
+ 		CacheHolder ch;
+ 		try {
+ 			File backup=new File(dataDir+&quot;index.bak&quot;);
+-			if (backup.exists()) backup.delete();
++			if (backup.exists()) {
++				backup.delete();
++			}
+ 			File index=new File(dataDir+&quot;index.xml&quot;);
+ 			index.rename(&quot;index.bak&quot;);
+ 		} catch (Exception ex) {
+ 			pref.log(&quot;Error deleting backup or renaming index.xml&quot;);
+ 		}
+ 		try{
+-			detfile = new PrintWriter(new BufferedWriter(new FileWriter(dataDir + &quot;index.xml&quot;)));
++			detfile = new PrintWriter(new BufferedWriter(new FileWriter(new FileBugfix(dataDir + &quot;index.xml&quot;).getAbsolutePath())));
+ 		} catch (Exception e) {
+ 			Vm.debug(&quot;Problem creating index file &quot;+e.toString()+&quot;\nFilename=&quot;+dataDir + &quot;index.xml&quot;);
+ 			return;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002111.html">[Cachewolf-svn] r2187 - trunk/src/CacheWolf/imp
+</A></li>
+	<LI>Next message: <A HREF="002113.html">[Cachewolf-svn] r2189 - in trunk/src/CacheWolf: . navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2112">[ date ]</a>
+              <a href="thread.html#2112">[ thread ]</a>
+              <a href="subject.html#2112">[ subject ]</a>
+              <a href="author.html#2112">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

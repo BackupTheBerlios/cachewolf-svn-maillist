@@ -1,0 +1,175 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r550 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r550%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702101742.l1AHgS0d019634%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000357.html">
+   <LINK REL="Next"  HREF="000359.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r550 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r550%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702101742.l1AHgS0d019634%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r550 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Sat Feb 10 18:42:28 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000357.html">[Cachewolf-svn] r549 - trunk/resources
+</A></li>
+        <LI>Next message: <A HREF="000359.html">[Cachewolf-svn] r551 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#358">[ date ]</a>
+              <a href="thread.html#358">[ thread ]</a>
+              <a href="subject.html#358">[ subject ]</a>
+              <a href="author.html#358">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-02-10 18:42:09 +0100 (Sat, 10 Feb 2007)
+New Revision: 550
+
+Modified:
+   trunk/src/CacheWolf/GotoPanel.java
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/MapsList.java
+   trunk/src/CacheWolf/MovingMap.java
+   trunk/src/CacheWolf/Navigate.java
+Log:
+MovingMap: Bug fixed: Es gab beim Aufruf der MovingMap eine NullPointerException, wenn GPS lief, aber keine Karte f?\195?\188r die aktuelle Position zurverf?\195?\188gungs steht
+MovingMap: Bug fixed: Wenn GPS lief, bevor MovingMap gestartet wurde, wurde GPS-Pos erst angeziebt nach Druck auf &quot;snapToGps&quot;
+MovingMap: zus?\195?\164tzliche Debugausgabe f?\195?\188r Problem von Moorteufel
+
+Modified: trunk/src/CacheWolf/GotoPanel.java
+===================================================================
+--- trunk/src/CacheWolf/GotoPanel.java	2007-02-10 17:37:41 UTC (rev 549)
++++ trunk/src/CacheWolf/GotoPanel.java	2007-02-10 17:42:09 UTC (rev 550)
+@@ -235,7 +235,7 @@
+ 		//update distance
+ 		Double tmp = new Double();
+ 		if (myNavigation.gpsPos.isValid() &amp;&amp; myNavigation.destination.isValid() ) {
+-			tmp.set(myNavigation.gpsPos.getDistance(myNavigation.destination));
++			tmp.set(myNavigation.gpsPos.getDistance(myNavigation.destination)); // TODO distance in navigate.java berechnen
+ 			if (tmp.value &gt;= 1){
+ 				lblDist.setText(MyLocale.formatDouble(tmp,&quot;0.000&quot;)+ &quot; km&quot;);
+ 			}
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2007-02-10 17:37:41 UTC (rev 549)
++++ trunk/src/CacheWolf/MainTab.java	2007-02-10 17:42:09 UTC (rev 550)
+@@ -214,6 +214,7 @@
+ 		if (mm == null) {
+ 			mm = new MovingMap(nav, profile.cacheDB);
+ 			nav.setMovingMap(mm);
++			if (nav.gpsRunning) mm.gpsStarted();
+ 		} 
+ 		if (forceCenter) mm.setGpsStatus(MovingMap.noGPS); // disconnect movingMap from GPS TODO only if GPS-pos is not on the screen
+ 		mm.updatePosition(centerTo.latDec, centerTo.lonDec);
+
+Modified: trunk/src/CacheWolf/MapsList.java
+===================================================================
+--- trunk/src/CacheWolf/MapsList.java	2007-02-10 17:37:41 UTC (rev 549)
++++ trunk/src/CacheWolf/MapsList.java	2007-02-10 17:42:09 UTC (rev 550)
+@@ -37,6 +37,7 @@
+ 		MessageBox f = null;
+ 		for (int j = dirs.size()-1; j &gt;= 0; j--) {
+ 			files = new File(mapsPath+&quot;/&quot;+dirs.get(j));
++			ewe.sys.Vm.debug(&quot;mapd-Dirs:&quot;+files);
+ 			dateien = files.list(&quot;*.wfl&quot;, File.LIST_FILES_ONLY);
+ 			for(int i = 0; i &lt; dateien.length;i++){
+ 				rawFileName = dateien[i].substring(0, dateien[i].lastIndexOf(&quot;.&quot;));
+
+Modified: trunk/src/CacheWolf/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/MovingMap.java	2007-02-10 17:37:41 UTC (rev 549)
++++ trunk/src/CacheWolf/MovingMap.java	2007-02-10 17:42:09 UTC (rev 550)
+@@ -865,6 +865,7 @@
+ 	
+ 	public void gpsStarted() {
+ 		addTrack(myNavigation.curTrack);
++		ignoreGps = false;
+ 	}
+ 	public void gpsStoped() {
+ 		setGpsStatus(MovingMap.noGPS);
+@@ -1719,7 +1720,6 @@
+ 			for(int i = 0; i&lt;maps.size();i++){
+ 				map = new MapInfoObject();
+ 				map = (MapInfoObject)maps.get(i);
+-				if (map.mapName.equals(curMap.mapName)) oldmap = i;
+ 				if (map.inBound(Gps.latDec, Gps.lonDec) == true) 
+ 				{
+ 					list.addItem(i + &quot;: &quot; + map.mapName);
+
+Modified: trunk/src/CacheWolf/Navigate.java
+===================================================================
+--- trunk/src/CacheWolf/Navigate.java	2007-02-10 17:37:41 UTC (rev 549)
++++ trunk/src/CacheWolf/Navigate.java	2007-02-10 17:42:09 UTC (rev 550)
+@@ -22,6 +22,7 @@
+ 	public SerialThread serThread = null;
+ 	public Preferences pref = Global.getPref();
+ 	public UpdateThread tickerThread;
++	public boolean gpsRunning = false;
+ 	boolean lograw = false;
+ 	int logIntervall = 10;
+ 
+@@ -33,7 +34,7 @@
+ 	}
+ 
+ 	public void startGps() {
+-		if (serThread != null) if (serThread.isAlive()) return;
++		if (serThread != null) if (serThread.isAlive()) return; // TODO use gpsRunning
+ 		try {
+ 			serThread = new SerialThread(pref.mySPO, gpsPos, (pref.forwardGPS ? pref.forwardGpsHost : &quot;&quot;));
+ 			if (pref.forwardGPS &amp;&amp; !serThread.tcpForward) {
+@@ -45,6 +46,7 @@
+ 			}
+ 			serThread.start();
+ 			startDisplayTimer();
++			gpsRunning = true;
+ 			curTrack = new Track(trackColor); // TODO addTrack here to MovingMap? see MovingMapPanel.snapToGps
+ 			if (lograw)	gpsPos.startLog(Global.getProfile().dataDir, logIntervall, CWGPSPoint.LOGALL);
+ 			if (gotoPanel != null) gotoPanel.gpsStarted();
+@@ -71,6 +73,7 @@
+ 		serThread.stop();
+ 		stopDisplayTimer();
+ 		gpsPos.stopLog();
++		gpsRunning = false;
+ 		if (gotoPanel != null) gotoPanel.gpsStoped();
+ 		if (movingMap != null) movingMap.gpsStoped();
+ 	}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000357.html">[Cachewolf-svn] r549 - trunk/resources
+</A></li>
+	<LI>Next message: <A HREF="000359.html">[Cachewolf-svn] r551 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#358">[ date ]</a>
+              <a href="thread.html#358">[ thread ]</a>
+              <a href="subject.html#358">[ subject ]</a>
+              <a href="author.html#358">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

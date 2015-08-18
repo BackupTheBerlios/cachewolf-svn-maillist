@@ -1,0 +1,5111 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1607 - in experiments/EVEhist/src: . eve eve/ui	eve/ui/formatted eve/ui/formatted/data
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1607%20-%20in%20experiments/EVEhist/src%3A%20.%20eve%20eve/ui%0A%09eve/ui/formatted%20eve/ui/formatted/data&In-Reply-To=%3C200902011137.n11BbRSf002421%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001509.html">
+   <LINK REL="Next"  HREF="001511.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1607 - in experiments/EVEhist/src: . eve eve/ui	eve/ui/formatted eve/ui/formatted/data</H1>
+    <B>engywuck at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1607%20-%20in%20experiments/EVEhist/src%3A%20.%20eve%20eve/ui%0A%09eve/ui/formatted%20eve/ui/formatted/data&In-Reply-To=%3C200902011137.n11BbRSf002421%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1607 - in experiments/EVEhist/src: . eve eve/ui	eve/ui/formatted eve/ui/formatted/data">engywuck at mail.berlios.de
+       </A><BR>
+    <I>Sun Feb  1 12:37:27 CET 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001509.html">[Bug #15146] GPX Importer erkennt Funddatum nicht f&#252;r Events und Webcams
+</A></li>
+        <LI>Next message: <A HREF="001511.html">[Cachewolf-svn] r1608 - experiments/EVEhist/resources
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1510">[ date ]</a>
+              <a href="thread.html#1510">[ thread ]</a>
+              <a href="subject.html#1510">[ subject ]</a>
+              <a href="author.html#1510">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: engywuck
+Date: 2009-02-01 12:37:18 +0100 (Sun, 01 Feb 2009)
+New Revision: 1607
+
+Added:
+   experiments/EVEhist/src/eve/
+   experiments/EVEhist/src/eve/ui/
+   experiments/EVEhist/src/eve/ui/formatted/
+   experiments/EVEhist/src/eve/ui/formatted/FormattedTextMaker.java
+   experiments/EVEhist/src/eve/ui/formatted/FormattedTextMakerBase.java
+   experiments/EVEhist/src/eve/ui/formatted/HotSpot.java
+   experiments/EVEhist/src/eve/ui/formatted/HtmlDisplay.java
+   experiments/EVEhist/src/eve/ui/formatted/ImageResolver.java
+   experiments/EVEhist/src/eve/ui/formatted/StreamImageResolver.java
+   experiments/EVEhist/src/eve/ui/formatted/TextDisplay.java
+   experiments/EVEhist/src/eve/ui/formatted/TextFormatter.java
+   experiments/EVEhist/src/eve/ui/formatted/TextPosition.java
+   experiments/EVEhist/src/eve/ui/formatted/data/
+   experiments/EVEhist/src/eve/ui/formatted/data/HtmlViewer.java
+   experiments/EVEhist/src/eve/ui/formatted/data/WebBrowser.java
+Log:
+Added source of eve.ui.formatted as workround for HtmlDisplay bug on VGA PDAs. (<A HREF="http://www.ewesoft.com/cgi-local/eve-yabb/YaBB.pl?num=1211749027">http://www.ewesoft.com/cgi-local/eve-yabb/YaBB.pl?num=1211749027</A>)
+
+Added: experiments/EVEhist/src/eve/ui/formatted/FormattedTextMaker.java
+===================================================================
+--- experiments/EVEhist/src/eve/ui/formatted/FormattedTextMaker.java	2009-01-31 13:48:30 UTC (rev 1606)
++++ experiments/EVEhist/src/eve/ui/formatted/FormattedTextMaker.java	2009-02-01 11:37:18 UTC (rev 1607)
+@@ -0,0 +1,1999 @@
++
++package eve.ui.formatted;
++import java.util.Hashtable;
++import java.util.Vector;
++
++import eve.data.MutableTreeNodeObject;
++import eve.data.PropertyList;
++import eve.fx.Color;
++import eve.fx.Dimension;
++import eve.fx.DisplayLine;
++import eve.fx.DisplayLineSpecs;
++import eve.fx.Font;
++import eve.fx.FormattedTextSpecs;
++import eve.fx.IImage;
++import eve.fx.ImageDecoder;
++import eve.fx.PixelBuffer;
++import eve.io.File;
++import eve.sys.Convert;
++import eve.sys.Event;
++import eve.sys.EventListener;
++import eve.sys.Gate;
++import eve.sys.Handle;
++import eve.sys.Task;
++import eve.sys.TimeOut;
++import eve.sys.Vm;
++import eve.sys.YieldToEvents;
++import eve.sys.mThread;
++import eve.ui.Application;
++import eve.ui.ReportException;
++import eve.ui.TextPad;
++import eve.ui.event.ControlEvent;
++import eve.util.ByteArray;
++import eve.util.CharArray;
++import eve.util.FormattedDataSource;
++import eve.util.Range;
++import eve.util.SubString;
++import eve.util.TagList;
++import eve.util.Utils;
++import eve.util.mString;
++/**
++* This is used to build up formatted text - via add() or parseHtml(), which
++* is then added to a TextDisplay.
++**/
++//##################################################################
++public class FormattedTextMaker extends FormattedTextMakerBase implements EventListener, ImageResolver{
++//##################################################################
++
++CharArray text = new CharArray();
++Vector entries = new Vector();
++Vector creating = new Vector();
++
++//===================================================================
++public FormattedTextMaker()
++//===================================================================
++{
++	//rmatters.set(TEST,new TestFormatter());
++}
++//===================================================================
++public void add(String toAdd)
++//===================================================================
++{
++	add(Vm.getStringChars(toAdd),0,toAdd.length());
++}
++//===================================================================
++public void add(char []toAdd,int start,int length)
++//===================================================================
++{
++	//if (!stopAdding)
++	text.append(toAdd,start,length);
++}
++
++boolean inPreFormat = false;
++
++/*
++//===================================================================
++int indexOf(char[] data,int start,int length,char[] look,int lookStart,int lookLength,int startIndex)
++//===================================================================
++{
++	if (lookLength &gt; length) return -1;
++	for (int s = startIndex; s&lt;length; s++){
++		int idx = SubString.indexOf(look[0],data,start,length,s,0);
++		if (idx == -1) return -1;
++		if (SubString.equals(data,idx,length-idx,look,lookStart,lookLength,SubString.STARTS_WITH)) return idx;
++		s = idx;
++	}
++	return -1;
++}
++boolean debug = false;
++*/
++SubString replaced = new SubString();
++//===================================================================
++void doReplacements(SubString data,Object [] replacers)
++//===================================================================
++{
++	if (replacers.length == 0) return;
++	if (replacers[0] instanceof String)
++		for (int i = 0; i&lt;replacers.length; i++)
++			replacers[i] = Vm.getStringChars((String)replacers[i]);
++	for (int i = 0; i&lt;replacers.length; i+=2)
++		data.replace((char [])replacers[i],(char [])replacers[i+1]);
++}
++//===================================================================
++public void addHtml(String toAdd)
++//===================================================================
++{
++	if (ampList == null)
++		new SubString().set(amps).split('|',(ampList = new Vector()),0);
++	if (replaced.data == null || replaced.data.length &lt; toAdd.length())
++		replaced.data = new char[toAdd.length()];
++	mString.copyInto(toAdd,replaced.data,0);
++	replaced.length = toAdd.length();
++	replaced.start = 0;
++	//doReplacements(replaced,replacements);
++	char [] chars = replaced.data;
++	int end = replaced.start+replaced.length;
++	int start = replaced.start;
++	for (int i = start; i&lt;end; i++){
++		if (chars[i] == '&amp;'){
++			int e = i+1;
++			for (; e&lt;end; e++)
++				if (chars[e] == ';') break;
++			if (e == end) break;
++			char toSub = '?';
++			if (chars[i+1] == '#')
++				toSub = (char)Convert.toInt(new String(chars,i+2,e-i-2));
++			else{
++				int max = ampList.size();
++				for (int j = 0; j&lt;max; j++){
++					SubString s = (SubString)ampList.get(j);
++					if (SubString.equals(chars,i+1,e-(i+1),s.data,s.start+1,s.length-1,SubString.IGNORE_CASE))
++						toSub = s.data[s.start];
++				}
++			}
++			if (e != end-1) System.arraycopy(chars,e+1,chars,i+1,end-(e+1));
++			chars[i] = toSub;
++			end -= (e+1)-(i+1);
++		}
++	}	
++	replaced.length = end-replaced.start;
++	if (inPreFormat) {
++		for (int i = start; i&lt;end; i++)
++			if (chars[i] == ' ') chars[i] = 160;
++			else if (chars[i] == '\r') chars[i] = ' ';
++		//doReplacements(replaced,preReplacements);
++	}else {
++		//doReplacements(replaced,htmlReplacements);
++		for (int i = start; i&lt;end; i++){
++			char c = chars[i];
++			if (c &lt;= 27) {
++				chars[i] = ' ';
++			}
++		}
++		int first = -1;
++		for (int i = start; i&lt;end; i++){
++			if (chars[i] == ' '){
++				if (first == -1) first = i;
++			}else{
++				if (first != -1 &amp;&amp; first != i-1){
++					System.arraycopy(chars,i,chars,first+1,end-i);
++					end -= i-first-1;
++				}
++				first = -1;
++			}
++		}
++		if (first != -1) end = first+1;
++		replaced.length = end-replaced.start;
++		
++		if (replaced.length &gt; 0){
++			if (replaced.data[replaced.start] == ' '){
++				char c = text.length == 0 ? '\n' : text.data[text.length-1];
++				if (c == '\n' || c == ' ') {
++					replaced.start++;
++					replaced.length--;
++				}
++			}
++		}
++	}
++	if (replaced.length != 0){
++		add(replaced.data,replaced.start,replaced.length);
++		startFresh = endedParagraph = endedTag = false;
++	}
++}
++
++//===================================================================
++public void lineBreak()
++//===================================================================
++{
++	//if (cancel(PARAGRAPH) != null) addBlankLine();
++	//else 
++		add(&quot;\n&quot;);
++}
++//===================================================================
++public void conditionalLineBreak()
++//===================================================================
++{
++	//if (cancel(PARAGRAPH) != null) addBlankLine();
++	//else{
++		if (text.length == 0) return;
++		else if (text.data[text.length-1] == '\n') return;
++		add(&quot;\n&quot;);
++	//}
++}
++//===================================================================
++public void addBlankLine()
++//===================================================================
++{
++	if (text.length != 0 &amp;&amp; text.data[text.length-1] == '\n'){
++		if (text.length == 1) ;
++		else if (text.data[text.length-2] != '\n')
++			add(&quot;\n&quot;);
++	}else if (text.length == 0) add(&quot;\n&quot;);
++	else add(&quot;\n\n&quot;);
++}
++//===================================================================
++Color toColor(Object colorOrName)
++//===================================================================
++{
++	return toColor(colorOrName,Color.Black);
++}
++//===================================================================
++Color toColor(Object colorOrName,Color defaultColor)
++//===================================================================
++{
++	if (colorOrName instanceof Color) return ((Color)colorOrName);
++	String color = (colorOrName instanceof String) ? (String)colorOrName : null;
++	if (color == null || color.length() == 0) return defaultColor;
++	int col = 0, max = color.length();
++	if (color.charAt(0) != '#'){
++		color = color.toLowerCase();
++		int where = colors.indexOf(color);
++		if (where == -1) color = '#'+color;//return Color.Black;
++		else try{
++			color = '#'+colors.substring(where+color.length(),where+color.length()+6);
++		}catch(Exception e){
++			return defaultColor;
++		}
++	}
++	max = color.length();
++	color = color.toUpperCase();
++	for (int i = 1; i&lt;max; i++){
++		char c = color.charAt(i);
++		if (c &gt;= '0' &amp;&amp; c &lt;= '9')
++			col = col*16+(c-'0');
++		else if (c &gt;= 'A' &amp;&amp; c &lt;= 'F')
++			col = col*16+10+(c-'A');
++		else
++			return defaultColor;
++	}
++	return new Color((col &gt;&gt; 16) &amp; 0xff,(col &gt;&gt; 8) &amp; 0xff, col &amp; 0xff);
++}
++
++
++//===================================================================
++String findStyle(char [] source,String styleName)
++//===================================================================
++{
++	if (source == null || styleName == null) return null;
++	char [] look = Vm.getStringChars(styleName);
++	
++	for (int i = 0;;i++){
++		i = SubString.indexOf(':',source,0,source.length,i,0);
++		//Vm.debug(&quot;Look: &quot;+styleName+&quot; at &quot;+i);
++		if (i == -1) return null;
++		if (i == 0) continue;
++		int e, s;
++		for (e = i-1; e&gt;=0 &amp;&amp; Character.isWhitespace(source[e]); e--)
++			;
++		if (e&lt;0) continue;
++		for (s = e; s&gt;=0 &amp;&amp; source[s] != ';' &amp;&amp; !Character.isWhitespace(source[s]); s--)
++			;
++		s++;
++		int len = e-s+1;
++		if (!SubString.equals(look,0,look.length,source,s,len,SubString.IGNORE_CASE))
++			continue;
++		//
++		//Vm.debug(&quot;Found: &quot;+styleName);
++		//
++		for (s = i+1; s&lt;source.length &amp;&amp; Character.isWhitespace(source[s]); s++)
++			;
++		if (s &gt;= source.length) return null;
++		if (source[s] == '&quot;' || source[s] == '\''){
++			char eq = source[s++];
++			for (e = s; e&lt;source.length &amp;&amp; source[e] != eq; e++)
++				;
++			e--;
++		}else{
++			for (e = s; e&lt;source.length &amp;&amp; source[e] != ';' &amp;&amp; !Character.isWhitespace(source[e]); e++)
++				;
++			e--;
++		}
++		if (e&lt;s) return &quot;&quot;;
++		else return new String(source,s,e-s+1);
++	}
++}
++
++//===================================================================
++int nextProperty(int start,char [] source,PropertyList list)
++//===================================================================
++{
++	int ei = -1;
++	for (int i = start; i&lt;source.length; i++)
++		if (source[i] == '=') {
++			ei = i;
++			break;
++		}
++	if (ei == -1) return -1;
++	String name = new String(source,start,ei-start).trim().toLowerCase();
++	char quote = 0;
++	int si = ei+1;
++	if (si &lt; source.length &amp;&amp; (source[si] == '&quot;' || source[si] == '\''))
++		quote = source[si++];
++	for (ei = si; ei&lt;source.length; ei++){
++		char c = source[ei];
++		if (((c == ' ' || c == '\n' || c == '\t')&amp;&amp; quote == 0) || c == quote) break;
++	}
++	if (ei &gt; si){
++		String value = new String(source,si,ei-si);
++		if (name.equals(&quot;color&quot;)){
++			list.add(name,toColor(value));
++		}else
++			list.add(name,value);
++	}	
++	return quote == 0 ? ei : ei+1;
++}
++
++//===================================================================
++PropertyList toProperties(String attributes)
++//===================================================================
++{
++	if (attributes == null || attributes.length() == 0) return null;
++	char [] source = Vm.getStringChars(attributes);
++	PropertyList pl = new PropertyList();
++	for (int i = nextProperty(0,source,pl); i != -1; i = nextProperty(i,source,pl))
++		;
++	String name = pl.getString(&quot;id&quot;,null);
++	if (name != null) pl.set(&quot;name&quot;,name);
++	return pl;
++}
++
++void printTree()
++{
++	String depth = &quot;&quot;;
++	for (Entry et = curEntry; et != null; et = (Entry)et.getParent())
++		depth += &quot;-&gt;&quot;+valueToName(et.type);
++	Vm.debug(depth);
++}
++
++int maxEntries = 0, nowEntries = 0;
++//-------------------------------------------------------------------
++Entry addType(int type,PropertyList attributes)
++//-------------------------------------------------------------------
++{
++	Entry e = new Entry();
++	e.type = type;
++	e.startIndex = text.length;
++	e.attributes = attributes;
++	creating.add(e);
++	curEntry.addChild(e);
++	curEntry = e;
++	nowEntries++;
++	if (nowEntries &gt; maxEntries) {
++		//Vm.debug(&quot;Max: &quot;+nowEntries);
++		//if (true || nowEntries == 50){
++			//printTree();
++		//}
++		maxEntries = nowEntries;
++	}
++	return e;
++}
++TagList formatters = new TagList();
++
++//-------------------------------------------------------------------
++protected void setupHotspot(HotSpot hs)
++//-------------------------------------------------------------------
++{
++	//hs.color = null;
++	//hs.fontFlags |= hs.FONT_CHANGE|Font.UNDERLINE;
++}
++//-------------------------------------------------------------------
++Entry findLast(int type,boolean removeIt)
++//-------------------------------------------------------------------
++{
++	int cs = creating.size()-1;
++	for (int i = cs; i &gt;= 0; i--){
++		Entry e = (Entry)creating.get(i);
++		if (e.type == type) {
++			e.length = text.length-e.startIndex;
++			//if (e.length == 0 &amp;&amp; type == HYPERLINK) e.length = 1;
++			TextFormatter tf = (TextFormatter)formatters.getValue(type,null);
++			String anchor = null;
++			if (tf == null){
++				if (type == HYPERLINK &amp;&amp; e.attributes != null){
++					tf = new HotSpot();
++					if ((anchor = PropertyList.getString(e.attributes,&quot;href&quot;,null)) != null){
++						tf.data = anchor;
++						tf.toolTip = PropertyList.getString(e.attributes,&quot;title&quot;,null);
++						setupHotspot((HotSpot)tf);
++						
++					}else if ((anchor = e.attributes.getString(&quot;name&quot;,null)) != null){
++						tf.data = &quot;!&quot;+anchor;
++						tf.fontFlags = 0;
++						tf.cursor = 0;
++						tf.color = null;
++					}
++				}
++				if (tf == null) tf = new TextFormatter();
++				gatherFormats(e,tf);
++			}
++			e.formatter = tf;
++			//
++			/*
++			if (i != cs){
++				while(true){
++					int j = creating.size()-1;
++					if (j &lt;= i) break;
++					int ty = ((Entry)creating.get(j)).type;
++					Vm.debug(&quot;Force ending: &quot;+valueToName(ty));
++					end(ty);
++				}
++			}
++			*/
++			if (removeIt) creating.remove(e);
++			//
++			// If any of the children are still open, then consider them my siblings instead.
++			//
++			/*
++			if (e.getParent() != null){
++				int max = e.getChildCount();
++				for (int c = 0; c&lt;
++			}
++			*/
++			return e;
++		}
++	}
++	return null;
++}
++
++//-------------------------------------------------------------------
++Color getStyleColor(char [] styles,String name)
++//-------------------------------------------------------------------
++{
++	String c = findStyle(styles,name);
++	if (c == null) return null;
++	return toColor(c,null);
++}
++
++//===================================================================
++public void setFormatFlags(Entry myEntry,TextFormatter tf, Entry e,boolean isFirst,PropertyList attributes)
++//===================================================================
++{
++	attributes = PropertyList.toPropertyList(attributes);
++	PropertyList ea = PropertyList.toPropertyList(e.attributes);
++	String style = ea.getString(&quot;style&quot;,null);
++	char [] st = style == null ? null : Vm.getStringChars(style);
++	
++	if (st != null){
++		if ((tf.fontFlags &amp; tf.FONT_FREEZE) == 0){
++			Color color = getStyleColor(st,&quot;color&quot;);
++			if (color != null) {
++				tf.fontFlags |= tf.FONT_CHANGE;
++				tf.color = color;
++			}
++		}
++		Color back = getStyleColor(st,&quot;background&quot;);
++		if (back != null) {
++			tf.backgroundColor = back;
++			tf.lineFlags |= tf.LINE_BACKGROUND_COLOR_CHANGE;
++		}
++	}
++	
++		switch(e.type){
++			case HYPERLINK:
++				if (PropertyList.getString(e.attributes,&quot;href&quot;,null) != null){
++					if (tf.color == null || (tf.fontFlags &amp; tf.FONT_FREEZE) == 0) {
++						tf.color = (Color)bodyData.getValue(&quot;link&quot;,HotSpot.hotColor);
++					}
++					tf.fontFlags |= tf.FONT_CHANGE|Font.UNDERLINE;
++				}
++				break;
++			case HR:
++				tf.lineFlags |= tf.LINE_DRAW_RULE;
++				break;
++			case STRONG:
++			case BOLD:
++				tf.fontFlags |= tf.FONT_CHANGE|Font.BOLD;
++				break;
++			case DFN:
++			case EM:
++			case ITALIC:
++				tf.fontFlags |= tf.FONT_CHANGE|Font.ITALIC;
++				break;
++			case UNDERLINE:
++				tf.fontFlags |= tf.FONT_CHANGE|Font.UNDERLINE;
++				break;
++			case CENTERED:
++				if (isFirst){
++					tf.lineFlags |= tf.LINE_CENTERED;
++				}
++				break;
++			case BLOCKQUOTE:
++				if (isFirst){
++					tf.lineFlags |= tf.LINE_RESPLIT;
++					tf.leftMarginShift += 40;
++				}
++				break;
++				
++			case TITLE:
++				tf.lineFlags |= tf.LINE_RIGHT_ALIGNED;
++				tf.fontFlags |= tf.FONT_CHANGE|Font.ITALIC;
++				break;
++				
++			case TELETYPE:
++				tf.fontFlags |= tf.FONT_CHANGE|tf.FONT_FREEZE;
++				tf.fontName = Application.findFont(&quot;fixed&quot;,true).getName();
++				break;
++			case BIG:
++				tf.fontFlags |= tf.FONT_CHANGE;
++				tf.fontSizeChange += 2;
++				break;
++			case SMALL:
++				tf.fontFlags |= tf.FONT_CHANGE;
++				tf.fontSizeChange -= 4;
++				break;
++			case FONT:
++				if ((tf.fontFlags &amp; tf.FONT_FREEZE) != 0) break;
++				tf.fontFlags |= tf.FONT_CHANGE|tf.FONT_FREEZE;
++				Color c = (Color)ea.getValue(&quot;color&quot;,null);
++				if (c != null) tf.color = c;
++				String face = ea.getString(&quot;face&quot;,null);
++				if (face != null) tf.fontName = face;
++				Object size = ea.getValue(&quot;size&quot;,null);
++				if (size instanceof String){
++					String siz = (String)size;
++					if (siz.charAt(0) == '+' || siz.charAt(0) == '-'){
++						int sz = Convert.toInt(siz.substring(1));
++						if (siz.charAt(0) == '-') sz *= -1;
++						ea.set(&quot;sizeChange&quot;,new Integer(sz*2));
++						size = null;
++					}else{
++						int sz = Convert.toInt(siz);
++						ea.set(&quot;size&quot;,size = new Integer(sz*2+12));
++					}
++				}
++				if (size instanceof Integer){
++					tf.fontSize = ((Integer)size).intValue();
++				}
++				tf.fontSizeChange = ea.getInt(&quot;sizeChange&quot;,0);
++				break;
++				
++			case PREFORMAT:
++				tf.fontFlags |= tf.FONT_CHANGE|tf.FONT_FREEZE;
++				tf.fontName = Application.findFont(&quot;fixed&quot;,true).getName();
++				if (isFirst){
++					tf.lineFlags |= tf.LINE_RESPLIT;
++				}
++				break;
++			case DD:
++				if (isFirst){
++					tf.lineFlags |= tf.LINE_RESPLIT;
++					tf.leftMarginShift += 40;
++				}
++				break;
++			case OLI:
++			case ULI:
++				if (isFirst){
++					tf.lineFlags |= tf.LINE_RESPLIT|tf.LINE_HEADER_RIGHT_ALIGN|tf.LINE_ADD_FIRST_LINE_HEADER;
++					tf.leftMarginShift += 40;
++				}
++				break;
++			case SPAN:
++				break;
++			case TABLE:
++				if (isFirst)
++					tf.lineFlags |= tf.LINE_CANCEL_ALIGNMENTS;
++					//break;
++			case TROW:
++			case TCELL:
++				if (isFirst){
++					String bg = ea.getString(&quot;bgcolor&quot;,null);
++					if (bg != null){
++						Color col = toColor(bg,null);
++						if (col != null) {
++							tf.lineFlags |= tf.LINE_BACKGROUND_COLOR_CHANGE;
++							tf.backgroundColor = col;
++						}
++					}
++				}
++				break;
++			case DIV:
++			case PARAGRAPH:
++				String align = PropertyList.getString(e.attributes,&quot;align&quot;,&quot;&quot;).toLowerCase();
++				if (isFirst){
++					if (align.equals(&quot;right&quot;)){
++						tf.lineFlags |= tf.LINE_RIGHT_ALIGNED;
++					}else if (align.equals(&quot;center&quot;)){
++						tf.lineFlags |= tf.LINE_CENTERED;
++					}
++				}
++				break;
++			case BODY:
++				/*
++				Object tc = PropertyList.getValue(e.attributes,&quot;text&quot;,null);
++				if (tc != null){
++					Color color = toColor(tc);
++					if (color != null){
++						tf.fontFlags |= tf.FONT_CHANGE;
++						tf.color = color;
++						if (e.attributes != null) e.attributes.set(&quot;text&quot;,color);
++					}
++				}
++				*/
++				break;
++				
++			case TEST:
++				tf.fontFlags |= tf.FONT_CHANGE;
++				tf.fontName = Application.findFont(&quot;fixed&quot;,true).getName();
++				if (isFirst){
++					tf.lineFlags |= tf.LINE_RESPLIT;
++					tf.lineFlags |= tf.LINE_RIGHT_ALIGNED;
++				}
++				break;
++			case ADDRESS:
++				tf.fontFlags |= tf.FONT_CHANGE|Font.ITALIC;
++				break;
++			case HEADING1:
++					tf.fontFlags |= tf.FONT_CHANGE|Font.BOLD;
++					tf.fontSizeChange = 2;
++					break;
++			case HEADING2:
++					tf.fontFlags |= tf.FONT_CHANGE|Font.BOLD;
++					tf.fontSizeChange = 1;
++					break;
++			case HEADING3:
++					tf.fontFlags |= tf.FONT_CHANGE|Font.BOLD;
++					break;
++			case HEADING4: case HEADING5: case HEADING6:
++					tf.fontFlags |= tf.FONT_CHANGE|Font.UNDERLINE;
++					break;
++	}
++	if (e.type &gt;= HEADING1 &amp;&amp; e.type &lt;= HEADING6){
++		String align = PropertyList.getString(e.attributes,&quot;align&quot;,&quot;&quot;).toLowerCase();
++		if (isFirst){
++			if (align.equals(&quot;right&quot;))
++				tf.lineFlags |= tf.LINE_RIGHT_ALIGNED;
++			else if (align.equals(&quot;center&quot;)) 
++				tf.lineFlags |= tf.LINE_CENTERED;
++		}
++	}
++}
++//===================================================================
++void gatherFormats(Entry e,TextFormatter tf)
++//===================================================================
++{
++	int idx = creating.indexOf(e);
++	for (int i = idx; i &gt;= 0; i--){
++		Entry et = (Entry)creating.get(i);
++		setFormatFlags(e,tf,et,i == idx,e.attributes);
++		//if (et.type &gt;= CENTERED) break;
++	}
++}
++//===================================================================
++public Entry start(int type)
++//===================================================================
++{
++	return addType(type,null);
++}
++//===================================================================
++public Entry start(int type,PropertyList attributes)
++//===================================================================
++{
++	//if (type &gt;= FIRST_SINGLE_LINE &amp;&amp; type &lt;= LAST_SINGLE_LINE) conditionalLineBreak();
++	if ((type &amp; BLOCK_LEVEL) != 0){
++		end(PARAGRAPH);
++		//addBlankLine();
++		conditionalLineBreak();
++		//if (((type &amp; IS_PARAGRAPH) != 0) &amp;&amp; (endedParagraph||!endedTag)) addBlankLine();
++		if (((type &amp; IS_PARAGRAPH) != 0) &amp;&amp; !startFresh) addBlankLine();
++	}
++	endedParagraph = false;
++	if ((type &amp; STARTS_FRESH) != 0) startFresh = true;
++	return addType(type,attributes);
++}
++
++Entry lastEntry = null;
++boolean endedParagraph = false;
++boolean startFresh = false;
++boolean endedTag = false;
++//===================================================================
++public Entry end(int type)
++//===================================================================
++{
++	Entry e = findLast(type,true);
++	if (e == null) return null;
++	entries.add(e);
++	//if (type &gt;= FIRST_SINGLE_LINE &amp;&amp; type &lt;= LAST_SINGLE_LINE) conditionalLineBreak();
++	if ((type &amp; BLOCK_LEVEL) != 0){
++		end(PARAGRAPH);
++		conditionalLineBreak();
++	}
++	//if (type &gt;= HEADING1 &amp;&amp; type &lt;= HEADING6) addBlankLine();
++	if (type == PARAGRAPH) endedParagraph = true;
++	if ((type &amp; IS_PARAGRAPH) != 0) endedParagraph = true;
++	endedTag = true;
++	if (e == curEntry){
++		curEntry = (Entry)e.getParent();
++		nowEntries--;
++	}else{
++		Entry tn;
++		for(tn = curEntry; tn != null &amp;&amp; tn.getParent() != e; tn = (Entry)tn.getParent())
++			;		
++		if (tn != null){
++			e.removeChild(tn);
++			((Entry)e.getParent()).addChild(tn);
++		}
++		nowEntries--;
++	}
++	if (curEntry == null) curEntry = root;
++	//printTree();	
++	return lastEntry = e;
++}
++//===================================================================
++public void removeEntry(Entry e)
++//===================================================================
++{
++	entries.remove(e);
++}
++//===================================================================
++public Entry startOrEnd(int type,PropertyList attributes,boolean ending)
++//===================================================================
++{
++	if (ending) return end(type);
++	else return start(type,attributes);
++}
++
++//===================================================================
++public Entry findFirst(int [] types)
++//===================================================================
++{
++	for (int i = creating.size()-1; i &gt;= 0; i--){
++		Entry e = (Entry)creating.get(i);
++		for (int j = 0; j&lt;types.length; j++){
++			if (e.type == types[j]) return e;
++		}
++	}
++	return null;
++}
++//===================================================================
++public Entry cancel(int type)
++//===================================================================
++{
++	for (int i = creating.size()-1; i &gt;= 0; i--){
++		Entry e = (Entry)creating.get(i);
++		if (e.type == type) {
++			creating.removeElementAt(i);
++			return e;
++		}
++	}
++	return null;
++}
++
++int building = 0;
++boolean shown = false;
++
++Gate splitLock = new Gate();
++
++//===================================================================
++public void linesSplit(TextDisplay pad)
++//===================================================================
++{
++	splitLock.synchronize(); try{
++	try{
++		/*
++		if (false &amp;&amp; !shown){
++			TreeControl tc = new TreeControl();
++			tc.getTreeTableModel().setRootObject(root);
++			Form f = new Form();
++			f.addLast(new ScrollBarPanel(tc)).setPreferredSize(300,400);
++			f.title = &quot;HTML Elements&quot;;
++			f.show();
++			shown = true;
++		}
++		*/
++		if (pad.getDim(null).width &lt;= 0) return;
++		//Vm.debug(&quot;-----------------&quot;);
++		pad.clearTextFormatters();
++		Vector v = new Vector(entries.size()+10);
++		root.startIndex = 0;
++		root.length = text.length;
++		root.formatter = new TextFormatter();
++		root.formatter.startLine = 0;
++		root.formatter.numLines = pad.getNumLines();
++		
++		if (!root.reformat(pad,new TextPosition(pad),v)) {
++			return;
++		}
++		if (root.needPass2){
++			//Vm.debug(&quot;Need pass 2&quot;);
++			Vector s = new Vector();
++			root.getLineSpacers(pad,0,pad.getLine(0),s);
++			int numSpacers = s.size();
++			if (numSpacers != 0){
++				int [] all = new int[pad.getNumLines()];
++				Utils.getIntSequence(all,0);
++				for (int i = 0; i&lt;numSpacers; i++)
++					((Entry)s.get(i)).addLineSpacers(pad,all);
++				root.fixFormatter(all);
++			}
++		}
++		/*
++		IntArray blanks = new IntArray();
++		root.addBlankLines(pad,blanks);
++		for (int i = 0; i&lt;blanks.length; i+=2){
++			Vm.debug(&quot;Line: &quot;+blanks.data[i]+&quot;, add: &quot;+blanks.data[i+1]);
++		}
++		*/
++		int max = v.size();
++		for (int i = 0; i&lt;max; i++){
++			TextFormatter tf = (TextFormatter)v.get(i);
++			pad.addTextFormatter(tf);
++		}
++		pad.formattersSet();
++	}catch(Throwable e){
++		new ReportException(e,null,null,false).execute();//show();
++		//Vm.debug(Vm.getStackTrace(e,10));
++	}
++	}finally{splitLock.unlock();}
++}
++
++TextDisplay myDisplay;
++//===================================================================
++public void addTo(TextDisplay pad)
++//===================================================================
++{
++	myDisplay = pad;
++	pad.addListener(this);
++	pad.setText(new String(text.data,0,text.length));
++}
++//===================================================================
++public void removeFrom(TextDisplay pad)
++//===================================================================
++{
++	pad.removeListener(this);
++	if (pad == myDisplay)
++		myDisplay = null;
++}
++//===================================================================
++public void onEvent(Event ev)
++//===================================================================
++{
++	if (ev instanceof ControlEvent &amp;&amp; ev.type == TextDisplay.LINES_SPLIT){
++		linesSplit((TextDisplay)ev.target);
++	}
++}
++
++
++int lastNewType = 200;
++
++Entry root = new Entry(), curEntry = root;
++
++//===================================================================
++public int addType(TextFormatter f)
++//===================================================================
++{
++	formatters.set(lastNewType++,f);
++	return lastNewType-1;
++}
++
++static int EndFormatterFlags = TextFormatter.LINE_CENTERED|TextFormatter.LINE_RIGHT_ALIGNED;
++
++	
++	TextPosition temp = new TextPosition();
++	static Range range = new Range(0,0);
++	
++	//##################################################################
++	public class Entry extends MutableTreeNodeObject{
++	//##################################################################
++	int startIndex;
++	int length;
++	TextFormatter formatter, endFormatter;
++	PropertyList attributes;
++	int type = 0;
++	int curSequence;
++	int groupID;
++	Object data;
++	int visit;
++	public String getName() {return toString()+&quot;, &quot;+attributes;}
++	public String toString() {return valueToName(type)+&quot;: (&quot;+startIndex+&quot;-&gt;&quot;+(startIndex+length)+&quot;)&quot;;}
++	boolean needPass2 = false;
++	int putLinesAbove = 0;
++	int needAbove, needBelow;
++	
++	//===================================================================
++	public Entry getRoot()
++	//===================================================================
++	{
++		for (Entry e = this; e != null; e = (Entry)e.getParent())
++			if (e.getParent() == null) return e;
++		return null;
++	}
++	
++	//===================================================================
++	public void reset()
++	//===================================================================
++	{
++		curSequence = 0;
++	}
++	//===================================================================
++	int countLinesInMe(DisplayLine start, int indexOfLineCharacters)
++	//===================================================================
++	{
++		int num = 1;
++		int curIndex = indexOfLineCharacters+start.trueLength();
++		for (DisplayLine s = (DisplayLine)start.next; s != null; s = (DisplayLine)s.next){
++			int tl = 0;
++			if (curIndex &gt;= startIndex &amp;&amp; curIndex &lt; startIndex+length){
++				num++;
++				curIndex += s.trueLength();
++			}else 
++				break;
++		}
++		return num;
++	}
++	/*
++	//===================================================================
++	TextFormatter getFormatterFor(int lineIndex)
++	//===================================================================
++	{
++		try{
++			TextFormatter ret = (TextFormatter)formatter.getCopy();
++			ret.line = lineIndex;
++			ret.groupID = groupID;
++			ret.groupIndex = curSequence++;
++			return ret;
++		}catch(RuntimeException e){
++			Vm.debug(Vm.getStackTrace(e,10));
++			return new TextFormatter();
++		}
++	}
++	*/
++	boolean amOpen = true;
++	/*
++	//===================================================================
++	public void getChildrenFormatters(TextPad pad,TextPosition t,Vector dest)
++	//===================================================================
++	{
++		int max = getChildCount();
++		for (int i = 0; i&lt;max; i++){
++			Entry e = (Entry)getChild(i);
++			e.getFormatter(pad,t,dest);
++			if (e.needPass2) needPass2 = true;
++		}
++	}
++	*/
++	/*
++	//===================================================================
++	public void addBlankLines(TextPad pad,IntArray blanks)
++	//===================================================================
++	{
++		if (!hasImage) return;
++		if (putLinesAbove != 0){
++			DisplayLine dl = pad.getLine(formatter.startLine);
++			int added = pad.ensureBlankLines(dl,putLinesAbove,true);
++			if (added != 0){
++				int len = blanks.length;
++				if (len == 0) {
++					blanks.append(formatter.startLine);
++					blanks.append(added);
++				}else if (blanks.data[len-2] == formatter.startLine){
++					blanks.data[len-1] += added;
++				}else{
++					blanks.append(formatter.startLine);
++					blanks.append(added+blanks.data[len-1]);
++				}
++			}
++		}
++		int max = getChildCount();
++		for (int i = 0; i&lt;max; i++){
++			((Entry)getChild(i)).addBlankLines(pad,blanks);
++		}
++		
++	}
++	*/
++	
++	TextPosition start;
++	
++	//-------------------------------------------------------------------
++	void linesInsertedAbove(TextPosition t, int startLine, int numInserted)
++	//-------------------------------------------------------------------
++	{
++		//Vm.debug(numInserted+&quot; inserted above: &quot;+startLine);
++		if (start == null){
++			int sl = formatter.startLine, nl = formatter.numLines;
++			if (formatter.startLine == startLine){
++				formatter.startLine += numInserted;
++				if (type == IMAGE || type == BLOCKIMAGE)
++					formatter.imageLine += numInserted;
++			}else if (formatter.startLine+formatter.numLines &gt; startLine){
++				if (type == IMAGE || type == BLOCKIMAGE){
++					formatter.startLine += numInserted;
++					formatter.imageLine += numInserted;
++				}else
++					formatter.numLines += numInserted;
++			}else return;
++			//Vm.debug(&quot;Type: &quot;+type+&quot;, I  was: &quot;+sl+&quot;-&gt;&quot;+nl);
++			//Vm.debug(&quot;Type: &quot;+type+&quot;, am now: &quot;+formatter.startLine+&quot;-&gt;&quot;+formatter.numLines);
++		}else{
++			int sl = start.lineIndex, nl = start.characterIndex;
++			start.copyFrom(t);
++			start.findCharacter(startIndex);
++			t.copyFrom(start);
++			int max = getChildCount();
++			for (int i = 0; i&lt;max; i++)
++				((Entry)getChild(i)).linesInsertedAbove(t,startLine,numInserted);
++			if (length != 0) t.findCharacter(startIndex+length-1);
++			//Vm.debug(hashCode()+&quot; Type: &quot;+type+&quot;, I  was: &quot;+sl+&quot; @ &quot;+nl);
++			//Vm.debug(hashCode()+&quot; Type: &quot;+type+&quot;, am now: &quot;+start.lineIndex+&quot; @ &quot;+start.characterIndex);
++		}
++	}
++	
++	//-------------------------------------------------------------------
++	void updateEndFormatter()
++	//-------------------------------------------------------------------
++	{
++		if (endFormatter != null){
++			endFormatter.startLine = formatter.startLine;
++			endFormatter.numLines = formatter.numLines;
++			endFormatter.startCharacter = formatter.startCharacter;
++			endFormatter.endCharacter = formatter.endCharacter;
++		}
++	}
++	//-------------------------------------------------------------------
++	void setupFormatter(TextPosition start,TextPosition current)
++	//-------------------------------------------------------------------
++	{
++		if (formatter == null){
++			formatter = new TextFormatter();
++			length = text.length-startIndex;
++		}
++		TextPosition t = current;
++		TextFormatter tf = formatter;
++		
++		if (type == IMAGE){
++			for (Entry p = (Entry)getParent(); p != null; p = (Entry)p.getParent()){
++				if (p.type == HYPERLINK &amp;&amp; PropertyList.getString(p.attributes,&quot;href&quot;,null) != null){
++					formatter.linkedTo = p.formatter;
++					break;
++				}
++			}
++		}
++
++		//
++		// An image type with an imageChar of -1 is a right or left aligned image.
++		if (type == IMAGE &amp;&amp; tf.imageChar == -1)
++			return;
++		//
++		if (length &gt; 0)
++			t.findCharacter(startIndex+length-1);
++		tf.startLine = start.lineIndex;
++		tf.numLines = t.lineIndex-start.lineIndex+1;
++		//
++		if (type == IMAGE){
++			tf.startCharacter = 0;
++			tf.endCharacter = -1;
++		}else if ((type &amp; BLOCK_LEVEL) != 0){
++			tf.startCharacter = 0;
++			tf.endCharacter = -1;
++		}else if (length == 0){
++			tf.startCharacter =  tf.endCharacter = -1;	
++			if (type != IMAGE &amp;&amp; type != HYPERLINK) tf.notUsed = true;
++		}else{
++			tf.startCharacter = startIndex-start.characterIndex;
++			tf.endCharacter = (startIndex+length-1)-t.characterIndex;
++		}
++		if (endFormatter != null) updateEndFormatter();
++	}
++	
++	//-------------------------------------------------------------------
++	boolean getFormatterForLine(int lineIndex,DisplayLine line,Vector dest,Entry stopAt)
++	//-------------------------------------------------------------------
++	{
++		if (stopAt == this) return false;
++		if (start != null){
++			temp.copyFrom(start);
++			setupFormatter(start,temp);
++		}
++		if (formatter == null) return true;
++		if (formatter.getCharRange(lineIndex,line,range) == null) {
++			return true;
++		}
++		dest.add(formatter);
++		int max = getChildCount();
++		for (int i = 0; i&lt;max; i++)
++			if (!((Entry)getChild(i)).getFormatterForLine(lineIndex,line,dest,stopAt))
++				return false;
++		return true;
++	}
++	//-------------------------------------------------------------------
++	void addLineSpacers(TextPad pad,int lineIndex,DisplayLine line,int above,int below,int [] indexes)
++	//-------------------------------------------------------------------
++	{
++		if (above &gt; 0) above = pad.ensureBlankLines(line,above,true);
++		if (below &gt; 0) below = pad.ensureBlankLines(line,below,false);
++		if (above == 0 &amp;&amp; below == 0) return;
++		indexes[lineIndex] += above;
++		above += below;
++		for (int i = lineIndex+1; i&lt;indexes.length; i++)
++			indexes[i] += above;
++	}
++	//-------------------------------------------------------------------
++	void addLineSpacers(TextPad pad,int [] indexes)
++	//-------------------------------------------------------------------
++	{
++		addLineSpacers(pad,myLineIndex,myLine,needAbove,needBelow,indexes);
++	}
++	DisplayLine myLine;
++	int myLineIndex;
++	//-------------------------------------------------------------------
++	void getLineSpacers(TextPad pad,int lineIndex,DisplayLine line,Vector dest)
++	//-------------------------------------------------------------------
++	{
++		if (!needPass2) return;
++		int more = formatter.startLine-lineIndex;
++		if (more != 0){
++			line = (DisplayLine)line.getNext(line,more);
++			lineIndex += more;
++		}
++		myLineIndex = lineIndex;
++		myLine = line;
++		if (needAbove != 0 || needBelow != 0)
++			dest.add(this);
++		int max = getChildCount();
++		for (int i = 0; i&lt;max; i++){
++			Entry e = (Entry)getChild(i);
++			if (!e.needPass2) continue;
++			e.getLineSpacers(pad,lineIndex,line,dest);
++		}
++	}
++	//-------------------------------------------------------------------
++	void fixFormatter(int [] indexes)
++	//-------------------------------------------------------------------
++	{
++		try{
++		if (type == IMAGE){
++			formatter.imageLine = indexes[formatter.imageLine];
++			if (formatter.imageChar == -1){
++				formatter.startLine = formatter.imageLine;
++			}else{
++				formatter.startLine = formatter.imageLine-needAbove;
++				formatter.numLines = 1+needAbove+needBelow;
++			}
++		}else{
++			int endLine = formatter.startLine+formatter.numLines-1;
++			formatter.startLine = indexes[formatter.startLine];
++			formatter.numLines = indexes[endLine]-formatter.startLine+1;
++		}
++		if (endFormatter != null) updateEndFormatter();
++		}catch(Exception e){}
++		int max = getChildCount();
++		for (int i = 0; i&lt;max; i++)
++			((Entry)getChild(i)).fixFormatter(indexes);
++	}
++	/**
++	* This reformats the lines.
++	**/
++	//===================================================================
++	public boolean reformat(TextPad pad,TextPosition t,Vector addTo)
++	//===================================================================
++	{
++		try{
++			start = t.getCopy();
++			//Vm.debug(type+&quot; for: &quot;+start.characterIndex+&quot; on &quot;+start.lineIndex);
++			if (!start.findCharacter(startIndex)){
++				//Vm.debug(&quot;Not found: &quot;+type+&quot;, &quot;+startIndex);
++				return false;
++			}
++			/*
++			int depth = 0;
++			for (ewe.data.TreeNode tn = this; tn != null; tn = tn.getParent())
++				depth++;
++			Vm.debug(type+&quot;, &quot;+depth);
++			*/
++			//
++			// Now start points to the start of the text for this Entry.
++			//
++			t.copyFrom(start);
++			setupFormatter(start,t);
++			if (formatter.applyBefore())
++				addTo.add(formatter.getStartFormatter(formatter));
++			
++			//
++			// Resplit if necessary.
++			//
++			if (length != 0){
++					DisplayLine newLine = formatter.creatingFor(pad,start.line,t.lineIndex-start.lineIndex+1,start.lineIndex);
++			}
++			if (type == IMAGE){
++				//needPass2 = true;
++				TextFormatter tf = formatter;
++				tf.vSpace = PropertyList.getInt(attributes,&quot;vspace&quot;,tf.vSpace);
++				tf.hSpace = PropertyList.getInt(attributes,&quot;hspace&quot;,tf.hSpace);
++				tf.borderWidth = PropertyList.getInt(attributes,&quot;border&quot;,tf.borderWidth);
++				final int extraWidth = tf.image.getWidth()+(tf.borderWidth+tf.hSpace)*2;
++				String align = PropertyList.getString(attributes,&quot;align&quot;,&quot;bottom&quot;).toLowerCase();
++				int lh = pad.getLineHeight();
++				int ih = tf.image == null ? lh : tf.image.getHeight()+(tf.borderWidth+tf.vSpace)*2;
++				//
++				if (align.equals(&quot;bottom&quot;)){ 
++					ih += pad.getLineHeight()-pad.getBaselineHeight();
++					//Vm.debug(tf.image.getHeight()+&quot;, &quot;+pad.getLineHeight()+&quot;, &quot;+pad.getBaselineHeight());
++				}
++				//
++				int numLines = tf.image == null ? 1 : (ih+lh-1)/lh;
++				Vector v = new Vector();
++				root.getFormatterForLine(start.lineIndex,start.line,v,this);
++				FormattedTextSpecs fts = pad.getTextPositions(start.lineIndex,start.line,null,null,false);
++				int max = v.size();
++				for (int i = 0; i&lt;max; i++){
++					((TextFormatter)v.get(i)).applySpecialFormat(pad,start.lineIndex,start.line,fts);
++				}
++				int allowedSpace = start.line.displayWidth;
++				final int fullLineSpace = pad.getAvailableWidth()-fts.leftMargin-fts.rightMargin;
++				//
++				// First see if inserting the image will cause it to go over the line.
++				//
++				if (align.equals(&quot;left&quot;) || align.equals(&quot;right&quot;)){
++					tf.startLine = start.lineIndex;
++					tf.numLines = numLines;
++					tf.startCharacter = 0;
++					tf.endCharacter = -1;
++					tf.imageLine = tf.startLine;
++					tf.imageChar = -1;
++					tf.imageY = 0;
++					tf.imageX = align.equals(&quot;left&quot;) ? 0 : -1;
++					
++					int didLines = 0;
++					DisplayLine first = start.line;
++					final int linesToDo = numLines;
++					final int fullWidth = fullLineSpace;
++					final int lineWidth = allowedSpace-extraWidth;
++					while(didLines &lt; numLines){
++						int num = first.countToSectionEnd();
++						final int done = didLines;
++						pad.resplit(first,num,0,new DisplayLine.WidthProvider(){
++							int total = done;
++							public int getWidthFor(DisplayLineSpecs specs, int lineIndex, int startingCharacterIndex, DisplayLine splitSoFar)
++							{
++								int ret = (total &gt;= linesToDo) ? fullWidth : lineWidth;
++								total++;
++								//Vm.debug(lineIndex+&quot;, &quot;+ret+&quot;, &quot;+fullWidth+&quot;, &quot;+lineWidth);
++								return ret;
++							}
++						}
++							,null,null);
++						num = first.countToSectionEnd();
++						didLines += num;
++						if (num &gt;= numLines) break;
++						first = (DisplayLine)first.getNext(first,num-1);//Go to line before the section end.
++						if (first.next == null) break; //No more lines? Then break.
++						first = (DisplayLine)first.next;
++					}
++					if (didLines &lt; numLines){
++						pad.ensureBlankLines(first,numLines-didLines,false);
++					}
++					return true;
++				}else{
++					//
++					//
++					//
++					int before = startIndex-start.characterIndex;
++					int width = before == 0 ? 0 : fts.calculatedPositions[before-1];
++					width += fts.leftMargin+pad.spacing;
++					int widthUsed = before == 0 ? 0 : fts.calculatedPositions[before-1];
++					if (widthUsed+extraWidth &gt;= allowedSpace){
++						DisplayLine dl = pad.breakLineBefore(start.line,startIndex-start.characterIndex);
++						if (dl != null){
++							start.lineIndex++;
++							start.line = dl;
++							start.characterIndex += startIndex-start.characterIndex;
++							start.line.displayWidth = allowedSpace;//normalWidth;
++						}
++						allowedSpace = fullLineSpace;
++					}
++					tf.numLines = 1;
++					tf.startLine = start.lineIndex;
++					tf.imageLine = start.lineIndex;
++					tf.imageChar = startIndex-start.characterIndex;
++					tf.startCharacter = 0;
++					tf.endCharacter = -1;
++					//
++					//
++					int num = start.line.countToSectionEnd();
++					final int firstLineWidth = allowedSpace-extraWidth;
++					start.line = pad.resplit(start.line,num,0,new DisplayLine.WidthProvider(){
++						public int getWidthFor(DisplayLineSpecs specs, int lineIndex, int startingCharacterIndex, DisplayLine splitSoFar)
++						{
++							int ret = lineIndex == 0 ? firstLineWidth : fullLineSpace;
++							return ret;
++						}
++					},null,null);
++					//
++					// Find out how much space we need above and below.
++					//
++					if (numLines != 1 || true){
++						if (align.equals(&quot;top&quot;)) {
++							needBelow = numLines-1;
++							tf.imageY = 0;
++						}else if (align.equals(&quot;middle&quot;)){
++							needAbove = needBelow = numLines/2;
++							numLines = needAbove+needBelow+1;
++							tf.imageY = ((numLines*lh)-ih)/2;
++						}else{
++							needAbove = numLines-1;
++							tf.imageY = (numLines*lh)-ih;
++							//Vm.debug(&quot;Bottom: &quot;+tf.image.getHeight()+&quot;, &quot;+ih+&quot;, &quot;+numLines+&quot;, &quot;+tf.imageY);
++						}
++						needPass2 = numLines != 1;//true;
++					}else{
++						if (align.equals(&quot;top&quot;))
++							tf.imageY = 0;
++						else if (align.equals(&quot;middle&quot;))
++							tf.imageY = (lh-ih)/2;
++						else
++							tf.imageY = (lh-ih);
++					}
++					return true; //Images never have any children.
++				}
++			}		
++			//
++			t.copyFrom(start);
++			int max = getChildCount();
++			for (int i = 0; i&lt;max; i++){
++				Entry e = (Entry)getChild(i);
++				t.copyFrom(start);
++				if (!e.reformat(pad,t,addTo))
++					;
++					//return false;
++				if (e.needPass2) needPass2 = true;
++			}
++			if (length != 0 &amp;&amp; formatter.applyAfter()){
++				endFormatter = formatter.getEndFormatter(endFormatter);
++				addTo.add(endFormatter);
++			}
++			t.copyFrom(start);
++			setupFormatter(start,t);
++			return true;
++		}finally{
++		
++		}
++	}
++	/*
++	//===================================================================
++	public boolean getTextFormatter(TextPad pad,TextPosition t,Vector addTo)
++	//===================================================================
++	{
++		start = t.getCopy();
++		if (!start.findCharacter(startIndex)) return false;
++		//
++		// Now start points to the start of the text for this Entry.
++		//
++		t.copyFrom(start);
++		addTo.add(formatter);
++		int max = getChildCount();
++		for (int i = 0; i&lt;max; i++)
++			if (!((Entry)getChild(i)).getTextFormatter(pad,t,addTo))
++				return false;
++		setupFormatter(start,t);
++		return true;
++	}
++	*/
++/*	
++	//===================================================================
++	public boolean getFormatter(TextPad pad,TextPosition t,Vector dest)
++	//===================================================================
++	{
++		if (type == IMAGE) needPass2 = true;
++		if (formatter == null) return false;
++		start = t.getCopy();
++		start.copyFrom(t);
++		if (!start.findCharacter(startIndex)) return false;
++		if (length != 0){
++			if (!t.findCharacter(startIndex+length-1))
++				return false;
++		}else{
++			t.copyFrom(start);
++		}
++		//
++		// Resplit if necessary.
++		//
++		if (length != 0){
++			DisplayLine newLine = formatter.creatingFor(pad,start.line,t.lineIndex-start.lineIndex+1,start.lineIndex);
++			if (newLine != start.line &amp;&amp; newLine != null) start.line = newLine;
++		}
++		// Setup the formatter to cover the lines as they now are.
++		if (type != IMAGE) {
++			setupFormatter(start,t);
++		}
++		dest.add(formatter);
++		//
++		if (type == IMAGE){ //length will be zero!
++			TextFormatter tf = formatter;
++			tf.vSpace = PropertyList.getInt(attributes,&quot;vspace&quot;,tf.vSpace);
++			tf.hSpace = PropertyList.getInt(attributes,&quot;hspace&quot;,tf.hSpace);
++			tf.borderWidth = PropertyList.getInt(attributes,&quot;border&quot;,tf.borderWidth);
++			final int extraWidth = tf.image.getWidth()+(tf.borderWidth+tf.hSpace)*2;
++			String align = PropertyList.getString(attributes,&quot;align&quot;,&quot;bottom&quot;).toLowerCase();
++			//
++			// First see if inserting the image will cause it to go over the line.
++			//
++			Vector v = new Vector();
++			root.getFormatterForLine(start.lineIndex,start.line,v,this);
++			FormattedTextSpecs fts = pad.getTextPositions(start.lineIndex,start.line,null,null,false);
++			int max = v.size();
++			for (int i = 0; i&lt;max; i++)
++				((TextFormatter)v.get(i)).applySpecialFormat(pad,start.lineIndex,start.line,fts);
++			//
++			//
++			//
++			int before = startIndex-start.characterIndex;
++			int width = before == 0 ? 0 : fts.calculatedPositions[before-1];
++			width += fts.leftMargin+pad.spacing;
++			//Vm.debug(start.line.displayWidth+&quot;, &quot;+width+&quot;, &quot;+extraWidth);
++			int pw = pad.getSize(null).width;
++			final int normalWidth = pw-(pad.spacing*2)-pad.rightMargin-fts.leftMargin;
++			//Vm.debug((pw-pad.spacing-pad.rightMargin)+&quot;, &quot;+width+&quot;, &quot;+extraWidth+&quot;, &quot;+(displayWidth-extraWidth));
++			if (width+extraWidth &gt;= normalWidth){
++				//Vm.debug(&quot;Splitting!&quot;);
++				DisplayLine dl = pad.breakLineBefore(start.line,startIndex-start.characterIndex);
++				if (dl != null){
++					start.lineIndex++;
++					start.line = dl;
++					start.line.displayWidth = normalWidth;
++					start.characterIndex += startIndex-start.characterIndex;
++				}
++			}
++			final int displayWidth = start.line.displayWidth;
++			tf.numLines = 1;
++			tf.startLine = start.lineIndex;
++			tf.imageLine = start.lineIndex;
++			tf.imageChar = startIndex-start.characterIndex;
++			//Vm.debug(tf.imageLine+&quot;, &quot;+tf.imageChar);
++			tf.startCharacter = 0;
++			tf.endCharacter = -1;
++			
++			int lh = pad.getLineHeight();
++			int ih = tf.image == null ? lh : tf.image.getHeight()+(tf.borderWidth+tf.vSpace)*2;
++			int numLines = tf.image == null ? 1 : (ih+lh-1)/lh;
++			int needAbove = 0, needBelow = 0;
++			if (numLines != 1){
++				if (align.equals(&quot;top&quot;)) {
++					needBelow = numLines-1;
++					tf.imageY = 0;
++				}else if (align.equals(&quot;center&quot;)){
++					needAbove = needBelow = numLines/2;
++					numLines = needAbove+needBelow+1;
++					tf.imageY = ((numLines*lh)-ih)/2;
++				}else{
++					needAbove = numLines-1;
++					tf.imageY = (numLines*lh)-ih;
++				}
++				int num = start.line.countToSectionEnd();
++				start.line = pad.resplit(start.line,num,0,new DisplayLine.WidthProvider(){
++					public int getWidthFor(DisplayLineSpecs specs, int lineIndex, int startingCharacterIndex, DisplayLine splitSoFar)
++					{
++						int ret = lineIndex == 0 ? displayWidth-extraWidth : normalWidth;
++						return ret;
++					}
++				},null,null);
++				t.copyFrom(start);
++			}
++			int lineIndex = start.lineIndex;
++			tf.numLines = 1;
++			int added = true ? 0 : pad.ensureBlankLines(start.line,needAbove,true);
++			if (added &gt; 0) {
++				//Vm.debug(hashCode()+&quot; - adding: &quot;+added);
++				getRoot().linesInsertedAbove(new TextPosition(pad),start.lineIndex,added);
++			}
++			tf.numLines += added;
++			t.lineIndex += added;
++			
++			start.lineIndex = lineIndex+added;
++			tf.imageLine = start.lineIndex;
++			
++			added = true ? 0 : pad.ensureBlankLines(start.line,needBelow,false);
++			
++			putLinesAbove = needAbove;
++		}else{
++			// Reposition to start.
++			if (start.line.invalid) start = new TextPosition(pad,start.lineIndex,start.characterIndex);
++			t.copyFrom(start);
++			getChildrenFormatters(pad,t,dest);
++			//
++			// Now lines may have been modified, so setup Formatter again.
++			//
++			setupFormatter(start,t);
++			if (type == ITALIC) Vm.debug(formatter.toString());
++		}
++		start = null;
++		return true;
++	}
++	*/
++	//##################################################################
++	}
++	//##################################################################
++
++
++private static String [] htmlTags = 
++{&quot;p&quot;,&quot;b&quot;,&quot;i&quot;,&quot;u&quot;,&quot;center&quot;,
++&quot;h1&quot;,&quot;h2&quot;,&quot;h3&quot;,&quot;h4&quot;,&quot;h5&quot;,&quot;h6&quot;,
++&quot;tt&quot;,&quot;big&quot;,&quot;small&quot;,&quot;div&quot;,&quot;span&quot;,&quot;font&quot;,&quot;a&quot;,&quot;title&quot;,&quot;strong&quot;,&quot;em&quot;,&quot;dfn&quot;,&quot;blockquote&quot;,&quot;address&quot;,
++&quot;body&quot;,&quot;dir&quot;,&quot;menu&quot;,&quot;code&quot;
++//,&quot;table&quot;,&quot;tr&quot;,&quot;td&quot;,&quot;th&quot;
++};
++private static int [] htmlTypes =
++{PARAGRAPH,BOLD,ITALIC,UNDERLINE,CENTERED,
++HEADING1,HEADING2,HEADING3,HEADING4,HEADING5,HEADING6,
++TELETYPE,BIG,SMALL,DIV,SPAN,FONT,HYPERLINK,TITLE,STRONG,EM,DFN,BLOCKQUOTE,ADDRESS,
++BODY,PARAGRAPH,PARAGRAPH,TELETYPE
++//,TABLE,TROW,TCELL,TCELL
++};
++private static int [] listTypes = {UL,OL,OLI,ULI};
++private static int [] listStarts = {UL,OL};
++private static int [] defLists = {DT,DD,DL};
++private static int [] tableTypes = {TABLE,TROW,TCELL};
++private static int [] tableStarts = {TABLE};
++
++//===================================================================
++void endTableCellOrRow(boolean isTR)
++//===================================================================
++{
++	Entry s = findFirst(tableStarts);
++	if (s == null) return;
++	while(true){
++		Entry e = findFirst(tableTypes);
++		if (e == null) return;
++		if (e.type == TABLE) return;
++		if (e.type == TROW &amp;&amp; !isTR) return;
++		conditionalLineBreak();
++		end(e.type);
++	}
++}
++//===================================================================
++void endListItem()
++//===================================================================
++{
++	Entry s = findFirst(listStarts);
++	if (s == null) return;
++	Object data = s.data;
++	Entry e = findFirst(listTypes);
++	if (e == null) return;
++	if (e.type != OLI &amp;&amp; e.type != ULI) return;
++	conditionalLineBreak();
++	e = end(e.type);
++	e.formatter.data = data;
++	// Update the data.
++	if (data != null &amp;&amp; e.type == OLI){
++		String dt = data.toString();
++		int value = Convert.toInt(dt);
++		if (value == 0 &amp;&amp; !dt.equals(&quot;0&quot;)){
++			char [] ch = dt.toCharArray();
++			if (ch.length != 0) ch[0]++;
++			dt = new String(ch);
++		}else{
++			dt += &quot;.&quot;;
++			e.formatter.data = dt;
++			dt = Convert.toString(value+1);
++		}
++		s.data = dt;
++	}
++}
++//===================================================================
++void endDefDataOrTerm()
++//===================================================================
++{
++	Entry e = findFirst(defLists);
++	if (e == null) return;
++	if (e.type != DD &amp;&amp; e.type != DT) return;
++	conditionalLineBreak();
++	end(e.type);
++}
++public PropertyList headerData = new PropertyList();
++public PropertyList bodyData = new PropertyList();
++
++boolean waitingToRefresh = false, needRefresh = false;
++
++//-------------------------------------------------------------------
++protected Handle getAnImage(Object nameOrProperties,boolean documentImage)
++//-------------------------------------------------------------------
++{
++	if (properties.getBoolean(&quot;allowImages&quot;,true) &amp;&amp; nameOrProperties != null) {
++		ImageResolver ir = (ImageResolver)properties.getValue(&quot;imageResolver&quot;,imageResolver);
++		if (ir != null){
++			PropertyList pl = (nameOrProperties instanceof PropertyList) ? (PropertyList)nameOrProperties : null;
++			if (pl == null) pl = PropertyList.make(&quot;src|&quot;+nameOrProperties);
++			return ir.resolveImage(pl,documentImage ? properties.getBoolean(&quot;allowAnimatedImages&quot;,true) : false,
++			documentImage ? (Dimension)properties.getValue(&quot;maxImageSize&quot;,null) : null);
++		}
++	}
++	return new Handle(Handle.Failed,null);
++}
++//===================================================================
++public void parseHtml(final TextDisplay forDisplay,String text,Handle handle)
++//===================================================================
++{
++	//ewe.ui.Notepad np = new ewe.ui.Notepad();
++	//np.theText = text;
++	//np.execute();
++	myDisplay = forDisplay;
++	splitLock.synchronize(); try{
++	char [] source = Vm.getStringChars(text);
++	int len = source.length;
++	String headerTag = null;
++	boolean pastHeader = false;
++	boolean inHeader = false;
++	boolean inForm = false;
++	if (handle == null) handle = new Handle();
++	handle.resetProgress(0.1f);
++	YieldToEvents ye = new YieldToEvents(10,100);
++	for(int reached = 0; reached &lt; len &amp;&amp; !handle.shouldStop;){
++		ye.yield();
++		float progress = (float)((double)reached/len);
++		handle.setProgress(progress);
++		int idx = text.indexOf('&lt;',reached);
++		if (idx != -1){
++			if (idx &lt;= len-6 &amp;&amp; source[idx+1] == '!' &amp;&amp; source[idx+2] == '-' &amp;&amp; source[idx+3] == '-'){ // Comment
++				int end = text.indexOf(&quot;--&gt;&quot;,idx+3);
++				if (end != -1){ // Missing --&gt; implies a comment in error.
++					if (!inForm) addHtml(text.substring(reached,idx));
++					reached = end+3;
++					continue;
++				}/*else
++					break;*/
++			}
++		}
++		int idx2 = idx == -1 ? -1 : text.indexOf('&gt;',idx);
++		if (idx == -1 || idx2 == -1){
++			String ss = text.substring(reached);
++			if (!inForm){
++				if (headerTag == null) addHtml(ss);
++				else headerData.set(headerTag,headerData.getString(headerTag,&quot;&quot;)+ss);
++			}
++			break;
++		}
++		int idx3 = text.indexOf('&lt;',idx+1);
++		if (idx3 != -1 &amp;&amp; idx3 &lt; idx2){
++			String ss = text.substring(reached,idx3);
++			if (!inForm){
++				if (headerTag == null) addHtml(ss);
++				else headerData.set(headerTag,headerData.getString(headerTag,&quot;&quot;)+ss);
++			}
++			reached = idx3;
++			continue;
++		}
++		if (!inForm){
++			if (headerTag == null) addHtml(text.substring(reached,idx));
++			else headerData.set(headerTag,headerData.getString(headerTag,&quot;&quot;)+text.substring(reached,idx));
++		}		
++		reached = idx2+1;
++		if (idx+1 == idx2) continue;
++		String insideTag = text.substring(idx+1,idx2);
++		boolean ending = insideTag.charAt(0) == '/';
++		int space = insideTag.indexOf(' ');
++		int sp2 = insideTag.indexOf('\n');
++		if (sp2 != -1 &amp;&amp; (space == -1 || sp2 &lt; space)) space = sp2;
++		sp2 = insideTag.indexOf('\r');
++		if (sp2 != -1 &amp;&amp; (space == -1 || sp2 &lt; space)) space = sp2;
++		sp2 = insideTag.indexOf('\t');
++		if (sp2 != -1 &amp;&amp; (space == -1 || sp2 &lt; space)) space = sp2;
++			
++		String tag = space == -1 ? insideTag : insideTag.substring(0,space);
++		if (ending) tag = tag.substring(1);
++		tag = tag.toLowerCase();
++		if (inForm){
++			if (tag.equals(&quot;form&quot;) || tag.equals(&quot;script&quot;))
++				if (ending) inForm = false;
++			continue;
++		}else if ((tag.equals(&quot;form&quot;) || tag.equals(&quot;script&quot;))&amp;&amp; !inForm){
++			inForm = true;
++			continue;
++		}
++		if (!pastHeader){
++			if (tag.equals(&quot;head&quot;)){
++				if (ending){
++					headerTag = null;
++					pastHeader = true;
++					inHeader = false;
++				}else{
++					inHeader = true;
++				}
++				continue;
++			}else if (tag.equals(&quot;body&quot;)){
++				headerTag = null;
++				pastHeader = true;
++				inHeader = false;
++				//continue;
++			}else if (inHeader){
++				if (ending) headerTag = null;
++				else headerTag = tag;
++				continue;
++			}else if (tag.equals(&quot;title&quot;)){
++				inHeader = true;
++				headerTag = tag;
++				continue;
++			}
++		}
++		if (tag.equals(&quot;pre&quot;) &amp;&amp; !inPreFormat){
++			if (reached &lt; len &amp;&amp; text.charAt(reached) == '\r') reached++;
++			if (reached &lt; len &amp;&amp; text.charAt(reached) == '\n') reached++;
++		}
++		String attr = space == -1 ? null : insideTag.substring(space+1);
++		PropertyList attributes = toProperties(attr);
++		boolean did = false;
++		Entry didE = null;
++		for (int i = 0; !did &amp;&amp; i&lt;htmlTags.length; i++){
++			if (htmlTags[i].equals(tag)){
++				did = true;
++				didE = startOrEnd(htmlTypes[i],attributes,ending);
++			}
++		}
++		if (tag.equals(&quot;body&quot;)){
++			if (!ending){
++				PropertyList a = PropertyList.toPropertyList(attributes);
++				final Handle h = getAnImage(a.getString(&quot;background&quot;,null),false);
++				if ((h.check() &amp; h.Success) != 0)
++					bodyData.set(&quot;backgroundImage&quot;,h.returnValue);
++				else if ((h.check() &amp; h.Stopped) == 0){
++					new Task(){
++						protected void doRun(){
++							if (waitOnSuccess(h,TimeOut.Forever,false)){
++								bodyData.set(&quot;backgroundImage&quot;,h.returnValue);
++								if (myDisplay != null) {
++									myDisplay.displayPropertiesChanged();
++								}
++							}
++						}
++					}.start();
++				}
++				bodyData.set(&quot;background&quot;,toColor(a.getValue(&quot;bgcolor&quot;,Color.White),Color.White));
++				bodyData.set(&quot;foreground&quot;,toColor(a.getValue(&quot;text&quot;,Color.Black),Color.Black));
++				bodyData.set(&quot;link&quot;,toColor(a.getValue(&quot;link&quot;,HotSpot.hotColor),HotSpot.hotColor));
++			}
++			continue;
++		}else if (tag.equals(&quot;a&quot;) &amp;&amp; ending &amp;&amp; didE != null){
++			if (this.text.length != 0 &amp;&amp; this.text.data[this.text.length-1] == ' ')
++				didE.length--;
++		}
++		if (!did){
++			if (tag.equals(&quot;br&quot;)) add(&quot;\n&quot;);
++			else if (tag.equals(&quot;hr&quot;)){
++				conditionalLineBreak();
++				start(HR,attributes);
++				add(&quot; &quot;);
++				end(HR);
++				/*
++			}else if (tag.equals(&quot;test&quot;)){
++				if (!ending) lineBreak();
++				startOrEnd(TEST,attributes,ending);
++				if (ending) lineBreak();
++				*/
++			}else if (tag.equals(&quot;pre&quot;)){
++				//conditionalLineBreak();
++				inPreFormat = !ending;
++				startOrEnd(PREFORMAT,attributes,ending);
++			}else if (tag.equals(&quot;table&quot;)){
++				if (ending) endTableCellOrRow(true);
++				startOrEnd(TABLE,attributes,ending);
++			}else if (tag.equals(&quot;tr&quot;)){
++				if (ending) endTableCellOrRow(false);
++				else endTableCellOrRow(true);
++				startOrEnd(TROW,attributes,ending);
++			}else if (tag.equals(&quot;td&quot;) || tag.equals(&quot;th&quot;)){
++				if (!ending) endTableCellOrRow(false);
++				startOrEnd(TCELL,attributes,ending);
++			}else if (tag.equals(&quot;ul&quot;)){
++				if (ending) endListItem();
++				else {
++					conditionalLineBreak();
++					//lineBreak();
++				}
++				Entry e = startOrEnd(UL,attributes,ending);
++				if (!ending) e.data = TextFormatter.SOLID_CIRCLE;
++				//else removeEntry(e);
++			}else if (tag.equals(&quot;ol&quot;)){
++				if (ending) endListItem();
++				else {
++					conditionalLineBreak();
++					//lineBreak();
++				}
++				Entry e = startOrEnd(OL,attributes,ending);
++				if (!ending) e.data = PropertyList.getString(attributes,&quot;start&quot;,&quot;1&quot;);
++				//else removeEntry(e);
++			}else if (tag.equals(&quot;li&quot;)){
++				endListItem();
++				if (!ending){
++					int typeToUse = OLI;
++					Entry e = findFirst(listStarts);
++					if (e == null) continue;
++					if (e.type == UL) typeToUse = ULI;
++					startOrEnd(typeToUse,attributes,ending);
++				}
++			}else if (tag.equals(&quot;dl&quot;)){
++				if (ending) endDefDataOrTerm();
++				else conditionalLineBreak();
++				startOrEnd(DL,attributes,ending);
++			}else if (tag.equals(&quot;dt&quot;)){
++				if (!ending) {
++					endDefDataOrTerm();
++					conditionalLineBreak();
++				}
++				startOrEnd(DT,attributes,ending);
++			}else if (tag.equals(&quot;dd&quot;)){
++				if (!ending) {
++					endDefDataOrTerm();
++					conditionalLineBreak();
++				}
++				startOrEnd(DD,attributes,ending);
++				}else if (tag.equals(&quot;img&quot;)){
++					start(IMAGE,attributes);
++					final Entry e = end(IMAGE);
++					final IImage ui = TextFormatter.getUnknownImage();
++					e.formatter.image = ui;
++					if (properties.getBoolean(&quot;allowImages&quot;,true)){
++						Object toGet = PropertyList.toPropertyList(attributes);
++						final Handle h = getAnImage(toGet,true);
++						/*
++						ImageResolver ir = (ImageResolver)properties.getValue(&quot;imageResolver&quot;,imageResolver);
++						final Handle h = ir.resolveImage(PropertyList.toPropertyList(attributes),
++						properties.getBoolean(&quot;allowAnimatedImages&quot;,true),
++						(Dimension)properties.getValue(&quot;maxImageSize&quot;,null));
++						*/
++						//mThread.yield();
++						if ((h.check() &amp; h.Success) != 0)
++							e.formatter.image = (IImage)h.returnValue;
++						else if ((h.check() &amp; h.Failure) != 0){
++							//Vm.debug(&quot;Could not resolve: &quot;+toGet);
++							e.formatter.image = TextFormatter.getBrokenImage();
++						}else
++							new Thread(){
++								public void run(){
++										try{
++											h.waitOn(h.Success);
++											e.formatter.image = (IImage)h.returnValue;
++										}catch(Exception ex){
++											e.formatter.image = TextFormatter.getBrokenImage();
++										}
++										if (e.formatter.image.getWidth() == ui.getWidth() &amp;&amp; e.formatter.image.getHeight() == ui.getHeight()){
++											e.formatter.repaint(forDisplay,null);
++											return;
++										}
++										if (waitingToRefresh){
++											needRefresh = true;
++										}else{
++											waitingToRefresh = true;
++											needRefresh = false;
++											while(true){
++												mThread.nap(500);
++												if (!needRefresh) break;
++												needRefresh = false;
++											}
++											waitingToRefresh = false;
++											splitLock.synchronize(); try{
++												if (forDisplay == myDisplay)
++													forDisplay.setText(forDisplay.text);
++											}finally{splitLock.unlock();}
++										}
++								}						
++							}.start();
++					}
++					String prop = PropertyList.getString(attributes,&quot;align&quot;,&quot;&quot;).toLowerCase();
++					if (!prop.equals(&quot;left&quot;) &amp;&amp; !prop.equals(&quot;right&quot;))
++						add(&quot; &quot;);
++				/*
++					start(ITALIC,null);
++					add(&quot;&lt;Image&quot;);
++					if (alt != null) add(&quot;: &quot;+alt);
++					add(&quot;&gt;&quot;);
++					end(ITALIC);
++				*/
++				}
++		}
++	}
++	}catch(Exception e){
++		Vm.debug(Vm.getStackTrace(e,10));
++	}finally{splitLock.unlock(); if (handle != null) handle.setProgress(1.0f);}
++}
++//===================================================================
++public void endHtml()
++//===================================================================
++{
++	if (end(PARAGRAPH) != null) addBlankLine();
++	conditionalLineBreak();
++}
++
++//===================================================================
++public PropertyList properties = new PropertyList();
++//===================================================================
++
++ImageResolver imageResolver = this;
++
++Hashtable imageCache;
++
++//===================================================================
++public Handle resolveImage(final PropertyList imageProperties,final boolean allowAnimatedImages,final Dimension maxSize)
++//===================================================================
++{
++	final String src = imageProperties.getString(&quot;src&quot;,null);
++	if (src == null) return new Handle(Handle.Failed,null);
++	if (false){
++		IImage got = resolveImageNow(src,allowAnimatedImages,maxSize,imageProperties);
++		if (got == null) return new Handle(Handle.Failed,null);
++		else return new Handle(Handle.Succeeded,got);
++	}
++	
++	return new Task(){
++		protected void doRun(){
++			Handle handle = this;
++			IImage got = resolveImageNow(src,allowAnimatedImages,maxSize,imageProperties);
++			if (got == null) handle.set(Handle.Failed);
++			else {
++				handle.returnValue = got;
++				handle.set(Handle.Succeeded);
++			}
++		}
++	}.start();
++}
++
++private static ByteArray scaleArray;
++//===================================================================
++public IImage resolveImageNow(String src,boolean allowAnimatedImages,Dimension maxSize,PropertyList imageProperties)
++//===================================================================
++{
++	//Vm.debug(&quot;Going to resolve: &quot;+src);
++	if (scaleArray == null) scaleArray = new ByteArray();
++	String path = File.removeTrailingSlash(properties.getString(&quot;documentRoot&quot;,&quot;&quot;));
++	if (path.equals(&quot;/&quot;)) path += src;
++	else path += &quot;/&quot;+src;
++	if (imageCache == null) imageCache = new Hashtable();
++	Object found = imageCache.get(path);
++	if (found instanceof IImage) {
++		//Vm.debug(&quot;I found in cache: &quot;+path);
++		return (IImage)found;
++	}
++	try{
++		IImage got = null;
++		ByteArray all = Vm.readResource(null,path,null);
++		//Vm.debug(&quot;Read resource: &quot;+path);
++		if (all == null) throw new IllegalArgumentException();
++		//Vm.debug(&quot;I resolved: &quot;+path);
++		/*
++		ImageInfo info = Image.getImageInfo(ba,null);
++		if (info.format == ImageInfo.FORMAT_GIF &amp;&amp; allowAnimatedImages){
++			ewe.io.MemoryFile mf = new ewe.io.MemoryFile();
++			mf.data = ba;
++			got = ewe.graphics.AnimatedIcon.getAnimatedImageFromGIF(mf);
++		}
++		if (maxSize != null &amp;&amp; !(got instanceof AniImage)){
++			if (got == null) 
++				got = info.canScale &amp;&amp; (info.width &gt; maxSize.width || info.height &gt; maxSize.height) 
++					? 
++					new Image(ba,0,maxSize.width,maxSize.height) : 
++					new Image(ba,0);
++			if (got.getWidth() &gt; maxSize.width || got.getHeight() &gt; maxSize.height){
++				got = new PixelBuffer(got).scale(maxSize.width,maxSize.height,null,PixelBuffer.SCALE_KEEP_ASPECT_RATIO,scaleArray).toMImage();
++			}
++			if (got instanceof Image) got = new mImage(got);
++		}else if (got == null)
++			got = new Picture(new FormattedDataSource().set(ba),0);
++		*/
++		if (got == null){
++			FormattedDataSource fds = new FormattedDataSource().set(all);
++			got = ImageDecoder.decodeScaledPicture(fds, maxSize, true, true, null);
++		}
++		PropertyList pl = PropertyList.toPropertyList(imageProperties);
++		int ww = pl.getInt(&quot;width&quot;,got.getWidth());
++		int hh = pl.getInt(&quot;height&quot;,got.getHeight());
++		if (ww &lt;= 0) ww = got.getWidth();
++		if (hh &lt;= 0) hh = got.getHeight();
++		if (maxSize != null){
++			if (ww &gt; maxSize.width) ww = maxSize.width;
++			if (hh &gt; maxSize.height) hh = maxSize.height;
++		}
++		if (ww != got.getWidth() &amp;&amp; hh != got.getHeight())
++			got = new PixelBuffer(got).scale(ww,hh,null,0,scaleArray).toPicture();
++		imageCache.put(path,got);
++		return got;
++	/*
++		if (imageCache == null) imageCache = new ImageCache();
++		return imageCache.getImage(path);
++	*/
++	}catch(Exception e){
++		//Vm.debug(&quot;Bad image: &quot;+path);
++		//Vm.debug(Vm.getStackTrace(e,10));
++	}
++	return null;
++}
++//##################################################################
++}
++//##################################################################
++
++
+
+Added: experiments/EVEhist/src/eve/ui/formatted/FormattedTextMakerBase.java
+===================================================================
+--- experiments/EVEhist/src/eve/ui/formatted/FormattedTextMakerBase.java	2009-01-31 13:48:30 UTC (rev 1606)
++++ experiments/EVEhist/src/eve/ui/formatted/FormattedTextMakerBase.java	2009-02-01 11:37:18 UTC (rev 1607)
+@@ -0,0 +1,124 @@
++
++package eve.ui.formatted;
++import java.util.Vector;
++
++//##################################################################
++class FormattedTextMakerBase{
++//##################################################################
++
++
++final static String nbsp = &quot;&quot;+(char)0xa0;
++static Object [] replacements = {&quot;&gt;&quot;,&quot;&gt;&quot;,&quot;&lt;&quot;,&quot;&lt;&quot;,&quot;&nbsp;&quot;,nbsp,&quot;&copy;&quot;,&quot;&quot;+(char)169,&quot;&quot;&quot;,&quot;\&quot;&quot;,&quot;&amp;&quot;,&quot;&amp;&quot;};
++static Object [] htmlReplacements = {&quot;\r&quot;,&quot; &quot;,&quot;\n&quot;,&quot; &quot;,&quot;\t&quot;,&quot; &quot;,&quot;  &quot;,&quot; &quot;};
++static Object [] preReplacements = {&quot; &quot;,nbsp};
++
++static String amps =(char)34+&quot;quot|&quot;+(char)38+&quot;amp|&quot;+(char)60+&quot;lt|&quot;+(char)62+&quot;gt|&quot;+
++(char)128+&quot;euro|&quot;+(char)130+&quot;sbquo|&quot;+(char)131+&quot;fnof|&quot;+(char)132+&quot;bdquo|&quot;+
++(char)133+&quot;hellip|&quot;+(char)134+&quot;dagger|&quot;+(char)135+&quot;Dagger|&quot;+(char)136+&quot;circ|&quot;+
++(char)137+&quot;permil|&quot;+(char)138+&quot;Scaron|&quot;+(char)139+&quot;lsaquo|&quot;+(char)140+&quot;OElig|&quot;+
++(char)145+&quot;lsquo|&quot;+(char)146+&quot;rsquo|&quot;+(char)147+&quot;ldquo|&quot;+(char)148+&quot;rdquo|&quot;+
++(char)149+&quot;bull|&quot;+(char)150+&quot;ndash|&quot;+(char)151+&quot;mdash|&quot;+(char)152+&quot;tilde|&quot;+
++(char)153+&quot;trade|&quot;+(char)154+&quot;scaron|&quot;+(char)155+&quot;rsaquo|&quot;+(char)156+&quot;oelig|&quot;+
++(char)159+&quot;Yuml|&quot;+(char)160+&quot;nbsp|&quot;+(char)161+&quot;iexcl|&quot;+(char)162+&quot;cent|&quot;+
++(char)163+&quot;pound|&quot;+(char)164+&quot;curren|&quot;+(char)165+&quot;yen|&quot;+(char)166+&quot;brvbar|&quot;+
++(char)167+&quot;sect|&quot;+(char)168+&quot;uml|&quot;+(char)169+&quot;copy|&quot;+(char)170+&quot;ordf|&quot;+
++(char)171+&quot;laquo|&quot;+(char)172+&quot;not|&quot;+(char)173+&quot;shy|&quot;+(char)174+&quot;reg|&quot;+
++(char)175+&quot;macr|&quot;+(char)176+&quot;deg|&quot;+(char)177+&quot;plusmn|&quot;+(char)178+&quot;sup2|&quot;+
++(char)179+&quot;sup3|&quot;+(char)180+&quot;acute|&quot;+(char)181+&quot;micro|&quot;+(char)182+&quot;para|&quot;+
++(char)183+&quot;middot|&quot;+(char)184+&quot;cedil|&quot;+(char)185+&quot;sup1|&quot;+(char)186+&quot;ordm|&quot;+
++(char)187+&quot;raquo|&quot;+(char)188+&quot;frac14|&quot;+(char)189+&quot;frac12|&quot;+(char)190+&quot;frac34|&quot;+
++(char)191+&quot;iquest|&quot;+(char)192+&quot;Agrave|&quot;+(char)193+&quot;Aacute|&quot;+(char)194+&quot;Acirc|&quot;+
++(char)195+&quot;Atilde|&quot;+(char)196+&quot;Auml|&quot;+(char)197+&quot;Aring|&quot;+(char)198+&quot;AElig|&quot;+
++(char)199+&quot;Ccedil|&quot;+(char)200+&quot;Egrave|&quot;+(char)201+&quot;Eacute|&quot;+(char)202+&quot;Ecirc|&quot;+
++(char)203+&quot;Euml|&quot;+(char)204+&quot;Igrave|&quot;+(char)205+&quot;Iacute|&quot;+(char)206+&quot;Icirc|&quot;+
++(char)207+&quot;Iuml|&quot;+(char)208+&quot;ETH|&quot;+(char)209+&quot;Ntilde|&quot;+(char)210+&quot;Ograve|&quot;+
++(char)211+&quot;Oacute|&quot;+(char)212+&quot;Ocirc|&quot;+(char)213+&quot;Otilde|&quot;+(char)214+&quot;Ouml|&quot;+
++(char)215+&quot;times|&quot;+	(char)216+&quot;Oslash|&quot;+(char)217+&quot;Ugrave|&quot;+(char)218+&quot;Uacute|&quot;+
++(char)219+&quot;Ucirc|&quot;+	(char)220+&quot;Uuml|&quot;+(char)221+&quot;Yacute|&quot;+(char)222+&quot;THORN|&quot;+
++(char)223+&quot;szlig|&quot;+	(char)224+&quot;agrave|&quot;+(char)225+&quot;aacute|&quot;+(char)226+&quot;acirc|&quot;+
++(char)227+&quot;atilde|&quot;+(char)228+&quot;auml|&quot;+(char)229+&quot;aring|&quot;+(char)230+&quot;aelig|&quot;+
++(char)231+&quot;ccedil|&quot;+(char)232+&quot;egrave|&quot;+(char)233+&quot;eacute|&quot;+(char)234+&quot;ecirc|&quot;+
++(char)235+&quot;euml|&quot;+(char)236+&quot;igrave|&quot;+(char)237+&quot;iacute|&quot;+(char)238+&quot;icirc|&quot;+
++(char)239+&quot;iuml|&quot;+(char)240+&quot;eth|&quot;+(char)241+&quot;ntilde|&quot;+(char)242+&quot;ograve|&quot;+
++(char)243+&quot;oacute|&quot;+(char)244+&quot;ocirc|&quot;+(char)245+&quot;otilde|&quot;+(char)246+&quot;ouml|&quot;+
++(char)247+&quot;divide|&quot;+(char)248+&quot;oslash|&quot;+(char)249+&quot;ugrave|&quot;+(char)250+&quot;uacute|&quot;+
++(char)251+&quot;ucirc|&quot;+(char)252+&quot;uuml|&quot;+(char)253+&quot;yacute|&quot;+(char)254+&quot;thorn|&quot;+
++(char)255+&quot;yuml&quot;;
++
++
++static Vector ampList;
++static final String colors = &quot;black000000green008000silverC0C0C0lime00FF00&quot;+
++&quot;gray808080olive808000&quot;+
++&quot;whiteFFFFFFyellowFFFF00&quot;+
++&quot;maroon800000navy000080&quot;+
++&quot;redFF0000blue0000FF&quot;+
++&quot;purple800080teal008080&quot;+
++&quot;fuchsiaFF00FFaqua00FFFF&quot;; 
++protected static final int LF_ORDERED_LIST = 0x80000000;
++public static final int BOLD = 1;
++public static final int ITALIC = 2;
++public static final int UNDERLINE = 3;
++public static final int HYPERLINK = 9;
++public static final int ANCHOR = 10;
++public static final int SPAN = 12;
++public static final int FONT = 14;
++public static final int BIG = 15;
++public static final int SMALL = 16;
++public static final int TELETYPE = 17;
++public static final int EM = 18;
++public static final int STRONG = 19;
++public static final int DFN = 20;
++public static final int IMAGE = 21;
++
++//public static final int FIRST_SINGLE_LINE = 100;
++//public static final int FIRST_BLOCK_LEVEL = 100;
++
++public static final int BLOCK_LEVEL = 0x08000000;
++public static final int STARTS_FRESH = 0x04000000;
++public static final int IS_PARAGRAPH = 0x02000000;
++
++public static final int CENTERED = 100|BLOCK_LEVEL;
++public static final int HEADING1 = 101|BLOCK_LEVEL|IS_PARAGRAPH;
++public static final int HEADING2 = 102|BLOCK_LEVEL|IS_PARAGRAPH;
++public static final int HEADING3 = 103|BLOCK_LEVEL|IS_PARAGRAPH;
++public static final int HEADING4 = 104|BLOCK_LEVEL|IS_PARAGRAPH;
++public static final int HEADING5 = 105|BLOCK_LEVEL|IS_PARAGRAPH;
++public static final int HEADING6 = 106|BLOCK_LEVEL|IS_PARAGRAPH;
++public static final int TITLE = 107|BLOCK_LEVEL;
++public static final int HR = 108|BLOCK_LEVEL;
++public static final int PARAGRAPH = 109|BLOCK_LEVEL|IS_PARAGRAPH;
++public static final int DIV = 110|BLOCK_LEVEL;
++public static final int PREFORMAT = 111|BLOCK_LEVEL|IS_PARAGRAPH;
++public static final int BLOCKQUOTE = 112|BLOCK_LEVEL;
++public static final int BLOCKIMAGE = 113|BLOCK_LEVEL;
++public static final int ADDRESS = 114|BLOCK_LEVEL;
++public static final int BODY = 115|BLOCK_LEVEL;
++public static final int TABLE = 116|BLOCK_LEVEL|IS_PARAGRAPH;
++public static final int TROW = 117|BLOCK_LEVEL;//|IS_PARAGRAPH;
++public static final int TCELL = 118|BLOCK_LEVEL;//|IS_PARAGRAPH;
++//public static final int LAST_SINGLE_LINE = 199;
++
++public static final int TEST = 211|BLOCK_LEVEL;
++
++public static final int UL = 212|BLOCK_LEVEL;
++public static final int OL = 213|BLOCK_LEVEL;
++public static final int ULI = 214|BLOCK_LEVEL|STARTS_FRESH;
++public static final int OLI = 215|BLOCK_LEVEL|STARTS_FRESH;
++public static final int DL = 216|BLOCK_LEVEL|IS_PARAGRAPH;
++public static final int DT = 217|BLOCK_LEVEL|STARTS_FRESH;
++public static final int DD = 218|BLOCK_LEVEL;
++//public static final int LAST_BLOCK_LEVEL = 299;
++
++private static int[] theValues = {BOLD,ITALIC,UNDERLINE,HYPERLINK,ANCHOR,SPAN,FONT,BIG,SMALL,TELETYPE,EM,STRONG,DFN,IMAGE,BLOCK_LEVEL,STARTS_FRESH,IS_PARAGRAPH,CENTERED,HEADING1,HEADING2,HEADING3,HEADING4,HEADING5,HEADING6,TITLE,HR,PARAGRAPH,DIV,PREFORMAT,BLOCKQUOTE,BLOCKIMAGE,ADDRESS,BODY,TABLE,TROW,TCELL,TEST,UL,OL,ULI,OLI,DL,DT,DD};
++private static String[] theNames = {&quot;BOLD&quot;,&quot;ITALIC&quot;,&quot;UNDERLINE&quot;,&quot;HYPERLINK&quot;,&quot;ANCHOR&quot;,&quot;SPAN&quot;,&quot;FONT&quot;,&quot;BIG&quot;,&quot;SMALL&quot;,&quot;TELETYPE&quot;,&quot;EM&quot;,&quot;STRONG&quot;,&quot;DFN&quot;,&quot;IMAGE&quot;,&quot;BLOCK_LEVEL&quot;,&quot;STARTS_FRESH&quot;,&quot;IS_PARAGRAPH&quot;,&quot;CENTERED&quot;,&quot;HEADING1&quot;,&quot;HEADING2&quot;,&quot;HEADING3&quot;,&quot;HEADING4&quot;,&quot;HEADING5&quot;,&quot;HEADING6&quot;,&quot;TITLE&quot;,&quot;HR&quot;,&quot;PARAGRAPH&quot;,&quot;DIV&quot;,&quot;PREFORMAT&quot;,&quot;BLOCKQUOTE&quot;,&quot;BLOCKIMAGE&quot;,&quot;ADDRESS&quot;,&quot;BODY&quot;,&quot;TABLE&quot;,&quot;TROW&quot;,&quot;TCELL&quot;,&quot;TEST&quot;,&quot;UL&quot;,&quot;OL&quot;,&quot;ULI&quot;,&quot;OLI&quot;,&quot;DL&quot;,&quot;DT&quot;,&quot;DD&quot;};
++public String valueToName(int value)
++{
++for (int i = 0; i&lt;theValues.length; i++)
++	if (theValues[i] == value) return theNames[i];
++return null;
++}
++
++//##################################################################
++}
++//##################################################################
++
+
+Added: experiments/EVEhist/src/eve/ui/formatted/HotSpot.java
+===================================================================
+--- experiments/EVEhist/src/eve/ui/formatted/HotSpot.java	2009-01-31 13:48:30 UTC (rev 1606)
++++ experiments/EVEhist/src/eve/ui/formatted/HotSpot.java	2009-02-01 11:37:18 UTC (rev 1607)
+@@ -0,0 +1,58 @@
++package eve.ui.formatted;
++import eve.fx.Color;
++import eve.fx.gui.Cursor;
++
++/**
++* A HotSpot represents a Hyperlink to a location within this document (if the link starts with '#')
++* or to another document. It is also used to represent a location within a document that another
++* HotSpot can link to (in which case it is effectively invisible).&lt;p&gt;
++* 
++* The hyperlink that the HotSpot refers to is stored in the &quot;data&quot; member variable as a String.
++* If this String starts with '!' then it is a book mark in the document that other hyperlinks
++* will refer to. If it does not start with '!' then it is a clickable hyperlink to another
++* location or document.
++**/
++
++	//##################################################################
++	public class HotSpot extends TextFormatter{
++	//##################################################################
++	public static Color hotColor = new Color(0,0,255);
++	{
++		cursor = Cursor.HAND_CURSOR;
++		color = hotColor;
++	}
++	
++	//===================================================================
++	public HotSpot()
++	//===================================================================
++	{
++	}
++	//===================================================================
++	public HotSpot(int line,int character,int length)
++	//===================================================================
++	{
++		super(line,character,length);
++	}
++		/**
++	 * Returns if this need to be applied at the start or during the line.
++	 */
++	//===================================================================
++	public boolean applyBefore()
++	//===================================================================
++	{
++		return true;
++	}
++/*
++	//===================================================================
++	public Object getToolTip()
++	//===================================================================
++	{
++		Object got = super.getToolTip();
++		if (got != null) return got;
++		return (cursor != 0) ? data.toString() : null;
++	}
++*/
++	//##################################################################
++	}
++	//##################################################################
++
+
+Added: experiments/EVEhist/src/eve/ui/formatted/HtmlDisplay.java
+===================================================================
+--- experiments/EVEhist/src/eve/ui/formatted/HtmlDisplay.java	2009-01-31 13:48:30 UTC (rev 1606)
++++ experiments/EVEhist/src/eve/ui/formatted/HtmlDisplay.java	2009-02-01 11:37:18 UTC (rev 1607)
+@@ -0,0 +1,149 @@
++package eve.ui.formatted;
++import eve.data.PropertyList;
++import eve.fx.Color;
++import eve.fx.IImage;
++import eve.sys.Handle;
++//##################################################################
++public class HtmlDisplay extends TextDisplay  {
++//##################################################################
++
++{
++	forcedActualWidth = 5000;
++	spacing = 2;
++}
++private FormattedTextMaker maker;
++
++public PropertyList headerData = new PropertyList();
++public PropertyList bodyData = new PropertyList();
++/*
++public void repaintNow()
++{
++	if ((getModifiers(true) &amp; Invisible) != 0) return;
++	new Exception().printStackTrace();
++	super.repaintNow();
++}
++*/
++//===================================================================
++public HtmlDisplay(){}
++//===================================================================
++public HtmlDisplay(int rows,int columns)
++//===================================================================
++{
++	super(rows,columns);
++}
++/**
++* Call this before setting properties for the HTML decoder.
++**/
++//===================================================================
++public void startHtml()
++//===================================================================
++{
++	if (maker != null) maker.removeFrom(this);
++	maker = new FormattedTextMaker();
++}
++/**
++* Make sure you call startHtml(), before calling this.
++* After you do that you can then set properties for the decoder. These
++* include:&lt;dl&gt;
++* &lt;dt&gt;&quot;documentRoot&quot;&lt;dd&gt;The root of the document. Images with relative path
++* names will be searched for relative to this path.
++* &lt;/dl&gt;
++**/
++//===================================================================
++public PropertyList getDecoderProperties()
++//===================================================================
++{
++	if (maker != null) return maker.properties;
++	else return PropertyList.nullPropertyList;
++}
++//===================================================================
++public void addHtml(String htmlText,Handle h)
++//===================================================================
++{
++	maker.parseHtml(this,htmlText,h);
++}
++//===================================================================
++public FormattedTextMaker endHtml()
++//===================================================================
++{
++	maker.endHtml();
++	return endMaker();
++}
++
++//-------------------------------------------------------------------
++FormattedTextMaker endMaker()
++//-------------------------------------------------------------------
++{
++	headerData = maker.headerData;
++	bodyData = maker.bodyData;
++	try{
++		pageColor = (Color)PropertyList.getValue(bodyData,&quot;background&quot;,Color.White);
++		foreGround =(Color)PropertyList.getValue(bodyData,&quot;foreground&quot;,Color.Black); 
++		backgroundImage = (IImage)PropertyList.getValue(bodyData,&quot;backgroundImage&quot;,null); 
++	}catch(Exception e){}
++	int was = modify(Invisible,0);
++	maker.addTo(this);
++	scrollTo(0,false);
++	restore(was,Invisible);
++	repaintDataNow();
++	
++	//clearHistory();
++	//markHistory();
++	return maker;
++}
++//===================================================================
++public void displayPropertiesChanged()
++//===================================================================
++{
++	try{
++		pageColor = (Color)PropertyList.getValue(bodyData,&quot;background&quot;,Color.White);
++		foreGround =(Color)PropertyList.getValue(bodyData,&quot;foreground&quot;,Color.Black); 
++		backgroundImage = (IImage)PropertyList.getValue(bodyData,&quot;backgroundImage&quot;,null); 
++	}catch(Exception e){}
++	super.displayPropertiesChanged();
++}
++//===================================================================
++public void setHtml(String htmlText)
++//===================================================================
++{
++	setHtml(htmlText,null,new Handle());
++}
++//===================================================================
++public FormattedTextMaker setHtml(String htmlText,PropertyList properties,Handle h)
++//===================================================================
++{
++	startHtml();
++	if (properties != null) getDecoderProperties().set(properties);
++	addHtml(htmlText,h);
++	return endHtml();
++}
++
++//===================================================================
++public void setHtml(FormattedTextMaker maker,PropertyList properties)
++//===================================================================
++{
++	if (this.maker != null) this.maker.removeFrom(this);
++	this.maker = maker;
++	if (properties != null) getDecoderProperties().set(properties);
++	endMaker();
++}
++
++//===================================================================
++public void formClosing()
++//===================================================================
++{
++	super.formClosing();
++	if (maker != null) maker.removeFrom(this);
++}
++//===================================================================
++public void setPlainText(String text)
++//===================================================================
++{
++	if (maker != null) maker.removeFrom(this);
++	setText(text);
++	//markHistory();
++}
++//##################################################################
++}
++//##################################################################
++
+
+Added: experiments/EVEhist/src/eve/ui/formatted/ImageResolver.java
+===================================================================
+--- experiments/EVEhist/src/eve/ui/formatted/ImageResolver.java	2009-01-31 13:48:30 UTC (rev 1606)
++++ experiments/EVEhist/src/eve/ui/formatted/ImageResolver.java	2009-02-01 11:37:18 UTC (rev 1607)
+@@ -0,0 +1,25 @@
++package eve.ui.formatted;
++import eve.data.PropertyList;
++import eve.fx.Dimension;
++import eve.sys.Handle;
++
++//##################################################################
++public interface ImageResolver{
++//##################################################################
++/**
++* Resolve the image.
++* @param imageProperties The properties for the Image. This should contain at least one property called &quot;src&quot;.
++* @param allowAnimatedImages If this is true then animated images will be resolved into
++* an AnimatedIcon.
++* @param maxSize An optional limit to the size of the image returned.
++* @return A Handle that can be used to monitor the progress of the resolution. When the Handle
++* status reports Handle.Succeeded then the returnValue of the Handle will hold the resolved
++* image.
++*/
++public Handle resolveImage(PropertyList imageProperties, boolean allowAnimatedImages, Dimension maxSize);
++
++//##################################################################
++}
++//##################################################################
++
++
+
+Added: experiments/EVEhist/src/eve/ui/formatted/StreamImageResolver.java
+===================================================================
+--- experiments/EVEhist/src/eve/ui/formatted/StreamImageResolver.java	2009-01-31 13:48:30 UTC (rev 1606)
++++ experiments/EVEhist/src/eve/ui/formatted/StreamImageResolver.java	2009-02-01 11:37:18 UTC (rev 1607)
+@@ -0,0 +1,148 @@
++
++package eve.ui.formatted;
++import java.io.IOException;
++import java.io.InputStream;
++import java.util.Hashtable;
++
++import eve.data.PropertyList;
++import eve.fx.Dimension;
++import eve.fx.IImage;
++import eve.fx.ImageDecoder;
++import eve.fx.PixelBuffer;
++import eve.io.File;
++import eve.io.StreamUtils;
++import eve.sys.Handle;
++import eve.sys.Task;
++import eve.sys.TimeOut;
++import eve.util.ByteArray;
++import eve.util.FormattedDataSource;
++import eve.util.Tag;
++
++//##################################################################
++public class StreamImageResolver implements ImageResolver{
++//##################################################################
++
++//-------------------------------------------------------------------
++protected Tag getStreamFor(String imageName) throws IOException
++//-------------------------------------------------------------------
++{
++	File f = File.getNewFile(imageName);
++	if (!f.canRead()) throw new IOException();
++	Tag t = new Tag();
++	t.value = f.toReadableStream();
++	t.tag = (int)f.getLength();
++	return t;
++}
++
++private static ByteArray scaleArray;
++private Hashtable imageCache = new Hashtable();
++private static int numResolving;
++
++//===================================================================
++public Handle resolveImage(final String name,final boolean allowAnimatedImages,final Dimension maxSize)
++//===================================================================
++{
++	return new Task(){
++		protected void doRun(){
++			if (scaleArray == null) scaleArray = new ByteArray();
++			Handle handle = this;
++			try{
++				Tag tag = getStreamFor(name);
++				Object in = tag.value;
++				InputStream is = null;
++				if (in instanceof InputStream) is = (InputStream)in;
++				if (is == null) throw new IOException(&quot;Could not get Stream to image.&quot;);
++				int length = tag.tag;
++				if (length == 0){
++					is.close();
++					throw new IOException();
++				}
++				try{
++					IImage got = null;
++					handle.doing = &quot;Reading bytes...&quot;;
++					ByteArray ba = StreamUtils.readAllBytes(handle,is,null,length,0);
++					if (ba == null) {
++						handle.set(handle.Aborted|handle.Stopped);
++						return;
++					}
++					handle.doing = &quot;Decoding image...&quot;;
++					handle.setProgress(0);
++					synchronized(StreamImageResolver.class){
++						numResolving++;
++						//Vm.debug(&quot;Start: &quot;+numResolving+&quot; = &quot;+name+&quot;: &quot;+ba.length+&quot; = &quot;+ba.getChecksum());
++					}
++					try{
++						Dimension m = maxSize;
++						//m = new Dimension(50,50); //Just to test scaling.
++						FormattedDataSource fds = new FormattedDataSource().set(ba);
++						got = ImageDecoder.decodeScaledPicture(fds, m, true, true, null);
++					}finally{
++						synchronized(StreamImageResolver.class){
++							numResolving--;
++							//Vm.debug(&quot;Stop: &quot;+numResolving+&quot; = &quot;+name);
++						}
++					}
++					handle.returnValue = got;
++					handle.set(Handle.Succeeded);
++				}catch(Exception e){
++					//e.printStackTrace();
++					handle.fail(e);					
++				}
++			}catch(IOException e){
++				//.printStackTrace();
++				handle.fail(e);
++			}
++		}
++	}.start();
++}
++//===================================================================
++public Handle resolveImage(final PropertyList imageProperties,final boolean allowAnimatedImages,Dimension maxImageSize)
++//===================================================================
++{
++	final Dimension maxSize = maxImageSize; //new Dimension(100,100);
++	final String src = imageProperties.getString(&quot;src&quot;,null);
++	if (src == null) return new Handle(Handle.Failed,null);
++	return new Task(){
++		protected void doRun(){
++			Handle handle = this;
++			Handle res = (Handle)imageCache.get(src);
++			if (res == null) {
++				res = resolveImage(src,allowAnimatedImages,maxSize);
++				imageCache.put(src,res);
++			}
++			if (!waitOn(res,res.Success,TimeOut.Forever,true)){
++				handle.set(Handle.Failed);
++			}else{
++				IImage got = (IImage)res.returnValue;
++				//
++				if (maxSize != null){// &amp;&amp; !(got instanceof AniImage)){
++					if (got.getWidth() &gt; maxSize.width || got.getHeight() &gt; maxSize.height){
++						//System.out.println(&quot;Scaling: &quot;+maxSize);
++						got = new PixelBuffer(got).scale(maxSize.width,maxSize.height,null,PixelBuffer.SCALE_KEEP_ASPECT_RATIO,scaleArray).toPicture();
++					}//else System.out.println(&quot;Not Scaling: &quot;+maxSize);
++				}
++				//
++				PropertyList pl = PropertyList.toPropertyList(imageProperties);
++				int ww = pl.getInt(&quot;width&quot;,got.getWidth());
++				int hh = pl.getInt(&quot;height&quot;,got.getHeight());
++				if (ww &lt;= 0) ww = got.getWidth();
++				if (hh &lt;= 0) hh = got.getHeight();
++				if (maxSize != null){
++					if (ww &gt; maxSize.width) ww = maxSize.width;
++					if (hh &gt; maxSize.height) hh = maxSize.height;
++				}
++				if (ww != got.getWidth() &amp;&amp; hh != got.getHeight())
++					got = new PixelBuffer(got).scale(ww,hh,null,0,scaleArray).toPicture();
++				handle.returnValue = got;
++				handle.set(Handle.Succeeded);
++			}
++		}
++	}.start();
++}
++
++
++
++//##################################################################
++}
++//##################################################################
++
+
+Added: experiments/EVEhist/src/eve/ui/formatted/TextDisplay.java
+===================================================================
+--- experiments/EVEhist/src/eve/ui/formatted/TextDisplay.java	2009-01-31 13:48:30 UTC (rev 1606)
++++ experiments/EVEhist/src/eve/ui/formatted/TextDisplay.java	2009-02-01 11:37:18 UTC (rev 1607)
+@@ -0,0 +1,570 @@
++
++package eve.ui.formatted;
++import java.util.Enumeration;
++import java.util.Hashtable;
++import java.util.Iterator;
++import java.util.Vector;
++
++import eve.fx.Color;
++import eve.fx.Dimension;
++import eve.fx.DisplayLine;
++import eve.fx.FormattedTextSpecs;
++import eve.fx.Graphics;
++import eve.fx.IImage;
++import eve.fx.ImageRefresher;
++import eve.fx.OnScreenImage;
++import eve.fx.Point;
++import eve.ui.Gui;
++import eve.ui.TextPad;
++import eve.ui.event.ControlEvent;
++import eve.ui.event.PenEvent;
++import eve.util.IntArray;
++import eve.util.Range;
++
++//##################################################################
++public class TextDisplay extends TextPad implements ImageRefresher{
++//##################################################################
++
++//===================================================================
++public TextDisplay()
++//===================================================================
++{
++	
++}
++//===================================================================
++public TextDisplay(int rows,int columns)
++//===================================================================
++{
++	super(rows,columns);
++}
++
++{
++	modify(DisplayOnly,0);
++	disableCursor = true;
++	disableTextChanges = true;
++	rightMargin = leftMargin = 5;
++	dontWantPopup = true;
++}
++
++Vector formatters = new Vector();
++
++/**
++* The color for hot spots. By default it is bright blue.
++**/
++public Color hotColor = new Color(0,0,255);
++
++public void repaintDataNow()
++{
++	repaintNow();
++}
++//-------------------------------------------------------------------
++private TextFormatter getTextFormatterFor(int hotIndex,int lineIndex)
++//-------------------------------------------------------------------
++{
++	if (formatterOffsets != null &amp;&amp; lineIndex &lt; formatterOffsets.length/2){
++		int where = formatterOffsets[lineIndex*2], num = formatterOffsets[lineIndex*2+1];
++		if (where != 0){
++			if (hotIndex &gt;= num) return null;
++			else return (TextFormatter)formatters.get(formatterRefs.data[where+hotIndex]);
++		}
++	}
++	for (int i = 0; i&lt;formatters.size(); i++){
++		TextFormatter hs = (TextFormatter)formatters.get(i);
++		int ll = getLineLength(lineIndex,false);
++		if ((lineIndex == hs.startLine) || (lineIndex &gt; hs.startLine &amp;&amp; lineIndex &lt; hs.startLine+hs.numLines))
++		//if (hs.line == lineIndex &amp;&amp; hs.character &lt; ll &amp;&amp; ((hs.length == 0) || (hs.length+hs.character &lt;= ll)))
++			if (hotIndex == 0) return hs;
++			else hotIndex--;
++	}
++	return null;
++}
++//-------------------------------------------------------------------
++protected int getSpecialFormatCount(int lineIndex,DisplayLine theLine)
++//-------------------------------------------------------------------
++{
++	if (formatterOffsets == null || lineIndex &gt;= formatterOffsets.length/2)
++		formattersSet();
++	int num = 0;
++	if (theLine == null) return 0;
++	int len = theLine.length();
++	if (lineIndex &lt; formatterOffsets.length/2)
++			formatterOffsets[lineIndex*2] = formatterRefs.length;
++	for (int i = 0; i&lt;formatters.size(); i++){
++		TextFormatter hs = (TextFormatter)formatters.get(i);
++		
++		if ((lineIndex == hs.startLine) || (lineIndex &gt; hs.startLine &amp;&amp; lineIndex &lt; hs.startLine+hs.numLines)){
++		// &amp;&amp; hs.character &lt; len &amp;&amp; hs.length+hs.character &lt;= len){
++			num++;
++			formatterRefs.add(i);
++		}
++	}
++	if (lineIndex &lt; formatterOffsets.length/2)
++			formatterOffsets[lineIndex*2+1] = num;
++	
++	return num;
++}
++
++private static Vector tempFormatters;
++private static Range range;
++//===================================================================
++public Vector getTextFormatter(Point onControl,Vector dest)
++//===================================================================
++{
++	if (dest == null) {
++		if (tempFormatters == null) tempFormatters = new Vector();
++		dest = tempFormatters;
++	}
++	dest.clear();
++	Point where = getCharAt(onControl);
++	if (where != null) { //Not on any character, possibly on an image?
++		DisplayLine dl = getLine(where.y);
++		for (int i = 0;;i++){
++			TextFormatter hs = getTextFormatterFor(i,where.y);
++			if (hs == null) break;
++			if (hs.image != null) continue;
++			if (range == null) range = new Range(0,0);
++			if (hs.getCharRange(where.y,dl,range) != null)
++				if (where.x &gt;= range.first &amp;&amp; where.x &lt;= range.last){
++					dest.add(hs);
++					if (hs.linkedTo != null) dest.add(hs.linkedTo);
++				}
++		}
++	}
++	//See if on any images.
++	int h = getLineHeight();
++	int py = (onControl.y-spacing+getTopLine()*h)/h;
++	if (py &gt;= getNumLines()) return dest;
++	FormattedTextSpecs f;
++	int [] got = (f = getTextPositions(py,getLine(py))).calculatedPositions;
++	for (int i = 0;;i++){
++		TextFormatter hs = getTextFormatterFor(i,py);
++		if (hs == null) break;
++		if (hs.image != null &amp;&amp; hs.isOnImage(this,onControl.x-spacing+getLeftPosition(),f)){
++			dest.add(hs);
++			if (hs.linkedTo != null) dest.add(hs.linkedTo);
++		}
++	}
++	return dest;
++}
++//===================================================================
++public TextFormatter getTextFormatter(Point onControl)
++//===================================================================
++{
++	Vector v = getTextFormatter(onControl,null);
++	if (v.size() == 0) return null;
++	else return (TextFormatter)v.get(0);
++}
++
++//-------------------------------------------------------------------
++protected void applySpecialFormat(int formatIndex,int lineIndex,DisplayLine theLine,FormattedTextSpecs format)
++//-------------------------------------------------------------------
++{
++	TextFormatter hs = getTextFormatterFor(formatIndex,lineIndex);
++	if (hs == null) return;
++	hs.applySpecialFormat(this,lineIndex,theLine,format);
++}
++//-------------------------------------------------------------------
++protected void drawSpecialFormat(int formatIndex,int lineIndex,DisplayLine theLine,FormattedTextSpecs format,Graphics g,Color background)
++//-------------------------------------------------------------------
++{
++	TextFormatter hs = getTextFormatterFor(formatIndex,lineIndex);
++	if (hs == null) return;
++	hs.drawSpecialFormat(this,lineIndex,theLine,format,g,background);
++}
++
++Hashtable imageFormatters = new Hashtable();
++
++//===================================================================
++public void refresh(IImage image,int options)
++//===================================================================
++{
++	if (!Gui.requestPaint(this)) return;
++	TextFormatter [] found = (TextFormatter [])imageFormatters.get(image);
++	if (found != null){
++		for (int i = 0; i&lt;found.length; i++)
++			found[i].repaint(this,null);
++	}
++}
++//===================================================================
++public void stopAniImages()
++//===================================================================
++{
++	for (Enumeration it = imageFormatters.keys(); it.hasMoreElements();){
++		Object obj = it.nextElement();
++		if (obj instanceof OnScreenImage)
++			((OnScreenImage)obj).changeRefresher(null,this);
++	}
++}
++//===================================================================
++public void formClosing()
++//===================================================================
++{
++	stopAniImages();
++	super.formClosing();
++}
++//===================================================================
++public void imageSet(TextFormatter formatter)
++//===================================================================
++{
++	if (formatter.image instanceof OnScreenImage){
++		OnScreenImage ai = (OnScreenImage)formatter.image;
++		TextFormatter [] was = (TextFormatter [])imageFormatters.get(ai);
++		TextFormatter [] now = new TextFormatter[was == null ? 1 : was.length+1];
++		now[0] = formatter;
++		if (was != null) System.arraycopy(was,0,now,1,was.length);
++		imageFormatters.put(ai, now);
++		//ai.displayControl = this;
++		ai.setRefresher(this);
++		refresh(ai,0);
++	}
++}
++//===================================================================
++public TextFormatter addTextFormatter(TextFormatter formatter)
++//===================================================================
++{
++	formatters.add(formatter);
++	if (formatter.image instanceof OnScreenImage) imageSet(formatter);
++	return formatter;
++}
++//===================================================================
++public TextFormatter addTextFormatter(int lineIndex,int characterIndex,int length,TextFormatter dest)
++//===================================================================
++{
++	if (dest == null) dest = new TextFormatter(lineIndex,characterIndex,length);
++	else {
++		dest.startLine = lineIndex;
++		dest.startCharacter = characterIndex;
++		dest.endCharacter = characterIndex+length-1;
++		dest.numLines = 1;
++	}
++	return addTextFormatter(dest);
++}
++//===================================================================
++public TextFormatter addTextFormatter(int lineIndex,int characterIndex,int length,int fontFlags,int lineFlags)
++//===================================================================
++{
++	return addTextFormatter(new TextFormatter(lineIndex,characterIndex,length,fontFlags,lineFlags));
++}
++//===================================================================
++public TextFormatter addTextFormatter(int lineIndex,int numLines,int fontFlags,int lineFlags)
++//===================================================================
++{
++	return addTextFormatter(new TextFormatter(lineIndex,numLines,fontFlags,lineFlags));
++}
++
++//===================================================================
++public void clearTextFormatters()
++//===================================================================
++{
++	formatters.clear();
++	stopAniImages();
++	imageFormatters.clear();
++}
++/*
++//===================================================================
++public void removeTextFormatter(TextFormatter hs)
++//===================================================================
++{
++	formatters.remove(hs);
++}
++*/
++//===================================================================
++public Iterator getTextFormatters()
++//===================================================================
++{
++	return formatters.iterator();
++}
++//===================================================================
++public TextFormatter addTextFormatter(int indexInFullText,int length,TextFormatter dest)
++//===================================================================
++{
++	Dimension d = getIndexLocation(indexInFullText,null);
++	if (d == null) return null;
++	return addTextFormatter(d.height,d.width,length,dest);
++}
++
++//------------------------------------------------------------------
++protected void splitLines(int width)
++//------------------------------------------------------------------
++{
++	super.splitLines(width);
++	postEvent(new ControlEvent(LINES_SPLIT,this));
++}
++
++private int[] formatterOffsets;
++private IntArray formatterRefs;
++/**
++* This tells the TextDisplay that formatters have been set and so it can optimize
++* itself based on this.
++**/
++//===================================================================
++public void formattersSet()
++//===================================================================
++{
++	formatterOffsets = new int[numLines*2];
++	formatterRefs = new IntArray();
++	formatterRefs.add(0);
++}
++//-------------------------------------------------------------------
++protected void getColors(boolean hasFocus,int flags)
++//-------------------------------------------------------------------
++{
++	super.getColors(hasFocus,flags);
++	colors[0] = getForeground();
++	colors[1] = pageColor;
++	colors[2] = colors[1];
++	colors[3] = Color.DarkBlue;//colors[0];
++}
++
++protected TextFormatter mouseOver;
++
++//-------------------------------------------------------------------
++protected void mouseMovedOnOff(TextFormatter tf,boolean movedOn){}
++//-------------------------------------------------------------------
++
++//===================================================================
++public void onPenEvent(PenEvent ev)
++//===================================================================
++{
++	if (ev.type == ev.PEN_MOVE){
++		Vector v = getTextFormatter(new Point(ev.x,ev.y),null);
++		//ewe.sys.Vm.debug(v.toString());
++		for (int i = 0; i&lt;v.size(); i++){
++			TextFormatter hs = (TextFormatter)v.get(i);
++				if (hs.cursor != 0) {
++					setCursor(hs.cursor);
++					if (mouseOver != hs) {
++						if (mouseOver != null) mouseMovedOnOff(mouseOver,false);
++						mouseMovedOnOff(mouseOver = hs,true);
++					}
++					return;
++				}
++		}
++		if (mouseOver != null) mouseMovedOnOff(mouseOver,false);
++		mouseOver = null;
++	}else if (ev.type == ev.PEN_MOVED_OFF){
++		if (mouseOver != null) mouseMovedOnOff(mouseOver,false);
++		mouseOver = null;
++	}
++	super.onPenEvent(ev);
++}
++
++
++/**
++ * This tells the display to go to the specified anchor.
++ * @param anchorName The name of the anchor.
++ * @return true if the anchor is in the current document. False otherwise.
++ */
++//===================================================================
++public boolean goToAnchor(String anchorName)
++//===================================================================
++{
++	String lookFor = anchorName.toUpperCase();
++	if (lookFor.startsWith(&quot;#&quot;)) lookFor = lookFor.substring(1);
++	for (Iterator it = getTextFormatters(); it.hasNext();){
++		Object got = it.next();
++		if (got instanceof HotSpot){
++			HotSpot an = (HotSpot)got;
++			String anchor = an.data == null ? null : an.data.toString().toUpperCase();
++			if (anchor == null || anchor.length() &lt; 2) continue;
++			if (anchor.charAt(0) == '!' &amp;&amp; anchor.substring(1).equals(lookFor)){
++				goToLine(an.startLine);
++				return true;
++			}
++		}
++	}
++	return false;
++}
++
++//-------------------------------------------------------------------
++protected boolean hotspotPressed(HotSpot hs,Point where)
++//-------------------------------------------------------------------
++{
++	postEvent(new HotSpotEvent(HotSpotEvent.PRESSED,hs));
++	if (hs.data != null &amp;&amp; hs.data.toString().startsWith(&quot;#&quot;)){
++		markHistory();
++		boolean ret = goToAnchor(hs.data.toString());
++		if (!ret) deleteLastHistory();
++		return ret;
++	}
++	return false;
++}
++/**
++ * Scroll to the specified line. An entry in the &quot;goBack&quot; history will be made with the
++ * current position.
++ * @param line The line to go to.
++ * @return true if scrolled, false otherwise.
++ */
++//===================================================================
++public boolean goToLine(int line)
++//===================================================================
++{
++	//markHistory();
++	scrollTo(line,false);
++	return true;
++}
++/**
++ * Clear the goBack history.
++ */
++//===================================================================
++public void clearHistory()
++//===================================================================
++{
++	states.clear();
++}
++/**
++ * Mark the current location in the goBack history.
++ */
++//===================================================================
++public void markHistory()
++//===================================================================
++{
++	states.add(getState());	
++}
++Vector states = new Vector();
++//===================================================================
++public void deleteLastHistory()
++//===================================================================
++{
++	int sz = states.size();
++	if (sz != 0) states.removeElementAt(sz-1);
++	if (states.size() == 0) 
++		markHistory();
++}
++/**
++* This goes back one place in the saved states for the HtmlDisplay.
++**/
++//===================================================================
++public void goBack()
++//===================================================================
++{
++	int sz = states.size();
++	if (sz == 0) scrollTo(0,false);
++	else{
++		setState(states.get(sz-1));
++		states.removeElementAt(sz-1);
++	}
++	if (states.size() == 0) 
++		markHistory();
++}
++
++/**
++* This is a type of Control event. It is sent after the text has been split into separate lines
++* by the TextDisplay. It can be used to trigger the setting up of the TextFormatters.
++**/
++public static final int LINES_SPLIT = 310;
++
++//##################################################################
++public class HotSpotEvent extends ControlEvent{
++//##################################################################
++
++
++public HotSpot hotSpot;
++
++//-------------------------------------------------------------------
++HotSpotEvent(int type,HotSpot spot)
++//-------------------------------------------------------------------
++{
++	super(type,TextDisplay.this);
++	this.hotSpot = spot;
++}
++
++//##################################################################
++}
++//##################################################################
++
++//===================================================================
++public void penPressed(Point where)
++//===================================================================
++{
++	Point p = where;
++	Vector v = getTextFormatter(where,null);
++	//ewe.sys.Vm.debug(&quot;-----------------&quot;);
++	//ewe.sys.Vm.debug(v.toString());
++	for (int i = 0; i&lt;v.size(); i++){
++		TextFormatter hs = (TextFormatter)v.get(i);
++		if (hs instanceof HotSpot)
++			if (hotspotPressed((HotSpot)hs,p)){
++				clearSelection();
++				break;
++			}
++	}
++	super.penPressed(where);
++}
++
++//===================================================================
++public Object getToolTip(int x,int y)
++//===================================================================
++{
++	Vector v = getTextFormatter(new Point(x,y),null);
++	for (int i = 0; i&lt;v.size(); i++){
++		TextFormatter hs = (TextFormatter)v.get(i);
++		Object tt = hs.getToolTip();
++		if (tt != null) return tt;
++	}
++	return super.getToolTip(x,y);
++}
++/**
++* Call this to indicate that something about the display has changed. By
++* default it simply does a repaintNow(), but HtmlDisplay will update its background images etc.
++**/
++//===================================================================
++public void displayPropertiesChanged()
++//===================================================================
++{
++	repaintNow();
++}
++
++/*
++//===================================================================
++public static void main(String args[])
++//===================================================================
++{
++	ewe.sys.Vm.startEwe(args);
++	Form f = new Form();
++	TextDisplay td; 
++	f.addLast(new ScrollBarPanel(td = new TextDisplay())).setPreferredSize(240,320);
++	td.font = new Font(&quot;Times New Roman&quot;,Font.PLAIN,20);
++	td.wrapToScreenSize = false;
++	td.setText(
++&quot;Copyright (c) 2001 Michael L Brereton  All rights reserved.\n&quot;+
++&quot;\n&quot;+
++&quot;This software is furnished under the Gnu General Public License, Version 2, June 1991,\n&quot;+
++&quot;and may be used only in accordance with the terms of that license. This source code\n&quot;+
++&quot;must be distributed with a copy of this license. This software and documentation, \n&quot;+
++&quot;and its copyrights are owned by Michael L Brereton and are protected by copyright law.\n&quot;+
++&quot;\n&quot;+
++&quot;If this notice is followed by a Wabasoft Copyright notice, then this software\n&quot;+
++&quot;is a modified version of the original as provided by Wabasoft. Wabasoft also \n&quot;+
++&quot;retains all rights as stipulated in the Gnu General Public License. These modifications\n&quot;+
++&quot;were made to the Version 1.0 source code release of Waba, throughout 2000 and up to May \n&quot;+
++&quot;2001.\n&quot;+
++&quot;\n&quot;+
++&quot;THIS SOFTWARE AND REFERENCE MATERIALS ARE PROVIDED \&quot;AS IS\&quot; WITHOUT WARRANTY\n&quot;+
++&quot;AS TO THEIR PERFORMANCE, MERCHANTABILITY, FITNESS FOR ANY PARTICULAR PURPOSE,\n&quot;+
++&quot;OR AGAINST INFRINGEMENT. MICHAEL L BRERETON ASSUMES NO RESPONSIBILITY FOR THE USE OR\n&quot;+
++&quot;INABILITY TO USE THIS SOFTWARE. MICHAEL L BRERETON SHALL NOT BE LIABLE FOR INDIRECT,\n&quot;+
++&quot;SPECIAL OR CONSEQUENTIAL DAMAGES RESULTING FROM THE USE OF THIS PRODUCT.\n&quot;+
++&quot;\n&quot;+
++&quot;MICHAEL L BRERETON SHALL HAVE NO LIABILITY OR RESPONSIBILITY FOR SOFTWARE ALTERED,\n&quot;+
++&quot;MODIFIED, OR CONVERTED BY YOU OR A THIRD PARTY, DAMAGES RESULTING FROM\n&quot;+
++&quot;ACCIDENT, ABUSE OR MISAPPLICATION, OR FOR PROBLEMS DUE TO THE MALFUNCTION OF\n&quot;+
++&quot;YOUR EQUIPMENT OR SOFTWARE NOT SUPPLIED BY MICHAEL L BRERETON.\n&quot;
++	);
++	TextFormatter tf;
++	//TextFormatter tf = td.addTextFormatter(3,4,TextFormatter.FONT_CHANGE|Font.BOLD,TextFormatter.LINE_ADD_FIRST_LINE_HEADER);
++	//tf.leftMarginShift = 20;
++	//tf.data = tf.DIAMOND;
++	tf = td.addTextFormatter(8,3,10,TextFormatter.FONT_CHANGE|Font.ITALIC|Font.BOLD,0);
++	tf.numLines = 4;
++	tf.endCharacter = 1;
++	tf.cursor = ewe.sys.Vm.HAND_CURSOR;
++	f.execute();
++	ewe.sys.Vm.exit(0);
++}
++*/
++//##################################################################
++}
++//##################################################################
++
++
+
+Added: experiments/EVEhist/src/eve/ui/formatted/TextFormatter.java
+===================================================================
+--- experiments/EVEhist/src/eve/ui/formatted/TextFormatter.java	2009-01-31 13:48:30 UTC (rev 1606)
++++ experiments/EVEhist/src/eve/ui/formatted/TextFormatter.java	2009-02-01 11:37:18 UTC (rev 1607)
+@@ -0,0 +1,606 @@
++package eve.ui.formatted;
++import eve.data.DataObject;
++import eve.fx.Color;
++import eve.fx.DisplayLine;
++import eve.fx.Font;
++import eve.fx.FontMetrics;
++import eve.fx.FormattedTextSpecs;
++import eve.fx.Graphics;
++import eve.fx.IImage;
++import eve.fx.Pen;
++import eve.fx.PixelBuffer;
++import eve.fx.Rect;
++import eve.ui.Control;
++import eve.ui.TextPad;
++import eve.util.Range;
++
++/**
++* A TextFormatter is used to format all or some of the text of a single line of an TextPad
++* display.
++**/
++	//##################################################################
++	public class TextFormatter extends DataObject{
++	//##################################################################
++	/**
++	* The first line of text covered by the formatter - where 0 indicates the first line of
++	* the display.
++	**/
++	public int startLine;
++	/**
++	* The number of lines covered by the formatter. - if it is greater than 1, then this is
++	* a block level formatter and the &quot;character&quot; and &quot;length&quot; members are not used. 
++	**/
++	public int numLines;
++	/**
++	* The first character in the line being covered by the formatter. If this is -1 then it is
++	* assumed that this formatter will not have any effect on the displayed text, but is really only used
++	* as some sort of flag or marker for the line or lines
++	**/
++	public int startCharacter;
++	/**
++	* The index of the last character in the last line being covered by the formatter. If this is -1 then it
++	* is assumed that the formatter is applied to ALL characters in ALL the lines covered by
++	* the formatter.
++	**/
++	public int endCharacter;
++	/**
++	* If this is not null then the text will be redrawn in this color &lt;b&gt;if&lt;/b&gt; the FONT_CHANGE
++	* flag is set in fontFlags.
++	**/
++	public Color color = null;
++	/**
++	* This is a fontFlag. Other fontFlags could be Font.BOLD, Font.UNDERLINE and Font.ITALIC.
++	**/
++	public static final int FONT_CHANGE = 0x8000;
++	public static final int FONT_FREEZE = 0x10000;
++	/**
++	* This can be a combination of FONT_CHANGE along with Font.BOLD, Font.UNDERLINE and Font.ITALIC.
++	**/
++	public int fontFlags = 0;
++	/**
++	* This can be a combination of the LINE_XXX values.
++	**/
++	public int lineFlags = 0;
++	/**
++	* This is a possible lineFlag.
++	**/
++	public static final int LINE_CENTERED = 0x1;
++	/**
++	* This is a possible lineFlag.
++	**/
++	public static final int LINE_RIGHT_ALIGNED = 0x2;
++	/**
++	* This is a possible lineFlag.
++	**/
++	public static final int LINE_RESPLIT = 0x4;
++	/**
++	* This is a possible lineFlag.
++	**/
++	public static final int LINE_ADD_FIRST_LINE_HEADER = 0x8;
++	/**
++	* This is a possible lineFlag.
++	**/
++	public static final int LINE_LEFT_MARGIN_SHIFT_IS_CHARACTERS = 0x10;
++	/**
++	* This is a possible lineFlag.
++	**/
++	public static final int LINE_HEADER_RIGHT_ALIGN = 0x20;
++	/**
++	* This is a possible lineFlag.
++	**/
++	public static final int LINE_DRAW_RULE = 0x40;
++	/**
++	* This is a possible lineFlag.
++	**/
++	public static final int LINE_ALIGN_NOW = 0x80;
++	/**
++	* This is a possible lineFlag.
++	**/
++	public static final int LINE_CANCEL_ALIGNMENTS = 0x100;
++	/**
++	* This is a possible lineFlag.
++	**/
++	public static final int LINE_BACKGROUND_COLOR_CHANGE = 0x200;
++	
++	public Color backgroundColor;
++	
++	/**
++	 * Returns if this need to be applied at the start or during the line.
++	 */
++	//===================================================================
++	public boolean applyBefore()
++	//===================================================================
++	{
++		//if (true) return true;
++		if ((lineFlags &amp; (LINE_BACKGROUND_COLOR_CHANGE|LINE_DRAW_RULE|LINE_ADD_FIRST_LINE_HEADER)) != 0)	return true;
++		if (leftMarginShift != 0) return true;
++		if (image != null) return true;
++		if ((fontFlags &amp; FONT_CHANGE) != 0) return true;
++		return false;
++	}
++	/**
++	 * Returns if this need to be applied at the end of the line.
++	 */
++	//===================================================================
++	public boolean applyAfter()
++	//===================================================================
++	{
++		//if (true) return false;
++		if ((lineFlags &amp; (LINE_CANCEL_ALIGNMENTS|LINE_RIGHT_ALIGNED|LINE_CENTERED)) != 0) return true;
++		return false;
++	}
++	//===================================================================
++	public TextFormatter getEndFormatter(TextFormatter dest)
++	//===================================================================
++	{
++		if (dest == null) dest = new TextFormatter();
++		dest.lineFlags = (lineFlags &amp; (LINE_CANCEL_ALIGNMENTS|LINE_RIGHT_ALIGNED|LINE_CENTERED))|LINE_ALIGN_NOW;
++		return dest;
++	}
++	//===================================================================
++	public TextFormatter getStartFormatter(TextFormatter dest)
++	//===================================================================
++	{
++		if (dest == null) dest = new TextFormatter();
++		dest.lineFlags = lineFlags;
++		//lineFlags | LINE_ALIGN_NOW;
++		return dest;
++	}	
++	public Object data;
++	public Object toolTip = null;
++	public int cursor = 0;
++	public int leftMarginShift;
++	public int resplitWidthChange;
++	public String label;
++	//
++	// Used for displaying images.
++	//
++	public IImage image;
++	/**
++	* The line that the image is actually on.
++	**/
++	public int imageLine;
++	/**
++	* The character that comes after the image.
++	**/
++	public int imageChar;
++	public int imageX;
++	public int imageY;
++	public int hSpace = 0, vSpace = 0, borderWidth = 0;
++	
++	public TextFormatter linkedTo;
++	
++	static IImage UnknownImage, BrokenImage;
++	
++	public boolean notUsed;
++	
++	//===================================================================
++	public static IImage getUnknownImage()
++	//===================================================================
++	{
++ 		if (UnknownImage == null) 
++			UnknownImage = Control.loadImage(&quot;eve/imagesmall.png&quot;);
++		return UnknownImage;
++	}
++	//===================================================================
++	public static IImage getBrokenImage()
++	//===================================================================
++	{
++		if (BrokenImage == null){
++			PixelBuffer pb = new PixelBuffer(getUnknownImage());
++			Graphics g = pb.getDrawingBuffer(null,null,1.0);
++			g.changePen(Color.Red,Pen.SOLID,2);
++			g.drawLine(2,2,pb.getWidth()-4,pb.getHeight()-4);
++			g.drawLine(2,pb.getHeight()-4,pb.getWidth()-4,2);
++			pb.putDrawingBuffer(pb.PUT_BLEND);
++			BrokenImage = pb.toPicture();
++			pb.free();
++		}
++		return BrokenImage;
++	}
++	//===================================================================
++	public String rangeToString()
++	//===================================================================
++	{
++		return endCharacter == -1 ? startLine+&quot;-&gt;&quot;+(startLine+numLines-1) : &quot;(&quot;+startLine+&quot;,&quot;+startCharacter+&quot;)-&gt;&quot;+&quot;(&quot;+(startLine+numLines-1)+&quot;,&quot;+endCharacter+&quot;)&quot;;
++	}
++	//===================================================================
++	public String toString()
++	//===================================================================
++	{
++		return label == null ?  rangeToString() : label;
++	}
++	/**
++	* The amount to change the font size by (FONT_CHANGE must be set).
++	**/
++	public int fontSizeChange = 0;
++	/**
++	* The amount to change the font to (FONT_CHANGE must be set).
++	**/
++	public int fontSize = 0;
++	/**
++	* The name of the new font to use (FONT_CHANGE must be set).
++	**/
++	public String fontName = null;
++	/**
++	* If you set this to a Font, the fontFlags, fontSizeChange and fontName values are ignored
++	* and this is used instead.
++	**/
++	public Font newFont;
++	/**
++	* The ID of the group this formatter belongs to.
++	**/
++	public int groupID;
++	/**
++	* The index of this formatter in the group this formatter belongs to.
++	**/
++	public int groupIndex;
++	//===================================================================
++	public TextFormatter()
++	//===================================================================
++	{
++	}
++	//===================================================================
++	public TextFormatter(int line,int character,int length)
++	//===================================================================
++	{
++		this.startLine = line;
++		this.startCharacter = character;
++		this.endCharacter = character+length-1;		
++		this.numLines = 1;
++	}
++	//===================================================================
++	public TextFormatter(int line,int character,int length,int fontFlags,int lineFlags)
++	//===================================================================
++	{
++		this.startLine = line;
++		this.startCharacter = character;
++		this.endCharacter = character+length-1;		
++		this.fontFlags = fontFlags;
++		this.lineFlags = lineFlags;
++		this.numLines = 1;
++	}
++	//===================================================================
++	public TextFormatter(int startLine,int numLines,int fontFlags,int lineFlags)
++	//===================================================================
++	{
++		this.startLine = startLine;
++		this.numLines = numLines;
++		this.startCharacter = 0;
++		this.endCharacter = -1;
++		this.fontFlags = fontFlags;
++		this.lineFlags = lineFlags;
++	}
++	//===================================================================
++	public Object getToolTip()
++	//===================================================================
++	{
++		return toolTip;
++	}
++
++
++//===================================================================
++public Font getFont(Font baseFont,int useSize)
++//===================================================================
++{
++	if ((fontFlags &amp; FONT_CHANGE) == 0) return baseFont;
++	Font f = baseFont;
++	int ff = fontFlags &amp; (Font.ITALIC|Font.BOLD|Font.PLAIN|Font.UNDERLINE);
++	int fs = useSize == 0 ? (fontSize == 0 ? f.getSize() : fontSize)+fontSizeChange : useSize;
++	return new Font(fontName == null ? f.getName() : fontName,f.getStyle()|ff,fs);
++}
++
++//-------------------------------------------------------------------
++protected FontMetrics getFontMetrics(TextPad pad,FontMetrics baseFont)
++//-------------------------------------------------------------------
++{
++	if (baseFont == null) baseFont = pad.getFontMetrics();
++	int ln = pad.getLineHeight();
++	for (int fs = 0;; fs--){
++		Font f = getFont(baseFont.getFont(),fs);
++		FontMetrics fm = baseFont.getNewFor(f);
++		if (fontSizeChange == 0){
++			if (fm.getCharWidth('X') &lt;= baseFont.getCharWidth('X')) return fm;
++		}else{
++			if (fm.getHeight() &lt;= ln) return fm;
++		}
++		fs = f.getSize();
++		if (fs &lt;= 5) return fm;
++	}
++}
++/*
++//-------------------------------------------------------------------
++protected FontMetrics getFontMetrics(FormattedTextSpecs format)
++//-------------------------------------------------------------------
++{
++	Font f = getFont(format.metrics.getFont());
++	return format.metrics.getNewFor(f);
++}
++*/
++//===================================================================
++public Range getCharRange(int lineIndex,DisplayLine theLine,Range dest)
++//===================================================================
++{
++	if (notUsed) {
++		return null;
++	}
++	if (startCharacter == -1 || numLines == 0) return null;
++	if (dest == null) dest = new Range(0,0);
++	int ll = theLine.length();
++	dest.first = startCharacter;
++ 	dest.last = endCharacter;
++	if (lineIndex == startLine){ // This is the first line in the sequence.
++		if (numLines != 1) dest.last = ll-1;
++	}else if (lineIndex == startLine+numLines-1){ // This is the last line in the sequence.
++		dest.first = 0;
++	}else if (lineIndex &gt; startLine &amp;&amp; lineIndex &lt; startLine+numLines-1){ // This must be between the first and lastLines.
++		dest.first = 0;
++		dest.last = ll-1;
++	}else
++		return null;
++	if (endCharacter == -1){ //Covers the entire line for all lines.
++		dest.first = 0;
++		dest.last = ll-1;
++	}
++	if (dest.last &gt; ll-1) dest.last = ll-1;
++	return dest;
++}
++private static Range range = new Range(0,0);
++//private static int [] myPos;
++//-------------------------------------------------------------------
++protected void applySpecialFormat(TextPad source,int lineIndex,DisplayLine theLine,FormattedTextSpecs format)
++//-------------------------------------------------------------------
++{
++	try{
++		if (getCharRange(lineIndex,theLine,range) == null) {
++			return;
++		}
++		
++		if (image == null){
++			int character = range.first, length = range.last-range.first+1;
++			if (length &lt; 0) return;
++			//
++			int [] ft = format.calculatedPositions;
++			FontMetrics fm = null;
++			if ((fontFlags &amp; FONT_CHANGE) != 0){
++				String part = length == 0 ? &quot;&quot; : theLine.substring(character,character+length);
++				fm = getFontMetrics(source,format.metrics);
++				int [] got = fm.getFormattedTextPositions(part,format,null);
++				format.changeAndAdjustPositions(got,character,length);
++			}
++			//
++			if (lineFlags == 0 &amp;&amp; image == null &amp;&amp; leftMarginShift == 0) return;
++			//
++			int ll = theLine.length();
++			int fullWidth = ll == 0 ? 0 : format.calculatedPositions[ll-1];
++			fullWidth += format.firstCharPosition;
++			//
++			//ewe.sys.Vm.debug(format.lineFlags+&quot;&quot;);
++			if ((format.lineFlags &amp; format.LINE_FLAG_CANCEL_ALIGNMENTS) == 0){
++				if ((lineFlags &amp; (LINE_CENTERED|LINE_ALIGN_NOW)) == (LINE_CENTERED|LINE_ALIGN_NOW)){
++					format.leftMargin = 
++					//((source.getAvailableWidth()-source.leftMargin-source.rightMargin-fullWidth)/2)+source.leftMargin;
++					((format.displayLineWidth-fullWidth-format.leftMargin-format.rightMargin)/2)+format.leftMargin;
++				}else if ((lineFlags &amp; (LINE_RIGHT_ALIGNED|LINE_ALIGN_NOW)) == (LINE_RIGHT_ALIGNED|LINE_ALIGN_NOW))
++					format.leftMargin = format.displayLineWidth-fullWidth-format.rightMargin;//+format.leftMargin;
++			}
++			
++			if ((lineFlags &amp; LINE_LEFT_MARGIN_SHIFT_IS_CHARACTERS) != 0){
++				if (fm == null) fm = getFontMetrics(source,format.metrics);
++				format.leftMargin += leftMarginShift*fm.getCharWidth('X');
++			}else{
++				format.leftMargin += leftMarginShift;
++			}
++			if ((lineFlags &amp; (LINE_CANCEL_ALIGNMENTS|LINE_ALIGN_NOW)) == (LINE_CANCEL_ALIGNMENTS|LINE_ALIGN_NOW))
++				format.lineFlags |= format.LINE_FLAG_CANCEL_ALIGNMENTS;
++			if ((lineFlags &amp; LINE_BACKGROUND_COLOR_CHANGE) != 0) 
++				format.backgroundColor = backgroundColor;
++			//
++		}else { //if (image != null){
++			FormattedTextSpecs f = format;
++		/*
++	 		if (imageLine &gt; lineIndex){
++				DisplayLine nl = (DisplayLine)DisplayLine.getNext(theLine,imageLine-lineIndex);
++				f = source.getTextPositions(imageLine,nl,new FormattedTextSpecs(),myPos);
++			}else if (imageLine &lt; lineIndex){
++				DisplayLine pl = (DisplayLine)DisplayLine.getPrev(theLine,lineIndex-imageLine);
++				f = source.getTextPositions(imageLine,pl,new FormattedTextSpecs(),myPos);
++			}
++			if (f != format) myPos = f.calculatedPositions;
++		*/
++			//
++			int allocatedWidth = image.getWidth()+(hSpace+borderWidth)*2;
++			if (imageChar == -1){ //Indicates a left or right aligned image.
++				if (imageX == 0) // Left aligned
++					f.leftMargin += allocatedWidth;//f.insertSpace(0,allocatedWidth);
++				else
++					f.rightMargin += allocatedWidth;
++				//f.extraSpaceUsed += allocatedWidth;
++			}else
++				if (imageLine == lineIndex){
++					f.insertSpace(imageChar,allocatedWidth);
++					f.extraSpaceUsed += allocatedWidth;
++				}
++
++			//
++		}
++		//
++		if (format.leftMargin &lt; 0) format.leftMargin = 0;
++	}catch(Exception e){
++		
++	}
++}
++
++//===================================================================
++public static final Object SOLID_CIRCLE = new Object();
++public static final Object CIRCLE = new Object();
++public static final Object DIAMOND = new Object();
++//===================================================================
++
++//===================================================================
++public boolean isOnImage(TextPad source,int xPosition,FormattedTextSpecs specs)
++//===================================================================
++{
++	if (imageChar == -1){ //Left or right aligned image.
++				int ix = (imageX &lt; 0) ? 
++					source.getAvailableWidth()-specs.rightMargin+hSpace:
++					source.leftMargin+hSpace;
++				return xPosition &gt;= ix &amp;&amp; xPosition &lt;= ix+borderWidth*2+image.getWidth(); 
++	}else{
++		int ix = imageX+hSpace;
++		return xPosition &gt;= ix &amp;&amp; xPosition &lt;= ix+borderWidth*2+image.getWidth(); 
++	}
++}
++//-------------------------------------------------------------------
++protected void drawSpecialFormat(TextPad source,int lineIndex,DisplayLine theLine,FormattedTextSpecs format,Graphics g,Color background)
++//-------------------------------------------------------------------
++{
++	try{
++	if (getCharRange(lineIndex,theLine,range) == null) return;
++	if (image == null){
++		int character = range.first, length = range.last-range.first+1;
++		if (length &lt; 0) return;
++		//
++		FontMetrics fm = null;
++		if ((fontFlags &amp; FONT_CHANGE) != 0){
++			Color was = g.getColor(Color.getCached());
++			fm = getFontMetrics(source,format.metrics);
++			Font f = fm.getFont();
++			//g.setColor(background);
++			//g.fillRect(format.leftMargin+(character == 0 ? 0 : format.calculatedPositions[character-1]),0,format.widthOf(character,length),format.displayLineHeight);
++			//if (color == null) color = was;
++			Color cc = background.equals(source.pageColor) ? color : source.pageColor;
++			if (cc == null) cc = was;
++			g.setColor(cc);
++			g.setFont(f);
++			g.drawFormattedText(format.charsToDraw,character,length,format.leftMargin+format.firstCharPosition,0,format);
++			char ctd = '\t';
++			for (int i = character; i&lt;character+length; i++)
++				format.charsToDraw[i] = ctd;
++			g.setColor(was);
++			was.cache();
++		}
++		if (((lineFlags &amp; LINE_ADD_FIRST_LINE_HEADER) != 0) &amp;&amp; (lineIndex == startLine) &amp;&amp; (data != null)){
++			String str = data.toString();
++			int blockWidth = format.displayLineHeight/3;
++			if (fm == null) fm = getFontMetrics(source,format.metrics);
++			int charSpace = fm.getCharWidth('X');
++			int ls = leftMarginShift;
++			if ((lineFlags &amp; LINE_LEFT_MARGIN_SHIFT_IS_CHARACTERS) != 0)
++				ls = leftMarginShift*charSpace;
++			if ((lineFlags &amp; LINE_HEADER_RIGHT_ALIGN) != 0){
++				if (data instanceof String) {
++					int full = charSpace+fm.getTextWidth(str);
++					g.drawText(str,format.leftMargin-full,0);
++				}else if (data == SOLID_CIRCLE) {
++					g.fillEllipse(format.leftMargin-blockWidth-charSpace,(format.displayLineHeight-blockWidth)/2,blockWidth,blockWidth);
++				}
++			}else{
++				if (data instanceof String)
++					g.drawText(str,format.leftMargin-ls,0);
++				else if (data == SOLID_CIRCLE)
++					g.fillEllipse(format.leftMargin-ls,(format.displayLineHeight-blockWidth)/2,blockWidth,blockWidth);
++				else if (data == CIRCLE)
++					g.drawEllipse(format.leftMargin-ls,(format.displayLineHeight-blockWidth)/2,blockWidth,blockWidth);
++				else if (data == DIAMOND)
++					g.drawDiamond(new Rect(format.leftMargin-ls,(format.displayLineHeight-blockWidth)/2,blockWidth,blockWidth),g.All);
++			}
++		}
++		if ((lineFlags &amp; LINE_DRAW_RULE) != 0){
++			g.drawLine(source.leftMargin,format.displayLineHeight/2-1,format.displayLineWidth-source.leftMargin,format.displayLineHeight/2-1);
++			g.drawLine(source.leftMargin,format.displayLineHeight/2+1,format.displayLineWidth-source.leftMargin,format.displayLineHeight/2+1);
++		}
++	}else {//if (image != null){
++		FormattedTextSpecs f = format;
++ 		if (imageLine &gt; lineIndex){
++			DisplayLine nl = (DisplayLine)DisplayLine.getNext(theLine,imageLine-lineIndex);
++			//ewe.sys.Vm.debug(nl.line);
++			f = source.getTextPositions(imageLine,nl,new FormattedTextSpecs(),new int[0],true);
++		}else if (imageLine &lt; lineIndex){
++			DisplayLine pl = (DisplayLine)DisplayLine.getPrev(theLine,lineIndex-imageLine);
++			//ewe.sys.Vm.debug(pl.line);
++			f = source.getTextPositions(imageLine,pl,new FormattedTextSpecs(),new int[0],true);
++		}//else ewe.sys.Vm.debug(&quot;Yes, this is the line&quot;);
++		//if (f != format) myPos = f.calculatedPositions;
++		int y = (lineIndex-startLine)*source.getLineHeight();
++		int allocatedWidth = image.getWidth()+(hSpace+borderWidth)*2;
++		if (imageChar &gt; -1){
++			imageX = imageChar == 0 ? 0 : f.calculatedPositions[imageChar-1];
++			imageX += f.leftMargin+f.firstCharPosition-allocatedWidth;
++			image.draw(g,imageX+hSpace+borderWidth,-y+imageY+vSpace+borderWidth,0);
++		}else{
++			//ewe.sys.Vm.debug(&quot;Line: &quot;+lineIndex+&quot;, of: &quot;+numLines);
++			if (imageX &lt; 0)
++				image.draw(g,source.getAvailableWidth()-f.rightMargin+hSpace+borderWidth,-y+imageY+vSpace+borderWidth,0);
++			else
++				image.draw(g,source.leftMargin+hSpace+borderWidth/*-hSpace-borderWidth-image.getWidth()*/,-y+imageY+vSpace+borderWidth,0);
++		}
++		//ewe.sys.Vm.debug(numLines+&quot;, Range: &quot;+range);
++		//image.draw(g,format.leftMargin,0,
++	}
++	}catch(Exception e){
++		//e.printStackTrace();
++	}
++}
++
++//-------------------------------------------------------------------
++protected void replace(TextPad pad, DisplayLine firstLine, int numLines, DisplayLine newLines)
++//-------------------------------------------------------------------
++{
++	pad.replaceDisplayLines(newLines,firstLine,(DisplayLine)firstLine.getNext(firstLine,numLines));
++}
++//-------------------------------------------------------------------
++protected DisplayLine resplit(TextPad pad, DisplayLine firstLine, int numLines,int forWidth,String newText)
++//-------------------------------------------------------------------
++{
++	FontMetrics fm = pad.getFontMetrics();
++	DisplayLine dl = pad.resplit(firstLine,numLines,forWidth,null,getFontMetrics(pad,null),newText);
++	return dl;
++}
++/*
++//-------------------------------------------------------------------
++protected DisplayLine resplit(TextPad pad, DisplayLine firstLine, int numLines,int lineIndex,DisplayLine.WidthProvider wp,String newText)
++//-------------------------------------------------------------------
++{
++	String text = newText != null ? newText : firstLine.concatenate(firstLine,0,numLines);
++	FontMetrics fm = pad.getFontMetrics();
++	DisplayLine dl = pad.splitLines(text,0,
++		fm.getNewFor(getFont(fm.getFont())),null,wp);
++	pad.replaceDisplayLines(dl,firstLine,(DisplayLine)firstLine.getNext(firstLine,numLines-1));
++	return dl;
++}
++*/
++/**
++* This gives the TextFormatter the chance to actually alter the lines being displayed.
++**/
++//===================================================================
++public DisplayLine creatingFor(TextPad pad, DisplayLine firstLine, int numLines,int lineIndex)
++//===================================================================
++{
++	if (((lineFlags &amp; LINE_RESPLIT) != 0)){
++		int size = firstLine.displayWidth-leftMarginShift;//pad.getDim(null).width-(pad.spacing*2)-pad.leftMargin-leftMarginShift-pad.rightMargin+resplitWidthChange;
++		//ewe.sys.Vm.debug(&quot;Resplit: &quot;+size);
++		return resplit(pad,firstLine,numLines,size,null);
++	}//else if (image != null){
++		//DisplayLine f = pad.addDisplayLine(&quot;&quot;,firstLine);
++		//pad.addDisplayLine(&quot;&quot;,(DisplayLine)firstLine.next);
++		//return f;
++	//}
++	return firstLine;
++}
++//===================================================================
++public void repaint(TextPad pad, Graphics gr)
++//===================================================================
++{
++	int first = pad.getTopLine();
++	int max = first+pad.getScreenRows()+1;
++	for (int i = startLine; i&lt;startLine+numLines; i++){
++		if (i &lt; first || i &gt;= max) continue;
++		pad.paintLine(gr,i);
++	}
++}
++
++//##################################################################
++}
++//##################################################################
++
+
+Added: experiments/EVEhist/src/eve/ui/formatted/TextPosition.java
+===================================================================
+--- experiments/EVEhist/src/eve/ui/formatted/TextPosition.java	2009-01-31 13:48:30 UTC (rev 1606)
++++ experiments/EVEhist/src/eve/ui/formatted/TextPosition.java	2009-02-01 11:37:18 UTC (rev 1607)
+@@ -0,0 +1,82 @@
++package eve.ui.formatted;
++import eve.fx.DisplayLine;
++import eve.sys.Device;
++import eve.ui.TextPad;
++
++	//##################################################################
++	class TextPosition{
++	//##################################################################
++	// Do not move these next three -------------------
++	DisplayLine line;
++	int lineIndex;
++	int characterIndex;
++	//-------------------------------------------------
++	//===================================================================
++	public TextPosition(){}
++	//===================================================================
++	public TextPosition(TextPad pad)
++	//===================================================================
++	{
++		line = pad.getLine(0);
++		lineIndex = characterIndex = 0;
++	}
++	//===================================================================
++	public TextPosition(TextPad pad,int lineIndex,int charIndex)
++	//===================================================================
++	{
++		line = pad.getLine(lineIndex);
++		this.lineIndex = lineIndex;
++		this.characterIndex = charIndex;
++	}
++	//===================================================================
++	TextPosition getCopy()
++	//===================================================================
++	{
++		TextPosition tp = new TextPosition();
++		tp.copyFrom(this);
++		return tp;
++	}
++	//===================================================================
++	void copyFrom(TextPosition tp)
++	//===================================================================
++	{
++		line = tp.line;
++		lineIndex = tp.lineIndex;
++		characterIndex = tp.characterIndex;
++	}
++	native boolean nativeFindCharacter(int indexOfCharacter);
++	boolean hasNative = true;	
++	//===================================================================
++	boolean findCharacter(int indexOfCharacter)
++	//===================================================================
++	{
++		if (hasNative) try{
++			return nativeFindCharacter(indexOfCharacter);
++		}catch(Throwable t){
++			Device.checkNoNativeMethod(t);
++			hasNative = false;
++		}
++		if (characterIndex &gt; indexOfCharacter) return false;
++		while(true){
++			int tl = line.trueLength();
++			if (characterIndex+tl &gt; indexOfCharacter &amp;&amp; tl != 0)
++				return true;
++			characterIndex += tl;
++			lineIndex++;
++			if (line.next == null) return false;
++			line = (DisplayLine)line.next;
++		}
++	}
++	//===================================================================
++	boolean moveToNextLine()
++	//===================================================================
++	{
++		lineIndex++;
++		characterIndex += line.trueLength();
++		line = (DisplayLine)line.next;
++		return line != null;
++	}
++	//##################################################################
++	}
++	//##################################################################
++
+
+Added: experiments/EVEhist/src/eve/ui/formatted/data/HtmlViewer.java
+===================================================================
+--- experiments/EVEhist/src/eve/ui/formatted/data/HtmlViewer.java	2009-01-31 13:48:30 UTC (rev 1606)
++++ experiments/EVEhist/src/eve/ui/formatted/data/HtmlViewer.java	2009-02-01 11:37:18 UTC (rev 1607)
+@@ -0,0 +1,864 @@
++
++package eve.ui.formatted.data;
++import java.io.IOException;
++import java.io.InputStream;
++import java.util.Hashtable;
++import java.util.Vector;
++
++import eve.data.PropertyList;
++import eve.fx.Dimension;
++import eve.fx.Font;
++import eve.fx.Point;
++import eve.io.AsciiCodec;
++import eve.io.File;
++import eve.io.StreamUtils;
++import eve.io.TextCodec;
++import eve.net.Link;
++import eve.net.URL;
++import eve.sys.Handle;
++import eve.sys.Task;
++import eve.sys.TimeOut;
++import eve.sys.Vm;
++import eve.ui.Application;
++import eve.ui.CardPanel;
++import eve.ui.CellPanel;
++import eve.ui.Control;
++import eve.ui.Gui;
++import eve.ui.InputStack;
++import eve.ui.Label;
++import eve.ui.MessageBox;
++import eve.ui.ProgressBarForm;
++import eve.ui.ProgressDisplay;
++import eve.ui.ScrollBarPanel;
++import eve.ui.Window;
++import eve.ui.data.AppForm;
++import eve.ui.data.Editor;
++import eve.ui.data.FontChooser;
++import eve.ui.filechooser.FileChooser;
++import eve.ui.formatted.FormattedTextMaker;
++import eve.ui.formatted.HotSpot;
++import eve.ui.formatted.HtmlDisplay;
++import eve.ui.formatted.TextFormatter;
++import eve.util.ByteArray;
++import eve.util.CharArray;
++import eve.util.mString;
++/**
++This is a useful Form that you can use to display HTML files. It consists
++of an HtmlDisplay along with optional controls.&lt;p&gt;
++The 
++**/
++//##################################################################
++public class HtmlViewer extends AppForm {
++//##################################################################
++
++HtmlDisplay display;
++//public FileSaver saver = new FileSaver();
++
++public PropertyList htmlProperties = new PropertyList();
++public FontChooser fontChooser;
++/**
++* Specifies if images should be displayed - true by default.
++**/
++public boolean showImages = true;
++/**
++* Specifies if animated images should be allowed - true on some systems by default.
++**/
++public boolean animatedImages = true;
++/**
++* A display option for the constructor.
++**/
++public final static int DISPLAY_NO_STATUS_BAR = 0x1;
++/**
++* A display option for the constructor.
++**/
++public final static int DISPLAY_NO_TOOL_BUTTONS = 0x2;
++/**
++* A display option for the constructor.
++**/
++public final static int DISPLAY_NO_TABS = 0x4;
++/**
++* A display option for the constructor.
++**/
++public final static int DISPLAY_NO_OPEN = 0x8;
++public String status = &quot;&quot;;
++protected ProgressDisplay progress;
++protected Control stopButton;
++protected CardPanel statusCard;
++
++//##################################################################
++protected class HtmlViewerDisplay extends HtmlDisplay{
++//##################################################################
++
++
++
++//-------------------------------------------------------------------
++HtmlViewerDisplay()
++//-------------------------------------------------------------------
++{
++	super(20,60);
++}
++//-------------------------------------------------------------------
++protected boolean hotspotPressed(HotSpot hs,Point where)
++//-------------------------------------------------------------------
++{
++	if (super.hotspotPressed(hs,where)) return true;
++	return HtmlViewer.this.hotspotPressed(hs,where);
++}
++//-------------------------------------------------------------------
++protected void mouseMovedOnOff(TextFormatter tf,boolean movedOn)
++//-------------------------------------------------------------------
++{
++	if (movedOn) status = mString.toString(tf.data);
++	else status = &quot;&quot;;
++	toControls(&quot;status&quot;);
++}
++//===================================================================
++public Object getState()
++//===================================================================
++{
++	Object [] ret = new Object[2];
++	ret[0] = currentURL;
++	ret[1] = super.getState();
++	return ret;
++}
++//===================================================================
++public boolean setState(Object state)
++//===================================================================
++{
++	Object [] st = (Object [])state;
++	if (st[0] == null) return false;
++	if (!st[0].equals(currentURL)){
++		try{
++			doOpen((String)st[0]).waitOn(Handle.Success);
++			return super.setState(st[1]);
++		}catch(Exception e){
++			return false;
++		}
++	}else return super.setState(st[1]);
++}
++//##################################################################
++}
++//##################################################################
++
++/**
++* This is the codec that will be used to decode text. If it is null then an
++* AsciiCodec will be used.
++**/
++public TextCodec codec;
++/*
++//===================================================================
++public TextCodec getCodec()
++//===================================================================
++{
++}
++*/
++/**
++ * Get a codec to decode a Web document. The properties of the document
++ * as provided by the Web Server are in the specified PropertyList parameter.
++ * @param pl the properties for the document.
++ * @return a non-null Codec for decoding the document. By default this returns
++ * the value of the &quot;codec&quot; field. If that is null an AsciiCodec is returned.
++ */
++//===================================================================
++public TextCodec getCodec(PropertyList pl)
++//===================================================================
++{
++	TextCodec c = codec;
++	if (c == null) c = new AsciiCodec();
++	return c;
++}
++
++/**
++ * This returns a String ONLY if the String is the name of a VALID URL resource. This could
++ * be a file name.
++ * @param root The current document root.
++ * @param document The document being referred to.
++ * @return the URL as a String if it is valid and can be retrieved by the Viewer.
++ */
++//-------------------------------------------------------------------
++protected String toFullURL(String root,String document)
++//-------------------------------------------------------------------
++{
++	File file = null;
++	if (document.indexOf(':') != -1 || document.indexOf('/') == 0) file = getNewFile(document);
++	else file = root.length() == 0 ? getNewFile(document) : getNewFile(root).getChild(document);
++	if (!file.canRead()) return null;
++	return file.getFullPath();
++}
++//-------------------------------------------------------------------
++protected Handle openDocument(String url,PropertyList pl)
++//-------------------------------------------------------------------
++{
++	try{
++		File file = getNewFile(url);
++		if (file.canRead()){
++			String root = file.getParent();
++			pl.set(&quot;documentRoot&quot;,root);
++		}
++		String nu = url.toLowerCase();
++		for (int i = 0; i&lt;images.length; i++)
++			if (nu.endsWith(images[i])){
++				String toOpen = &quot;&lt;head&gt;&lt;title&gt;&quot;+url+&quot;&lt;/title&gt;&lt;/head&gt;&lt;body&gt;&lt;img src=\&quot;&quot;+
++				//file.getFileExt()
++				(file.canRead() ? file.getFileExt() : url)
++				+&quot;\&quot;&gt;&lt;br&gt;&lt;/body&gt;&quot;;
++				return new Handle(Handle.Succeeded,toOpen);
++			}
++		return StreamUtils.readAllBytes(file.toReadableStream(),null);
++	}catch(Exception e){
++		return new Handle(Handle.Failed,null);
++	}
++}
++//-------------------------------------------------------------------
++protected boolean hotspotPressed(HotSpot hs,Point where)
++//-------------------------------------------------------------------
++{
++	if (hs.data == null) return false;
++	String href = hs.data.toString();
++	if (href == null) return false;
++	display.markHistory();
++	doOpen(href);
++	return true;
++}
++protected Handle loading;
++//-------------------------------------------------------------------
++protected void noLoading()
++//-------------------------------------------------------------------
++{
++	if (stopButton != null){
++		stopButton.modify(Disabled,0);
++		stopButton.repaintNow();
++	}
++	if (statusCard != null) statusCard.select(&quot;status&quot;);
++}
++//-------------------------------------------------------------------
++protected void startingLoad(Handle h)
++//-------------------------------------------------------------------
++{
++	if (statusCard != null) statusCard.select(&quot;progress&quot;);
++	if (progress != null) progress.setTask(h,&quot;Loading&quot;);
++	if (stopButton != null){
++		stopButton.modify(0,Disabled);
++		stopButton.repaintNow();
++	}
++}
++//-------------------------------------------------------------------
++protected void endedLoad(Handle h)
++//-------------------------------------------------------------------
++{
++	if (loading == h) noLoading();
++}
++
++String currentURL;
++
++//===================================================================
++public String getCurrentURL()
++//===================================================================
++{
++	return currentURL;
++}
++
++//-------------------------------------------------------------------
++protected void newDocumentLoaded(String url){currentURL = url;}
++//-------------------------------------------------------------------
++
++/**
++ * Tell the viewer to load and display the URL. 
++ * @param url The url which can be an <A HREF="http://">http://</A> url or a file name. It can also be relative to
++ * the current document.
++ * @return A Handle that can be used to monitor the progress of the display.
++ */
++//===================================================================
++public Handle setHtml(URL url)
++//===================================================================
++{
++	return setHtml(url,null,null);	
++}
++/**
++ * Tell the viewer to load and display the Link. A Link can be a URL in text form or it can
++ * be a file name or an anchor ('#') to a bookmark in the current document.
++ * @param link The link which can be an &quot;<A HREF="http://">http://</A>&quot; url or a file name. It can also be relative to
++ * the current document.
++ * @return A Handle that can be used to monitor the progress of the display.
++*/
++//===================================================================
++public Handle setHtml(Link link)
++//===================================================================
++{
++	return setHtml(link,null,null);
++}
++/**
++ * Set the Html text directly.
++ * @param htmlText An object representing htmlText. This can be:
++	&lt;ul&gt;
++	&lt;li&gt;A URL holding the URL you want the browser to fetch.
++	&lt;li&gt;A Link holding the URL or file that you want the browser to fetch.
++	&lt;li&gt;A String holding the HTML text.
++	&lt;li&gt;An eve.util.ByteArray holding the text encoded HTML text.
++	&lt;li&gt;A byte array (byte[]) holding the text encoded HTML.
++	&lt;li&gt;An InputStream object from which the text can be read.
++	&lt;li&gt;An eve.io.File object from which the text can be read.
++	&lt;/ul&gt;
++ * @param urlToDisplay The URL to display for the data.
++ * @param bookmark An optional bookmark in the file to go to.
++ * @return A Handle that can be used to monitor the progress of the display.
++ */
++//===================================================================
++public Handle setHtml(Object htmlText,String urlToDisplay,String bookmark)
++//===================================================================
++{
++	String uu = urlToDisplay;
++	String aa = bookmark;
++	if (htmlText instanceof URL){
++		htmlText = new Link(htmlText.toString());
++	}
++	if (htmlText instanceof Link){
++		String href = htmlText.toString();
++		String file = mString.leftOf(href,'#');
++		aa = mString.rightOf(href,'#');
++		if (file.length() == 0) return new Handle(Handle.Failed,null);
++		uu = toFullURL(htmlProperties.getString(&quot;documentRoot&quot;,&quot;&quot;),file);
++		if (uu == null) return new Handle(Handle.Failed,null);
++	}
++	final String url = uu;
++	final String anchor = aa;
++	//
++	FormattedTextMaker fm = findCached(url);
++	//
++	cancelLoading(true);
++	if (fm != null){
++		setHtml(fm);
++		htmlProperties.set(&quot;documentRoot&quot;,display.getDecoderProperties().getString(&quot;documentRoot&quot;,&quot;/&quot;));
++		htmlProperties.set(&quot;document&quot;,url);
++		if (anchor != null &amp;&amp; anchor.length() &gt; 0) display.goToAnchor(anchor);
++		newDocumentLoaded(url);
++		return new Handle(Handle.Succeeded,fm);
++	}
++	final PropertyList pl = new PropertyList();
++	pl.set(&quot;document&quot;,url);
++
++	final Handle h = htmlText instanceof Link ? openDocument(url,pl) : new Handle(Handle.Succeeded,htmlText);
++	return new Task(){
++		protected void doRun(){
++			Handle handle = this;
++			try{
++				handle.doing = &quot;Loading...&quot;;
++				startingLoad(loading = handle);
++				handle.setProgress(0);
++				if (!waitOnSuccess(h,TimeOut.Forever,true)){
++					if ((handle.check() &amp; handle.Aborted) == 0){
++						new MessageBox(&quot;Load Error&quot;,&quot;Could not load document.\nError: &quot;+h.getErrorText(&quot;Unknown&quot;),MBOK).execute();
++						//if (handle.error != null) new ReportException(handle.error).execute();
++					}
++					return;
++				}
++				Object toDecode = h.returnValue;
++				handle.setProgress(0);
++				decodeHtml(toDecode,url,anchor,this,pl);
++			}finally{
++				endedLoad(handle);
++				loading = null;
++			}
++		}
++	}.start();
++}
++
++/**
++ * Setup the htmlProperties based on selected options.
++ */
++//===================================================================
++public void setupProperties()
++//===================================================================
++{
++	htmlProperties.setBoolean(&quot;allowAnimatedImages&quot;,animatedImages);
++	htmlProperties.setBoolean(&quot;allowImages&quot;,showImages);
++}
++/**
++* Use this to cancel a load/decode operation. If you intend to immediately start another
++* load using doOpen() then set startingNewLoad to true.
++**/
++//===================================================================
++public void cancelLoading(boolean startingNewLoad)
++//===================================================================
++{
++	if (loading == null) return;
++	loading.stop(0);
++	loading = null;
++	if (progress != null) progress.clearTask();
++	if (!startingNewLoad) noLoading();
++}
++
++//-------------------------------------------------------------------
++void decodeHtml(Object what,String url,String anchor,Task t,PropertyList pl)
++//-------------------------------------------------------------------
++{
++	Handle handle = t;
++	if (anchor == null) anchor = &quot;&quot;;
++	try{
++		String html = null;
++		boolean closeStream = false;
++		while(true){
++			if (what instanceof String) html = (String)what;
++			else if (what instanceof ByteArray){
++				ByteArray ba = (ByteArray)what;
++				CharArray ca = getCodec(pl).decodeText(ba.data,0,ba.length,true,null);
++				html = new String(ca.data,0,ca.length);
++			}else if (what instanceof byte []){
++				byte [] d = (byte [])what;
++				CharArray ca = getCodec(pl).decodeText(d,0,d.length,true,null);
++				html = new String(ca.data,0,ca.length);
++			}else if (what instanceof InputStream){
++				ByteArray got = StreamUtils.readAllBytes(null,(InputStream)what,null);
++				if (closeStream) ((InputStream)what).close();
++				what = got;
++				continue;
++			}else if (what instanceof File){
++				what = ((File)what).toReadableStream();
++				closeStream = true;
++				continue;
++			}
++			if (html == null) throw new IOException(&quot;Cannot decode HTML&quot;);
++			else break;
++		}
++		handle.doing = &quot;Decoding...&quot;;
++		handle.setProgress(0);
++		setupProperties();
++		htmlProperties.set(pl);
++		addPropertiesTo(htmlProperties);
++		String loadedDocument = htmlProperties.getString(&quot;document&quot;,url);
++		FormattedTextMaker fm = setHtml(html,htmlProperties,handle);
++		if (handle.shouldStop) throw new IOException();
++		handle.returnValue = fm;
++		cacheOpened(loadedDocument,fm);
++		if (anchor.length() &gt; 0) 
++			display.goToAnchor(anchor);
++		
++		newDocumentLoaded(loadedDocument);
++		handle.progress = 0;
++		handle.doing = &quot;&quot;;
++		handle.set(Handle.Succeeded);
++	}catch(Exception e){
++		handle.set(Handle.Failed);
++	}
++}
++/**
++* Open the file relative to the current document root, or as a new document/file.
++* @param fileOrUrl.
++* @return A Handle with which the progress of the load can be monitored.
++*/
++//===================================================================
++public Handle doOpen(String fileOrUrl)
++//===================================================================
++{
++		return setHtml(new Link(fileOrUrl),null,null);
++	/*
++	//
++	String href = fileOrUrl;
++	final String file = ewe.util.mString.leftOf(href,'#');
++	final String anchor = ewe.util.mString.rightOf(href,'#');
++	if (file.length() == 0) return new Handle(Handle.Failed,null);
++	//
++	final String url = toFullURL(htmlProperties.getString(&quot;documentRoot&quot;,&quot;&quot;),file);
++	if (url == null) return  new Handle(Handle.Failed,null);
++	//
++	FormattedTextMaker fm = findCached(url);
++	//
++	cancelLoading(true);
++	if (fm != null){
++		setHtml(fm);
++		htmlProperties.set(&quot;documentRoot&quot;,display.getDecoderProperties().getString(&quot;documentRoot&quot;,&quot;/&quot;));
++		htmlProperties.set(&quot;document&quot;,url);
++		if (anchor.length() &gt; 0) display.goToAnchor(anchor);
++		newDocumentLoaded(url);
++		return new Handle(Handle.Succeeded,fm);
++	}
++	final PropertyList pl = new PropertyList();
++	pl.set(&quot;document&quot;,url);
++	final Handle h = openDocument(url,pl);
++	return new TaskObject(){
++		protected void doRun(){
++			handle.doing = &quot;Loading...&quot;;
++			startingLoad(loading = handle);
++			try{
++				if (!waitOnSuccess(h,true)) {
++					if ((handle.check() &amp; handle.Aborted) == 0)
++						new MessageBox(&quot;Load Error&quot;,&quot;Could not load document.\nError: &quot;+h.getErrorText(&quot;Unknown&quot;),MBOK).execute();
++					return;
++				}
++				try{
++					handle.progress = 0;
++					handle.doing = &quot;Decoding...&quot;;
++					String html = null;
++					if (h.returnValue instanceof String) html = (String)h.returnValue;
++					if (h.returnValue instanceof ByteArray){
++						ByteArray ba = (ByteArray)h.returnValue;
++						CharArray ca = getCodec().decodeText(ba.data,0,ba.length,true,null);
++						html = new String(ca.data,0,ca.length);
++					}
++					setupProperties();
++					htmlProperties.set(pl);
++					addPropertiesTo(htmlProperties);
++					String loadedDocument = htmlProperties.getString(&quot;document&quot;,url);
++					FormattedTextMaker fm = setHtml(html,htmlProperties,handle);
++					if (handle.shouldStop) throw new IOException();
++					handle.returnValue = fm;
++					cacheOpened(loadedDocument,fm);
++					if (anchor.length() &gt; 0) 
++						display.goToAnchor(anchor);
++					newDocumentLoaded(loadedDocument);
++					handle.progress = 0;
++					handle.doing = &quot;&quot;;
++					handle.set(Handle.Succeeded);
++				}catch(IOException e){
++					handle.set(Handle.Failed);
++				}
++			}finally{
++				endedLoad(handle);
++				loading = null;
++			}
++		}		
++	}.startTask();
++	//return h;
++	*/
++}
++/**
++ * Create the viewer with full tools.
++ * @param displayOptions This can be any of the : DISPLAY_XXX options ORed together.
++ */
++//===================================================================
++public HtmlViewer()
++//===================================================================
++{
++	this(null,0);
++}
++/**
++ * Create the viewer the specified display options.
++ * @param displayOptions This can be any of the : DISPLAY_XXX options ORed together.
++ */
++//===================================================================
++public HtmlViewer(int displayOptions)
++//===================================================================
++{
++	this(null,displayOptions);
++}
++
++//-------------------------------------------------------------------
++protected HtmlDisplay createDisplay()
++//-------------------------------------------------------------------
++{
++	return new HtmlViewerDisplay();
++}
++/**
++ * Create the viewer with a particular HtmlDisplay and using the specified display options.
++ * @param display An HtmlDisplay to use (can be null).
++ * @param displayOptions This can be any of: DISPLAY_NO_STATUS_BAR, DISPLAY_NO_TOOL_BUTTONS, DISPLAY_NO_TABS OR'ed together.
++ */
++//===================================================================
++public HtmlViewer(HtmlDisplay display,int displayOptions)
++//===================================================================
++{
++	super((displayOptions &amp; DISPLAY_NO_TABS) == 0,(displayOptions &amp; DISPLAY_NO_TABS) == 0);
++	//
++	//String plat = Vm.getPlatform().toUpperCase();
++	//if (plat.equals(&quot;UNIX&quot;) || plat.equals(&quot;LINUX&quot;)) animatedImages = false;
++	Dimension sz = Gui.getScreenSize();
++	if (!Gui.screenIs(Gui.WIDE_SCREEN)) htmlProperties.set(&quot;maxImageSize&quot;,new Dimension(sz.width/2,sz.width/2));
++	int opts = Vm.getParameter(Vm.VM_FLAGS);
++	if ((opts &amp; Vm.VM_FLAG_SLOW_MACHINE) != 0)
++		htmlProperties.setBoolean(&quot;allowAnimatedImages&quot;,animatedImages = false);
++	if (display == null) display = createDisplay();
++	acceptsDroppedFiles = true;
++	this.display = display;
++
++	title = &quot;HTML Viewer&quot;;
++	ScrollBarPanel sbp = new ScrollBarPanel(display);
++	//
++	sbp.setOptions(sbp.Permanent);
++	data.addLast(sbp);
++	Vector t = new Vector();
++	
++	//pl.setBoolean(&quot;allowAnimatedImages&quot;,false);
++	//pl.set(&quot;maxImageSize&quot;,new ewe.fx.Dimension(50,50));
++	
++	if (tabs != null){
++		fontChooser = new FontChooser(false);
++		CellPanel tl = new CellPanel();
++		fontChooser.fromFont(display.getFont());
++		tl.addLast(addField(fontChooser.getEditor(0),&quot;fontChooser&quot;)).setCell(HSHRINK);
++		tabs.addCard(tl,&quot;Font&quot;,null).iconize(&quot;eve/fontsmall.png&quot;);
++		
++		InputStack is = new InputStack(); is.columns = 2;
++		addField(is.addCheckBox(&quot;Images&quot;),&quot;showImages&quot;);
++		addField(is.addCheckBox(&quot;Animated Images&quot;),&quot;animatedImages&quot;);
++		tabs.addCard(is,&quot;Options&quot;,null).iconize(&quot;eve/optionssmall.png&quot;);
++	}
++	
++	if ((displayOptions &amp; DISPLAY_NO_TOOL_BUTTONS) == 0){
++		if ((displayOptions &amp; DISPLAY_NO_OPEN) == 0)
++			setupStandardFileCommands(this,SHOW_OPEN_BUTTON/*|SHOW_EXIT_BUTTON*/,tools,&quot;HTML File&quot;);
++		addToolButton(&quot;back&quot;,loadImage(&quot;eve/leftarrowsmall.png&quot;),&quot;Go Back&quot;,true);
++		addToolButton(&quot;reload&quot;,loadImage(&quot;eve/reloadsmall.png&quot;),&quot;Reload&quot;,true);
++		stopButton = addToolButton(&quot;stop&quot;,stop,&quot;Stop&quot;,true);
++		stopButton.modify(Disabled,0);
++		tools.modifyAll(NoFocus|MouseSensitive,TakesKeyFocus,true);
++	}
++	
++	if ((displayOptions &amp; DISPLAY_NO_STATUS_BAR) == 0){
++		statusCard = new CardPanel();
++
++		statusCard.borderWidth = 3;
++		statusCard.borderStyle = EDGE_SUNKEN;
++		data.addLast(statusCard).setCell(HSTRETCH);
++		statusCard.addItem(addField(new Label(&quot; &quot;),&quot;status&quot;),&quot;status&quot;,null);
++	//
++		ProgressBarForm pbf = new ProgressBarForm();
++		pbf.showMainTask = false;
++		pbf.showSubTask = true;
++		pbf.showTaskInBar = true;
++		pbf.exitOnCompletion = false;
++		pbf.bar.showPercent = false;
++		pbf.bar.incompleteColor = getBackground();
++		progress = pbf;
++		CellPanel cp2 = new CellPanel();
++		cp2.addNext(pbf).setControl(DONTFILL|WEST);
++		statusCard.addItem(cp2,&quot;progress&quot;,null);
++	}
++}
++
++//===================================================================
++File getNewFile(String path)
++//===================================================================
++{
++	return File.getNewFile(path);
++}
++
++//===================================================================
++void htmlSet()
++//===================================================================
++{
++	title = display.headerData.getString(&quot;title&quot;,&quot;untitled&quot;);
++	Window w = getWindow();
++	if (w != null) w.setTitle(title);
++	htmlProperties.set(display.getDecoderProperties());
++}
++//===================================================================
++public void setHtml(FormattedTextMaker html)
++//===================================================================
++{
++	display.setHtml(html,null);
++	htmlSet();
++}
++//===================================================================
++public FormattedTextMaker setHtml(String html,PropertyList props,Handle h)
++//===================================================================
++{
++	if (html == null) return null;
++	addPropertiesTo(props);
++	FormattedTextMaker ftm = display.setHtml(html,props,h);
++	htmlSet();
++	return ftm;
++}
++
++static Hashtable opened = new Hashtable();
++
++//-------------------------------------------------------------------
++protected void addPropertiesTo(PropertyList pl)
++//-------------------------------------------------------------------
++{
++	
++}
++//===================================================================
++public FormattedTextMaker open(String data,String fileName)
++//===================================================================
++{
++	Gui.showWait(this,true);
++	try{
++		String root = getNewFile(fileName).getParent();
++		if (root == null) root = &quot;&quot;;
++		root = File.removeTrailingSlash(root)+&quot;/&quot;;
++		htmlProperties.set(&quot;documentRoot&quot;,root);
++		//htmlProperties.set(&quot;maxImageSize&quot;,new ewe.fx.Dimension(150,150));
++		return setHtml(data,htmlProperties,new Handle());
++	}finally{
++		Gui.showWait(this,false);
++	}
++}
++public static String [] images = {&quot;.jpeg&quot;,&quot;.jpg&quot;,&quot;.png&quot;,&quot;.bmp&quot;,&quot;.gif&quot;};
++
++//===================================================================
++public void open(FormattedTextMaker maker)
++//===================================================================
++{
++	setHtml(maker);
++}
++//===================================================================
++public FormattedTextMaker findCached(String name)
++//===================================================================
++{
++	return (FormattedTextMaker)opened.get(name);
++}
++//===================================================================
++public FormattedTextMaker cacheOpened(String name,FormattedTextMaker maker)
++//===================================================================
++{
++	opened.put(name,maker);
++	return maker;
++}
++//===================================================================
++public void removeCached(String name)
++//===================================================================
++{
++	opened.remove(name);
++}
++//===================================================================
++public FormattedTextMaker open(String name)
++//===================================================================
++{
++	String fe = File.getFileExt(name);
++	try{
++		String nu = name.toLowerCase();
++		for (int i = 0; i&lt;images.length; i++)
++			if (nu.endsWith(images[i])){
++				String toOpen = &quot;&lt;head&gt;&lt;title&gt;name&lt;/title&gt;&lt;/head&gt;&lt;body&gt;&lt;img src=\&quot;&quot;+fe+&quot;\&quot;&gt;&lt;br&gt;&lt;/body&gt;&quot;;
++				return open(toOpen,name);
++			}
++		FormattedTextMaker ftm = findCached(name);
++		if (ftm != null){
++			open(ftm);
++			return ftm;
++		}
++		/*
++		String got = saver.openText(name,getFrame());
++		if (nu.endsWith(&quot;.txt&quot;) &amp;&amp; got != null){
++			display.setPlainText(got);
++			return null;
++		}
++		if (got != null) 
++			return cacheOpened(name,open(got,name));
++		*/
++	}catch(Exception e){
++		
++	}
++		return null;
++}
++//===================================================================
++public void action(String fieldName,Editor ed)
++//===================================================================
++{
++	if (fieldName.equals(&quot;Exit&quot;)){
++		exit(0);
++	}else if (fieldName.equals(&quot;Open&quot;)){
++		open();
++	}else if (fieldName.equals(&quot;back&quot;)){
++		goBack();
++	}else if (fieldName.equals(&quot;stop&quot;)){
++		cancelLoading(false);
++	}else if (fieldName.equals(&quot;reload&quot;)){
++		reload();
++	}else
++		super.action(fieldName,ed);
++}
++
++
++/**
++ * Go to previous document/location. Acts as if the go back button had been pressed.
++ */
++//===================================================================
++public void goBack()
++//===================================================================
++{
++	display.goBack();
++}
++/**
++ * Open a new file. Acts as if the open button had been pressed.
++ */
++//===================================================================
++public void open()
++//===================================================================
++{
++	FileChooser fc = new FileChooser();
++	fc.title = &quot;Open Web Document&quot;;
++	fc.addMask(&quot;*.html;*.htm - HTML Documents&quot;);
++	fc.addMask(fc.allFilesMask);
++	fc.persistentHistoryKey = &quot;Ewesoft-HtmlViewer&quot;;
++	if (fc.execute() == IDCANCEL) return;
++	doOpen(fc.getChosenFile().getFullPath());
++	//String data = saver.open(null,getFrame());
++	//if (data != null) open(data,saver.lastSaved);
++}
++/**
++* Reload the current document. Acts as if the reload button had been pressed.
++**/
++//===================================================================
++public void reload()
++//===================================================================
++{
++	cancelLoading(false);
++	if (currentURL != null){
++		removeCached(currentURL);
++		doOpen(currentURL);
++	}
++}
++//===================================================================
++public void fieldChanged(String fieldName,Editor ed)
++//===================================================================
++{
++	if (fieldName.equals(&quot;fontChooser&quot;)){
++		display.font = fontChooser.toFont();
++		update();
++	}if (fieldName.equals(&quot;animatedImages&quot;) || fieldName.equals(&quot;showImages&quot;)){
++		setupProperties();
++	}
++}
++//===================================================================
++public void update()
++//===================================================================
++{
++		display.update();
++		display.repaintNow();
++}
++
++//===================================================================
++public void filesDropped(String[] fileName)
++//===================================================================
++{
++	doOpen(fileName[0]);
++}
++/**
++ * Set the display font.
++ */
++//===================================================================
++public void setDisplayFont(Font f)
++//===================================================================
++{
++	display.font = f;
++	fontChooser.fromFont(display.font);
++}
++
++//===================================================================
++public static HtmlViewer openAndDisplay(String url,int displayOptions,boolean execute)
++//===================================================================
++{
++	HtmlViewer np = new HtmlViewer(null,displayOptions);
++	if (url != null) {
++		np.doOpen(url);
++	}
++	if (execute) np.exec();
++	else np.show();
++	return np;
++}
++//===================================================================
++public static void main(String args[])
++//===================================================================
++{
++	Application.startApplication(args);
++	String toOpen = null;
++	if (args.length != 0) toOpen = args[0];
++	HtmlViewer np = openAndDisplay(toOpen,0,false);
++	np.exitSystemOnClose = true;
++}
++
++//##################################################################
++}
++//##################################################################
++
+
+Added: experiments/EVEhist/src/eve/ui/formatted/data/WebBrowser.java
+===================================================================
+--- experiments/EVEhist/src/eve/ui/formatted/data/WebBrowser.java	2009-01-31 13:48:30 UTC (rev 1606)
++++ experiments/EVEhist/src/eve/ui/formatted/data/WebBrowser.java	2009-02-01 11:37:18 UTC (rev 1607)
+@@ -0,0 +1,336 @@
++package eve.ui.formatted.data;
++import java.io.IOException;
++import java.net.Socket;
++import java.util.Vector;
++
++import eve.data.PropertyList;
++import eve.io.File;
++import eve.io.Io;
++import eve.net.HttpConnection;
++import eve.sys.Handle;
++import eve.sys.Task;
++import eve.sys.TimeOut;
++import eve.ui.Application;
++import eve.ui.Card;
++import eve.ui.CellPanel;
++import eve.ui.ComboBox;
++import eve.ui.IWebBrowser;
++import eve.ui.Input;
++import eve.ui.Label;
++import eve.ui.MessageBox;
++import eve.ui.data.Editor;
++import eve.ui.formatted.HtmlDisplay;
++import eve.ui.formatted.StreamImageResolver;
++import eve.util.Tag;
++
++//##################################################################
++public class WebBrowser extends HtmlViewer implements IWebBrowser{
++//##################################################################
++
++/**
++* If you wish to change this, set it to a new value and then call &lt;b&gt;toControls(&quot;goTo&quot;)&lt;/b&gt;
++**/
++public String goTo =
++	//&quot;<A HREF="http://www.ewesoft.com/eve/Downloads/Downloads.html">http://www.ewesoft.com/eve/Downloads/Downloads.html</A>&quot;;
++	&quot;<A HREF="http://www.ewesoft.com/eve">http://www.ewesoft.com/eve</A>&quot;;
++	//&quot;<A HREF="http://www.ewesoft.com/M2.htm">http://www.ewesoft.com/M2.htm</A>&quot;; 
++	//&quot;<A HREF="http://www.huffingtonpost.com">http://www.huffingtonpost.com</A>&quot;;
++	//&quot;<A HREF="http://localhost/">http://localhost/</A>&quot;;
++
++//##################################################################
++protected class WebBrowserDisplay extends HtmlViewerDisplay{
++//##################################################################
++
++
++//##################################################################
++}
++//##################################################################
++
++protected Vector history = new Vector();
++protected ComboBox gotoBox;
++
++protected static String clearHistoryText = &quot;Clear History...&quot;;
++protected static String HistoryKey = &quot;Ewesoft\\WebBrowser\\History&quot;;
++
++//-------------------------------------------------------------------
++protected HtmlDisplay createDisplay()
++//-------------------------------------------------------------------
++{
++	return new WebBrowserDisplay();
++}
++
++//===================================================================
++public WebBrowser()
++//===================================================================
++{
++	this(0);
++}
++//===================================================================
++public WebBrowser(int displayOptions)
++//===================================================================
++{
++	super(null,displayOptions);
++	title = &quot;Web Browser&quot;;
++	//
++	// Make sure there are tabs to add to.
++	//
++	if (tabs != null){
++		CellPanel cp = new CellPanel();
++		cp.addNext(new Label(&quot;URL:&quot;)).setCell(DONTSTRETCH);
++		gotoBox = new ComboBox();
++		gotoBox.actionOnChoiceSelect = true;
++		gotoBox.choice.shortenItems = true;
++		try{
++			Vector v = Io.getStringList(HistoryKey);
++			if (v != null) gotoBox.choice.items.addAll(v);
++		}catch(Exception e){}
++		Input mi = gotoBox.input;
++		mi.wantReturn = true;
++		cp.addNext(addField(gotoBox,&quot;goTo&quot;));
++		cp.addNext(addToolButton(&quot;go&quot;,loadImage(&quot;eve/rightarrowsmall.png&quot;),&quot;Go to URL&quot;,false)).setCell(DONTSTRETCH);
++		Card c = tabs.addCard(cp,&quot;Web Document&quot;,null);
++		c.iconize(&quot;eve/websmall.png&quot;);
++	}
++}
++
++//-------------------------------------------------------------------
++protected void newDocumentLoaded(String url)
++//-------------------------------------------------------------------
++{
++	super.newDocumentLoaded(url);
++	goTo = url;
++	toControls(&quot;goTo&quot;);
++	addToHistory(url);
++}
++/**
++ * Create an HttpConnection object to fetch a web document. By default
++ * this creates and returns as standard HttpConnection object. You can
++ * override this to modify the HttpConnection as you wish.
++ * @param url the url that will be fetched.
++ * @return an HttpConnection object to use.
++ */
++protected HttpConnection getHttpConnection(String url)
++{
++	return new HttpConnection(url);
++}
++
++//-------------------------------------------------------------------
++protected void addPropertiesTo(final PropertyList pl)
++//-------------------------------------------------------------------
++{
++	super.addPropertiesTo(pl);
++	pl.set(&quot;imageResolver&quot;,new StreamImageResolver(){
++		//-------------------------------------------------------------------
++		protected Tag getStreamFor(String imageName) throws IOException
++		//-------------------------------------------------------------------
++		{
++			try{
++			String root = pl.getString(&quot;documentRoot&quot;,&quot;&quot;);
++			String url = null;
++			if (imageName.toLowerCase().startsWith(&quot;<A HREF="http://">http://</A>&quot;))
++				url = imageName;
++			else if(root.toLowerCase().startsWith(&quot;<A HREF="http://">http://</A>&quot;))
++				url = toFullURL(root,imageName);
++			if (url != null){
++				//ewe.sys.Vm.debug(&quot;Fetching: &quot;+url);
++				HttpConnection ht = getHttpConnection(url);//root+&quot;/&quot;+imageName);
++				while(true){
++					Socket sock = ht.connect();
++					HttpConnection r = ht.redirectTo();
++					if (r != ht){
++						ht = r;
++						sock.close();
++						continue;
++					}
++					Tag t = new Tag();
++					t.value = ht.getInputStream();//sock;
++					t.tag = ht.documentProperties.getInt(&quot;content-length&quot;,-1);
++					return t;
++				}
++			}else{
++				File f = File.getNewFile(root).getChild(imageName);
++				if (f.canRead()) {
++					Tag t = new Tag();
++					t.value = f.toReadableStream();
++					t.tag = (int)f.getLength();
++					return t;
++				}
++			}
++				throw new IOException(&quot;Can't get: &quot;+imageName);
++			}catch(IOException e){
++				//e.printStackTrace();
++				throw e;
++			}
++		}
++	});
++}
++
++//-------------------------------------------------------------------
++protected String toFullURL(String root,String document)
++//-------------------------------------------------------------------
++{
++	String ret = super.toFullURL(root,document);
++	if (ret != null) return ret;
++	if (document.startsWith(&quot;/&quot;)){
++		HttpConnection hr = new HttpConnection(root);
++		hr.document = document;
++		return hr.toURLString();
++	}
++	try{
++		HttpConnection hr = new HttpConnection(document.indexOf(':') == -1 ? root+&quot;/&quot;+document : document);
++		return hr.toURLString();
++	}catch(Exception e){
++		return null;
++	}
++}
++
++//===================================================================
++public Handle openWebDocument(final String url,final PropertyList pl)
++//===================================================================
++{
++	try{
++		return new Task(){
++			protected void doRun(){
++				Handle handle = this;
++				try{
++					String curUrl = url;
++					HttpConnection hr = getHttpConnection(curUrl);
++					while(true){
++						String d = hr.document;
++						int where = d.lastIndexOf('/');
++						if (where != -1) d = d.substring(0,where);
++						pl.set(&quot;documentRoot&quot;,&quot;<A HREF="http://">http://</A>&quot;+hr.host+&quot;:&quot;+hr.port+d);
++						pl.set(&quot;document&quot;,curUrl);
++						Handle h = hr.connectAsync();
++						if (!waitOnSuccess(h,TimeOut.Forever,true)) return;
++						Socket s = (Socket)h.returnValue;
++						HttpConnection redir = hr.redirectTo();
++						if (redir != hr){
++							s.close();
++							hr = redir;
++							curUrl = redir.toURLString();
++							continue;
++						}
++						pl.add(hr.documentProperties);
++						h = hr.readInData(s);
++						//h = ewe.io.StreamUtils.readAllBytes(hr.getInputStream(),null,hr.contentLength,0);
++						if (!waitOnSuccess(h,TimeOut.Forever,true)) return;
++						handle.returnValue = h.returnValue;
++						handle.set(Handle.Succeeded);
++						return;
++					}
++				}catch(Exception e){
++					handle.fail(e);
++				}
++			}
++		}.start();
++	}catch(Exception e){
++		return new Handle(Handle.Failed,null);
++	}
++}
++
++//-------------------------------------------------------------------
++protected Handle openDocument(String url,PropertyList pl)
++//-------------------------------------------------------------------
++{
++	Handle h = super.openDocument(url,pl);
++	if ((h.check() &amp; h.Failure) == 0) return h;
++	return openWebDocument(url,pl);
++}
++
++/**
++* The maximum number of URLs to save in the history. By default it is 10.
++**/
++public static int MaxHistory = 10;
++
++//===================================================================
++public void addToHistory(String url)
++//===================================================================
++{
++	if (gotoBox == null) return;
++	Vector v = gotoBox.choice.items;
++	if (MaxHistory != 0){
++		for (int i = 0; i&lt;v.size(); i++)
++			if (v.get(i).toString().equalsIgnoreCase(url))
++				return;
++		if (v.size() == 0) v.add(clearHistoryText);
++		v.insertElementAt(url,1);
++		while(v.size() &gt; MaxHistory+1){
++			String was = v.get(v.size()-1).toString();
++			removeCached(was);
++			v.removeElementAt(v.size()-1);
++		}
++	}
++	try{
++		Io.saveStringList(v,HistoryKey,0);
++	}catch(Exception e){}
++}
++
++//===================================================================
++public void clearHistory()
++//===================================================================
++{
++	Vector v = gotoBox.choice.items;
++	v.clear();
++	try{
++		Io.saveStringList(v,&quot;Ewesoft\\WebBrowser\\History&quot;,0);
++	}catch(Exception e){}
++}
++//===================================================================
++public void action(String fieldName, Editor ed)
++//===================================================================
++{
++	if (fieldName.equals(&quot;goTo&quot;) || fieldName.equals(&quot;go&quot;)){
++		if (goTo.equals(clearHistoryText)){
++			if (new MessageBox(&quot;Clear History&quot;,&quot;Clear your history?&quot;,MBYESNO).execute() == IDYES)
++				clearHistory();
++			goTo = getCurrentURL();
++			if (goTo == null) goTo = &quot;&quot;;
++			ed.toControls(&quot;goTo&quot;);
++			return;
++		}
++		doOpen(goTo);		
++	}else super.action(fieldName,ed);
++}
++//===================================================================
++public static HtmlViewer openAndDisplay(String url,boolean execute)
++//===================================================================
++{
++	HtmlViewer np = new WebBrowser();
++	if (url != null) np.doOpen(url);
++	if (execute) np.exec();
++	else np.show();
++	return np;
++}
++//===================================================================
++public static void main(String args[])
++//===================================================================
++{
++	Application.startApplication(args);
++	String toOpen = null;
++	if (args.length != 0) toOpen = args[0];
++	HtmlViewer np = openAndDisplay(toOpen,false);
++	np.exitSystemOnClose = true;
++}
++//===================================================================
++public boolean showFor(String url, boolean execModal)
++//===================================================================
++{
++	if (url != null) doOpen(url);
++	if (execModal) exec();
++	else show();
++	return true;
++}
++//===================================================================
++public static HtmlViewer openAndDisplay(String url,int displayOptions,boolean execute)
++//===================================================================
++{
++	WebBrowser np = new WebBrowser(displayOptions);
++	np.showFor(url,execute);
++	return np;
++}
++
++//##################################################################
++}
++//##################################################################
++
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001509.html">[Bug #15146] GPX Importer erkennt Funddatum nicht f&#252;r Events und Webcams
+</A></li>
+	<LI>Next message: <A HREF="001511.html">[Cachewolf-svn] r1608 - experiments/EVEhist/resources
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1510">[ date ]</a>
+              <a href="thread.html#1510">[ thread ]</a>
+              <a href="subject.html#1510">[ subject ]</a>
+              <a href="author.html#1510">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,117 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1448 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-May/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1448%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200805061654.m46GsJEr021994%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001341.html">
+   <LINK REL="Next"  HREF="001343.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1448 - trunk/src/CacheWolf</H1>
+    <B>engywuck at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1448%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200805061654.m46GsJEr021994%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1448 - trunk/src/CacheWolf">engywuck at mail.berlios.de
+       </A><BR>
+    <I>Tue May  6 18:54:19 CEST 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001341.html">[Cachewolf-svn] r1447 - trunk/res_noewe/languages
+</A></li>
+        <LI>Next message: <A HREF="001343.html">[Cachewolf-svn] r1449 - trunk/docs/CacheWolf Doku
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1342">[ date ]</a>
+              <a href="thread.html#1342">[ thread ]</a>
+              <a href="subject.html#1342">[ subject ]</a>
+              <a href="author.html#1342">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: engywuck
+Date: 2008-05-06 18:54:13 +0200 (Tue, 06 May 2008)
+New Revision: 1448
+
+Modified:
+   trunk/src/CacheWolf/TablePanel.java
+Log:
+Verbesserung: Wird ein selektierter Cache ausgefiltert (Filter/Blacklist), so wird n&#228;chste selektierte Cache der erste vor dem letzten in der Liste, der noch sichtbar ist. (<A HREF="http://www.geoclub.de/viewtopic.php?p=384086">http://www.geoclub.de/viewtopic.php?p=384086</A>)
+
+Modified: trunk/src/CacheWolf/TablePanel.java
+===================================================================
+--- trunk/src/CacheWolf/TablePanel.java	2008-05-06 12:18:04 UTC (rev 1447)
++++ trunk/src/CacheWolf/TablePanel.java	2008-05-06 16:54:13 UTC (rev 1448)
+@@ -97,19 +97,39 @@
+ 	/** Move all filtered caches to the end of the table and redisplay table */
+ 	//TODO Add a sort here to restore the sort after a filter
+ 	public void refreshTable(){
++		
++		// First: Remember currently selected waypoint
+ 		String wayPoint;
++		Vector oldVisibleCaches = null;
+ 		int sel = getSelectedCache();
+ 		if ((sel &gt;= 0) &amp;&amp; (sel &lt; cacheDB.size()) ) // sel &gt; cacheDB.size() can happen if you load a new profile, which is smaller than the old profile and you selected one cache that exceeds the number of caches in the new profile  
+ 			wayPoint = ((CacheHolder)cacheDB.get(sel)).wayPoint;
+ 		else wayPoint = null;
++		// Then: remember all caches that are visible before the refresh
++		if (wayPoint != null) {
++	        oldVisibleCaches = new Vector(sel);
++	        for (int i = 0; i &lt; sel; i++) {
++		        oldVisibleCaches.add(cacheDB.get(i));
++	        }
++        }
+ 		myMod.updateRows();
+ 
+ 		// Check whether the currently selected cache is still visible
+ 		int rownum = 0;
+ 		if (wayPoint != null) {
+ 			rownum = Global.getProfile().getCacheIndex(wayPoint);
+-			if ( (rownum &lt; 0) || (rownum&gt;=myMod.numRows) )
+-				rownum = 0;	
++			if ( (rownum &lt; 0) || (rownum&gt;=myMod.numRows) ) {
++				// If it is not visible: Go backward in the list of the 
++				// previously visible caches and look if you find
++				// any cache that is now still visible.
++				int i;
++				for (i=sel-1; i&gt;=0; i--) {
++					CacheHolder checkCache = (CacheHolder) oldVisibleCaches.get(i);
++					rownum = Global.getProfile().getCacheIndex(checkCache.wayPoint);
++					if ((rownum &gt;= 0) &amp;&amp; (rownum &lt; myMod.numRows)) break;
++					rownum = 0;	
++				}
++			}	
+ 		}
+ 		selectRow(rownum);
+ 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001341.html">[Cachewolf-svn] r1447 - trunk/res_noewe/languages
+</A></li>
+	<LI>Next message: <A HREF="001343.html">[Cachewolf-svn] r1449 - trunk/docs/CacheWolf Doku
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1342">[ date ]</a>
+              <a href="thread.html#1342">[ thread ]</a>
+              <a href="subject.html#1342">[ subject ]</a>
+              <a href="author.html#1342">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

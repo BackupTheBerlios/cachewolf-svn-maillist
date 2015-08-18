@@ -1,0 +1,148 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1895 - trunk/src/exp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-June/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1895%20-%20trunk/src/exp&In-Reply-To=%3C200906121447.n5CElfms000859%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001812.html">
+   <LINK REL="Next"  HREF="001814.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1895 - trunk/src/exp</H1>
+    <B>greiol at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1895%20-%20trunk/src/exp&In-Reply-To=%3C200906121447.n5CElfms000859%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1895 - trunk/src/exp">greiol at mail.berlios.de
+       </A><BR>
+    <I>Fri Jun 12 16:47:41 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001812.html">[Cachewolf-svn] r1894 - in trunk: resources src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001814.html">[Cachewolf-svn] r1896 - trunk/src/exp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1813">[ date ]</a>
+              <a href="thread.html#1813">[ thread ]</a>
+              <a href="subject.html#1813">[ subject ]</a>
+              <a href="author.html#1813">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: greiol
+Date: 2009-06-12 16:47:33 +0200 (Fri, 12 Jun 2009)
+New Revision: 1895
+
+Modified:
+   trunk/src/exp/Exporter.java
+   trunk/src/exp/HTMLExporter.java
+Log:
+skip incomplete caches and give info if done so
+
+Modified: trunk/src/exp/Exporter.java
+===================================================================
+--- trunk/src/exp/Exporter.java	2009-06-12 14:16:07 UTC (rev 1894)
++++ trunk/src/exp/Exporter.java	2009-06-12 14:47:33 UTC (rev 1895)
+@@ -10,6 +10,7 @@
+ import ewe.io.PrintWriter;
+ import ewe.ui.FormBase;
+ import ewe.ui.ProgressBarForm;
++import ewe.ui.*;
+ import ewe.util.*;
+ import ewe.io.IOException;
+ 
+@@ -93,12 +94,18 @@
+ 		int expCount = 0;
+ 
+ 		try{
++			int incompleteWaypoints = 0;
+ 			PrintWriter outp =  new PrintWriter(new BufferedWriter(new FileWriter(outFile)));
+ 			str = this.header();
+ 			if (str != null) outp.print(str);
+ 			for(int i = 0; i&lt;cacheDB.size(); i++){
+ 				ch=cacheDB.get(i);
+ 				if(ch.isVisible()){
++					if (ch.is_incomplete()) {
++						Global.getPref().log(&quot;skipping export of incomplete waypoint &quot;+ch.getWayPoint());
++						incompleteWaypoints++;
++						continue;
++					}
+ 					expCount++;
+ 					h.progress = (float)expCount/(float)counter;
+ 					h.changed();
+@@ -138,6 +145,9 @@
+ 			if (str != null) outp.print(str);
+ 			outp.close();
+ 			pbf.exit(0);
++			if (incompleteWaypoints &gt; 0) {
++				new MessageBox(&quot;Export Error&quot;, incompleteWaypoints+&quot; incomplete waypoints have not been exported. See log for details.&quot;, FormBase.OKB).execute();
++			}
+ 		} catch (IOException ioE){
+ 			Vm.debug(&quot;Error opening &quot; + outFile.getName());
+ 		}
+
+Modified: trunk/src/exp/HTMLExporter.java
+===================================================================
+--- trunk/src/exp/HTMLExporter.java	2009-06-12 14:16:07 UTC (rev 1894)
++++ trunk/src/exp/HTMLExporter.java	2009-06-12 14:47:33 UTC (rev 1895)
+@@ -59,6 +59,7 @@
+ 			Vector usrImg = new Vector();
+ 			Vector logIcons = new Vector(15);
+ 			String icon;
++			int incompleteWaypoint = 0;
+ 
+ 			Hashtable varParams;
+ 			Hashtable imgParams;
+@@ -79,6 +80,11 @@
+ 
+ 				ch = cacheDB.get(i);
+ 				if(	ch.isVisible()){
++					if (ch.is_incomplete()) {
++						incompleteWaypoint++;
++						Global.getPref().log(&quot;skipping export of incomplete waypoint &quot;+ch.getWayPoint());
++						continue;
++					}
+ 					det=ch.getExistingDetails();
+ 					varParams = new Hashtable();
+ 					varParams.put(&quot;TYPE&quot;, CacheType.cw2ExportString(ch.getType()));
+@@ -223,6 +229,9 @@
+ 					}catch(Exception e){
+ 						Vm.debug(&quot;Problem writing waypoint html file&quot;+e);
+ 					}
++					if (incompleteWaypoint &gt; 0) {
++						new MessageBox(&quot;Export Error&quot;, incompleteWaypoint+&quot; incomplete waypoints have not been exported. See log for details.&quot;, FormBase.OKB).execute();
++					}
+ 				}//if is black, filtered
+ 			}
+ 			// Copy the log-icons to the destination directory
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001812.html">[Cachewolf-svn] r1894 - in trunk: resources src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001814.html">[Cachewolf-svn] r1896 - trunk/src/exp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1813">[ date ]</a>
+              <a href="thread.html#1813">[ thread ]</a>
+              <a href="subject.html#1813">[ subject ]</a>
+              <a href="author.html#1813">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

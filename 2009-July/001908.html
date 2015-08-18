@@ -1,0 +1,156 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1989 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-July/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1989%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200907042159.n64Lx3wL003276%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001907.html">
+   <LINK REL="Next"  HREF="001909.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1989 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1989%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200907042159.n64Lx3wL003276%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1989 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sat Jul  4 23:59:03 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001907.html">[Cachewolf-svn] r1988 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001909.html">[Cachewolf-svn] r1990 - trunk/res_noewe/webmapservices
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1908">[ date ]</a>
+              <a href="thread.html#1908">[ thread ]</a>
+              <a href="subject.html#1908">[ subject ]</a>
+              <a href="author.html#1908">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2009-07-04 23:59:00 +0200 (Sat, 04 Jul 2009)
+New Revision: 1989
+
+Modified:
+   trunk/src/CacheWolf/Parser.java
+Log:
+Parser: Crossbearing: Added check for coordinates as arguments 1 &amp; 3, added test code
+
+Modified: trunk/src/CacheWolf/Parser.java
+===================================================================
+--- trunk/src/CacheWolf/Parser.java	2009-07-04 15:19:34 UTC (rev 1988)
++++ trunk/src/CacheWolf/Parser.java	2009-07-04 21:59:00 UTC (rev 1989)
+@@ -101,6 +101,7 @@
+     	new fnType(&quot;asin&quot;,&quot;asin&quot;,2),
+     	new fnType(&quot;atan&quot;,&quot;atan&quot;,2),
+       	new fnType(&quot;bearing&quot;,&quot;bearing&quot;,4),
++    	new fnType(&quot;cb&quot;,&quot;cb&quot;,16),
+      	new fnType(&quot;centre&quot;,&quot;center&quot;,3),
+     	new fnType(&quot;center&quot;,&quot;center&quot;,3),
+     	new fnType(&quot;cls&quot;,&quot;cls&quot;,1),
+@@ -108,6 +109,7 @@
+     	new fnType(&quot;cos&quot;,&quot;cos&quot;,2),
+     	new fnType(&quot;count&quot;,&quot;count&quot;,4),
+      	new fnType(&quot;cp&quot;,&quot;cp&quot;,1),
++    	new fnType(&quot;crossbearing&quot;,&quot;cb&quot;,16),
+     	new fnType(&quot;crosstotal&quot;,&quot;ct&quot;,6),
+     	new fnType(&quot;ct&quot;,&quot;ct&quot;,2),
+      	new fnType(&quot;curpos&quot;,&quot;cp&quot;,1),
+@@ -147,9 +149,7 @@
+     	new fnType(&quot;tan&quot;,&quot;tan&quot;,2),
+     	new fnType(&quot;ucase&quot;,&quot;uc&quot;,2),
+     	new fnType(&quot;val&quot;,&quot;val&quot;,2),
+-     	new fnType(&quot;zentrum&quot;,&quot;center&quot;,3),
+-    	new fnType(&quot;crossbearing&quot;,&quot;cb&quot;,16),
+-    	new fnType(&quot;cb&quot;,&quot;cb&quot;,16)
++     	new fnType(&quot;zentrum&quot;,&quot;center&quot;,3)
+      	    	};
+ 	private static int scanpos = 0;
+ 	CWPoint cwPt=new CWPoint();
+@@ -633,6 +633,8 @@
+ 		String coordinates2 = popCalcStackAsString();
+ 		double degrees1 = popCalcStackAsNumber(-1);
+ 		String coordinates1 = popCalcStackAsString();
++		if (!isValidCoord(coordinates1)) err(MyLocale.getMsg(1712,&quot;Invalid coordinate: &quot;)+coordinates1);
++ 		if (!isValidCoord(coordinates2)) err(MyLocale.getMsg(1712,&quot;Invalid coordinate: &quot;)+coordinates2);
+ 
+ 		//Check parameters
+     	if (degrees1&lt;0 || degrees1&gt;360 || degrees2 &lt; 0 || degrees2 &gt; 360){
+@@ -643,7 +645,7 @@
+     			err(MyLocale.getMsg(1741,&quot;Crossbearing degrees must be in interval [0;2*PI]&quot;));
+     		}
+     	}
+-    	
++
+     	double rAN = Global.getPref().solverDegMode ? degrees1 / 180.0
+ 				* java.lang.Math.PI : degrees1;
+ 		double rBN = Global.getPref().solverDegMode ? degrees2 / 180.0
+@@ -656,11 +658,16 @@
+ 		CWPoint result2 = crossbearingCalculation(point1, point2, rAN, rBN);
+ 		return result2.toString();
+ 	}
+-	
++
+ 	private CWPoint crossbearingCalculation(CWPoint point1, CWPoint point2, double rAN, double rBN) throws Exception {
+ 		//see german wikipedia keyword vorwaertsschnitt for the calculation.
+ 		//peilung von a-&gt;b
+ 		//Yes we will make an error, therefore we have to calculate the target-point iteratively.
++		//Testcode for crossbearing:
++		// MP=&quot;S35 47.100 W089 43.200&quot; # MP is centre of circle, could be any waypoint
++		// A=project(MP,0,1000); B=project(MP,120,1000) # Points of equilateral triangle on circle
++		// C1=project(MP,240,1000); C2=cb(A,210 ,B,270)
++		//	C1 &quot;=&quot; C2
+ 		final int maxRadius = 6378;
+     	double distance = point1.getDistance(point2);
+     	if (Math.abs (distance) &lt;= 0.0000000001){
+@@ -671,7 +678,7 @@
+ 	    if (Global.getPref().solverDegMode) phiAB=phiAB / 180.0 * java.lang.Math.PI;
+ 	    double phiBA = point2.getBearing(point1);
+ 	    if (Global.getPref().solverDegMode) phiBA=phiBA / 180.0 * java.lang.Math.PI;
+-	    
++
+ 	    double psi = phiAB - rAN;
+ 	    double phi = rBN - phiBA;
+ 
+@@ -698,7 +705,7 @@
+ 	    }
+ 		return result2;
+ 	}
+-	
++
+     /** Project a waypoint at some angle and some distance */
+     private String funcProject() throws Exception {
+     	double distance=popCalcStackAsNumber(0);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001907.html">[Cachewolf-svn] r1988 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001909.html">[Cachewolf-svn] r1990 - trunk/res_noewe/webmapservices
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1908">[ date ]</a>
+              <a href="thread.html#1908">[ thread ]</a>
+              <a href="subject.html#1908">[ subject ]</a>
+              <a href="author.html#1908">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

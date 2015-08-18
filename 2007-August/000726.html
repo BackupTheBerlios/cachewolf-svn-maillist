@@ -1,0 +1,170 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r836 - in trunk: resources src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-August/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r836%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200708261541.l7QFfN8Y017879%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000725.html">
+   <LINK REL="Next"  HREF="000727.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r836 - in trunk: resources src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r836%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200708261541.l7QFfN8Y017879%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r836 - in trunk: resources src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sun Aug 26 17:41:23 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000725.html">[Cachewolf-svn] r835 - in trunk: resources src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000727.html">[Cachewolf-svn] r837 - in trunk: resources src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#726">[ date ]</a>
+              <a href="thread.html#726">[ thread ]</a>
+              <a href="subject.html#726">[ subject ]</a>
+              <a href="author.html#726">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-08-26 17:41:15 +0200 (Sun, 26 Aug 2007)
+New Revision: 836
+
+Modified:
+   trunk/resources/cachewolf.Languages.cfg
+   trunk/src/CacheWolf/Preferences.java
+   trunk/src/CacheWolf/PreferencesScreen.java
+Log:
+Feature: PraeferenzenScreen: Passworteingabe
+Die Eingabe eines optionalen Passwortes fuer den Spider welches in der pref.xml gespeichert wird ist moeglich.
+Wenn kein Passwort angegeben wird, kann es beim Login nachgeliefert werden (wird dann aber nicht in pref.xml gespeichert). 
+
+Modified: trunk/resources/cachewolf.Languages.cfg
+===================================================================
+--- trunk/resources/cachewolf.Languages.cfg	2007-08-26 15:09:56 UTC (rev 835)
++++ trunk/resources/cachewolf.Languages.cfg	2007-08-26 15:41:15 UTC (rev 836)
+@@ -137,6 +137,8 @@
+ 		351=Notizen hinzuf%fcgen/%e4ndern
+ 		400=Dekodieren
+ 		500=Umschalten
++		593=Password ist hier optional.%0aNur eingeben wenn es in pref.xml%0agespeichert werden soll.
++		594=Passwt
+ 		595=Liste
+ 		596=Name
+ 		597=Wegpunkt
+@@ -664,6 +666,8 @@
+ 		351=Add/Edit notes
+ 		400=Dekode
+ 		500=Switch
++		593=Password is optional here.%0aEnter only if you want to store it in pref.xml
++		594=Passwd
+ 		595=List
+ 		596=Name
+ 		597=Waypoint
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2007-08-26 15:09:56 UTC (rev 835)
++++ trunk/src/CacheWolf/Preferences.java	2007-08-26 15:41:15 UTC (rev 836)
+@@ -35,6 +35,8 @@
+ 	public String myproxyport = &quot;&quot;;
+ 	/** This is the login alias for geocaching.com and opencaching.de */
+ 	public String myAlias = &quot;&quot;;
++	/** Optional password */
++	public String password=&quot;&quot;;
+ 	/** This is an alternative alias used to identify found caches (i.e. if using multiple IDs) 
+ 	 *  It is currently not used yet */
+ 	public String myAlias2 = &quot;&quot;;
+@@ -314,8 +316,13 @@
+ 			}
+ 		}
+ 		if(name.equals(&quot;font&quot;)) fontSize = Convert.toInt(atts.getValue(&quot;size&quot;));
+-		if(name.equals(&quot;alias&quot;)) myAlias = atts.getValue(&quot;name&quot;);
+-		if(name.equals(&quot;alias2&quot;)) myAlias2 = atts.getValue(&quot;name&quot;);
++		if(name.equals(&quot;alias&quot;)) {
++			myAlias = SafeXML.cleanback(atts.getValue(&quot;name&quot;));
++			tmp = SafeXML.cleanback(atts.getValue(&quot;password&quot;));
++			if (tmp != null) password=tmp;
++			SpiderGC.passwort=password;
++		}
++		if(name.equals(&quot;alias2&quot;)) SafeXML.cleanback(myAlias2 = atts.getValue(&quot;name&quot;));
+ 		if(name.equals(&quot;location&quot;)){
+ 			curCentrePt.set(atts.getValue(&quot;lat&quot;)+&quot; &quot;+atts.getValue(&quot;long&quot;));
+ 		}
+@@ -419,7 +426,7 @@
+ 			outp.print(&quot;&lt;preferences&gt;\n&quot;);
+ 			outp.print(&quot;	&lt;basedir dir = \&quot;&quot;+ baseDir +&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;lastprofile autoreload=\&quot;&quot;+autoReloadLastProfile+&quot;\&quot;&gt;&quot;+lastProfile+&quot;&lt;/lastprofile&gt;\n&quot;); //RB
+-			outp.print(&quot;	&lt;alias name =\&quot;&quot;+ SafeXML.clean(myAlias) +&quot;\&quot;/&gt;\n&quot;);
++			outp.print(&quot;	&lt;alias name =\&quot;&quot;+ SafeXML.clean(myAlias) +&quot;\&quot; password=\&quot;&quot;+SafeXML.clean(password)+&quot;\&quot; /&gt;\n&quot;);
+ 			outp.print(&quot;	&lt;alias2 name =\&quot;&quot;+ SafeXML.clean(myAlias2) +&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;	&lt;browser name = \&quot;&quot;+browser+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;	&lt;proxy prx = \&quot;&quot;+ myproxy+&quot;\&quot; prt = \&quot;&quot;+ myproxyport + &quot;\&quot;/&gt;\n&quot;);
+
+Modified: trunk/src/CacheWolf/PreferencesScreen.java
+===================================================================
+--- trunk/src/CacheWolf/PreferencesScreen.java	2007-08-26 15:09:56 UTC (rev 835)
++++ trunk/src/CacheWolf/PreferencesScreen.java	2007-08-26 15:41:15 UTC (rev 836)
+@@ -16,7 +16,7 @@
+ 	mButton cancelB, applyB, brwBt, gpsB,btnCentre;
+ 	mChoice NS, EW;
+ 	mInput NSDeg, NSm, EWDeg, EWm, DataDir, Proxy, ProxyPort, Alias, nLogs, Browser, fontSize, inpGPS, 
+-	       inpLogsPerPage,inpMaxLogsToSpider;
++	       inpLogsPerPage,inpMaxLogsToSpider,inpPassword;
+ 	mCheckBox dif, ter, loc, own, hid, stat, dist, bear, chkAutoLoad, chkShowDeletedImg, chkMenuAtTop, 
+ 	          chkTabsAtTop, chkShowStatus,chkHasCloseButton,chkSynthShort;
+ 	mTabbedPanel mTab;
+@@ -71,8 +71,9 @@
+ 		Alias = new mInput();
+ 		Alias.setText(pref.myAlias);
+ 		pnlBrowser.addNext(Alias,CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		pnlBrowser.addLast(new mLabel(&quot;&quot;)).setTag(SPAN,new Dimension(2,1));
+-		
++		pnlBrowser.addNext(new mLabel(MyLocale.getMsg(594,&quot;Pwd&quot;)));
++		pnlBrowser.addLast(inpPassword=new mInput(pref.password),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		inpPassword.setToolTip(MyLocale.getMsg(593,&quot;Password is optional here.\nEnter only if you want to store it in pref.xml&quot;));
+ 		pnlGeneral.addLast(pnlBrowser,HSTRETCH,HFILL);
+ 		
+ 		pnlGeneral.addNext(gpsB = new mButton(&quot;GPS&quot;),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+@@ -227,6 +228,7 @@
+ 				mApp.mainApp.font = newGuiFont;
+ 				
+ 				pref.myAlias = Alias.getText().trim();
++				SpiderGC.passwort=pref.password= inpPassword.getText().trim();
+ 				pref.browser = Browser.getText();
+ 				//Vm.debug(myPreferences.browser);
+ 				pref.myproxy = Proxy.getText();
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000725.html">[Cachewolf-svn] r835 - in trunk: resources src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000727.html">[Cachewolf-svn] r837 - in trunk: resources src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#726">[ date ]</a>
+              <a href="thread.html#726">[ thread ]</a>
+              <a href="subject.html#726">[ subject ]</a>
+              <a href="author.html#726">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

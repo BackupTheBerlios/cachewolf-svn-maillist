@@ -1,0 +1,158 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2365 - in trunk/src/CacheWolf: . imp utils
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-December/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2365%20-%20in%20trunk/src/CacheWolf%3A%20.%20imp%20utils&In-Reply-To=%3C200912141928.nBEJSTMp001386%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002288.html">
+   <LINK REL="Next"  HREF="002290.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2365 - in trunk/src/CacheWolf: . imp utils</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2365%20-%20in%20trunk/src/CacheWolf%3A%20.%20imp%20utils&In-Reply-To=%3C200912141928.nBEJSTMp001386%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2365 - in trunk/src/CacheWolf: . imp utils">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Mon Dec 14 20:28:29 CET 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002288.html">[Cachewolf-svn] r2364 - trunk/src/CacheWolf/navi
+</A></li>
+        <LI>Next message: <A HREF="002290.html">[Cachewolf-svn] r2366 - trunk
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2289">[ date ]</a>
+              <a href="thread.html#2289">[ thread ]</a>
+              <a href="subject.html#2289">[ subject ]</a>
+              <a href="author.html#2289">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2009-12-14 20:28:27 +0100 (Mon, 14 Dec 2009)
+New Revision: 2365
+
+Modified:
+   trunk/src/CacheWolf/ShowCacheInBrowser.java
+   trunk/src/CacheWolf/imp/Rating.java
+   trunk/src/CacheWolf/utils/CWWrapper.java
+Log:
+show cache offline in browser on pda did not show generated temp page.
+
+Modified: trunk/src/CacheWolf/ShowCacheInBrowser.java
+===================================================================
+--- trunk/src/CacheWolf/ShowCacheInBrowser.java	2009-12-14 19:27:21 UTC (rev 2364)
++++ trunk/src/CacheWolf/ShowCacheInBrowser.java	2009-12-14 19:28:27 UTC (rev 2365)
+@@ -210,7 +210,7 @@
+ 			//detfile.print(tpl.output());
+ 			detfile.close();
+ 			try {
+-				CWWrapper.exec(Global.getPref().browser, &quot;<A HREF="file://">file://</A>&quot;+saveTo); // maybe this works on some PDAs?
++				CWWrapper.exec(Global.getPref().browser, &quot;<A HREF="file://">file://</A>&quot;+saveTo, false, false); // maybe this works on some PDAs?
+ 			} catch (IOException ex) {
+ 				(new MessageBox(MyLocale.getMsg(321,&quot;Error&quot;),
+ 						MyLocale.getMsg(1034,&quot;Cannot start browser!&quot;) + &quot;\n&quot; + ex.toString() + &quot;\n&quot; +
+
+Modified: trunk/src/CacheWolf/imp/Rating.java
+===================================================================
+--- trunk/src/CacheWolf/imp/Rating.java	2009-12-14 19:27:21 UTC (rev 2364)
++++ trunk/src/CacheWolf/imp/Rating.java	2009-12-14 19:28:27 UTC (rev 2365)
+@@ -42,7 +42,7 @@
+ 				if (ch.isCacheWpt()) {
+ 					int rate;
+ 					try {
+-						rate = CWWrapper.exec(rater, ch.getWayPoint(), true);
++						rate = CWWrapper.exec(rater, ch.getWayPoint(), true, true);
+ 						ch.setNumRecommended(rate);
+ 					} catch (Exception ex) {
+ 						ex.printStackTrace();
+
+Modified: trunk/src/CacheWolf/utils/CWWrapper.java
+===================================================================
+--- trunk/src/CacheWolf/utils/CWWrapper.java	2009-12-14 19:27:21 UTC (rev 2364)
++++ trunk/src/CacheWolf/utils/CWWrapper.java	2009-12-14 19:28:27 UTC (rev 2365)
+@@ -13,15 +13,15 @@
+  * Win* VM: cmd may be quoted, arg are whitespace-split
+  */
+ public final class CWWrapper {
+-	
++
+ 	/**
+ 	 * thou shallst not instantiate this object
+ 	 */
+ 	private CWWrapper() {
+ 		// Nothing to do
+ 	}
+-	
+-	
++
++
+ 	/**
+ 	 * Apply needed quotes around the command or the argument,
+ 	 * then call Vm.exec() appropriately.
+@@ -29,13 +29,13 @@
+ 	 * @param arg (only one argument)
+ 	 * @throws ewe.io.IOException
+ 	 */
+-	public static void exec(final String cmd, final String arg) throws ewe.io.IOException{
+-		exec(cmd, arg, false);
++	public static int exec(final String cmd, final String arg) throws ewe.io.IOException{
++		return exec(cmd, arg, false, true);
+ 	}
+-	
+-	public static int exec(String cmd, String arg, final boolean wait) throws ewe.io.IOException {
+-		if (Vm.getPlatform().equals(&quot;WinCE&quot;) ||
+-			    Vm.getPlatform().equals(&quot;Win32&quot;)) {
++	public static int exec(String cmd, String arg, final boolean wait, final boolean surround) throws ewe.io.IOException {
++		if (surround) {
++			if (Vm.getPlatform().equals(&quot;WinCE&quot;) || Vm.getPlatform().equals(&quot;Win32&quot;))
++			{
+ 				/* we need extra quotes here, see vm/nmwin32_c.c */
+ 				if (arg.indexOf(' ') &gt; -1) {
+ 					arg = &quot;\&quot;&quot; + arg + &quot;\&quot;&quot;;
+@@ -48,11 +48,12 @@
+ 				if (cmd.indexOf(' ') &gt; -1) {
+ 					cmd = &quot;\&quot;&quot; + cmd + &quot;\&quot;&quot;;
+ 				}
+-					
+ 				if (arg.indexOf(' ') &gt; -1) {
+ 					arg = &quot;\&quot;&quot; + arg + &quot;\&quot;&quot;;
+ 				}
+ 			}
++		}
++		// CacheWolf.Global.getPref().log(arg);
+ 		return Vm.exec(cmd, arg, 0, wait);
+ 	}
+ 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002288.html">[Cachewolf-svn] r2364 - trunk/src/CacheWolf/navi
+</A></li>
+	<LI>Next message: <A HREF="002290.html">[Cachewolf-svn] r2366 - trunk
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2289">[ date ]</a>
+              <a href="thread.html#2289">[ thread ]</a>
+              <a href="subject.html#2289">[ subject ]</a>
+              <a href="author.html#2289">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,154 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1354 - in trunk: res_noewe/languages src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-April/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1354%20-%20in%20trunk%3A%20res_noewe/languages%20src/CacheWolf&In-Reply-To=%3C200804102032.m3AKWpBp022699%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001247.html">
+   <LINK REL="Next"  HREF="001249.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1354 - in trunk: res_noewe/languages src/CacheWolf</H1>
+    <B>mik77 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1354%20-%20in%20trunk%3A%20res_noewe/languages%20src/CacheWolf&In-Reply-To=%3C200804102032.m3AKWpBp022699%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1354 - in trunk: res_noewe/languages src/CacheWolf">mik77 at mail.berlios.de
+       </A><BR>
+    <I>Thu Apr 10 22:32:51 CEST 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001247.html">[Cachewolf-svn] r1353 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001249.html">[Cachewolf-svn] r1355 - in trunk: res_noewe/languages src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1248">[ date ]</a>
+              <a href="thread.html#1248">[ thread ]</a>
+              <a href="subject.html#1248">[ subject ]</a>
+              <a href="author.html#1248">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mik77
+Date: 2008-04-10 22:32:47 +0200 (Thu, 10 Apr 2008)
+New Revision: 1354
+
+Modified:
+   trunk/res_noewe/languages/DE.cfg
+   trunk/res_noewe/languages/EN.cfg
+   trunk/src/CacheWolf/CoordsScreen.java
+   trunk/src/CacheWolf/DetailsPanel.java
+Log:
+Translate some untranslated strings and allow setting invalid coordinates in DetailsPanel
+
+Modified: trunk/res_noewe/languages/DE.cfg
+===================================================================
+--- trunk/res_noewe/languages/DE.cfg	2008-04-10 20:03:34 UTC (rev 1353)
++++ trunk/res_noewe/languages/DE.cfg	2008-04-10 20:32:47 UTC (rev 1354)
+@@ -330,6 +330,8 @@
+ 		1408=Fu%df
+ 		1409=Yards
+ 		1410=Meilen
++		1411=Bitte g%fcltige Koordinaten eingeben.
++		1412=Koordinaten ung%fcltig. Trotzdem %fcbernehmen?
+ 		1500=Ziel:
+ 		1501=Aktuell
+ 		1502=Grad
+
+Modified: trunk/res_noewe/languages/EN.cfg
+===================================================================
+--- trunk/res_noewe/languages/EN.cfg	2008-04-10 20:03:34 UTC (rev 1353)
++++ trunk/res_noewe/languages/EN.cfg	2008-04-10 20:32:47 UTC (rev 1354)
+@@ -331,6 +331,8 @@
+ 		1408=feet
+ 		1409=yards
+ 		1410=miles
++		1411=Please enter valid coordinates
++		1412=Coordinates invalid. Apply anyway?
+ 		1500=DST:
+ 		1501=Current
+ 		1502=deg
+
+Modified: trunk/src/CacheWolf/CoordsScreen.java
+===================================================================
+--- trunk/src/CacheWolf/CoordsScreen.java	2008-04-10 20:03:34 UTC (rev 1353)
++++ trunk/src/CacheWolf/CoordsScreen.java	2008-04-10 20:32:47 UTC (rev 1354)
+@@ -26,6 +26,8 @@
+ 	int exitKeys[]={75009};
+ 	int currFormat;
+ 	
++	boolean allowInvalid = false;
++	
+ 	public CoordsScreen()
+ 	{
+ 		this.setTitle(&quot;&quot;);
+@@ -225,7 +227,15 @@
+ 				currFormat = chkFormat.getSelectedIndex();
+ 				readFields(coordInp, currFormat);
+ 				if (coordInp.isValid()) this.close(IDOK);
+-				else (new MessageBox(&quot;Error&quot;, &quot;Please enter valid coordinates&quot;, FormBase.OKB)).execute();
++				else {
++					if	( allowInvalid ) {
++						if ((new MessageBox(MyLocale.getMsg(144,&quot;Warnung&quot;),MyLocale.getMsg(1412,&quot;Coordinates invalid. Apply anyway?&quot;),FormBase.DEFOKB|FormBase.NOB)).execute() == FormBase.IDOK ) {
++							this.close(IDOK);						
++						}
++					} else {
++						(new MessageBox(MyLocale.getMsg(321,&quot;Error&quot;), MyLocale.getMsg(1411,&quot;Please enter valid coordinates&quot;), FormBase.OKB)).execute();						
++					}
++				}
+ 			}
+ 			
+ 			if (ev.target == btnPaste){
+@@ -249,7 +259,7 @@
+ 					coord = new CWPoint(inp);
+ 				}
+ 				if (coord.latDec == -91 &amp;&amp; coord.lonDec == -361){
+-					MessageBox tmpMB = new MessageBox(MyLocale.getMsg(312,&quot;Error&quot;), MyLocale.getMsg(4111,&quot;Coordinates must be entered in the format N DD MM.MMM E DDD MM.MMM&quot;), FormBase.OKB);
++					MessageBox tmpMB = new MessageBox(MyLocale.getMsg(321,&quot;Error&quot;), MyLocale.getMsg(4111,&quot;Coordinates must be entered in the format N DD MM.MMM E DDD MM.MMM&quot;), FormBase.OKB);
+ 					tmpMB.exec();
+ 				}else {
+ 					currFormat = chkFormat.getSelectedIndex();
+
+Modified: trunk/src/CacheWolf/DetailsPanel.java
+===================================================================
+--- trunk/src/CacheWolf/DetailsPanel.java	2008-04-10 20:03:34 UTC (rev 1353)
++++ trunk/src/CacheWolf/DetailsPanel.java	2008-04-10 20:32:47 UTC (rev 1354)
+@@ -405,6 +405,7 @@
+ 			else if (ev.target == btnWayLoc){
+ 				CWPoint coords = new CWPoint(btnWayLoc.getText(),CWPoint.CW);
+ 				CoordsScreen cs = new CoordsScreen();
++				cs.allowInvalid = true;
+ 				cs.setFields(coords, CWPoint.CW);
+ 				if (cs.execute()== FormBase.IDOK){
+ 					dirty_details=true;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001247.html">[Cachewolf-svn] r1353 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001249.html">[Cachewolf-svn] r1355 - in trunk: res_noewe/languages src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1248">[ date ]</a>
+              <a href="thread.html#1248">[ thread ]</a>
+              <a href="subject.html#1248">[ subject ]</a>
+              <a href="author.html#1248">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

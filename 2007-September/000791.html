@@ -1,0 +1,168 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r898 - in trunk: resources src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-September/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r898%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200709071859.l87IxXUD031101%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000790.html">
+   <LINK REL="Next"  HREF="000792.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r898 - in trunk: resources src/CacheWolf</H1>
+    <B>mik77 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r898%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200709071859.l87IxXUD031101%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r898 - in trunk: resources src/CacheWolf">mik77 at mail.berlios.de
+       </A><BR>
+    <I>Fri Sep  7 20:59:33 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000790.html">[Cachewolf-svn] r897 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000792.html">[Cachewolf-svn] r899 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#791">[ date ]</a>
+              <a href="thread.html#791">[ thread ]</a>
+              <a href="subject.html#791">[ subject ]</a>
+              <a href="author.html#791">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mik77
+Date: 2007-09-07 20:59:30 +0200 (Fri, 07 Sep 2007)
+New Revision: 898
+
+Modified:
+   trunk/resources/spider.def
+   trunk/src/CacheWolf/SpiderGC.java
+   trunk/src/CacheWolf/TravelbugJourneyScreen.java
+Log:
+try to get mission by tracking number first, before searching by name
+
+Modified: trunk/resources/spider.def
+===================================================================
+--- trunk/resources/spider.def	2007-09-06 20:46:17 UTC (rev 897)
++++ trunk/resources/spider.def	2007-09-07 18:59:30 UTC (rev 898)
+@@ -11,7 +11,8 @@
+ # Version 2.7 - 20070811 Bugfix fuer verschluesselte Logs
+ # Version 2.8 - 20070814 Findet jetzt auch Addi Wpts in eigenen Caches
+ # Version 2.9 - 20070817 Bessere Unterscheidung zwischen Werbung vs.normalen Caches + Caches ohne Richtung/Entfenung
+-# Version 1.10 - 20070825 Travelbug support
++# Version 2.10 - 20070825 Travelbug support
++# Version 2.11 - 20070907 get travelbug mission by tracking number
+ #============================================================
+ # A suffix of Rex indicates a regular expression
+ # A suffix of ExStart indicates the start of an Extractor search pattern
+@@ -96,6 +97,7 @@
+ getBugByName       = <A HREF="http://www.geocaching.com/track/search.aspx?k=">http://www.geocaching.com/track/search.aspx?k=</A>
+ getBugByGuid       = <A HREF="http://www.geocaching.com/track/details.aspx?guid=">http://www.geocaching.com/track/details.aspx?guid=</A>
+ getBugById         = <A HREF="http://www.geocaching.com/track/details.aspx?id=">http://www.geocaching.com/track/details.aspx?id=</A>
++getBugByTrackNr    = <A HREF="http://www.geocaching.com/track/details.aspx?tracker=">http://www.geocaching.com/track/details.aspx?tracker=</A>
+ bugGuidExStart     = www.geocaching.com/track/details.aspx?id=
+ bugGuidExEnd       = &quot;
+ bugNotFound        = No\ results\ were\ found\ for\ your\ search
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2007-09-06 20:46:17 UTC (rev 897)
++++ trunk/src/CacheWolf/SpiderGC.java	2007-09-07 18:59:30 UTC (rev 898)
+@@ -1339,6 +1339,32 @@
+ 			return &quot;&quot;;
+ 		}
+ 	}
++	
++	/**
++	 * Fetch a bug's mission for a given tracking number
++	 * @param trackNr the tracking number of the travelbug
++	 * @return The mission
++	 */
++	public String getBugMissionByTrackNr(String trackNr) {
++		String bugDetails;
++		try{
++			pref.log(&quot;Fetching bug detailsByTrackNr: &quot;+trackNr);
++			bugDetails = fetch(p.getProp(&quot;getBugByTrackNr&quot;)+trackNr);
++		}catch(Exception ex){
++			pref.log(&quot;Could not fetch bug details&quot;);
++			bugDetails=&quot;&quot;;
++		}
++		try {
++			if (bugDetails.indexOf(p.getProp(&quot;bugNotFound&quot;))&gt;=0) {
++//				(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), MyLocale.getMsg(6020,&quot;Travelbug not found.&quot;), MessageBox.OKB)).execute();
++				return &quot;&quot;;
++			}
++			Extractor exDetails = new Extractor(bugDetails,p.getProp(&quot;bugDetailsStart&quot;),p.getProp(&quot;bugDetailsEnd&quot;),0,Extractor.EXCLUDESTARTEND);
++			return exDetails.findNext();
++		} catch (Exception ex) {
++			return &quot;&quot;;
++		}
++	}
+ 
+ 	private class myProperties extends Properties {
+ 		myProperties() {
+
+Modified: trunk/src/CacheWolf/TravelbugJourneyScreen.java
+===================================================================
+--- trunk/src/CacheWolf/TravelbugJourneyScreen.java	2007-09-06 20:46:17 UTC (rev 897)
++++ trunk/src/CacheWolf/TravelbugJourneyScreen.java	2007-09-07 18:59:30 UTC (rev 898)
+@@ -534,11 +534,25 @@
+ 			TravelbugJourney tbj=tblMyTravelbugJourneys.getTBJourney(selectedRow);
+ 			SpiderGC spider=new SpiderGC(Global.getPref(),Global.getProfile(),false);
+ 			Vm.showWait(true);
+-			// First check whether ID is set, if not get it
+-			if (tbj.getTb().getGuid().length()==0) tbj.getTb().setGuid(spider.getBugId(tbj.getTb().getName().trim()));
++			String strBugMission = &quot;&quot;;
++			// First check whether ID is set
++			if (tbj.getTb().getGuid().length()==0) {
++				//if not, try to get mission by tracking number
++				if (tbj.getTb().getTrackingNo().length() != 0) {
++					strBugMission = spider.getBugMissionByTrackNr(tbj.getTb().getTrackingNo());
++				}
++				//if this has't worked, try to get ID by name
++				if (strBugMission.length() == 0) {
++					tbj.getTb().setGuid(spider.getBugId(tbj.getTb().getName().trim()));
++				}
++ 			}
+ 			// If we have an ID, we can get the mission
+-			if (tbj.getTb().getGuid().length()!=0) 
+-				tbj.getTb().setMission(spider.getBugMissionByGuid(tbj.getTb().getGuid()));
++			if ( (strBugMission.length() == 0) &amp;&amp; (tbj.getTb().getGuid().length()!=0)) { 
++				strBugMission = spider.getBugMissionByGuid(tbj.getTb().getGuid());
++			}
++			if (strBugMission.length() != 0) {
++				tbj.getTb().setMission(strBugMission);
++			}			
+ 			Vm.showWait(false);
+ 			tcTbJourneyList.repaint();
+ 			txtMission.setHtml(tbj.getTb().getMission());
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000790.html">[Cachewolf-svn] r897 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000792.html">[Cachewolf-svn] r899 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#791">[ date ]</a>
+              <a href="thread.html#791">[ thread ]</a>
+              <a href="subject.html#791">[ subject ]</a>
+              <a href="author.html#791">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

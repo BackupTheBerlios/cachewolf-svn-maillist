@@ -1,0 +1,1091 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r457 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r457%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701270457.l0R4vCQ1009402%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000235.html">
+   <LINK REL="Next"  HREF="000237.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r457 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r457%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701270457.l0R4vCQ1009402%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r457 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Sat Jan 27 05:57:12 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000235.html">[Cachewolf-svn] [Feature #3039] Export TomTom OV2
+</A></li>
+        <LI>Next message: <A HREF="000237.html">[Cachewolf-svn] r458 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#236">[ date ]</a>
+              <a href="thread.html#236">[ thread ]</a>
+              <a href="subject.html#236">[ subject ]</a>
+              <a href="author.html#236">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-01-27 05:57:07 +0100 (Sat, 27 Jan 2007)
+New Revision: 457
+
+Added:
+   trunk/src/CacheWolf/Area.java
+Modified:
+   trunk/src/CacheWolf/GotoPanel.java
+   trunk/src/CacheWolf/MapInfoObject.java
+   trunk/src/CacheWolf/MapLoader.java
+   trunk/src/CacheWolf/MapLoaderGui.java
+   trunk/src/CacheWolf/MapsList.java
+   trunk/src/CacheWolf/MovingMap.java
+   trunk/src/CacheWolf/Profile.java
+Log:
+MovingMap um folgende Men?\195?\188punkte (und entsprechene Funktionalit?\195?\164t) erweitert:
+---automatischer Kartenwechsel--- 
+* immer h?\195?\182chste Aufl?\195?\182sung w?\195?\164hlen, die akt. Pos. und Ziel enthalten 
+* immer h?\195?\182chste Aufl?\195?\182sung w?\195?\164hlen 
+* manuell gew?\195?\164hlte Aufl?\195?\182sung beibehalten 
+---manuell--- 
+* Aufl?\195?\182sung w?\195?\164hlen, die alle markierten Caches anzeigt 
+* Karte mit n?\195?\164chst h?\195?\182herer Aufl?\195?\182sung laden 
+* Karte mit mehr ?\195?\156bersicht w?\195?\164hlen 
+--Karte verschieben---
+* Karte zum Ziel verschieben (und ggf. entsprechende Karte laden) 
+* Karte zum akt. Zentrum verschieben (und ggf. entsprechende Karte laden) 
+* Karte zur GPS-Position verschieben (und ggf. entsprechende Karte laden)
+
+Added: trunk/src/CacheWolf/Area.java
+===================================================================
+--- trunk/src/CacheWolf/Area.java	2007-01-26 20:42:37 UTC (rev 456)
++++ trunk/src/CacheWolf/Area.java	2007-01-27 04:57:07 UTC (rev 457)
+@@ -0,0 +1,72 @@
++package CacheWolf;
++
++class Area {
++	 public final static int NOT_ON_EDGE = -1;
++	 public final static int AT_TOP_EDGE = 1;
++	 public final static int AT_RIGHT_EDGE = 2;
++	 public final static int AT_BUTTOM_EDGE = 3;
++	 public final static int AT_LEFT_EDGE = 4;
++	 public static double edgeTolerance = 3 * 360/40000000; // approx 3m will be seen as the same
++
++	 CWPoint topleft;
++	 CWPoint buttomright;
++
++	 public Area(CWPoint tl, CWPoint br){
++		 topleft = new CWPoint(tl);
++		 buttomright = new CWPoint(br);
++	 }
++
++	 public boolean isInBound(CWPoint p) {
++		 if (topleft.latDec &gt;= p.latDec &amp;&amp; topleft.lonDec &lt;= p.lonDec 
++				 &amp;&amp; buttomright.latDec &lt;= p.latDec &amp;&amp; buttomright.lonDec &gt;= p.lonDec) return true;
++		 else return false;
++	 }
++	 //if(affine[4] &gt;= lati &amp;&amp; lati &gt;= lowlat &amp;&amp; affine[5] &lt;= loni &amp;&amp; loni &lt;= lowlon) isInBound = true;
++		
++	 public boolean isInBound(double lat, double lon) {
++		 if (topleft.latDec &gt;= lat &amp;&amp; topleft.lonDec &lt;= lon
++				 &amp;&amp; buttomright.latDec &lt;= lat &amp;&amp; buttomright.lonDec &gt;= lon) return true;
++		 else return false;
++	 }
++	 
++	 public boolean isOverlapping(Area a) {
++		 if (       isInBound(a.topleft) || isInBound(a.buttomright) 
++				 || isInBound(a.buttomright.latDec, a.topleft.lonDec) // buttom left
++				 || isInBound(a.topleft.latDec, a.buttomright.lonDec) // top right
++				 // in case this is completly within a, the above tests will give false, so testing the otherway around
++				 || a.isInBound(this.topleft) || a.isInBound(this.buttomright)
++				 || a.isInBound(this.buttomright.latDec, this.topleft.lonDec) // buttom left
++				 || a.isInBound(this.topleft.latDec, this.buttomright.lonDec)) // top right
++			 return true;
++		 else return false;
++	 }
++
++	 public boolean equals(Area a) {
++		 if(java.lang.Math.abs(topleft.latDec - a.topleft.latDec) &lt; edgeTolerance 
++				 &amp;&amp; java.lang.Math.abs(topleft.lonDec - a.topleft.lonDec) &lt; edgeTolerance
++				 &amp;&amp; java.lang.Math.abs(buttomright.latDec - a.buttomright.latDec) &lt; edgeTolerance
++				 &amp;&amp; java.lang.Math.abs(buttomright.lonDec - a.buttomright.lonDec) &lt; edgeTolerance )
++			 return true;
++		 else return false;
++	 }
++	 
++	 public int getEdge(CWPoint tl, CWPoint br) {
++		 if (java.lang.Math.abs(topleft.latDec - br.latDec) &lt; edgeTolerance 
++				 &amp;&amp; java.lang.Math.abs(topleft.lonDec - tl.lonDec) &lt; edgeTolerance 
++				 &amp;&amp; java.lang.Math.abs(buttomright.lonDec - br.lonDec) &lt; edgeTolerance)
++			 return AT_TOP_EDGE;
++			 if (java.lang.Math.abs(topleft.latDec - tl.latDec) &lt; edgeTolerance 
++					 &amp;&amp; java.lang.Math.abs(buttomright.lonDec - tl.lonDec) &lt; edgeTolerance 
++					 &amp;&amp; java.lang.Math.abs(buttomright.latDec - br.latDec) &lt; edgeTolerance)
++				 return AT_RIGHT_EDGE;
++			 if (java.lang.Math.abs(topleft.lonDec - tl.lonDec) &lt; edgeTolerance 
++					 &amp;&amp; java.lang.Math.abs(buttomright.latDec - tl.latDec) &lt; edgeTolerance 
++					 &amp;&amp; java.lang.Math.abs(buttomright.lonDec - br.lonDec) &lt; edgeTolerance)
++				 return AT_BUTTOM_EDGE;
++			 if (java.lang.Math.abs(topleft.latDec - tl.latDec) &lt; edgeTolerance 
++					 &amp;&amp; java.lang.Math.abs(topleft.lonDec - br.lonDec) &lt; edgeTolerance 
++					 &amp;&amp; java.lang.Math.abs(buttomright.latDec - br.latDec) &lt; edgeTolerance)
++				 return AT_LEFT_EDGE;
++			 return NOT_ON_EDGE;
++	 }
++}
+\ No newline at end of file
+
+Modified: trunk/src/CacheWolf/GotoPanel.java
+===================================================================
+--- trunk/src/CacheWolf/GotoPanel.java	2007-01-26 20:42:37 UTC (rev 456)
++++ trunk/src/CacheWolf/GotoPanel.java	2007-01-27 04:57:07 UTC (rev 457)
+@@ -540,7 +540,7 @@
+ 		} catch (IOException e) {
+ 			(new MessageBox(&quot;Error&quot;, &quot;Could not connect to GPS-receiver.\n Error while opening serial Port &quot; + e.getMessage()+&quot;\npossible reasons:\n Another (GPS-)program is blocking the port\nwrong port\nOn Loox: active infra-red port is blocking GPS&quot;, MessageBox.OKB)).execute(); 
+ 		}
+-		currTrack = new Track(RED);
++		currTrack = new Track(RED); // TODO addTrack here to MovingMap? see MovingMapPanel.snapToGps
+ 	}
+ 	
+ 	private String getGotoBtnText() {
+
+Modified: trunk/src/CacheWolf/MapInfoObject.java
+===================================================================
+--- trunk/src/CacheWolf/MapInfoObject.java	2007-01-26 20:42:37 UTC (rev 456)
++++ trunk/src/CacheWolf/MapInfoObject.java	2007-01-27 04:57:07 UTC (rev 457)
+@@ -30,7 +30,7 @@
+ 	public double transLatX, transLatY, transLonX, transLonY; // this are needed for the inervers calculation from lat/lon to x/y
+ 	public CWPoint center = new CWPoint();
+ 	public float sizeKm = 0; // diagonale
+-	public float scaleX; // in meters per pixel in horizontal direction
++	public float scale; // in meters per pixel, note: it is assumed that this scale identifying the scale of the map
+ 	public float zoomFactor = 1; // if the image is zoomed, direct after laoding always 1
+ 	public Point shift = new Point (0,0);
+ 	public CWPoint OrigUpperLeft; // this is only valid after zooming 
+@@ -58,11 +58,11 @@
+ 	 * constructes an MapInfoObject without an associated map
+ 	 * but with 1 Pixel = scale meters
+ 	 */
+-	public MapInfoObject(double scale, double lat) {
++	public MapInfoObject(double scalei, double lat) {
+ 		digSep = MyLocale.getDigSeparator();
+-		mapName=&quot;empty 1 Pixel = &quot;+scale+&quot;meters&quot;;
++		mapName=&quot;empty 1 Pixel = &quot;+scalei+&quot;meters&quot;;
+ 		double meters2deg = 1/(1000*(new CWPoint(0,0)).getDistance(new CWPoint(1,0)));
+-		double pixel2deg = meters2deg * scale;
++		double pixel2deg = meters2deg * scalei;
+ 		affine[0]=0; //x2lat
+ 		affine[1]=pixel2deg / java.lang.Math.cos(lat); //x2lon
+ 		affine[2]=-pixel2deg; //y2lat
+@@ -80,12 +80,12 @@
+ 	 * with 1 Pixel = scale meters, center and width, hight in pixels
+ 	 * @param name path and filename of .wfl file without the extension (it is needed because the image will be searched in the same directory)
+ 	 */
+-	public MapInfoObject(double scale, CWPoint center, int width, int hight, String name) {
++	public MapInfoObject(double scalei, CWPoint center, int width, int hight, String name) {
+ 		digSep = MyLocale.getDigSeparator();
+ 		mapName = name+&quot;.wfl&quot;;
+ 
+ 		double meters2deg = 1/(1000*(new CWPoint(0,0)).getDistance(new CWPoint(1,0)));
+-		double pixel2deg = meters2deg * scale;
++		double pixel2deg = meters2deg * scalei;
+ 		double pixel2deghorizontal = pixel2deg / java.lang.Math.cos(center.latDec*java.lang.Math.PI / 180); 
+ 		affine[0]=0; //x2lat
+ 		affine[1]=pixel2deghorizontal; //x2lon
+@@ -171,14 +171,17 @@
+ 			transLonY = affine[0]/nenner;
+ 
+ 			// calculate north direction
+-			scaleX = 1/(float)java.lang.Math.sqrt(java.lang.Math.pow(transLonX,2)+java.lang.Math.pow(transLonY,2));
++			float scaleXpixels = 1/(float)java.lang.Math.sqrt(java.lang.Math.pow(transLonX,2)+java.lang.Math.pow(transLonY,2));
+ 			//	float scaleY = 1/(float)java.lang.Math.sqrt(java.lang.Math.pow(transLatX,2)+java.lang.Math.pow(transLatY,2));
+-			float rotationX2x=(float)transLonX*scaleX;
+-			float rotationX2y=(float)transLonY*scaleX;
++			float rotationX2x=(float)transLonX*scaleXpixels;
++			float rotationX2y=(float)transLonY*scaleXpixels;
+ 			//rotationY2y=-(float)transLatY*scaleY; // lat -&gt; y = -, y -&gt; y = +
+ 			//rotationY2x=-(float)transLatX*scaleY; // uncomment an make it a field of MapInfoObject if you need translation from x to x rotated
+ 			rotationRad = (float)java.lang.Math.atan(rotationX2y);
+ 			if (rotationX2x &lt; 0) rotationRad = (float)java.lang.Math.PI - rotationRad;
++			// calculate scale in meters per pixel
++			double metersPerLat = 1000*(new CWPoint(0,0)).getDistance(new CWPoint(1,0));
++			scale = (float) java.lang.Math.abs((affine[2] * metersPerLat)); 
+ 		} catch (ArithmeticException ex) { throw new ArithmeticException(&quot;Not allowed values in affine\n (matrix cannot be inverted)\n in file \n&quot; + fileNameWFL); }
+ 	}
+ 
+@@ -306,4 +309,7 @@
+ 	public CWPoint calcLatLon(Point p) {
+ 		return calcLatLon(p.x, p.y);
+ 	}
++	public Area getArea(){
++		return new Area(new CWPoint(affine[4], affine[5]), new CWPoint(lowlat, lowlon));
++	}
+ }
+\ No newline at end of file
+
+Modified: trunk/src/CacheWolf/MapLoader.java
+===================================================================
+--- trunk/src/CacheWolf/MapLoader.java	2007-01-26 20:42:37 UTC (rev 456)
++++ trunk/src/CacheWolf/MapLoader.java	2007-01-27 04:57:07 UTC (rev 457)
+@@ -146,7 +146,7 @@
+ 		lonD.decimalPlaces = 4;
+ 		latD.set(lat);
+ 		lonD.set(lon);
+-		return &quot;expedia_alti&quot;+alti+&quot;_lat&quot;+latD.toString()+&quot;_lon&quot;+lonD.toString()+&quot;.gif&quot;;
++		return &quot;expedia_alti&quot;+alti+&quot;_lat&quot;+latD.toString().replace(',', '.')+&quot;_lon&quot;+lonD.toString()+&quot;.gif&quot;;
+ 	}
+ 	
+ 	public void downloadMap(double lat, double lon, int alti, int PixelWidth, int PixelHeight, String path){
+
+Modified: trunk/src/CacheWolf/MapLoaderGui.java
+===================================================================
+--- trunk/src/CacheWolf/MapLoaderGui.java	2007-01-26 20:42:37 UTC (rev 456)
++++ trunk/src/CacheWolf/MapLoaderGui.java	2007-01-27 04:57:07 UTC (rev 457)
+@@ -37,9 +37,8 @@
+ 	mCheckBox overviewChkBox = new mCheckBox(&quot;download an overview map&quot;);
+ 	mCheckBox overviewChkBoxPerCache = new mCheckBox(&quot;download an overview map&quot;);
+ 
+-	Vector cacheDB;
+-	CWPoint topleft, buttomright;
+ 	CWPoint center;
++	Vector cacheDB;
+ 	boolean perCache;
+ 	boolean onlySelected;
+ 	float radius;
+@@ -50,10 +49,10 @@
+ 
+ 	public MapLoaderGui(Vector cacheDBi) {
+ 		super();
+-		cacheDB = cacheDBi;
+ 		this.title = MyLocale.getMsg(1800, &quot;Download georeferenced maps&quot;); 
+ 		pref = Global.getPref(); // myPreferences sollte sp&#228;ter auch diese Einstellungen speichern
+ 		center = new CWPoint(pref.curCentrePt);
++		cacheDB = cacheDBi;
+ 		// tiles panel
+ 		MessageArea desc = new MessageArea(descString);
+ 		desc.modifyAll(mTextPad.NotEditable | mTextPad.DisplayOnly | mTextPad.NoFocus, mTextPad.TakesKeyFocus);
+@@ -122,18 +121,18 @@
+ 		ewe.fx.Point size = new ewe.fx.Point(1000,1000); // Size of the downloaded maps
+ 		MapLoader ml = new MapLoader(Global.getPref().myproxy, Global.getPref().myproxyport);
+ 		if (forCachesChkBox.getState() || perCache) {
+-			calcDownloadRect(); // calculate map boundaries from cacheDB
+-			if (topleft == null) {
++			Area surArea = Global.getProfile().getSourroundingArea(onlySelected); // calculate map boundaries from cacheDB
++			if (surArea == null) {
+ 				(new MessageBox(&quot;Error&quot;, &quot;No Caches are seleted&quot;, MessageBox.OKB)).execute();
+ 				Vm.showWait(false);
+ 				progressBox.close(0);
+ 				return;
+ 			}
+-			ml.setTiles(topleft, buttomright, (int)scale, size, 1+ overlapping /100);
++			ml.setTiles(surArea.topleft, surArea.buttomright, (int)scale, size, 1+ overlapping /100);
+ 			// calculate radius and center for overview map
+-			center = new CWPoint((topleft.latDec + buttomright.latDec)/2, (topleft.lonDec + buttomright.lonDec)/2);
+-			double radiuslat = (new CWPoint(center.latDec, buttomright.lonDec)).getDistance(buttomright);
+-			double radiuslon = (new CWPoint(buttomright.latDec, center.lonDec)).getDistance(buttomright);
++			center = new CWPoint((surArea.topleft.latDec + surArea.buttomright.latDec)/2, (surArea.topleft.lonDec + surArea.buttomright.lonDec)/2);
++			double radiuslat = (new CWPoint(center.latDec, surArea.buttomright.lonDec)).getDistance(surArea.buttomright);
++			double radiuslon = (new CWPoint(surArea.buttomright.latDec, center.lonDec)).getDistance(surArea.buttomright);
+ 			radius = (float) (radiuslat &lt; radiuslon ? radiuslon : radiuslat);
+ 		} else 
+ 		{ // calculate from center point an radius
+@@ -172,31 +171,6 @@
+ 		(new MessageBox(&quot;Expedia maps&quot;, &quot;Downloaded and calibrated the maps successfully&quot;, MessageBox.OKB)).execute();
+ 	}
+ 
+-	public void calcDownloadRect() {
+-		CacheHolder ch;
+-		topleft = null;
+-		buttomright = null;
+-		CWPoint tmpca = new CWPoint();
+-		numCaches = 0;
+-		for (int i=cacheDB.size()-1; i &gt;= 0; i--) {
+-			ch = (CacheHolder) cacheDB.get(i);
+-			if (!onlySelected || ch.is_Checked) {
+-				if (ch.pos == null) { // this can not happen
+-					tmpca.set(ch.LatLon);
+-					ch.pos = new CWPoint(tmpca);
+-				}
+-				if (ch.pos.isValid() &amp;&amp; ch.pos.latDec != 0 &amp;&amp; ch.pos.lonDec != 0 ){ // TODO != 0 sollte rausgenommen werden sobald in der Liste vern&#252;nftig mit nicht gesetzten pos umgegangen wird
+-					if (topleft == null) topleft = new CWPoint(ch.pos);
+-					if (buttomright == null) buttomright = new CWPoint(ch.pos);
+-					if (topleft.latDec &lt; ch.pos.latDec) topleft.latDec = ch.pos.latDec;
+-					if (topleft.lonDec &gt; ch.pos.lonDec) topleft.lonDec = ch.pos.lonDec;
+-					if (buttomright.latDec &gt; ch.pos.latDec) buttomright.latDec = ch.pos.latDec;
+-					if (buttomright.lonDec &lt; ch.pos.lonDec) buttomright.lonDec = ch.pos.lonDec;
+-					numCaches++;
+-				}
+-			}
+-		}
+-	}
+ 
+ 	private void updateForCachesState() {
+ 		int a, b;
+
+Modified: trunk/src/CacheWolf/MapsList.java
+===================================================================
+--- trunk/src/CacheWolf/MapsList.java	2007-01-26 20:42:37 UTC (rev 456)
++++ trunk/src/CacheWolf/MapsList.java	2007-01-27 04:57:07 UTC (rev 457)
+@@ -3,21 +3,24 @@
+ import ewe.io.File;
+ import ewe.io.IOException;
+ import ewe.ui.MessageBox;
++import ewe.util.Hashtable;
+ import ewe.util.Vector;
++import ewe.fx.*;
+ /**
+  * class to handle a list of maps
+- * it loads the list, finds the best map for a given location
++ * it loads the list, finds the best map for a given location,
+  * says if a map is available for a given lat lon at a given scale
+  * @author r
+  *
+  */
+ public class MapsList extends Vector {
++	public float scaleTolerance = 0.01f; // absolute deviations from this factor are seen to have the same scale
++	public Hashtable scales2Area;
+ 
+ 	/**
+ 	 * loads alle the maps in mapsPath in all subDirs but not recursive, only one level 
+ 	 * @param mapsPath
+ 	 */
+-
+ 	public MapsList(String mapsPath) {
+ 		super(); // forget already loaded maps
+ 		//if (mmp.mapImage != null) 
+@@ -65,59 +68,165 @@
+ 
+ 	/**
+ 	 * find the best map for lat/lon in the list of maps
+-	 * currently the best map is the one, whose center is nearest to
++	 * currently the best map is the one, whose center is nearest to lat/lon
++	 * and in Area with ist scale nearest to scale.
+ 	 * it always return a map (if the list is not empty) 
+ 	 * even if the map is not inbound
+ 	 * lat/lon
+ 	 * @param lat
+ 	 * @param lon
++	 * @param forceScale: when true, return null if no map with specified scale could be found
+ 	 * @return
+ 	 */
+-public MapInfoObject getBestMap(double lat, double lon) {
++	public MapInfoObject getBestMap(double lat, double lon, Rect screen, float scale, boolean forceScale) {
+ 		if (size() == 0) return null;
++		if (scales2Area != null) scales2Area.clear();
+ 		MapInfoObject mi;
+-		MapInfoObject bestMap = (MapInfoObject)get(0);
++		MapInfoObject bestMap = null; // = (MapInfoObject)get(0);
+ 		double minDistLat = 1000000000000000000000000000000000000000000000.0;
+ 		double minDistLon = 1000000000000000000000000000000000000000000000.0;
+ 		boolean latNearer, lonNearer;
+-		int minDistMap = -1; // return this value if you are interested in the number of the map
+ 		boolean better = false;
+-		for (int i=0; i &lt; size() ;i++) {
++		Area screenArea = null; // getAreaForScreen(screen, lat, lon, bestMap.scale, bestMap);
++		float lastscale = -1;
++		for (int i=size()-1; i &gt;= 0 ;i--) { 
+ 			better = false;
+ 			mi = (MapInfoObject)get(i);
+-			latNearer = java.lang.Math.abs(lat - mi.center.latDec)/mi.sizeKm &lt; minDistLat ;
+-			lonNearer = java.lang.Math.abs(lon - mi.center.lonDec)/mi.sizeKm &lt; minDistLon;
+-			if ( latNearer &amp;&amp; lonNearer) better = true; // for faster processing: if lat and lon are nearer then the distancance doesn't need to be calculated
+-			if ( !better &amp;&amp; (latNearer || lonNearer )) { 
+-				if ( mi.center.getDistanceRad(lat, lon) &lt; bestMap.center.getDistanceRad(lat, lon) ) better = true;
++			if (screenArea == null || java.lang.Math.abs(mi.scale - lastscale) &gt; scaleTolerance) {
++				screenArea = getAreaForScreen(screen, lat, lon, mi.scale, mi);
++				lastscale = mi.scale;
+ 			}
+-			if (better) {
+-				minDistLat = java.lang.Math.abs(lat - mi.center.latDec)/mi.sizeKm;
+-				minDistLon = java.lang.Math.abs(lon - mi.center.lonDec)/mi.sizeKm;
+-				minDistMap = i;
+-				bestMap = mi;
+-				// Vm.debug(&quot;better&quot;+ i);
++			if (screenArea.isOverlapping(mi.getArea()) ) { // is on screen
++				if (!forceScale || (forceScale &amp;&amp; java.lang.Math.abs(mi.scale - scale) &gt; scaleTolerance)) { // different scale?
++					if (!forceScale &amp;&amp; (mi.inBound(lat, lon) &amp;&amp; (bestMap == null || (java.lang.Math.abs(mi.scale-scale) + scaleTolerance &lt; java.lang.Math.abs(bestMap.scale-scale))))) 
++						better = true; // inbound and higher resolution -&gt; better
++					else {
++						if ( bestMap == null || (java.lang.Math.abs(mi.scale-scale) &lt; java.lang.Math.abs(bestMap.scale-scale) + scaleTolerance)) {
++							latNearer = java.lang.Math.abs(lat - mi.center.latDec)/mi.sizeKm &lt; minDistLat ;
++							lonNearer = java.lang.Math.abs(lon - mi.center.lonDec)/mi.sizeKm &lt; minDistLon;
++							if ( latNearer &amp;&amp; lonNearer) better = true; // for faster processing: if lat and lon are nearer then the distancance doesn't need to be calculated
++							else {
++								if ( (latNearer || lonNearer )) { 
++									if (bestMap == null || mi.center.getDistanceRad(lat, lon) &lt; bestMap.center.getDistanceRad(lat, lon) ) better = true;
++								}
++							}
++						}
++					}
++					if (better) {
++						minDistLat = java.lang.Math.abs(lat - mi.center.latDec)/mi.sizeKm;
++						minDistLon = java.lang.Math.abs(lon - mi.center.lonDec)/mi.sizeKm;
++						bestMap = mi;
++						// Vm.debug(&quot;better&quot;+ i);
++					}
++				}
+ 			}
+ 		}
+-		return bestMap; // return minDistMap
++		return bestMap;
+ 	}
+-
+-	public MapInfoObject getMapForRect(CWPoint topleft, CWPoint bottomright){
++	/*
++	public MapInfoObject getBestMapNotStrictScale(double lat, double lon, Area screen, float scale) {
++		MapInfoObject ret = getBestMap(lat, lon, screen, scale, true);
++		if (ret == null) ret = getBestMap(lat, lon, screen, scale, false);
++		return ret;
++	}
++	 */
++	/**
++	 * return a map which includs topleft and bottomright
++	 * if no map includes both it returns null 
++	 */
++	public MapInfoObject getMapForArea(CWPoint topleft, CWPoint bottomright){
+ 		MapInfoObject mi;
+ 		MapInfoObject fittingmap = null;
+-		for (int i=0; i &lt; size() ;i++) {
++		for (int i=size() -1; i&gt;=0 ;i--) {
+ 			mi = (MapInfoObject)get(i);
+ 			if (mi.inBound(topleft) &amp;&amp; mi.inBound(bottomright)) {
+-				if (fittingmap == null || fittingmap.scaleX &gt; mi.scaleX) fittingmap = mi;
++				if (fittingmap == null || fittingmap.scale &gt; mi.scale) fittingmap = mi;
+ 			}
+ 		} // for
+ 		return fittingmap;
+ 	}
+-	/*
++
++	/**
++	 * 
++	 * @param lat
++	 * @param lon
++	 * @param screen
++	 * @param curScale
++	 * @param moreDetails true: find map with more details == higher resolustion = lower scale / false find map with less details = better overview
++	 * @return
++	 */
++	public MapInfoObject getMapChangeResolution(double lat, double lon, Rect screen, float curScale, boolean moreDetails){
++		if (size() == 0) return null;
++		if (scales2Area != null) scales2Area.clear();
++		MapInfoObject mi;
++		MapInfoObject bestMap = null; // = (MapInfoObject)get(0);
++		double minDistLat = 1000000000000000000000000000000000000000000000.0;
++		double minDistLon = 1000000000000000000000000000000000000000000000.0;
++		boolean latNearer, lonNearer;
++		boolean better = false;
++		Area screenArea = null; // getAreaForScreen(screen, lat, lon, bestMap.scale, bestMap);
++		float lastscale = -1;
++		for (int i=size()-1; i &gt;= 0 ;i--) { 
++			better = false;
++			mi = (MapInfoObject)get(i);
++			if (mi.fileNameWFL == &quot;&quot;) continue; // exclude &quot;maps&quot; without image
++			if (screenArea == null || java.lang.Math.abs(mi.scale - lastscale) &gt; scaleTolerance) {
++				screenArea = getAreaForScreen(screen, lat, lon, mi.scale, mi);
++				lastscale = mi.scale;
++			}
++			if (screenArea.isOverlapping(mi.getArea())) { // is on screen
++				if (bestMap == null || java.lang.Math.abs(mi.scale - bestMap.scale) &gt; scaleTolerance) { // different scale then known bestMap?
++					if (mi.inBound(lat, lon) &amp;&amp; (      // more details                                 // less details than bestmap
++							(moreDetails &amp;&amp; (curScale &gt; mi.scale + scaleTolerance) &amp;&amp; (bestMap == null || mi.scale-scaleTolerance &gt; bestMap.scale) ) // higher resolution wanted and mi has higher res and a lower res than bestmap, because we dont want to overjump one resolution step
++							|| (!moreDetails &amp;&amp; (curScale &lt; mi.scale - scaleTolerance) &amp;&amp; (bestMap == null || mi.scale + scaleTolerance &lt; bestMap.scale) ) // lower resolution wanted and mi has lower res and a higher res than bestmap, because we dont want to overjump one resolution step
++					) )	better = true;	// inbound and higher resolution if higher res wanted -&gt; better
++				} else { // same scale as bestmap -&gt; look if naerer 
++					latNearer = java.lang.Math.abs(lat - mi.center.latDec)/mi.sizeKm &lt; minDistLat ;
++					lonNearer = java.lang.Math.abs(lon - mi.center.lonDec)/mi.sizeKm &lt; minDistLon;
++					if ( latNearer &amp;&amp; lonNearer) better = true; // for faster processing: if lat and lon are nearer then the distancance doesn't need to be calculated
++					else {
++						if ( (latNearer || lonNearer )) { 
++							if (bestMap == null || mi.center.getDistanceRad(lat, lon) &lt; bestMap.center.getDistanceRad(lat, lon) ) better = true;
++						}
++					}
++				} // same scale
++				if (better) {
++					minDistLat = java.lang.Math.abs(lat - mi.center.latDec)/mi.sizeKm;
++					minDistLon = java.lang.Math.abs(lon - mi.center.lonDec)/mi.sizeKm;
++					bestMap = mi;
++					// Vm.debug(&quot;better&quot;+ i);
++				}
++			}
++		}
++		return bestMap;
++	}
++	/**
++	 * returns an area in lat/lon of the screen
++	 * @param a screen width / height and position of lat/lon on the screen
++	 * @param lat
++	 * @param lon
++	 * @param scale
++	 * @param map
++	 * @return
++	 */
++	private Area getAreaForScreen(Rect a, double lat, double lon, float scale, MapInfoObject map) {
++		Area ret = null;
++/*		if (scales2Area == null) scales2Area = new Hashtable();
++		else ret = (Area)scales2Area.get(scale);
++		if (ret != null) return ret;
++	*/	// calculate screen Area
++		Point xy = map.calcMapXY(lat, lon);
++		Point topleft = new Point(xy.x - a.x, xy.y - a.y);
++		ret = new Area(map.calcLatLon(topleft), map.calcLatLon(topleft.x+a.width, topleft.y+a.height));
++		//scales2Area.put(new Float(scale), ret);
++		return ret; 
++	}
++
++	/** for determining if a new map should be downloaded
+ 	public boolean isInAmap(CWPoint topleft, CWPoint buttomright) {
+ 		if (!latRangeList.isInRange(topleft.latDec) || !latRangeList.isInRange(buttomright.latDec)) ||
+ 			!lonRangeList.inInRange(topleft.lonDec) || !lonRangeList.isInRange(buttomright.lonDec)
+ 			return false;
+ 	}
+-	*/
++	 */
+ }
+
+Modified: trunk/src/CacheWolf/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/MovingMap.java	2007-01-26 20:42:37 UTC (rev 456)
++++ trunk/src/CacheWolf/MovingMap.java	2007-01-27 04:57:07 UTC (rev 457)
+@@ -54,7 +54,6 @@
+ 	boolean ignoreGpsStatutsChanges = false;
+ 	boolean autoSelectMap = true;
+ 	boolean forceMapLoad = true; // only needed to force updateposition to try to load the best map again after OutOfMemoryError after an repeated click on snap-to-gps
+-	CWPoint lastUpatePosition = new CWPoint();
+ 	boolean mapHidden = false;
+ 	boolean noMapsAvailable;
+ 	boolean zoomingMode = false;
+@@ -109,11 +108,14 @@
+ 		posCircleLat = -361;
+ 		posCircleLon = -361; // make them invalid
+ 		updateDistance(); // fill Rect with transparent color
++		scaleWanted = 1;
++		mapChangeModus = HIGHEST_RESOLUTION_GPS_DEST;
+ 	}
+ 
+ 	public void resizeTo(int w,int h) {
+ 		super.resizeTo(w, h);
+ 		updateFormSize(w, h);
++		Vm.debug(&quot;resizeTo&quot;);
+ 	}
+ 
+ 	public void updateFormSize(int w, int h) {
+@@ -175,7 +177,7 @@
+ 
+ 	public void forceMapLoad() {
+ 		forceMapLoad = true;
+-		updatePosition(lastUpatePosition.latDec, lastUpatePosition.lonDec); // this sets forceMapLoad to false after loading a map
++		updatePosition(posCircleLat, posCircleLon); // this sets forceMapLoad to false after loading a map
+ 	}
+ 
+ 	public final FormFrame myExec() {
+@@ -586,6 +588,8 @@
+ 		removeGotoPosition();
+ 		gotoPos=addSymbol(&quot;goto&quot;, &quot;goto_map.png&quot;, lat, lon);
+ 		updateDistance();
++		forceMapLoad = true;
++		updatePosition(posCircleLat, posCircleLon);
+ 	}
+ 
+ 	public void removeGotoPosition() {
+@@ -601,10 +605,7 @@
+ 		if (symbols == null) return;
+ 		symbols.removeAllElements();
+ 		if (gotoPos != null) symbols.add(gotoPos);
+-		/*			for (int i=symbols.size()-1; i&gt;=0; i--) {
+-				if (((MapSymbol)symbols.get(i)).name != &quot;goto&quot;) removeMapSymbol(i);
+-			}
+-		 */	}
++	}
+ 
+ 	public void removeMapSymbol(String name) {
+ 		int symbNr = findMapSymbol(name);
+@@ -629,17 +630,14 @@
+ 	/**
+ 	 * Move the map so that the posCircle is at lat/lon
+ 	 * 
+-	 * @param lat &amp;&amp; lon == -361 -&gt; ignore lat/lon, set map position to upperleft corner of window 
++	 * @param  
+ 	 */
+ 	public void updateOnlyPosition(double lat, double lon, boolean updateOverlay){
+-
+ 		Point mapPos = new Point(0,0);
+ 		Point oldMapPos = getMapPositionOnScreen();
+-		if (lat != -361.0 || lon != -361.0) {
+-			posCircleLat = lat;
+-			posCircleLon = lon;
+-			mapPos = getMapPositionOnScreen();
+-		}
++		posCircleLat = lat;
++		posCircleLon = lon;
++		mapPos = getMapPositionOnScreen();
+ 		//Vm.debug(&quot;mapx = &quot; + mapx);
+ 		//Vm.debug(&quot;mapy = &quot; + mapy);
+ 		if (forceMapLoad || (java.lang.Math.abs(oldMapPos.x - mapPos.x) &gt; 1 || java.lang.Math.abs(oldMapPos.y - mapPos.y) &gt; 1)) {
+@@ -656,6 +654,7 @@
+ 	 * Method to laod the best map for lat/lon and move the map so that the posCircle is at lat/lon
+ 	 */
+ 	public void updatePosition(double lat, double lon){
++		Vm.debug(&quot;updatepors, lat: &quot;+lat+&quot; lon: &quot;+lon);
+ 		if (!mapsloaded) {
+ 			loadMaps(mapPath, lat);
+ 			lastCompareX = Integer.MAX_VALUE;
+@@ -665,14 +664,12 @@
+ 			forceMapLoad = false;
+ 			return;
+ 		}
+-		lastUpatePosition.latDec = lat;
+-		lastUpatePosition.lonDec = lon;
+ 		if(!ignoreGps || forceMapLoad){
+ 			updateOnlyPosition(lat, lon, true);
+ 			if (autoSelectMap || forceMapLoad) {
+ 				Point mapPos = getMapPositionOnScreen();
+-				if (forceMapLoad || (mmp.mapImage != null &amp;&amp; ( mapPos.y &gt; 0 || mapPos.x &gt; 0 || mapPos.y+mmp.mapImage.getHeight()&lt;this.height	|| mapPos.x+mmp.mapImage.getWidth()&lt;this.width) 
+-						|| 	mmp.mapImage == null )) 	{
++				if (forceMapLoad || wantMapTest|| (mmp.mapImage != null &amp;&amp; ( mapPos.y &gt; 0 || mapPos.x &gt; 0 || mapPos.y+mmp.mapImage.getHeight()&lt;this.height	|| mapPos.x+mmp.mapImage.getWidth()&lt;this.width) 
++						|| 	mmp.mapImage == null )) 	{ // if force || want || map doesn't cover the scree completly
+ 					//Vm.debug(&quot;Screen not completly covered by map&quot;);
+ 					if (forceMapLoad || (java.lang.Math.abs(lastCompareX-mapPos.x) &gt; MyLocale.getScreenWidth()/10 || java.lang.Math.abs(lastCompareY-mapPos.y) &gt; MyLocale.getScreenHeight()/10)) {
+ 						// more then 1/10 of screen moved since last time we tried to find a better map
+@@ -685,15 +682,112 @@
+ 			}
+ 		}
+ 	}
++	int mapChangeModus;
++	float scaleWanted;
++	boolean wantMapTest = true; // if true updateposition calls setBestMap regulary even if the currentmap covers the whole screen
++	public final static int NORMAL_KEEP_RESOLUTION = 1; // keeps the choosen resolution as long as a map is available that overlaps with the screen and with the PosCircle - it changes the resolution if no such map is available. It wil cahnge back to the wanted scale as soon as a map becomes available (through movement of the GPS-receiver)
++	public final static int HIGHEST_RESOLUTION = 2;
++	public final static int HIGHEST_RESOLUTION_GPS_DEST = 3;
+ 
++	/**
++	 * loads the best map for lat/lon according to mapChangeModus
++	 * lat/lon will be at the screen-pos of posCircle
++	 * when posCircle is not on the screen (shifted outside my the user)
++	 * then this routine uses the center of the screen to find the best map
++	 * but anyway the map will be adjusted (moved) relativ to posCircle
++	 * when a better map was found the called method updateposition will set
++	 * posCirleLat/-Lon to lat/lon.
++	 * 
++	 * @param lat
++	 * @param lon
++	 */
+ 	public void setBestMap(double lat, double lon) {
+-		MapInfoObject newmap = maps.getBestMap(lat, lon); 
+-		if (currentMap == null || currentMap.mapName != newmap.mapName) {
++		Object [] s = getRectForMapChange(lat, lon);
++		CWPoint cll = (CWPoint) s[0]; 
++		Rect screen = (Rect) s[1]; 
++		MapInfoObject newmap = null;
++		//if (mapChangeModus == 0) mapChangeModus = HIGHEST_RESOLUTION_GPS_DEST;
++		wantMapTest = true;
++		switch (mapChangeModus) {
++		case NORMAL_KEEP_RESOLUTION: 
++			newmap = maps.getBestMap(cll.latDec, cll.lonDec, screen, scaleWanted, false);
++			if (java.lang.Math.abs(newmap.scale - scaleWanted) &lt; maps.scaleTolerance) wantMapTest = false;
++			break;
++		case HIGHEST_RESOLUTION: newmap = maps.getBestMap(cll.latDec, cll.lonDec, screen, 0.000001f, false); break;
++		case HIGHEST_RESOLUTION_GPS_DEST: 
++			if (gotoPos!= null) newmap = maps.getMapForArea(new CWPoint(posCircleLat, posCircleLon), new CWPoint(gotoPos.lat, gotoPos.lon));
++			else newmap = maps.getBestMap(cll.latDec, cll.lonDec, screen, 0.000001f, false); 
++			break;
++		default: (new MessageBox(&quot;Error&quot;, &quot;Programmfehler: \nillegal mapChangeModus: &quot; + mapChangeModus, MessageBox.OKB)).execute(); break;
++		}
++		if ( newmap != null &amp;&amp; (currentMap == null || currentMap.mapName != newmap.mapName) ) {
+ 			setMap(newmap, lat, lon);
+ 			Vm.debug(&quot;better map found&quot;);
++			return;
+ 		}
++	}
+ 
++	public void setResModus (int modus) {
++		mapChangeModus = modus;
++		if (modus == NORMAL_KEEP_RESOLUTION) scaleWanted = currentMap.scale;
++		else setBestMap(posCircleLat, posCircleLon);
+ 	}
++/**
++ * method to get a point on the screen which must be included in the map
++ * the map methods are looking for. If the poscircle is on the screen this will be 
++ * that point. If it is outside then the center of the screen will be used.
++ * 
++ * returns [0] = CWPoint of that point, [1] Rect describing the screen around it 
++ * @param lat
++ * @param lon
++ * @return
++ */
++	public Object[] getRectForMapChange(double lat, double lon) {
++		int w = (width != 0 ? width : pref.myAppWidth); // width == 0 happens if this routine is run before the windows is on the screen
++		int h = (height != 0 ? height : pref.myAppHeight);
++		int x, y;
++		CWPoint cll;
++		if (posCircleX &gt;= 0 &amp;&amp; posCircleX &lt;= w &amp;&amp; posCircleY &gt;= 0 &amp;&amp; posCircleY &lt;= h) {
++			x = posCircleX; // posCircle is inside the screen
++			y = posCircleY;
++			cll = new CWPoint(lat, lon);
++		} else { // when posCircle out of screen - use center of screen as point which as to be included in the map
++			cll = ScreenXY2LatLon(w/2, h/2);
++			x = w/2;
++			y = h/2;
++		}
++		Object[] ret = new Object[2];
++		ret[0] = cll;
++		ret[1] = new Rect(x, y, w, h);
++		return ret; 
++	}
++	
++	/**
++	 * 
++	 * @param betterOverview true: getmap with better overview
++	 * @return
++	 */
++	public void loadMoreDetailedMap(boolean betterOverview){
++		Object [] s = getRectForMapChange(posCircleLat, posCircleLon);
++	//	CWPoint cll = (CWPoint) s[0]; 
++		Rect screen = (Rect) s[1]; 
++		//Rect screen = new Rect(posCircleX, posCircleY, (width != 0 ? width : pref.myAppWidth), (height != 0 ? height : pref.myAppHeight));
++		MapInfoObject m = maps.getMapChangeResolution(posCircleLat, posCircleLon, screen, currentMap.scale, !betterOverview);
++		if (m != null) setMap(m, posCircleLat, posCircleLon);
++		else (new MessageBox(&quot;Error&quot;, &quot;No &quot;+ (betterOverview ? &quot;less&quot; : &quot;more&quot;) + &quot; deteiled map available&quot;, MessageBox.OKB)).execute();
++	}
++	
++	public void loadMapForAllCaches(){
++		Area sur = Global.getProfile().getSourroundingArea(true);
++		MapInfoObject newmap = maps.getMapForArea(sur.topleft, sur.buttomright);
++		if (newmap == null ) { // no map that includs all caches is available -&gt; load map with lowest resolution
++			Object [] s = getRectForMapChange(posCircleLat, posCircleLon);
++			CWPoint cll = (CWPoint) s[0]; 
++			Rect screen = (Rect) s[1]; 
++			newmap = maps.getBestMap(cll.latDec, cll.lonDec, screen, Float.MAX_VALUE -1, false);
++		}
++		setMap(newmap, posCircleLat, posCircleLon);
++	}
+ 
+ 	public void setGpsStatus (int status) {
+ 		if ((status == GpsStatus) || ignoreGpsStatutsChanges) return; // if ignoreGpsStatutsChanges == true than the Map is in manual-mode
+@@ -820,10 +914,7 @@
+ 	}
+ 
+ 	public void showMap() {
+-		if (mmp != null &amp;&amp; mmp.mapImage != null)
+-		{ mmp.mapImage.unhide();
+-		mmp.mapImage.move(mmp.mapImage.locAlways.x, mmp.mapImage.locAlways.y); 
+-		}
++		if (mmp != null &amp;&amp; mmp.mapImage != null) mmp.mapImage.unhide();
+ 		mapHidden = false;
+ 		repaintNow();
+ 	}
+@@ -900,7 +991,7 @@
+ 	 * @param center
+ 	 */		
+ 	public void zoomFromUnscaled (float zoomFactor, Rect newImageRect, CWPoint center) {
+-		Vm.showWait(true);
++		Vm.showWait(this, true);
+ 		boolean savegpsstatus = ignoreGps;
+ 		if (mapImage1to1 != null) {
+ 			ignoreGps = true; // avoid multi-thread problems
+@@ -943,7 +1034,7 @@
+ 		setCenterOfScreen(center);
+ 		addOverlaySet();
+ 		this.repaintNow();
+-		Vm.showWait(false);
++		Vm.showWait(this, false);
+ 		ignoreGps = savegpsstatus;
+ 	}
+ 
+@@ -971,11 +1062,32 @@
+  *	Class to display the map bitmap and to select another bitmap to display.
+  */
+ class MovingMapPanel extends InteractivePanel implements EventListener {
+-	Menu mapsMenu;
+ 	Menu kontextMenu;
+ 	MenuItem gotoMenuItem = new MenuItem(&quot;Goto here$g&quot;, 0, null);
++	MenuItem newWayPointMenuItem = new MenuItem(&quot;Create new Waypoint here$n&quot;, 0, null);;
+ 	MenuItem openCacheDescMenuItem;
+-	MenuItem newWayPointMenuItem = new MenuItem(&quot;Create new Waypoint here$n&quot;, 0, null);;
++
++	Menu mapsMenu;
++	MenuItem selectMapMI = new MenuItem(&quot;Select a map manually$s&quot;, 0, null);
++	MenuItem changeMapDirMI = new MenuItem(&quot;Change map directory$c&quot;, 0, null);
++	MenuItem showMapMI = new MenuItem(&quot;Show map&quot;, 0, null);
++	MenuItem hideMapMI = new MenuItem(&quot;Hide map&quot;, 0, null);
++	// automatic
++	MenuItem mapChangeModusMI = new MenuItem(&quot;Modus for automatic map change&quot;, MenuItem.Separator, null);;
++	MenuItem highestResGpsDestMI = new MenuItem(&quot;Highest res. containing dest. &amp; cur. position&quot;, 0, null); //immer h&#246;chste Aufl&#246;sung w&#228;hlen, die akt. Pos. und Ziel enthalten 
++	MenuItem highestResolutionMI = new MenuItem(&quot;Highest resolution&quot;, 0, null); //immer h&#246;chste Aufl&#246;sung w&#228;hlen 
++	MenuItem keepManResolutionMI = new MenuItem(&quot;Keep manual resolution&quot;, 0, null); // manuell gew&#228;hlte Aufl&#246;sung beibehalten  
++	// manuell
++	MenuItem mapChangeResMI = new MenuItem(&quot;Change resolution manually&quot;, MenuItem.Separator, null);;
++	MenuItem AllCachesResMI = new MenuItem(&quot;Load a map containing all marked caches&quot;, 0, null); // Karte w&#228;hlen, die alle markierten Caches enth&#228;lt  
++	MenuItem moreDetailsMI = new MenuItem(&quot;Load a map with more details&quot;, 0, null); // detailreichere Karte laden 
++	MenuItem moreOverviewMI = new MenuItem(&quot;Load a map for a better overview&quot;, 0, null); // Karte mit mehr &#220;bersicht w&#228;hlen  
++	// move map to
++	MenuItem moveToMI = new MenuItem(&quot;Move map to an load map&quot;, MenuItem.Separator, null);;
++	MenuItem moveToDestMI = new MenuItem(&quot;move to goto point&quot;, 0, null); //* Karte zum Ziel verschieben (und ggf. entsprechende Karte laden) 
++	MenuItem moveToGpsMI = new MenuItem(&quot;move to GPS position&quot;, 0, null);   
++	MenuItem moveToCenterMI = new MenuItem(&quot;move to Center&quot;, 0, null);   
++
+ 	CacheHolder clickedCache;
+ 	MovingMap mm;
+ 	MapImage mapImage;
+@@ -995,7 +1107,7 @@
+ 			mm.ignoreGps = true;
+ 			return false;
+ 		}
+-		//if (!(which == null || which == mapImage || which instanceof TrackOverlay) ) return false;
++		//if (!(which == null || which == mapImage || which instanceof TrackOverlay || which == mm.directionArrows) ) return false;
+ 		saveGpsIgnoreStatus = mm.ignoreGps; 
+ 		mm.ignoreGps = true;
+ 		saveMapLoc = pos;
+@@ -1109,6 +1221,7 @@
+ 		ListBox l = new ListBox(mm.maps, gpspos, mm.getGotoPos(), mm.currentMap);
+ 		if(l.execute() == FormBase.IDOK){
+ //			Vm.debug(&quot;Trying map: &quot; + l.selectedMap.fileName);
++			mm.setResModus(MovingMap.NORMAL_KEEP_RESOLUTION);
+ 			mm.autoSelectMap = false;
+ 			if (l.selectedMap.inBound(mm.posCircleLat, mm.posCircleLon) || l.selectedMap.getImageFilename().length()==0) {
+ 				mm.setMap(l.selectedMap, mm.posCircleLat, mm.posCircleLon);
+@@ -1134,21 +1247,48 @@
+ 	 */
+ 	public void imageClicked(AniImage which, Point pos){
+ 		if (which == mm.bottonImageChooseMap){
+-			mapsMenu = new Menu(new String[]{&quot;Select a map manually$s&quot;, &quot;Change map directory$c&quot;}, &quot;map choice&quot;);
++			mapsMenu = new Menu();
++			mapsMenu.addItem(selectMapMI);
++			mapsMenu.addItem(changeMapDirMI);
+ 			if (!mm.noMapsAvailable) 
+ 			{
+-				if (mm.mapHidden) mapsMenu.addItem(&quot;show map&quot;);
+-				else mapsMenu.addItem(&quot;hide map&quot;);
++				if (mm.mapHidden) mapsMenu.addItem(showMapMI);
++				else mapsMenu.addItem(hideMapMI);
+ 			}
++
++			// automatic
++			highestResGpsDestMI.modifiers &amp;= ~MenuItem.Checked;
++			highestResolutionMI.modifiers &amp;= ~MenuItem.Checked;
++			keepManResolutionMI.modifiers &amp;= ~MenuItem.Checked;
++			switch (mm.mapChangeModus) {
++			case MovingMap.NORMAL_KEEP_RESOLUTION: keepManResolutionMI.modifiers |= MenuItem.Checked; break;   
++			case MovingMap.HIGHEST_RESOLUTION: highestResolutionMI.modifiers |= MenuItem.Checked; break;   
++			case MovingMap.HIGHEST_RESOLUTION_GPS_DEST: highestResGpsDestMI.modifiers |= MenuItem.Checked; break;   
++			}
++			mapsMenu.addItem(mapChangeModusMI);
++			mapsMenu.addItem(highestResGpsDestMI);
++			mapsMenu.addItem(highestResolutionMI);
++			mapsMenu.addItem(keepManResolutionMI);
++			// manuell
++			mapsMenu.addItem(mapChangeResMI);
++			mapsMenu.addItem(AllCachesResMI);
++			mapsMenu.addItem(moreDetailsMI);
++			mapsMenu.addItem(moreOverviewMI);
++			// move map to
++			mapsMenu.addItem(moveToMI);
++			if (mm.gotoPos != null) moveToDestMI.modifiers &amp;= ~MenuItem.Disabled;
++			else moveToDestMI.modifiers |= MenuItem.Disabled;
++			mapsMenu.addItem(moveToDestMI);
++			if (Global.getPref().curCentrePt.isValid()) moveToCenterMI.modifiers &amp;= ~MenuItem.Disabled;
++			else moveToCenterMI.modifiers |= MenuItem.Disabled;
++			mapsMenu.addItem(moveToCenterMI);
++			mapsMenu.addItem(moveToGpsMI);
++			
+ 			//m.set(Menu., status)
+ 			mapsMenu.exec(this, new Point(which.location.x, which.location.y), this);
+ 		}
+ 		if (which == mm.buttonImageGpsOn) {
+-			if (mm.gotoPanel.serThread == null || !mm.gotoPanel.serThread.isAlive()) {
+-				mm.gotoPanel.startGps();
+-				mm.addTrack(mm.gotoPanel.currTrack); // use new track when gps now started
+-			} 
+-			mm.SnapToGps();
++			this.snapToGps();
+ 		}
+ 		if (which == mm.buttonImageLens) {
+ 			mm.setZoomingMode();
+@@ -1161,13 +1301,16 @@
+ 			tmp.type = WindowEvent.CLOSE;
+ 			mm.postEvent(tmp);
+ 		}
++	}
+ 
+-		/*if (which == mm.arrowRight)	{	moveMap(-10,0);	}
+-		if (which == mm.arrowLeft)	{	moveMap(+10,0);	}
+-		if (which == mm.arrowDown)	{	moveMap(0,-10);	}
+-		if (which == mm.arrowUp)	{	moveMap(0,+10);	} */
++	public void snapToGps() {
++		if (mm.gotoPanel.serThread == null || !mm.gotoPanel.serThread.isAlive()) {
++			mm.gotoPanel.startGps();
++			mm.addTrack(mm.gotoPanel.currTrack); // use new track when gps now started
++		} 
++		mm.SnapToGps();
+ 	}
+-
++	
+ 	public void penHeld(Point p){
+ 		//	if (!menuIsActive()) doMenu(p);
+ 		if (!mm.zoomingMode) { 
+@@ -1194,14 +1337,14 @@
+ 			if (ev.target == mapsMenu) {
+ 				if (ev.type == MenuEvent.ABORTED || ev.type == MenuEvent.CANCELLED || ev.type == MenuEvent.FOCUS_OUT) mapsMenu.close(); // TODO menuIsActive() benutzen? 
+ 				if (ev.type == MenuEvent.SELECTED ) {
++					MenuItem action = (MenuItem) mapsMenu.getSelectedItem(); 
+ 					if (mapsMenu.getSelectedItem() != null) {
+-						if (mapsMenu.getSelectedItem().toString().equalsIgnoreCase(&quot;Select a map manually&quot;) )
+-						{ 
++						//maps
++						if (action == selectMapMI)	{ 
+ 							mapsMenu.close();
+ 							chooseMap();
+ 						}
+-						if (mapsMenu.getSelectedItem().toString().equalsIgnoreCase(&quot;Change map directory&quot;) )
+-						{
++						if (action == changeMapDirMI)	{
+ 							mapsMenu.close();
+ 							FileChooser fc = new FileChooser(FileChooser.DIRECTORY_SELECT, Global.getPref().baseDir+&quot;/maps&quot;);
+ 							fc.addMask(&quot;*.wfl&quot;);
+@@ -1212,17 +1355,60 @@
+ 							}
+ 						}
+ 						//dont show map
+-						if (mapsMenu.getSelectedItem().toString().equalsIgnoreCase(&quot;hide map&quot;) )
+-						{
++						if (action == hideMapMI) {
+ 							mapsMenu.close();
+ 							mm.hideMap();
+ 						}
+ 						// show map
+-						if (mapsMenu.getSelectedItem() != null &amp;&amp; mapsMenu.getSelectedItem().toString().equalsIgnoreCase(&quot;show map&quot;) )
+-						{
++						if (action == showMapMI) {
+ 							mapsMenu.close();
+ 							mm.showMap();
+ 						}
++						// map change modus
++						if (action == highestResGpsDestMI) {
++							mapsMenu.close();
++							mm.setResModus(MovingMap.HIGHEST_RESOLUTION_GPS_DEST);
++						}
++						if (action == highestResolutionMI) {
++							mapsMenu.close();
++							mm.setResModus(MovingMap.HIGHEST_RESOLUTION);
++						}
++						if (action == keepManResolutionMI) {
++							mapsMenu.close();
++							mm.setResModus(MovingMap.NORMAL_KEEP_RESOLUTION);
++						}
++						// manually change map resolution
++						if (action == moreDetailsMI) {
++							mapsMenu.close();
++							mm.setResModus(MovingMap.NORMAL_KEEP_RESOLUTION);
++							mm.loadMoreDetailedMap(false);
++						} 
++						if (action == moreOverviewMI) {
++							mapsMenu.close();
++							mm.setResModus(MovingMap.NORMAL_KEEP_RESOLUTION);
++							mm.loadMoreDetailedMap(true);
++						}
++						if (action == AllCachesResMI) {
++							mapsMenu.close();
++							mm.setResModus(MovingMap.NORMAL_KEEP_RESOLUTION);
++							mm.loadMapForAllCaches();
++						}
++						// moveto position
++						if (action == moveToCenterMI) {
++							mapsMenu.close();
++							mm.setCenterOfScreen(Global.getPref().curCentrePt);
++							mm.repaintNow();
++						}
++						if (action == moveToDestMI) {
++							mapsMenu.close();
++							mm.setCenterOfScreen(new CWPoint(mm.gotoPos.lat, mm.gotoPos.lon));
++							mm.repaintNow();
++						}
++						if (action == moveToGpsMI) {
++							mapsMenu.close();
++							this.snapToGps();						
++						}
++
+ 					}
+ 				}
+ 			} // if (ev.target == mapsMenu)
+@@ -1399,7 +1585,7 @@
+ 		}
+ 		super.onEvent(ev);
+ 	}
+-	
++
+ 	public void  penDoubleClicked(Point where) {
+ 		mapSelected();
+ 	}
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2007-01-26 20:42:37 UTC (rev 456)
++++ trunk/src/CacheWolf/Profile.java	2007-01-27 04:57:07 UTC (rev 457)
+@@ -231,4 +231,34 @@
+ 		return &quot;Profile: Name=&quot;+name+&quot;\nCentre=&quot;+centre.toString()+&quot;\ndataDir=&quot;+dataDir+&quot;\nlastSyncOC=&quot;+
+ 		     last_sync_opencaching+&quot;\ndistOC=&quot;+distOC;
+ 	}
++	public Area getSourroundingArea(boolean onlyOfSelected) {
++		if (cacheDB == null || cacheDB.size() == 0) return null;
++		CacheHolder ch;
++		CWPoint topleft = null;
++		CWPoint buttomright = null;
++		CWPoint tmpca = new CWPoint();
++		int numCaches = 0;
++		for (int i=cacheDB.size()-1; i &gt;= 0; i--) {
++			ch = (CacheHolder) cacheDB.get(i);
++			if (!onlyOfSelected || ch.is_Checked) {
++				if (ch.pos == null) { // this can not happen
++					tmpca.set(ch.LatLon);
++					ch.pos = new CWPoint(tmpca);
++				}
++				if (ch.pos.isValid() &amp;&amp; ch.pos.latDec != 0 &amp;&amp; ch.pos.lonDec != 0 ){ // TODO != 0 sollte rausgenommen werden sobald in der Liste vern&#252;nftig mit nicht gesetzten pos umgegangen wird
++					if (topleft == null) topleft = new CWPoint(ch.pos);
++					if (buttomright == null) buttomright = new CWPoint(ch.pos);
++					if (topleft.latDec &lt; ch.pos.latDec) topleft.latDec = ch.pos.latDec;
++					if (topleft.lonDec &gt; ch.pos.lonDec) topleft.lonDec = ch.pos.lonDec;
++					if (buttomright.latDec &gt; ch.pos.latDec) buttomright.latDec = ch.pos.latDec;
++					if (buttomright.lonDec &lt; ch.pos.lonDec) buttomright.lonDec = ch.pos.lonDec;
++					numCaches++;
++				}
++			}
++		}
++		if (topleft != null &amp;&amp; buttomright != null) 
++			return new Area(topleft, buttomright);
++		else return null;
++	}
++
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000235.html">[Cachewolf-svn] [Feature #3039] Export TomTom OV2
+</A></li>
+	<LI>Next message: <A HREF="000237.html">[Cachewolf-svn] r458 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#236">[ date ]</a>
+              <a href="thread.html#236">[ thread ]</a>
+              <a href="subject.html#236">[ subject ]</a>
+              <a href="author.html#236">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

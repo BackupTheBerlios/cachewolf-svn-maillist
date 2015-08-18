@@ -1,0 +1,282 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r589 - in trunk: resources src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r589%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200702142055.l1EKtQnY005519%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000399.html">
+   <LINK REL="Next"  HREF="000401.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r589 - in trunk: resources src/CacheWolf</H1>
+    <B>bilbowolf at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r589%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200702142055.l1EKtQnY005519%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r589 - in trunk: resources src/CacheWolf">bilbowolf at mail.berlios.de
+       </A><BR>
+    <I>Wed Feb 14 21:55:26 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000399.html">[Cachewolf-svn] r588 - in trunk: resources src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000401.html">[Cachewolf-svn] r590 - trunk/resources
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#400">[ date ]</a>
+              <a href="thread.html#400">[ thread ]</a>
+              <a href="subject.html#400">[ subject ]</a>
+              <a href="author.html#400">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: bilbowolf
+Date: 2007-02-14 21:55:19 +0100 (Wed, 14 Feb 2007)
+New Revision: 589
+
+Modified:
+   trunk/resources/cachewolf.Languages.cfg
+   trunk/src/CacheWolf/OCXMLImporterScreen.java
+   trunk/src/CacheWolf/SpiderGC.java
+Log:
+1. DNF markierung funktioniert beim spidern
+2. Gefundene webcam caches werden erkannt
+3. Archivierte caches werden korrect aktualisiert
+4. log updates und beschr. updates werden beim spidern korrekt erkannt
+
+Modified: trunk/resources/cachewolf.Languages.cfg
+===================================================================
+--- trunk/resources/cachewolf.Languages.cfg	2007-02-14 20:40:10 UTC (rev 588)
++++ trunk/resources/cachewolf.Languages.cfg	2007-02-14 20:55:19 UTC (rev 589)
+@@ -282,6 +282,7 @@
+ 		1619=: konnte Bild von folgender URL nicht downloaden:+
+ 		1620=download eingebundener Bilder:+
+ 		1621=Fehler beim Interpretieren%0a der Update-Datei,%0aDies ist vermutlich ein Fehler bei Opencaching.de%0aSp%e4ter erneut versuchen%0a Status:
++		1622=Gefundene caches laden
+ 		1700=Fehler in Zeile: 
+ 		1701=Spalte: 
+ 		1702=Variable nicht definiert: 
+
+Modified: trunk/src/CacheWolf/OCXMLImporterScreen.java
+===================================================================
+--- trunk/src/CacheWolf/OCXMLImporterScreen.java	2007-02-14 20:40:10 UTC (rev 588)
++++ trunk/src/CacheWolf/OCXMLImporterScreen.java	2007-02-14 20:55:19 UTC (rev 589)
+@@ -16,10 +16,11 @@
+ 	mButton cancelB, okB;
+ 	Preferences pref;
+ 	mInput distanceInput;
+-	mCheckBox imagesCheckBox, /*mapsCheckBox, */ missingCheckBox;
++	mCheckBox imagesCheckBox, /*mapsCheckBox, */ missingCheckBox, foundCheckBox;
+ 	mLabel distLbl;
+ 	static int IMAGESANDMAPS = 0;
+ 	static int ALL = 1;
++	static int INCLUDEFOUND = 2;
+ 	
+ 	public OCXMLImporterScreen(String title, int options) {
+ 		super();
+@@ -36,6 +37,11 @@
+ 		imagesCheckBox.setText(MyLocale.getMsg(1602,&quot;Download Images&quot;));
+ 		imagesCheckBox.setState(true); // @ToDo: aus Prefs
+ 		this.addLast(imagesCheckBox, CellConstants.DONTSTRETCH, CellConstants.DONTFILL|CellConstants.WEST);
++		if(options == INCLUDEFOUND){
++			foundCheckBox = new mCheckBox();
++			foundCheckBox.setText(MyLocale.getMsg(1622,&quot;Include found caches&quot;));
++			foundCheckBox.setState(false);
++		}
+ /*		
+ 		mapsCheckBox = new mCheckBox();
+ 		mapsCheckBox.setText(MyLocale.getMsg(1603,&quot;Download Maps&quot;));
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2007-02-14 20:40:10 UTC (rev 588)
++++ trunk/src/CacheWolf/SpiderGC.java	2007-02-14 20:55:19 UTC (rev 589)
+@@ -118,6 +118,7 @@
+ 		Vm.showWait(true);
+ 		String notes = new String();
+ 		String start = new String();
++		String origLong = new String();
+ 		try{
+ 			ch.readCache(profile.dataDir);
+ 		}catch(IOException ioex){
+@@ -133,56 +134,65 @@
+ 			start = fetch(doc);
+ 		}catch(Exception ex){
+ 			pref.log(&quot;Could not fetch &quot; + ch.wayPoint);
+-			Vm.debug(&quot;Couldn't get cache detail page&quot;);
++			//Vm.debug(&quot;Couldn't get cache detail page&quot;);
+ 		}
+ 		ch.is_new = false;
+-		ch.is_update = true;
++		ch.is_update = false;
+ 		ch.is_HTML = true;
+-		Vm.debug(ch.wayPoint);
++		ch.is_available = true;
++		ch.is_archived = false;
++		//Vm.debug(ch.wayPoint);
++		
+ 		if(start.indexOf(&quot;This cache is temporarily unavailable&quot;) &gt;= 0) ch.is_available = false;
++		if(start.indexOf(&quot;This cache has been archived&quot;) &gt;= 0) ch.is_archived = true;
+ 		pref.log(&quot;Trying logs&quot;);
++		int logsz = ch.CacheLogs.size();
+ 		ch.CacheLogs = getLogs(start, ch);
++		ch.is_log_update = false;
++		if(ch.CacheLogs.size()&gt;logsz) ch.is_log_update = true;
+ 		pref.log(&quot;Found logs&quot;);
+ 		ch.LatLon = getLatLon(start);
+ 		ch.pos.set(ch.LatLon);
+-		Vm.debug(&quot;LatLon: &quot; + ch.LatLon);
++		//Vm.debug(&quot;LatLon: &quot; + ch.LatLon);
+ 		pref.log(&quot;Trying description&quot;);
++		origLong = ch.LongDescription;
+ 		ch.LongDescription = getLongDesc(start);
++		if(!ch.LongDescription.equals(origLong)) ch.is_update = true;
+ 		pref.log(&quot;Got description&quot;);
+ 		pref.log(&quot;Getting cache name&quot;);
+ 		ch.CacheName = SafeXML.cleanback(getName(start));
+ 		pref.log(&quot;Got cache name&quot;);
+-		Vm.debug(&quot;Name: &quot; + ch.CacheName);
++		//Vm.debug(&quot;Name: &quot; + ch.CacheName);
+ 		pref.log(&quot;Trying owner&quot;);
+ 		ch.CacheOwner = SafeXML.cleanback(getOwner(start));
+ 		if(ch.CacheOwner.equals(pref.myAlias + &quot; &quot;)) ch.is_owned = true;
+ 		pref.log(&quot;Got owner&quot;);
+-		Vm.debug(&quot;Owner: &quot; + ch.CacheOwner);
++		//Vm.debug(&quot;Owner: &quot; + ch.CacheOwner);
+ 		pref.log(&quot;Trying date hidden&quot;);
+ 		ch.DateHidden = getDateHidden(start);
+ 		pref.log(&quot;Got date hidden&quot;);
+-		Vm.debug(&quot;Hidden: &quot; + ch.DateHidden);
++		//Vm.debug(&quot;Hidden: &quot; + ch.DateHidden);
+ 		pref.log(&quot;Trying hints&quot;);
+ 		ch.Hints = getHints(start);
+ 		pref.log(&quot;Got hints&quot;);
+-		Vm.debug(&quot;Hints: &quot; + ch.Hints);
+-		Vm.debug(&quot;Got the hints&quot;);
++		//Vm.debug(&quot;Hints: &quot; + ch.Hints);
++		//Vm.debug(&quot;Got the hints&quot;);
+ 		pref.log(&quot;Trying size&quot;);
+ 		ch.CacheSize = getSize(start);
+ 		pref.log(&quot;Got size&quot;);
+-		Vm.debug(&quot;Size: &quot; + ch.CacheSize);
++		//Vm.debug(&quot;Size: &quot; + ch.CacheSize);
+ 		pref.log(&quot;Trying difficulty&quot;);
+ 		ch.hard = getDiff(start);
+ 		pref.log(&quot;Got difficulty&quot;);
+-		Vm.debug(&quot;Hard: &quot; + ch.hard);
++		//Vm.debug(&quot;Hard: &quot; + ch.hard);
+ 		pref.log(&quot;Trying terrain&quot;);
+ 		ch.terrain = getTerr(start);
+ 		pref.log(&quot;Got terrain&quot;);
+-		Vm.debug(&quot;Terr: &quot; + ch.terrain);
++		//Vm.debug(&quot;Terr: &quot; + ch.terrain);
+ 		pref.log(&quot;Trying cache type&quot;);
+ 		ch.type = getType(start);
+ 		pref.log(&quot;Got cache type&quot;);
+-		Vm.debug(&quot;Type: &quot; + ch.type);
++		//Vm.debug(&quot;Type: &quot; + ch.type);
+ 		pref.log(&quot;Trying images&quot;);
+ 		getImages(start, ch);
+ 		pref.log(&quot;Got images&quot;);
+@@ -219,13 +229,14 @@
+ 			return;
+ 		}
+ 		
+-		OCXMLImporterScreen options = new OCXMLImporterScreen(&quot;Spider Options&quot;, OCXMLImporterScreen.IMAGESANDMAPS);
++		OCXMLImporterScreen options = new OCXMLImporterScreen(&quot;Spider Options&quot;, OCXMLImporterScreen.INCLUDEFOUND);
+ 		options.distanceInput.setText(&quot;&quot;);
+ 		if (options.execute() == OCXMLImporterScreen.IDCANCEL) {Vm.showWait(false);	return; }
+ 		String dist = options.distanceInput.getText();
+ 		if (dist.length()== 0) return;
+ 		distance = Convert.toDouble(dist);
+ 		//boolean getMaps = options.mapsCheckBox.getState();
++		boolean getFound = options.foundCheckBox.getState();
+ 		boolean getImages = options.imagesCheckBox.getState();
+ 		options.close(0);
+ 		
+@@ -234,7 +245,9 @@
+ 		infB.exec();
+ 		//Get first page
+ 		try{
+-			pref.log(&quot;Fetching first list page: <A HREF="http://www.geocaching.com/seek/nearest.aspx?lat=">http://www.geocaching.com/seek/nearest.aspx?lat=</A>&quot; + origin.getLatDeg(CWPoint.DD) + &quot;&amp;lon=&quot; +origin.getLonDeg(CWPoint.DD));
++			String ln = new String(&quot;Fetching first list page: <A HREF="http://www.geocaching.com/seek/nearest.aspx?lat=">http://www.geocaching.com/seek/nearest.aspx?lat=</A>&quot; + origin.getLatDeg(CWPoint.DD) + &quot;&amp;lon=&quot; +origin.getLonDeg(CWPoint.DD));
++			if(getFound) ln = ln + &quot;&amp;f=1&quot;;
++			pref.log(&quot;First page: &quot; + start);
+ 			start = fetch(&quot;<A HREF="http://www.geocaching.com/seek/nearest.aspx?lat=">http://www.geocaching.com/seek/nearest.aspx?lat=</A>&quot; + origin.getLatDeg(CWPoint.DD) + &quot;&amp;lon=&quot; +origin.getLonDeg(CWPoint.DD));
+ 			pref.log(&quot;First page: &quot; + start);
+ 		}catch(Exception ex){
+@@ -314,8 +327,11 @@
+ 				}
+ 				ch.is_new = true;
+ 				ch.is_HTML = true;
++				ch.is_available = true;
++				ch.is_archived = false;
+ 				ch.wayPoint = wpt;
+ 				if(start.indexOf(&quot;This cache is temporarily unavailable&quot;) &gt;= 0) ch.is_available = false;
++				if(start.indexOf(&quot;This cache has been archived&quot;) &gt;= 0) ch.is_archived = true;
+ 				//Vm.debug(ch.wayPoint);
+ 				try{
+ 					pref.log(&quot;Trying logs&quot;);
+@@ -326,6 +342,7 @@
+ 					//Vm.debug(&quot;LatLon: &quot; + ch.LatLon);
+ 					pref.log(&quot;Trying description&quot;);
+ 					ch.LongDescription = getLongDesc(start);
++					
+ 					pref.log(&quot;Got description&quot;);
+ 					pref.log(&quot;Getting cache name&quot;);
+ 					ch.CacheName = SafeXML.cleanback(getName(start));
+@@ -718,7 +735,7 @@
+ 			//Vm.debug(&quot;--------------------------------------------&quot;);
+ 			icon = exIcon.findNext();
+ 			name = exName.findNext();
+-			if(icon.equals(&quot;icon_smile.gif&quot;) &amp;&amp; name.equals(pref.myAlias)) {
++			if((icon.equals(&quot;icon_smile.gif&quot;) || icon.equals(&quot;icon_camera.gif&quot;)) &amp;&amp; name.equals(pref.myAlias)) {
+ 				ch.is_found = true;
+ 				ch.CacheStatus = MyLocale.getMsg(318,&quot;Found&quot;);
+ 			}
+@@ -732,6 +749,15 @@
+ 			exDate.setSource(singleLog);
+ 			exLog.setSource(singleLog);
+ 		}
++		int z = 0;
++		String loganal = new String();
++		while(z &lt; ch.CacheLogs.size() &amp;&amp; z &lt; 5){
++			loganal = (String)ch.CacheLogs.get(z);
++			if(loganal.indexOf(&quot;icon_sad&quot;)&gt;0) {
++				z++;
++			}else break;
++		}
++		ch.noFindLogs = z;
+ 		return reslts;
+ 	}
+ 	
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000399.html">[Cachewolf-svn] r588 - in trunk: resources src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000401.html">[Cachewolf-svn] r590 - trunk/resources
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#400">[ date ]</a>
+              <a href="thread.html#400">[ thread ]</a>
+              <a href="subject.html#400">[ subject ]</a>
+              <a href="author.html#400">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

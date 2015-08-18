@@ -1,0 +1,167 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2415 - in trunk: res_noewe src/CacheWolf/imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2415%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf/imp&In-Reply-To=%3C201001171830.o0HIU9bf018449%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002338.html">
+   <LINK REL="Next"  HREF="002340.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2415 - in trunk: res_noewe src/CacheWolf/imp</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2415%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf/imp&In-Reply-To=%3C201001171830.o0HIU9bf018449%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2415 - in trunk: res_noewe src/CacheWolf/imp">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Sun Jan 17 19:30:09 CET 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002338.html">[Cachewolf-svn] r2414 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="002340.html">[Cachewolf-svn] r2416 - trunk/res_noewe
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2339">[ date ]</a>
+              <a href="thread.html#2339">[ thread ]</a>
+              <a href="subject.html#2339">[ subject ]</a>
+              <a href="author.html#2339">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2010-01-17 19:30:00 +0100 (Sun, 17 Jan 2010)
+New Revision: 2415
+
+Modified:
+   trunk/res_noewe/spider.def
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+correcting some errors on import from GC
+
+Modified: trunk/res_noewe/spider.def
+===================================================================
+--- trunk/res_noewe/spider.def	2010-01-17 18:29:05 UTC (rev 2414)
++++ trunk/res_noewe/spider.def	2010-01-17 18:30:00 UTC (rev 2415)
+@@ -59,7 +59,8 @@
+ lineRex            = &lt;tr\ bgcolor='#.{6}'\ class=&quot;Data\ BorderTop&quot;&gt;((?s).*?)&lt;/tr&gt;
+ directionRex       = /compass/(.*?).gif
+ logDateRex         = &lt;td&gt;(.*?)&lt;br\ /&gt;&lt;span\ class=&quot;Success&quot;&gt;&lt;/span&gt;&lt;/td&gt;
+-availableRex       = &lt;span class=&quot;Strike&quot;&gt;
++availableRex       = &lt;span\ class=&quot;Strike&quot;&gt;
++archivedRex        = &lt;span\ class=&quot;Warning Strike&quot;&gt;
+ PMRex              = small_profile.gif
+ distRex            = &lt;br\ /&gt;(.*?)(?:km|mi)&lt;/td&gt;
+ waypointRex        = \\(GC(.*?)\\)&lt;br\ /&gt;
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2010-01-17 18:29:05 UTC (rev 2414)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2010-01-17 18:30:00 UTC (rev 2415)
+@@ -133,14 +133,15 @@
+ 	private static String propFirstLine2;
+ 	private static String propMaxDistance;
+ 	private static String propShowOnlyFound;
+-	private static Regex RexPropListBlock;
+-	private static Regex RexPropLine;
+-	private static Regex RexPropLogDate;
++	private Regex RexPropListBlock;
++	private Regex RexPropLine;
++	private Regex RexPropLogDate;
+ 	private static String propAvailable;
++	private static String propArchived;
+ 	private static String propPM;
+-	private static Regex RexPropDirection;
+-	private static Regex RexPropDistance;
+-	private static Regex RexPropWaypoint;
++	private Regex RexPropDirection;
++	private Regex RexPropDistance;
++	private Regex RexPropWaypoint;
+ 
+ 	private int numFoundUpdates=0;
+ 	private int numArchivedUpdates=0;
+@@ -341,20 +342,19 @@
+ 					if(gotDistance &lt;= maxDistance){
+ 						ch=cacheDB.get(chWaypoint);
+ 						if(ch == null){ // not in DB
+-							if(cachesToLoad.size() &lt; maxNew) {
+-								if ( gotDistance &gt;= minDistance &amp;&amp;
+-										 directionOK(directions,getDirection(CacheDescriptionGC))  &amp;&amp;
+-										 doPMCache(CacheDescriptionGC) ){
+-								cachesToLoad.add(chWaypoint);
+-								}
++							if ( gotDistance &gt;= minDistance &amp;&amp;
++									 directionOK(directions,getDirection(CacheDescriptionGC))  &amp;&amp;
++									 doPMCache(CacheDescriptionGC) ){
++							cachesToLoad.add(chWaypoint);
+ 							}
+-							else {
++							else {cachesToUpdate.remove( chWaypoint );}
++							if(cachesToLoad.size() &gt;= maxNew) {
+ 								if(maxUpdate!=Integer.MAX_VALUE) { maxDistance=0; }
+ 							}
+ 						}
+ 						else {
+ 							if (maxUpdate&gt;0) {
+-								if (updateExists(ch,CacheDescriptionGC)) {
++								if (doPMCache(CacheDescriptionGC) &amp;&amp; updateExists(ch,CacheDescriptionGC)) {
+ 									if (!ch.is_black() &amp;&amp; (cachesShouldUpdate.size()&lt;maxUpdate)) cachesShouldUpdate.put(chWaypoint, ch);
+ 								}
+ 								else
+@@ -710,6 +710,7 @@
+ 			RexPropLine = new Regex(p.getProp(&quot;lineRex&quot;));
+ 			RexPropLogDate = new Regex(p.getProp(&quot;logDateRex&quot;));
+ 			propAvailable=p.getProp(&quot;availableRex&quot;);
++			propArchived=p.getProp(&quot;archivedRex&quot;);
+ 			propPM=p.getProp(&quot;PMRex&quot;);
+ 			RexPropDirection=new Regex(p.getProp(&quot;directionRex&quot;));
+ 			RexPropDistance = new Regex(p.getProp(&quot;distRex&quot;));
+@@ -807,12 +808,14 @@
+ 	private boolean updateExists(CacheHolder ch, String CacheDescription) {
+ 		boolean ret = false;
+ 		boolean save = false;
++		boolean is_archived_GC=false;
+ 		if (spiderAllFinds) {
+ 			if(!ch.is_found()) { ch.setFound(true); save=true; numFoundUpdates+=1; ret=true;}
+-			boolean is_archived_GC=CacheDescription.indexOf(&quot;&lt;font color=\&quot;red\&quot;&gt;&lt;strike&gt;&quot;)!=-1;
+-			if (is_archived_GC!=ch.is_archived()) { ch.setArchived(is_archived_GC); save=true; numArchivedUpdates+=1; ret=true;}
++			is_archived_GC=CacheDescription.indexOf(propArchived)!=-1;
++				if (is_archived_GC!=ch.is_archived()) { ch.setArchived(is_archived_GC); save=true; numArchivedUpdates+=1; ret=true;}
+ 		}
+-		boolean is_available_GC=CacheDescription.indexOf(propAvailable)==-1;
++		boolean is_available_GC=!is_archived_GC &amp;&amp; CacheDescription.indexOf(propAvailable)==-1;
++
+ 		if (is_available_GC != ch.is_available()) {
+ 			ch.setAvailable(is_available_GC); save=true; numAvailableUpdates+=1; ret=true;}
+ 		// we could check for update of terrain,difficult,size,cache type for not necessarily to load the complete cache 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002338.html">[Cachewolf-svn] r2414 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="002340.html">[Cachewolf-svn] r2416 - trunk/res_noewe
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2339">[ date ]</a>
+              <a href="thread.html#2339">[ thread ]</a>
+              <a href="subject.html#2339">[ subject ]</a>
+              <a href="author.html#2339">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

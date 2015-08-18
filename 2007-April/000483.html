@@ -1,0 +1,260 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r660 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-April/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r660%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200704020428.l324S9Zr013864%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000482.html">
+   <LINK REL="Next"  HREF="000484.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r660 - trunk/src/CacheWolf</H1>
+    <B>bilbowolf at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r660%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200704020428.l324S9Zr013864%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r660 - trunk/src/CacheWolf">bilbowolf at mail.berlios.de
+       </A><BR>
+    <I>Mon Apr  2 06:28:09 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000482.html">[Cachewolf-svn] r659 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000484.html">[Cachewolf-svn] r661 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#483">[ date ]</a>
+              <a href="thread.html#483">[ thread ]</a>
+              <a href="subject.html#483">[ subject ]</a>
+              <a href="author.html#483">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: bilbowolf
+Date: 2007-04-02 06:28:06 +0200 (Mon, 02 Apr 2007)
+New Revision: 660
+
+Modified:
+   trunk/src/CacheWolf/DetailsPanel.java
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/SpiderGC.java
+   trunk/src/CacheWolf/myTableControl.java
+Log:
+
+
+Modified: trunk/src/CacheWolf/DetailsPanel.java
+===================================================================
+--- trunk/src/CacheWolf/DetailsPanel.java	2007-03-31 22:19:14 UTC (rev 659)
++++ trunk/src/CacheWolf/DetailsPanel.java	2007-04-02 04:28:06 UTC (rev 660)
+@@ -328,6 +328,7 @@
+ 		  ch.is_found = ch.CacheStatus.equals(MyLocale.getMsg(318,&quot;Found&quot;));
+ 		  ch.is_black = blackStatus;
+ 		  ch.wayPoint = inpWaypoint.getText().trim();
++		  ch.CacheSize = chcSize.getText();
+ 		  // If the waypoint does not have a name, give it one
+ 		  if (ch.wayPoint.equals(&quot;&quot;)) { 
+ 			  ch.wayPoint=profile.getNewWayPointName();
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2007-03-31 22:19:14 UTC (rev 659)
++++ trunk/src/CacheWolf/MainMenu.java	2007-04-02 04:28:06 UTC (rev 660)
+@@ -264,7 +264,7 @@
+ 				loc.doIt(LocExporter.MODE_AUTO);
+ 				ProgressBarForm.display(MyLocale.getMsg(950,&quot;Transfer&quot;),MyLocale.getMsg(951,&quot;Sending to GPS&quot;), null);
+ 				try{
+-					ewe.sys.Process p = Vm.exec(&quot;gpsbabel -i geo -f \&quot;&quot;+ tmpFileName +&quot;\&quot; -o garmin -F &quot; + pref.garminConn +&quot;:&quot;);
++					ewe.sys.Process p = Vm.exec(&quot;gpsbabel -s -i geo -f \&quot;&quot;+ tmpFileName +&quot;\&quot; -o garmin -F &quot; + pref.garminConn +&quot;:&quot;);
+ 					Vm.debug(&quot;gpsbabel -i geo -f  \&quot;&quot;+ tmpFileName +&quot;\&quot; -o garmin -F &quot; + pref.garminConn +&quot;:&quot;);
+ 					p.waitFor();
+ 				}catch(IOException ioex){};
+@@ -386,6 +386,8 @@
+ 				spGC.doIt();
+ 				cacheDB.clear();
+ 				profile.readIndex();
++				profile.restoreFilter();
++				profile.updateBearingDistance();
+ 				tbp.resetModel();
+ 			}
+ 			if(mev.selectedItem == savenoxit){
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2007-03-31 22:19:14 UTC (rev 659)
++++ trunk/src/CacheWolf/SpiderGC.java	2007-04-02 04:28:06 UTC (rev 660)
+@@ -97,7 +97,7 @@
+ 				start = fetch_post(&quot;<A HREF="http://www.geocaching.com/login/Default.aspx">http://www.geocaching.com/login/Default.aspx</A>&quot;, doc, &quot;/login/default.aspx&quot;);
+ 				pref.log(&quot;Login successfull&quot;);
+ 			}catch(Exception ex){
+-				Vm.debug(&quot;Could not login: gc.com start page&quot;);
++				//Vm.debug(&quot;Could not login: gc.com start page&quot;);
+ 				pref.log(&quot;Login failed.&quot;);
+ 				infB.close(0);
+ 				return ERR_LOGIN;
+@@ -125,8 +125,8 @@
+ 	 * It assumes a login has already been performed!
+ 	 * @return True if spider was successful, false if spider was cancelled by closing the infobox
+ 	 */
+-	public boolean spiderSingle(int number){
+-
++	public boolean spiderSingle(int number, InfoBox infB){
++		this.infB = infB;
+ 		CacheHolder ch = (CacheHolder)cacheDB.get(number);
+ 		if (ch.isAddiWpt()) return false;  // No point spidering an addi waypoint, comes with parent
+ 		//Vm.showWait(true); Already done in myTableControl
+@@ -139,9 +139,8 @@
+ 			pref.log(&quot;Could not load &quot; + ch.wayPoint + &quot;file in spiderSingle&quot;);
+ 		}
+ 		notes = ch.CacheNotes;
+-		infB = new InfoBox(&quot;Info&quot;, &quot;Loading&quot;);
+-		infB.setInfo(&quot;Loading: &quot; + ch.wayPoint);
+-		infB.exec();
++		
++		
+ 		String doc = &quot;<A HREF="http://www.geocaching.com/seek/cache_details.aspx?wp=">http://www.geocaching.com/seek/cache_details.aspx?wp=</A>&quot; + ch.wayPoint +&quot;&amp;log=y&quot;;
+ 		try{
+ 			pref.log(&quot;Fetching: &quot; + ch.wayPoint);
+@@ -244,11 +243,12 @@
+ 					pref.log(&quot;Saving to:&quot; + profile.dataDir);
+ 					cacheDB.set(number, ch);
+ 				}
+-			}catch(Exception ex){}
++			}catch(Exception ex){
++				pref.log(&quot;Exception in spider: &quot; +ex.toString());
++			}
+ 			finally{}
+ 		}
+ 		boolean ret=!infB.isClosed; // If the infoBox was closed before getting here, we return false
+-		infB.close(0);
+ 		//Vm.showWait(false); In myTableControl
+ 		return ret;
+ 	}
+@@ -292,7 +292,7 @@
+ 		distance = Convert.toDouble(dist);
+ 		//boolean getMaps = options.mapsCheckBox.getState();
+ 		boolean doNotgetFound = options.foundCheckBox.getState();
+-		Vm.debug(&quot;Do not get found? &quot;+doNotgetFound);
++		//Vm.debug(&quot;Do not get found? &quot;+doNotgetFound);
+ 		boolean getImages = options.imagesCheckBox.getState();
+ 		options.close(0);
+ 		
+@@ -309,7 +309,7 @@
+ 			infB.close(0);
+ 			(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), MyLocale.getMsg(5503,&quot;Error fetching first list page.&quot;), MessageBox.OKB)).execute();
+ 			pref.log(&quot;Error fetching first list page&quot;);
+-			Vm.debug(&quot;Could not get list&quot;);
++			//Vm.debug(&quot;Could not get list&quot;);
+ 			Vm.showWait(false);
+ 			return;
+ 		}
+@@ -366,7 +366,7 @@
+ 					pref.log(&quot;Fetching next list page:&quot; + doc);
+ 					start = fetch_post(postStr, doc, &quot;/seek/nearest.aspx&quot;);
+ 				}catch(Exception ex){
+-					Vm.debug(&quot;Couldn't get the next page&quot;);
++					//Vm.debug(&quot;Couldn't get the next page&quot;);
+ 					pref.log(&quot;Error getting next page&quot;);
+ 				}finally{
+ 					
+@@ -396,7 +396,7 @@
+ 					start = fetch(doc);
+ 				}catch(Exception ex){
+ 					pref.log(&quot;Could not fetch detail page for: &quot; + wpt);
+-					Vm.debug(&quot;Couldn't get cache detail page&quot;);
++					//Vm.debug(&quot;Couldn't get cache detail page&quot;);
+ 				}finally{
+ 					//	just continue please!
+ 					pref.log(&quot;Trying for details.&quot;);
+@@ -518,7 +518,7 @@
+ 	public String getBugs(String doc){	
+ 		Extractor exBlock = new Extractor(doc, &quot;&gt;&nbsp;Inventory&lt;/td&gt;&quot;,&quot;What is a Travel Bug?&quot;,0,Extractor.EXCLUDESTARTEND);
+ 		String bugBlock = exBlock.findNext();
+-		Vm.debug(&quot;Bugblock: &quot;+bugBlock);
++		//Vm.debug(&quot;Bugblock: &quot;+bugBlock);
+ 		Extractor exBug = new Extractor(bugBlock, &quot;&lt;a href='&quot;, &quot;&lt;/a&gt;&lt;/strong&gt;&lt;/td&gt;&quot;,0,Extractor.EXCLUDESTARTEND);
+ 		String link,bug,linkPlusBug,bugDetails;
+ 		String result = &quot;&quot;;
+@@ -640,7 +640,7 @@
+ 						ch.ImagesText.add(imgName);
+ 					}
+ 				} catch (IndexOutOfBoundsException e) { 
+-					Vm.debug(&quot;IndexOutOfBoundsException not in image span&quot;+e.toString()+&quot;imgURL:&quot;+imgUrl);
++					//Vm.debug(&quot;IndexOutOfBoundsException not in image span&quot;+e.toString()+&quot;imgURL:&quot;+imgUrl);
+ 					pref.log(&quot;Problem loading image. imgURL:&quot;+imgUrl);
+ 				}
+ 				}
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2007-03-31 22:19:14 UTC (rev 659)
++++ trunk/src/CacheWolf/myTableControl.java	2007-04-02 04:28:06 UTC (rev 660)
+@@ -112,6 +112,9 @@
+ 			if (spider.login()==Form.IDOK) {
+ 				boolean alreadySaid = false;
+ 				boolean alreadySaid2 = false;
++				boolean test = true;
++				InfoBox infB = new InfoBox(&quot;Info&quot;, &quot;Loading&quot;);
++				infB.exec();
+ 				for(int i = 0; i &lt;	cacheDB.size(); i++){
+ 					ch = (CacheHolder)cacheDB.get(i);
+ 					if(ch.is_Checked == true) {
+@@ -120,7 +123,13 @@
+ 	//						Alter code pr&#252;ft aber nur ob ein Maincache von GC existiert und versucht dann den addi direkt zu spidern, was nicht funktioniert
+ 	//						TODO: Diese Meldungen vor dem Einloggen darstellen						
+ 						{
+-							if (!spider.spiderSingle(i)) break;
++					    infB.setInfo(&quot;Loading: &quot; + ch.wayPoint);
++						
++						test = spider.spiderSingle(i, infB); 
++						if (!test) {
++							infB.close(0);
++							break;
++						}
+ 						} else if (ch.isAddiWpt() &amp;&amp; !ch.mainCache.is_Checked) { // Is the father ticked?
+ 							if (!alreadySaid2) {
+ 								alreadySaid2=true;
+@@ -133,11 +142,14 @@
+ 						}
+ 					}
+ 				}
++				infB.close(0);
+ 				profile.hasUnsavedChanges=true;	
+ 				profile.closeIndex();
+ 				profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
+ //				cacheDB.clear();
+ //				profile.readIndex();
++				profile.restoreFilter();
++				profile.updateBearingDistance();
+ 				tbp.refreshTable();
+ 			}
+ 			Vm.showWait(false);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000482.html">[Cachewolf-svn] r659 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000484.html">[Cachewolf-svn] r661 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#483">[ date ]</a>
+              <a href="thread.html#483">[ thread ]</a>
+              <a href="subject.html#483">[ subject ]</a>
+              <a href="author.html#483">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,197 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1982 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-July/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1982%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200907040817.n648HdSG023035%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001900.html">
+   <LINK REL="Next"  HREF="001902.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1982 - trunk/src/CacheWolf</H1>
+    <B>engywuck at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1982%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200907040817.n648HdSG023035%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1982 - trunk/src/CacheWolf">engywuck at mail.berlios.de
+       </A><BR>
+    <I>Sat Jul  4 10:17:39 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001900.html">[Cachewolf-svn] r1981 - trunk/src/exp
+</A></li>
+        <LI>Next message: <A HREF="001902.html">[Cachewolf-svn] r1983 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1901">[ date ]</a>
+              <a href="thread.html#1901">[ thread ]</a>
+              <a href="subject.html#1901">[ subject ]</a>
+              <a href="author.html#1901">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: engywuck
+Date: 2009-07-04 10:17:37 +0200 (Sat, 04 Jul 2009)
+New Revision: 1982
+
+Modified:
+   trunk/src/CacheWolf/CacheImages.java
+   trunk/src/CacheWolf/ImagePanel.java
+Log:
+Optimizing number of images displayed in the image panel. Images are not shown if there is a second image referring to the same file but with a &quot;real&quot; title. (Example: GC1HNNY)
+
+Modified: trunk/src/CacheWolf/CacheImages.java
+===================================================================
+--- trunk/src/CacheWolf/CacheImages.java	2009-07-03 17:56:47 UTC (rev 1981)
++++ trunk/src/CacheWolf/CacheImages.java	2009-07-04 08:17:37 UTC (rev 1982)
+@@ -12,12 +12,15 @@
+  */
+ public class CacheImages {
+ 	
+-	public CacheImages(){ // Public Constructor
+-	}
+-	
+ 	/** Lazy initialization of the vector: It is created only when needed. If it is not accessed,
+ 	 * it will stay &lt;code&gt;null&lt;/code&gt;.*/
+ 	private Vector vector=null;
++	/** Images that should display in the image panel */
++	private CacheImages display=null;
++	
++	public CacheImages(){ // Public Constructor
++	}
++		
+ 	private Vector getVector(){
+ 		if (this.vector==null) {
+ 			vector = new Vector(10);
+@@ -31,6 +34,7 @@
+ 	 * @param img ImageInfo object to add.
+ 	 */
+ 	public void add(ImageInfo img) {
++		display = null;  // New Image? Force display to get reevaluated 
+         getVector().add(img);
+     }
+ 	
+@@ -48,6 +52,7 @@
+ 	 */
+ 	public void clear() {
+ 		if (this.vector!=null) {
++			display = null; 
+ 			this.vector.clear();
+ 		}
+ 	}
+@@ -63,4 +68,61 @@
+ 			return this.vector.size();
+ 		}
+ 	}
++	
++	/**
++	 * Fills the &lt;code&gt;display&lt;/code&gt; collection with the images that really should display
++	 * in the image panel.
++	 */
++	private void checkForDisplayImages() {
++		if (this.size()&gt;1) {
++			display = new CacheImages(/*this.size()*/);
++			for (int i=0; i&lt;this.size(); i++) {
++				boolean shouldDisplay = true;
++				ImageInfo currImg = this.get(i);
++				for (int j=0; j&lt;this.size(); j++) {
++					ImageInfo testImg = this.get(j);
++					if (i==j) continue;
++					if (currImg.getFilename().equals(testImg.getFilename())) {
++						if (currImg.getFilename().startsWith(currImg.getTitle()) &amp;&amp;
++							!testImg.getFilename().startsWith(testImg.getTitle())) {
++							shouldDisplay = false;
++						}
++					}
++				}
++				if (shouldDisplay) display.add(currImg);
++			}
++		}
++	}
++	
++	/**
++	 * Returns a CacheImage collection of the images that should be displayed in the 
++	 * image panel. An image should &lt;b&gt;not&lt;/b&gt; be present in this collection if its title is 
++	 * equivalent to its filename and if there is another image referring to the same file but
++	 * with a different title.&lt;br&gt;
++	 * Normally, the results are cached and don't need to be evaluated again. If they should
++	 * be reevaluated for whatever reason, then pass &lt;code&gt;true&lt;/code&gt; as parameter.  
++	 * @param forceEvaluation When &lt;code&gt;true&lt;/code&gt; the images that should display are
++	 * reexamined.
++	 * @return The CacheImage collection of images. 
++	 */
++	public CacheImages getDisplayImages(boolean forceEvaluation) {
++		if (display == null || forceEvaluation) this.checkForDisplayImages();
++		if (display == null) {
++			return this;
++		} else {
++			return display;
++		}
++	}
++
++	/**
++	 * Returns a CacheImage collection of the images that should be displayed in the 
++	 * image panel. An image should &lt;b&gt;not&lt;/b&gt; be present in this collection if its title is 
++	 * equivalent to its filename and if there is another image referring to the same file but
++	 * with a different title.
++	 * @return The CacheImage collection of images. 
++	 */
++	public CacheImages getDisplayImages() {
++		return this.getDisplayImages(false);
++	}
++	
+ }
+\ No newline at end of file
+
+Modified: trunk/src/CacheWolf/ImagePanel.java
+===================================================================
+--- trunk/src/CacheWolf/ImagePanel.java	2009-07-03 17:56:47 UTC (rev 1981)
++++ trunk/src/CacheWolf/ImagePanel.java	2009-07-04 08:17:37 UTC (rev 1982)
+@@ -50,7 +50,7 @@
+ 			clearImages();
+ 			thumb_size = ((pref.myAppWidth-2*padding) / 3);
+ 			thumb_size = thumb_size - padding;
+-			int rowCounter = cache.images.size() + cache.userImages.size();
++			int rowCounter = cache.images.getDisplayImages().size() + cache.userImages.size();
+ 			rowCounter = (rowCounter/3)+1;
+ 			Rect r = new Rect(0, 0, pref.myAppWidth, rowCounter*thumb_size+rowCounter*padding+padding);
+ 			this.virtualSize = r;
+@@ -61,7 +61,7 @@
+ 			addTitle(MyLocale.getMsg(340,&quot;Cache Images:&quot;));
+ 			locY = 20;
+ 			locX = padding;
+-			addImages(cache.images);
++			addImages(cache.images.getDisplayImages());
+ 			// load user images
+ 			if(locCounter==1 || locCounter ==2) locY = locY + thumb_size;
+ 			//Vm.debug(&quot;thumb_size: &quot; + Convert.toString(thumb_size));
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001900.html">[Cachewolf-svn] r1981 - trunk/src/exp
+</A></li>
+	<LI>Next message: <A HREF="001902.html">[Cachewolf-svn] r1983 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1901">[ date ]</a>
+              <a href="thread.html#1901">[ thread ]</a>
+              <a href="subject.html#1901">[ subject ]</a>
+              <a href="author.html#1901">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

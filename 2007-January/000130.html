@@ -1,0 +1,135 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r396 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r396%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701141853.l0EIrZrt028726%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000129.html">
+   <LINK REL="Next"  HREF="000131.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r396 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r396%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701141853.l0EIrZrt028726%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r396 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sun Jan 14 19:53:35 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000129.html">[Cachewolf-svn] [Bug #9801] solver
+</A></li>
+        <LI>Next message: <A HREF="000131.html">[Bug #9980] Kontextmen&#252; Alle w&#228;hlen/ alle abw&#228;hlen
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#130">[ date ]</a>
+              <a href="thread.html#130">[ thread ]</a>
+              <a href="subject.html#130">[ subject ]</a>
+              <a href="author.html#130">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-01-14 19:53:28 +0100 (Sun, 14 Jan 2007)
+New Revision: 396
+
+Modified:
+   trunk/src/CacheWolf/Parser.java
+Log:
+Update crosstotal
+
+Modified: trunk/src/CacheWolf/Parser.java
+===================================================================
+--- trunk/src/CacheWolf/Parser.java	2007-01-14 17:43:24 UTC (rev 395)
++++ trunk/src/CacheWolf/Parser.java	2007-01-14 18:53:28 UTC (rev 396)
+@@ -96,7 +96,7 @@
+     	new fnType(&quot;clearscreen&quot;,&quot;cls&quot;,1),
+     	new fnType(&quot;cos&quot;,&quot;cos&quot;,2),
+     	new fnType(&quot;count&quot;,&quot;count&quot;,4),
+-    	new fnType(&quot;crosstotal&quot;,&quot;ct&quot;,2),
++    	new fnType(&quot;crosstotal&quot;,&quot;ct&quot;,6),
+     	new fnType(&quot;ct&quot;,&quot;ct&quot;,2),
+     	new fnType(&quot;encode&quot;,&quot;encode&quot;,8),
+     	new fnType(&quot;format&quot;,&quot;format&quot;,6),
+@@ -108,7 +108,7 @@
+     	new fnType(&quot;length&quot;,&quot;len&quot;,2),
+     	new fnType(&quot;mid&quot;,&quot;mid&quot;,12),
+     	new fnType(&quot;project&quot;,&quot;project&quot;,8),
+-    	new fnType(&quot;quersumme&quot;,&quot;ct&quot;,2),
++    	new fnType(&quot;quersumme&quot;,&quot;ct&quot;,6),
+ //    	new fnType(&quot;requiresemicolon&quot;,&quot;rs&quot;,3),
+     	new fnType(&quot;replace&quot;,&quot;replace&quot;,8),
+     	new fnType(&quot;reverse&quot;,&quot;reverse&quot;,2),
+@@ -313,16 +313,22 @@
+     	}
+     }
+     
+-    private double funcCrossTotal(double a) {
+-		// Cross total = Quersumme berechnen
+-		String aString = Convert.toString(a); // 
+-		// bei 1.8e2 nur 1.8 verwenden 
+-		if (aString.toLowerCase().indexOf(&quot;e&quot;) &gt; 0) aString = aString.substring(0, aString.toLowerCase().indexOf(&quot;e&quot;));
+-		a=0;
+-		for (int i=0; i&lt;aString.length(); i++) {
+-		 a += Convert.toDouble(Convert.toString(aString.charAt(i)));	
+-		}
+-   	    return a;
++    private double funcCrossTotal(int nargs) throws Exception {
++    	int cycles=1;
++		if (nargs==2) cycles=(int)popCalcStackAsNumber(1);
++		double a=java.lang.Math.abs(popCalcStackAsNumber(0));
++		if (cycles&lt;0) cycles=1;
++    	if (cycles&gt;5) cycles=5;
++    	while (a&gt;10 &amp;&amp; cycles--&gt;0) {
++	    	// Cross total = Quersumme berechnen
++			String aString = Convert.toString(a); // 
++			// bei 1.8e2 nur 1.8 verwenden 
++			if (aString.toLowerCase().indexOf(&quot;e&quot;) &gt; 0) aString = aString.substring(0, aString.toLowerCase().indexOf(&quot;e&quot;));
++			a=0;
++			for (int i=0; i&lt;aString.length(); i++) {
++			 a += Convert.toDouble(Convert.toString(aString.charAt(i)));	
++			}
++    	}return a;
+     }
+     
+     /**
+@@ -743,7 +749,7 @@
+ 	    else if (funcDef.alias.equals(&quot;cls&quot;)) funcCls();
+ 	    else if (funcDef.alias.equals(&quot;cos&quot;)) calcStack.add(new java.lang.Double(java.lang.Math.cos(popCalcStackAsNumber(0))));
+ 	    else if (funcDef.alias.equals(&quot;count&quot;)) funcCount();
+-	    else if (funcDef.alias.equals(&quot;ct&quot;)) calcStack.add(new java.lang.Double(funcCrossTotal(popCalcStackAsNumber(0))));
++	    else if (funcDef.alias.equals(&quot;ct&quot;)) calcStack.add(new java.lang.Double(funcCrossTotal(nargs)));
+ 	    else if (funcDef.alias.equals(&quot;encode&quot;)) calcStack.add(funcEncode());
+ 	    else if (funcDef.alias.equals(&quot;format&quot;)) calcStack.add(funcFormat(nargs));
+ 	    else if (funcDef.alias.equals(&quot;goto&quot;)) funcGoto(nargs);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000129.html">[Cachewolf-svn] [Bug #9801] solver
+</A></li>
+	<LI>Next message: <A HREF="000131.html">[Bug #9980] Kontextmen&#252; Alle w&#228;hlen/ alle abw&#228;hlen
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#130">[ date ]</a>
+              <a href="thread.html#130">[ thread ]</a>
+              <a href="subject.html#130">[ subject ]</a>
+              <a href="author.html#130">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

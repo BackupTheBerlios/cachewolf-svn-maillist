@@ -1,0 +1,230 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1125 - in trunk: res_noewe src/exp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-December/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1125%20-%20in%20trunk%3A%20res_noewe%20src/exp&In-Reply-To=%3C200712022048.lB2Kmpcw010250%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001017.html">
+   <LINK REL="Next"  HREF="001019.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1125 - in trunk: res_noewe src/exp</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1125%20-%20in%20trunk%3A%20res_noewe%20src/exp&In-Reply-To=%3C200712022048.lB2Kmpcw010250%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1125 - in trunk: res_noewe src/exp">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sun Dec  2 21:48:51 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001017.html">[Cachewolf-svn] r1124 - trunk/resources
+</A></li>
+        <LI>Next message: <A HREF="001019.html">[Cachewolf-svn] r1126 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1018">[ date ]</a>
+              <a href="thread.html#1018">[ thread ]</a>
+              <a href="subject.html#1018">[ subject ]</a>
+              <a href="author.html#1018">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-12-02 21:48:46 +0100 (Sun, 02 Dec 2007)
+New Revision: 1125
+
+Added:
+   trunk/res_noewe/Garmin User Symbols.zip
+Modified:
+   trunk/src/exp/LocExporter.java
+Log:
+New Feature: Export to Garmin GPS with user defined symbols 
+Instructions are contained in attached ZIP file (readme.txt).
+
+Added: trunk/res_noewe/Garmin User Symbols.zip
+===================================================================
+(Binary files differ)
+
+
+Property changes on: trunk/res_noewe/Garmin User Symbols.zip
+___________________________________________________________________
+Name: svn:mime-type
+   + application/octet-stream
+
+Modified: trunk/src/exp/LocExporter.java
+===================================================================
+--- trunk/src/exp/LocExporter.java	2007-12-02 18:29:25 UTC (rev 1124)
++++ trunk/src/exp/LocExporter.java	2007-12-02 20:48:46 UTC (rev 1125)
+@@ -1,42 +1,57 @@
+ package exp;
+ import CacheWolf.*;
+-import ewe.sys.Vm;
+-import ewe.util.Hashtable;
++import ewe.io.File;
++import ewesoft.xml.*;
++import ewesoft.xml.sax.*;
+ 
+ /**
+ *	Class to export the cache database into an geocaching .loc file that may be exported
+ *	by GPSBabel to a Garmin GPS.
++*
++*	Now includes mapping of cachetypes to user defined icons (as defined in file garminmap.xml).
+ */
+ public class LocExporter extends Exporter{
+ 	public static int MODE_AUTO = TMP_FILE;
++	/**
++	 * Defines how certain cachetypes are mapped to user icons
++	 */
++	private static GarminMap gm=null;
+ 	
+ 	public LocExporter(){
+ 		super();
+ 		this.setMask(&quot;*.loc&quot;);
+ 		this.setHowManyParams(NO_PARAMS);
++		if ((new File(File.getProgramDirectory()+&quot;/garminmap.xml&quot;)).exists()) {
++			gm=new GarminMap();
++			gm.readGarminMap();
++		}
+ 	}
+ 	
+ 	public String header () {
+ 		return &quot;&lt;?xml version=\&quot;1.0\&quot;?&gt;&lt;loc version=\&quot;1.0\&quot; src=\&quot;EasyGPS\&quot;&gt;\r\n&quot;;
+ 	}
+ 	
+-	public String record(CacheHolderDetail ch){
++	public String record(CacheHolderDetail chD){
+ 		// filter out not valid coords
+-		if (!ch.pos.isValid()) return null;
++		if (!chD.pos.isValid()) return null;
+ 		StringBuffer strBuf = new StringBuffer(200);
+ 		strBuf.append(&quot;&lt;waypoint&gt;\r\n   &lt;name id=\&quot;&quot;);
+-		strBuf.append(simplifyString(ch.wayPoint));
++		strBuf.append(simplifyString(chD.wayPoint));
+ 		strBuf.append(&quot;\&quot;&gt;&lt;![CDATA[&quot;);
+-		strBuf.append(simplifyString(ch.CacheName));
++		strBuf.append(simplifyString(chD.CacheName));
+ 		strBuf.append(&quot;]]&gt;&lt;/name&gt;\r\n   &lt;coord lat=\&quot;&quot;);
+-		strBuf.append(ch.pos.getLatDeg(CWPoint.DD));
++		strBuf.append(chD.pos.getLatDeg(CWPoint.DD));
+ 		strBuf.append(&quot;\&quot; lon=\&quot;&quot;);
+-		strBuf.append(ch.pos.getLonDeg(CWPoint.DD));
++		strBuf.append(chD.pos.getLonDeg(CWPoint.DD));
+ 		strBuf.append(&quot;\&quot;/&gt;\r\n   &lt;type&gt;&quot;);
+-		if (ch.is_found)
+-			strBuf.append(&quot;Geocache Found&quot;);
+-		else
+-			strBuf.append(&quot;Geocache&quot;);
++		if (gm!=null) {
++			strBuf.append(gm.getIcon(chD));
++		} else {
++			if (chD.is_found)
++				strBuf.append(&quot;Geocache Found&quot;);
++			else
++				strBuf.append(&quot;Geocache&quot;);
++		}
+ 		strBuf.append(&quot;&lt;/type&gt;\r\n&lt;/waypoint&gt;\r\n&quot;);
+ 		return strBuf.toString();
+ 	}
+@@ -44,4 +59,71 @@
+ 		return &quot;&lt;/loc&gt;\r\n&quot;;
+ 	}
+ 	
++	/**
++	 * This class implements user defined icons which depend on the cache type and the found status.
++	 * See also <A HREF="http://www.geoclub.de/ftopic10413.html">http://www.geoclub.de/ftopic10413.html</A>
++	 * @author salzkammergut
++	 *
++	 */
++	private class GarminMap extends MinML {
++		
++		private IconMap[] symbols=new IconMap[24];
++		private int mapSize=0;
++		
++		String lastName;
++		public void readGarminMap(){
++			try{
++				String datei = File.getProgramDirectory() + &quot;/garminmap.xml&quot;;
++				ewe.io.Reader r = new ewe.io.InputStreamReader(new ewe.io.FileInputStream(datei));
++				parse(r);
++				r.close();
++			}catch(Exception e){
++				if (e instanceof NullPointerException)
++					Global.getPref().log(&quot;Error reading garminmap.xml: NullPointerException in Element &quot;+lastName +&quot;. Wrong attribute?&quot;,e,true);
++				else 
++					Global.getPref().log(&quot;Error reading garminmap.xml: &quot;, e);
++			}
++		}
++		public void startElement(String name, AttributeList atts){
++			lastName=name;
++			if (name.equals(&quot;icon&quot;)) {
++				symbols[mapSize]=new IconMap(atts.getValue(&quot;type&quot;),atts.getValue(&quot;name&quot;),atts.getValue(&quot;found&quot;));
++				mapSize++;
++			}
++		}		
++		
++		public String getIcon(CacheHolderDetail chD) {
++			// First check if there is a mapping for &quot;cache found&quot;
++			if (chD.is_found) {
++				for (int i=0; i&lt;mapSize; i++)
++					if (symbols[i].onlyIfFound!=null &amp;&amp; symbols[i].type.equals(chD.type)) return symbols[i].name;
++			}
++			// Now try mapping the cache irrespective of the &quot;found&quot; status
++			for (int i=0; i&lt;mapSize; i++)
++				if (symbols[i].type.equals(chD.type)) return symbols[i].name;
++		
++			// If it is not a mapped type, just use the standard mapping
++			if (chD.is_found)
++				return &quot;Geocache Found&quot;;
++			else
++				return &quot;Geocache&quot;;
++		}
++		
++		private class IconMap {
++			public String type;
++			public String name;
++			public Boolean onlyIfFound;
++			
++			IconMap(String type, String name, String onlyIfFound) {
++				this.type=type;
++				this.name=name;
++				if (onlyIfFound!=null &amp;&amp; onlyIfFound.equals(&quot;1&quot;))
++					this.onlyIfFound=Boolean.TRUE;
++				else
++					this.onlyIfFound=null;
++			}
++		}
++	
++	}
++	
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001017.html">[Cachewolf-svn] r1124 - trunk/resources
+</A></li>
+	<LI>Next message: <A HREF="001019.html">[Cachewolf-svn] r1126 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1018">[ date ]</a>
+              <a href="thread.html#1018">[ thread ]</a>
+              <a href="subject.html#1018">[ subject ]</a>
+              <a href="author.html#1018">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

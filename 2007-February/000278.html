@@ -1,0 +1,134 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r487 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r487%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702012341.l11NfQMZ007396%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000277.html">
+   <LINK REL="Next"  HREF="000279.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r487 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r487%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702012341.l11NfQMZ007396%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r487 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Fri Feb  2 00:41:26 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000277.html">[Cachewolf-svn] r486 - trunk
+</A></li>
+        <LI>Next message: <A HREF="000279.html">[Cachewolf-svn] r488 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#278">[ date ]</a>
+              <a href="thread.html#278">[ thread ]</a>
+              <a href="subject.html#278">[ subject ]</a>
+              <a href="author.html#278">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-02-02 00:41:15 +0100 (Fri, 02 Feb 2007)
+New Revision: 487
+
+Modified:
+   trunk/src/CacheWolf/GotoPanel.java
+   trunk/src/CacheWolf/MovingMap.java
+Log:
+MovingMap: @Mik77: ready for testing: Bug: Exception wenn map gestartet wurde und gotopunkt und gps gestartet war, bevor es das erste mal aufgerufen wurde
+
+Modified: trunk/src/CacheWolf/GotoPanel.java
+===================================================================
+--- trunk/src/CacheWolf/GotoPanel.java	2007-02-01 23:32:46 UTC (rev 486)
++++ trunk/src/CacheWolf/GotoPanel.java	2007-02-01 23:41:15 UTC (rev 487)
+@@ -588,7 +588,7 @@
+ 					if (toPoint.isValid())	mmp.updatePosition(toPoint.latDec, toPoint.lonDec);
+ 					else mmp.updatePosition(Global.getPref().curCentrePt.latDec, Global.getPref().curCentrePt.lonDec); // if not goto-point defined move map to centere point
+ 					mmp.ignoreGps = true;
+-				}
++				} else mmp.updatePosition(gpsPosition.latDec, gpsPosition.lonDec); // set gps-pos if gps is on 
+ 				if (currTrack != null) mmp.addTrack(currTrack);
+ 				if (runbefore) mmp.addOverlaySet(); // draw new trackpoints but only do so if OverlaySet needs to be updated, otherwise it is anyway newly created
+ 				if (toPoint.isValid()) mmp.setGotoPosition(toPoint.latDec, toPoint.lonDec);
+
+Modified: trunk/src/CacheWolf/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/MovingMap.java	2007-02-01 23:32:46 UTC (rev 486)
++++ trunk/src/CacheWolf/MovingMap.java	2007-02-01 23:41:15 UTC (rev 487)
+@@ -229,7 +229,7 @@
+ 
+ 
+ 	public void addMissingOverlays() {
+-		if (currentMap == null || posCircleLat &lt; -360) return;
++		if (currentMap == null || posCircleLat &lt; -360 || width == 0 || height == 0) return; // height == 0 happens if this is called before the form ist displayed on the screen
+ 		if (TrackOverlays == null) {
+ 			TrackOverlays = new TrackOverlay[9];
+ 			TrackOverlaySetCenterTopLeft = ScreenXY2LatLon(100, 100);
+@@ -592,7 +592,7 @@
+ 
+ 	public void setGotoPosition(double lat, double lon) {
+ 		removeGotoPosition();
+-		gotoPos=addSymbol(&quot;goto&quot;, &quot;goto_map.png&quot;, lat, lon);
++		gotoPos = addSymbol(&quot;goto&quot;, &quot;goto_map.png&quot;, lat, lon);
+ 		updateDistance();
+ 		forceMapLoad = true;
+ 		updatePosition(posCircleLat, posCircleLon);
+@@ -647,7 +647,7 @@
+ 		//Vm.debug(&quot;mapx = &quot; + mapx);
+ 		//Vm.debug(&quot;mapy = &quot; + mapy);
+ 		if (forceMapLoad || (java.lang.Math.abs(oldMapPos.x - mapPos.x) &gt; 1 || java.lang.Math.abs(oldMapPos.y - mapPos.y) &gt; 1)) {
+-			if (mmp.mapImage != null) 	mmp.mapImage.move(mapPos.x,mapPos.y);
++			if (mmp.mapImage != null) 	mmp.mapImage.move(mapPos.x, mapPos.y);
+ 			updateSymbolPositions();
+ 			updateDistance();
+ 			if (updateOverlay ) updateOverlayPos(); // &amp;&amp; TrackOverlays != null
+@@ -677,7 +677,7 @@
+ 				if (forceMapLoad || wantMapTest|| (mmp.mapImage != null &amp;&amp; ( mapPos.y &gt; 0 || mapPos.x &gt; 0 || mapPos.y+mmp.mapImage.getHeight()&lt;this.height	|| mapPos.x+mmp.mapImage.getWidth()&lt;this.width) 
+ 						|| 	mmp.mapImage == null )) 	{ // if force || want || map doesn't cover the scree completly
+ 					//Vm.debug(&quot;Screen not completly covered by map&quot;);
+-					if (forceMapLoad || (java.lang.Math.abs(lastCompareX-mapPos.x) &gt; MyLocale.getScreenWidth()/10 || java.lang.Math.abs(lastCompareY-mapPos.y) &gt; MyLocale.getScreenHeight()/10)) {
++					if (forceMapLoad || (java.lang.Math.abs(lastCompareX-mapPos.x) &gt; this.width/10 || java.lang.Math.abs(lastCompareY-mapPos.y) &gt; this.height/10)) {
+ 						// more then 1/10 of screen moved since last time we tried to find a better map
+ 						lastCompareX = mapPos.x;
+ 						lastCompareY = mapPos.y;
+@@ -688,6 +688,7 @@
+ 			}
+ 		}
+ 	}
++	
+ 	int mapChangeModus;
+ 	float scaleWanted;
+ 	boolean wantMapTest = true; // if true updateposition calls setBestMap regulary even if the currentmap covers the whole screen
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000277.html">[Cachewolf-svn] r486 - trunk
+</A></li>
+	<LI>Next message: <A HREF="000279.html">[Cachewolf-svn] r488 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#278">[ date ]</a>
+              <a href="thread.html#278">[ thread ]</a>
+              <a href="subject.html#278">[ subject ]</a>
+              <a href="author.html#278">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

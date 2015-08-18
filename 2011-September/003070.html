@@ -1,0 +1,637 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r3079 - trunk/src/CacheWolf/imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2011-September/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r3079%20-%20trunk/src/CacheWolf/imp&In-Reply-To=%3C20110910145624.351DD481270%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003069.html">
+   <LINK REL="Next"  HREF="003068.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r3079 - trunk/src/CacheWolf/imp</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r3079%20-%20trunk/src/CacheWolf/imp&In-Reply-To=%3C20110910145624.351DD481270%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r3079 - trunk/src/CacheWolf/imp">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Sat Sep 10 04:56:23 CEST 2011</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003069.html">[Cachewolf-svn] r3078 - trunk/src/CacheWolf/view/pda
+</A></li>
+        <LI>Next message: <A HREF="003068.html">[Cachewolf-svn] r3077 - trunk/src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3070">[ date ]</a>
+              <a href="thread.html#3070">[ thread ]</a>
+              <a href="subject.html#3070">[ subject ]</a>
+              <a href="author.html#3070">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2011-09-10 16:56:23 +0200 (Sat, 10 Sep 2011)
+New Revision: 3079
+
+Modified:
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+changed some login code
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2011-09-10 13:21:51 UTC (rev 3078)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2011-09-10 14:56:23 UTC (rev 3079)
+@@ -1008,7 +1008,7 @@
+ 
+ 	/**
+ 	 * Method to spider a single cache. It assumes a login has already been performed!
+-	 * 
++	 *
+ 	 * @return 1 if spider was successful, -1 if spider was cancelled by closing the infobox, 0 error, but continue with
+ 	 *         next cache
+ 	 */
+@@ -1055,7 +1055,7 @@
+ 
+ 	/**
+ 	 * Fetch the coordinates of a waypoint from GC
+-	 * 
++	 *
+ 	 * @param wayPoint
+ 	 *            the name of the waypoint
+ 	 * @return the cache coordinates
+@@ -1091,19 +1091,41 @@
+ 	 * TODO: Translation for status text!
+ 	 */
+ 	private boolean login() {
+-		
++
+ 		if (loggedIn &amp;&amp; !pref.forceLogin) {
+ 			return true;
+ 		}
++		
++		if (pref.userID.length() &gt; 0) {
++			UrlFetcher.setPermanentRequestorProperty(&quot;Cookie&quot;, null);
++			loggedIn = switchToEnglish();
++			if (loggedIn)
++				return true;
++		}
+ 
+ 		int counter = 5;
+ 		boolean real_return = false;
+-		InfoBox localInfB = new InfoBox(MyLocale.getMsg(5507, &quot;Status&quot;), MyLocale.getMsg(5508, &quot;Logging in...&quot;));
++
++		// **0 Get password
++		String passwort = pref.password;
++		InfoBox localInfB = new InfoBox(MyLocale.getMsg(5506, &quot;Password&quot;), MyLocale.getMsg(5505, &quot;Enter Password&quot;), InfoBox.INPUT);
++		localInfB.feedback.setText(passwort);
++		localInfB.feedback.isPassword = true;
++		int code = FormBase.IDOK;
++		if (passwort.equals(&quot;&quot;)) {
++			code = localInfB.execute();
++			passwort = localInfB.getInput();
++		}
++		localInfB.close(0);
++		if (code != FormBase.IDOK)
++			return false;
++
++		localInfB = new InfoBox(MyLocale.getMsg(5507, &quot;Status&quot;), MyLocale.getMsg(5508, &quot;Logging in...&quot;));
+ 		localInfB.exec();
+-		
++
+ 		while (counter &gt; 0) {
+ 			counter--;
+-			switch( origin_login() ) {
++			switch( origin_login(passwort) ) {
+ 				case 1:
+ 					real_return = true;
+ 					counter = 0;
+@@ -1121,12 +1143,12 @@
+ 				case 4:
+ 					localInfB.setInfo(MyLocale.getMsg(5523, &quot;Login error! next try...&quot;) + &quot;(&quot; + (5 - counter) + &quot;/5)&quot;);
+ 					break;
+-			}			
++			}
+ 		}
+-		
++
+ 		localInfB.close(0);
+ 		return real_return;
+-		
++
+ 	}
+ 
+ 	/**
+@@ -1140,16 +1162,7 @@
+ 	 * 4 = fetch error / offline
+ 	 * remove messagebox and infobox
+ 	 */
+-	private int origin_login() {
+-		if (pref.userID.length() &gt; 0) {
+-			UrlFetcher.setPermanentRequestorProperty(&quot;Cookie&quot;, null);
+-			loggedIn = switchToEnglish();
+-			if (loggedIn) return 1;
+-			//else {
+-			//  (new MessageBox(&quot;Login&quot;, &quot;Check UserID in preferences | Einstellungen.\nsee <A HREF="http://cachewolf.aldos.de/userid.html">http://cachewolf.aldos.de/userid.html</A>&quot;, FormBase.OKB)).execute();
+-			//	return false;
+-			//}
+-		} 
++	private int origin_login(String passwort) {
+ 
+ 		loggedIn = false;
+ 		String loginPage, loginPageUrl, loginSuccess;
+@@ -1160,25 +1173,9 @@
+ 			return 0;
+ 		}
+ 
+-		// **0 Get password
+-		String passwort = pref.password;
+-		InfoBox localInfB = new InfoBox(MyLocale.getMsg(5506, &quot;Password&quot;), MyLocale.getMsg(5505, &quot;Enter Password&quot;), InfoBox.INPUT);
+-		localInfB.feedback.setText(passwort);
+-		localInfB.feedback.isPassword = true;
+-		int code = FormBase.IDOK;
+-		if (passwort.equals(&quot;&quot;)) {
+-			code = localInfB.execute();
+-			passwort = localInfB.getInput();
+-		}
+-		localInfB.close(0);
+-		if (code != FormBase.IDOK)
+-			return 0;
+-
+-		// **1 now we have user and password for login
+-		//localInfB = new InfoBox(MyLocale.getMsg(5507, &quot;Status&quot;), MyLocale.getMsg(5508, &quot;Logging in...&quot;));
+-		//localInfB.exec();
++		// **1 we have user and password for login
+ 		try {
+-			loginPage = UrlFetcher.fetch(loginPageUrl); // <A HREF="http://www.geocaching.com/login/default.aspx">http://www.geocaching.com/login/default.aspx</A>
++			loginPage = UrlFetcher.fetch(loginPageUrl); // <A HREF="https://www.geocaching.com/login/default.aspx">https://www.geocaching.com/login/default.aspx</A>
+ 			if (loginPage.equals(&quot;&quot;)) {
+ 				pref.log(&quot;[login]:Could not fetch: gc.com login page &quot; + loginPageUrl, null);
+ 				return 4;
+@@ -1189,104 +1186,95 @@
+ 		}
+ 
+ 		// **2 now we can check the loginpage if logged in else log in
+-		if (!localInfB.isClosed) {
+-			if (loginPage.indexOf(loginSuccess) &gt; 0) {
+-				if (loginPage.indexOf(pref.myAlias) &gt; 0) {
+-					loggedIn = true;
+-					// assume language is already set to EN
+-					pref.log(&quot;[login]:Already logged in as &quot; + pref.myAlias);
+-				} else {
+-					// it is another user, whom we should logout
+-					try {
+-						loginPage = UrlFetcher.fetch(&quot;<A HREF="http://www.geocaching.com/login/default.aspx?RESETCOMPLETE=Y">http://www.geocaching.com/login/default.aspx?RESETCOMPLETE=Y</A>&quot;);
+-					} catch (final Exception ex) {
+-						pref.log(&quot;[login]:Could not fetch: gc.com login page&quot;, ex);
+-						return 4;
+-					}
++		// assume language is already set to EN (loginSuccess has EN - Text)
++		if (loginPage.indexOf(loginSuccess) &gt; 0) {
++			if (loginPage.indexOf(pref.myAlias) &gt; 0) {
++				loggedIn = true;
++				pref.log(&quot;[login]:Already logged in as &quot; + pref.myAlias);
++			} else {
++				// it is another user, whom we should logout
++				try {
++					loginPage = UrlFetcher.fetch(&quot;<A HREF="https://www.geocaching.com/login/default.aspx?RESET=Y">https://www.geocaching.com/login/default.aspx?RESET=Y</A>&quot;);
++				} catch (final Exception ex) {
++					pref.log(&quot;[login]:Could not fetch: gc.com login page&quot;, ex);
++					return 4;
++				}
+ 
++			}
++		}
++		if (!loggedIn) {
++			try {
++				final Regex rexViewstate = new Regex(&quot;id=\&quot;__VIEWSTATE\&quot; value=\&quot;(.*?)\&quot; /&gt;&quot;);
++				String viewstate = &quot;&quot;;
++				rexViewstate.search(loginPage);
++				if (rexViewstate.didMatch()) {
++					viewstate = rexViewstate.stringMatched(1);
++				} else {;
++					pref.log(&quot;[login]:__VIEWSTATE not found (before login): no login possible.&quot;, null);
++					return 0;
+ 				}
++
++				final StringBuffer sb = new StringBuffer(1000);
++				sb.append(&quot;__EVENTTARGET=&amp;__EVENTARGUMENT=&amp;&quot;); // added for testing
++				sb.append(&quot;__VIEWSTATE=&quot; + URL.encodeURL(viewstate, false));
++				sb.append(&quot;&amp;ctl00%24SiteContent%24&quot;); // changed from 24BodyContent to 24SiteContent
++				sb.append(&quot;tbUsername=&quot; + encodeUTF8URL(Utils.encodeJavaUtf8String(pref.myAlias))); // changed myUsername to tbUsername
++				sb.append(&quot;&amp;ctl00%24SiteContent%24&quot;);
++				sb.append(&quot;tbPassword=&quot; + encodeUTF8URL(Utils.encodeJavaUtf8String(passwort))); // changed myPassword to tbPassword
++				sb.append(&quot;&amp;ctl00%24SiteContent%24&quot;);
++				sb.append(&quot;cbRememberMe=on&quot;);
++				sb.append(&quot;&amp;ctl00%24SiteContent%24&quot;);
++				sb.append(&quot;btnSignIn=Login&quot;); // changed Button1 to btnSignIn
++				UrlFetcher.setpostData(sb.toString());
++
++				loginPage = UrlFetcher.fetch(loginPageUrl);
++			} catch (final Exception ex) {
++				pref.log(&quot;[login]:Login failed with exception.&quot;, ex);
++				return 3;
+ 			}
+-			if (!loggedIn) {
+-				try {
+-					final Regex rexViewstate = new Regex(&quot;id=\&quot;__VIEWSTATE\&quot; value=\&quot;(.*?)\&quot; /&gt;&quot;);
+-					String viewstate = &quot;&quot;;
+-					rexViewstate.search(loginPage);
+-					if (rexViewstate.didMatch()) {
+-						viewstate = rexViewstate.stringMatched(1);
+-					} else {;
+-						pref.log(&quot;[login]:__VIEWSTATE not found (before login): no login possible.&quot;, null);
+-						return 0;
+-					}
+-					
+-					final StringBuffer sb = new StringBuffer(1000);
+-					sb.append(&quot;__EVENTTARGET=&amp;__EVENTARGUMENT=&amp;&quot;); // added for testing 
+-					sb.append(&quot;__VIEWSTATE=&quot; + URL.encodeURL(viewstate, false));				
+-					sb.append(&quot;&amp;ctl00%24SiteContent%24&quot;); // changed from 24BodyContent to 24SiteContent
+-					sb.append(&quot;tbUsername=&quot; + encodeUTF8URL(Utils.encodeJavaUtf8String(pref.myAlias))); // changed myUsername to tbUsername
+-					sb.append(&quot;&amp;ctl00%24SiteContent%24&quot;);
+-					sb.append(&quot;tbPassword=&quot; + encodeUTF8URL(Utils.encodeJavaUtf8String(passwort))); // changed myPassword to tbPassword
+-					sb.append(&quot;&amp;ctl00%24SiteContent%24&quot;);
+-					sb.append(&quot;cbRememberMe=on&quot;);
+-					sb.append(&quot;&amp;ctl00%24SiteContent%24&quot;);
+-					sb.append(&quot;btnSignIn=Login&quot;); // changed Button1 to btnSignIn
+-					UrlFetcher.setpostData(sb.toString());
+-					
+-					loginPage = UrlFetcher.fetch(loginPageUrl);
+-					if (loginPage.indexOf(loginSuccess) &gt; 0) {
+-						pref.log(&quot;Login successful: &quot; + pref.myAlias);
+-						// **3 now we are logged in and get the Cookie (there are two)
+-						final PropertyList pl = UrlFetcher.getDocumentProperties();
+-						String docprops = &quot;&quot;;
+-						for (int i = 0; i &lt; pl.size(); i++) {
+-							final Property p = (Property) pl.get(i);
+-							if (p.name.equalsIgnoreCase(&quot;Set-Cookie&quot;)) {
+-								docprops += p.value;
+-							}
+-						}
+-						final Regex rexCookieSession = new Regex(&quot;(?i)ASP.NET_SessionId=(.*?);.*&quot;);
+-						rexCookieSession.search(docprops);
+-						if (rexCookieSession.didMatch()) {
+-							cookie = &quot;ASP.NET_SessionId=&quot; + rexCookieSession.stringMatched(1);
+-						} else {
+-							pref.log(&quot;[login]:SessionID not found.&quot;, null);
+-							return 0;
+-						}
+-						final Regex rexCookieID = new Regex(&quot;(?i)userid=(.*?);.*&quot;);
+-						rexCookieID.search(docprops);
+-						if (rexCookieID.didMatch()) {
+-							cookie += &quot;; userid=&quot; + rexCookieID.stringMatched(1);
+-							// set the user id in user pref
+-							pref.userID = rexCookieID.stringMatched(1);
+-							pref.savePreferences();
+-						} else {
+-							pref.log(&quot;[login]:userID not found.&quot;, null);
+-							return 0;
+-						}
+-						UrlFetcher.setPermanentRequestorProperty(&quot;Cookie&quot;, cookie);
+-					} else {
+-						pref.log(&quot;Login failed. Wrong Account or Password? &quot; + pref.myAlias, null);
+-						pref.log(&quot;[login.url]:&quot; + loginPageUrl, null);
+-						pref.log(&quot;[login.postData]:&quot; + sb.toString(), null);
+-						pref.log(&quot;[login.Answer]:&quot; + loginPage, null);
+-						return 2;
+-					}
+-					if (!this.switchToEnglish())
+-						return 0;
+-				} catch (final Exception ex) {
+-					pref.log(&quot;[login]:Login failed with exception.&quot;, ex);
+-					return 3;
++		}
++		
++		if (loginPage.indexOf(loginSuccess) &gt; 0) {
++			pref.log(&quot;Login successful: &quot; + pref.myAlias);
++			// **3 now we are logged in and get the Cookie (there are two)
++			final PropertyList pl = UrlFetcher.getDocumentProperties();
++			String docprops = &quot;&quot;;
++			for (int i = 0; i &lt; pl.size(); i++) {
++				final Property p = (Property) pl.get(i);
++				if (p.name.equalsIgnoreCase(&quot;Set-Cookie&quot;)) {
++					docprops += p.value;
+ 				}
+ 			}
++			final Regex rexCookieSession = new Regex(&quot;(?i)ASP.NET_SessionId=(.*?);.*&quot;);
++			rexCookieSession.search(docprops);
++			if (rexCookieSession.didMatch()) {
++				cookie = &quot;ASP.NET_SessionId=&quot; + rexCookieSession.stringMatched(1);
++			} else {
++				pref.log(&quot;[login]:SessionID not found.&quot;, null);
++				return 0;
++			}
++			final Regex rexCookieID = new Regex(&quot;(?i)userid=(.*?);.*&quot;);
++			rexCookieID.search(docprops);
++			if (rexCookieID.didMatch()) {
++				cookie += &quot;; userid=&quot; + rexCookieID.stringMatched(1);
++				// set the user id in user pref
++				pref.userID = rexCookieID.stringMatched(1);
++				pref.savePreferences();
++			} else {
++				pref.log(&quot;[login]:userID not found.&quot;, null);
++				return 0;
++			}
++			UrlFetcher.setPermanentRequestorProperty(&quot;Cookie&quot;, cookie);
++		} else {
++			pref.log(&quot;Login failed. Wrong Account or Password? &quot; + pref.myAlias, null);
++			return 2;
+ 		}
++		
++		if (!this.switchToEnglish())
++			return 0;
+ 
+-		//final boolean loginAborted = localInfB.isClosed;
+-		//localInfB.close(0);
+-		//if (loginAborted)
+-		//	return 0;
+-		//else {
+-			loggedIn = true;
+-			return 1;
+-		//}
++		loggedIn = true;
++		return 1;
+ 	}
+ 
+ 	private boolean switchToEnglish() {
+@@ -1780,7 +1768,7 @@
+ 
+ 	/**
+ 	 * check if new Update exists
+-	 * 
++	 *
+ 	 * @param ch
+ 	 *            CacheHolder
+ 	 * @param CacheDescription
+@@ -1865,7 +1853,7 @@
+ 
+ 	/**
+ 	 * Get num found
+-	 * 
++	 *
+ 	 * @param doc
+ 	 *            A previously fetched cachepage
+ 	 * @return numFound
+@@ -1985,7 +1973,7 @@
+ 
+ 	/**
+ 	 * Get the waypoint name
+-	 * 
++	 *
+ 	 * @param doc
+ 	 *            A previously fetched cachepage
+ 	 * @return Name of waypoint to add to list
+@@ -2210,9 +2198,9 @@
+ 
+ 	/*
+ 	 * @param CacheHolder ch
+-	 * 
++	 *
+ 	 * @param String cacheDescGC
+-	 * 
++	 *
+ 	 * @return boolean newLogExists
+ 	 */
+ 	private boolean newFoundExists(CacheHolder ch, String cacheDescription) {
+@@ -2254,9 +2242,9 @@
+ 	 * Read a complete cachepage from geocaching.com including all logs. This is used both when updating already
+ 	 * existing caches (via spiderSingle) and when spidering around a centre. It is also used when reading a GPX file
+ 	 * and fetching the images.
+-	 * 
++	 *
+ 	 * This is the workhorse function of the spider.
+-	 * 
++	 *
+ 	 * @param CacheHolderDetail
+ 	 *            chD The element wayPoint must be set to the name of a waypoint
+ 	 * @param boolean
+@@ -2462,7 +2450,7 @@
+ 
+ 	/**
+ 	 * Get the coordinates of the cache
+-	 * 
++	 *
+ 	 * @param doc
+ 	 *            A previously fetched cachepage
+ 	 * @return Cache coordinates
+@@ -2481,7 +2469,7 @@
+ 
+ 	/**
+ 	 * Get the long description
+-	 * 
++	 *
+ 	 * @param doc
+ 	 *            A previously fetched cachepage
+ 	 * @return the long description
+@@ -2516,7 +2504,7 @@
+ 
+ 	/**
+ 	 * Get the cache location (country and state)
+-	 * 
++	 *
+ 	 * @param doc
+ 	 *            A previously fetched cachepage
+ 	 * @return the location (country and state) of the cache
+@@ -2533,7 +2521,7 @@
+ 
+ 	/**
+ 	 * Get the cache name
+-	 * 
++	 *
+ 	 * @param doc
+ 	 *            A previously fetched cachepage
+ 	 * @return the name of the cache
+@@ -2550,7 +2538,7 @@
+ 
+ 	/**
+ 	 * Get the cache owner
+-	 * 
++	 *
+ 	 * @param doc
+ 	 *            A previously fetched cachepage
+ 	 * @return the cache owner
+@@ -2567,7 +2555,7 @@
+ 
+ 	/**
+ 	 * Get the date when the cache was hidden
+-	 * 
++	 *
+ 	 * @param doc
+ 	 *            A previously fetched cachepage
+ 	 * @return Hidden date
+@@ -2584,7 +2572,7 @@
+ 
+ 	/**
+ 	 * Get the hints
+-	 * 
++	 *
+ 	 * @param doc
+ 	 *            A previously fetched cachepage
+ 	 * @return Cachehints
+@@ -2601,7 +2589,7 @@
+ 
+ 	/**
+ 	 * Get the cache size
+-	 * 
++	 *
+ 	 * @param doc
+ 	 *            A previously fetched cachepage
+ 	 * @return Cache size
+@@ -2619,7 +2607,7 @@
+ 
+ 	/**
+ 	 * Get the Difficulty
+-	 * 
++	 *
+ 	 * @param doc
+ 	 *            A previously fetched cachepage
+ 	 * @return The cache difficulty
+@@ -2637,7 +2625,7 @@
+ 
+ 	/**
+ 	 * Get the terrain rating
+-	 * 
++	 *
+ 	 * @param doc
+ 	 *            A previously fetched cachepage
+ 	 * @return Terrain rating
+@@ -2655,7 +2643,7 @@
+ 
+ 	/**
+ 	 * Get the waypoint type
+-	 * 
++	 *
+ 	 * @param doc
+ 	 *            A previously fetched cachepage
+ 	 * @return the waypoint type (Tradi, Multi, etc.)
+@@ -2672,7 +2660,7 @@
+ 
+ 	/**
+ 	 * Get the logs
+-	 * 
++	 *
+ 	 * @param doc
+ 	 *            A previously fetched cachepage
+ 	 * @param chD
+@@ -2739,7 +2727,7 @@
+ 
+ 	/**
+ 	 * This methods cleans up the path for inlined smilies in logtexts.
+-	 * 
++	 *
+ 	 * @param logText
+ 	 * @return
+ 	 */
+@@ -2757,7 +2745,7 @@
+ 	/**
+ 	 * Read the travelbug names from a previously fetched Cache page and then read the travelbug purpose for each
+ 	 * travelbug
+-	 * 
++	 *
+ 	 * @param doc
+ 	 *            The previously fetched cachepage
+ 	 * @return A HTML formatted string with bug names and there purpose
+@@ -2815,7 +2803,7 @@
+ 	/**
+ 	 * Get the images for a previously fetched cache page. Images are extracted from two areas: The long description and
+ 	 * the pictures section (including the spoiler)
+-	 * 
++	 *
+ 	 * @param doc
+ 	 *            The previously fetched cachepage
+ 	 * @param chD
+@@ -3002,7 +2990,7 @@
+ 
+ 	/**
+ 	 * Read an image from the server
+-	 * 
++	 *
+ 	 * @param imgUrl
+ 	 *            The Url of the image
+ 	 * @param target
+@@ -3024,7 +3012,7 @@
+ 
+ 	/**
+ 	 * Read all additional waypoints from a previously fetched cachepage.
+-	 * 
++	 *
+ 	 * @param doc
+ 	 *            The previously fetched cachepage
+ 	 * @param wayPoint
+@@ -3159,7 +3147,7 @@
+ 	 * Load the bug id for a given name. This method is not ideal, as there are sometimes several bugs with identical
+ 	 * names but different IDs. Normally the bug GUID is used which can be obtained from the cache page.&lt;br&gt;
+ 	 * Note that each bug has both an ID and a GUID.
+-	 * 
++	 *
+ 	 * @param name
+ 	 *            The name (or partial name) of a travelbug
+ 	 * @return the id of the bug
+@@ -3195,7 +3183,7 @@
+ 	/**
+ 	 * Fetch a bug's mission for a given GUID or ID. If the guid String is longer than 10 characters it is assumed to be
+ 	 * a GUID, otherwise it is an ID.
+-	 * 
++	 *
+ 	 * @param guid
+ 	 *            the guid or id of the travelbug
+ 	 * @return The mission
+@@ -3228,7 +3216,7 @@
+ 
+ 	/**
+ 	 * Fetch a bug's mission for a given tracking number
+-	 * 
++	 *
+ 	 * @param trackNr
+ 	 *            the tracking number of the travelbug
+ 	 * @return The mission
+@@ -3260,7 +3248,7 @@
+ 
+ 	/**
+ 	 * Fetch a bug's mission and namefor a given tracking number
+-	 * 
++	 *
+ 	 * @param TB
+ 	 *            the travelbug
+ 	 * @return true if suceeded
+@@ -3307,7 +3295,7 @@
+ 
+ 		/**
+ 		 * Gets an entry in spider.def by its key (tag)
+-		 * 
++		 *
+ 		 * @param key
+ 		 *            The key which is attributed to a specific entry
+ 		 * @return The value for the key
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003069.html">[Cachewolf-svn] r3078 - trunk/src/CacheWolf/view/pda
+</A></li>
+	<LI>Next message: <A HREF="003068.html">[Cachewolf-svn] r3077 - trunk/src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3070">[ date ]</a>
+              <a href="thread.html#3070">[ thread ]</a>
+              <a href="subject.html#3070">[ subject ]</a>
+              <a href="author.html#3070">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

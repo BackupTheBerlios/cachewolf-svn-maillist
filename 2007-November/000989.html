@@ -1,0 +1,214 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1096 - in trunk/src/CacheWolf: . navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-November/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1096%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C200711251048.lAPAmio7002595%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000988.html">
+   <LINK REL="Next"  HREF="000990.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1096 - in trunk/src/CacheWolf: . navi</H1>
+    <B>kalli at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1096%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C200711251048.lAPAmio7002595%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1096 - in trunk/src/CacheWolf: . navi">kalli at mail.berlios.de
+       </A><BR>
+    <I>Sun Nov 25 11:48:44 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000988.html">[Cachewolf-svn] r1095 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000990.html">[Cachewolf-svn] r1097 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#989">[ date ]</a>
+              <a href="thread.html#989">[ thread ]</a>
+              <a href="subject.html#989">[ subject ]</a>
+              <a href="author.html#989">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: kalli
+Date: 2007-11-25 11:48:37 +0100 (Sun, 25 Nov 2007)
+New Revision: 1096
+
+Modified:
+   trunk/src/CacheWolf/GPSPortOptions.java
+   trunk/src/CacheWolf/Preferences.java
+   trunk/src/CacheWolf/PreferencesScreen.java
+   trunk/src/CacheWolf/navi/CWGPSPoint.java
+   trunk/src/CacheWolf/navi/GotoPanel.java
+Log:
+Logging of GPS data: Enable/disable and timer in GPS preference screen, only logging of valid NMEA sentences.
+
+Modified: trunk/src/CacheWolf/GPSPortOptions.java
+===================================================================
+--- trunk/src/CacheWolf/GPSPortOptions.java	2007-11-25 03:07:18 UTC (rev 1095)
++++ trunk/src/CacheWolf/GPSPortOptions.java	2007-11-25 10:48:37 UTC (rev 1096)
+@@ -81,6 +81,9 @@
+ 	public mInput inputBoxForwardHost;
+ 	mLabel  labelForwardHost;
+ 	public mCheckBox forwardGpsChkB;
++	public mInput inputBoxLogTimer;
++	mLabel  labelLogTimer;
++	public mCheckBox logGpsChkB;
+ 	mySerialThread serThread;
+ 	boolean gpsRunning = false;
+ 
+@@ -104,6 +107,15 @@
+ 		inputBoxForwardHost.setText(&quot;192.168.178.23&quot;);
+ 		inputBoxForwardHost.setToolTip(&quot;All data from GPS will be sent to TCP-port 23\n and can be redirected there to a serial port\n by HW Virtual Serial Port&quot;);
+ 		ed.addField(ed.addLast(inputBoxForwardHost,0 , (Editor.WEST | Editor.HFILL)), &quot;tcpForwardHost&quot;);
++		logGpsChkB = new mCheckBox(&quot;z&quot;);
++		ed.addField(ed.addNext(logGpsChkB, Editor.DONTSTRETCH, (Editor.WEST | Editor.DONTFILL)), &quot;logGpsChkB&quot;);
++		labelLogTimer = new mLabel(&quot;Interval in sec for logging&quot;);
++		ed.addField(ed.addNext(labelLogTimer, Editor.DONTSTRETCH, (Editor.WEST | Editor.DONTFILL)), &quot;labelLogTimer&quot;);
++		inputBoxLogTimer = new mInput(&quot;GPSLogTimer&quot;);
++		inputBoxLogTimer.setPromptControl(labelLogTimer);
++		inputBoxLogTimer.setText(&quot;10&quot;);
++		ed.addField(ed.addLast(inputBoxLogTimer,0 , (Editor.WEST | Editor.HFILL)), &quot;GPSLogTimer&quot;);
++
+ 		
+ 		gpsRunning = false;
+ 		return ed;
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2007-11-25 03:07:18 UTC (rev 1095)
++++ trunk/src/CacheWolf/Preferences.java	2007-11-25 10:48:37 UTC (rev 1096)
+@@ -83,6 +83,10 @@
+ 	public boolean forwardGPS = false;
+ 	/** IP address for forwarding GPS data */
+ 	public String forwardGpsHost = &quot;&quot;;
++	/** True if the GPS data should be logged to a file */
++	public boolean logGPS = false;
++	/** Timer for logging GPS data */
++	public String logGPSTimer = &quot;&quot;;
+ 	/** The default font size */
+ 	public int fontSize = 12;
+ 	// These settings govern where the menu and the tabs are displayed and whether the statusbas is shown
+@@ -219,6 +223,10 @@
+ 			forwardGPS = Convert.toBoolean(atts.getValue(&quot;active&quot;));
+ 			forwardGpsHost = atts.getValue(&quot;destinationHost&quot;);
+ 		}
++		if(name.equals(&quot;portlog&quot;)) {
++			logGPS = Convert.toBoolean(atts.getValue(&quot;active&quot;));
++			logGPSTimer = atts.getValue(&quot;logTimer&quot;);
++		}
+ 		if (name.equals(&quot;lastprofile&quot;)) {
+ 			collectElement=new StringBuffer(50);
+ 			if (atts.getValue(&quot;autoreload&quot;).equals(&quot;true&quot;)) autoReloadLastProfile=true;
+@@ -334,6 +342,7 @@
+ 			outp.print(&quot;	&lt;proxy prx = \&quot;&quot;+ myproxy+&quot;\&quot; prt = \&quot;&quot;+ myproxyport + &quot;\&quot; active = \&quot;&quot;+ proxyActive +&quot;\&quot; /&gt;\n&quot;);
+ 			outp.print(&quot;	&lt;port portname = \&quot;&quot;+ mySPO.portName +&quot;\&quot; baud = \&quot;&quot;+ mySPO.baudRate+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;	&lt;portforward active= \&quot;&quot;+ Convert.toString(forwardGPS)+&quot;\&quot; destinationHost = \&quot;&quot;+ forwardGpsHost+&quot;\&quot;/&gt;\n&quot;);
++			outp.print(&quot;	&lt;portlog active= \&quot;&quot;+ Convert.toString(logGPS)+&quot;\&quot; logTimer = \&quot;&quot;+ logGPSTimer +&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;font size =\&quot;&quot;+fontSize+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;screen menuattop=\&quot;&quot;+menuAtTop+&quot;\&quot; tabsattop=\&quot;&quot;+tabsAtTop+&quot;\&quot; showstatus=\&quot;&quot;+showStatus+&quot;\&quot; hasclosebutton=\&quot;&quot;+hasCloseButton+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;fixedsip state = \&quot;&quot;+fixSIP+&quot;\&quot;/&gt;\n&quot;);
+
+Modified: trunk/src/CacheWolf/PreferencesScreen.java
+===================================================================
+--- trunk/src/CacheWolf/PreferencesScreen.java	2007-11-25 03:07:18 UTC (rev 1095)
++++ trunk/src/CacheWolf/PreferencesScreen.java	2007-11-25 10:48:37 UTC (rev 1096)
+@@ -272,14 +272,17 @@
+ 				Editor s = spo.getEditor(SerialPortOptions.ADVANCED_EDITOR);
+ 				spo.forwardGpsChkB.setState(pref.forwardGPS);
+ 				spo.inputBoxForwardHost.setText(pref.forwardGpsHost);
++				spo.logGpsChkB.setState(pref.logGPS);
++				spo.inputBoxLogTimer.setText(pref.logGPSTimer);
+ 				Gui.setOKCancel(s);
+ 				if (s.execute()== Editor.IDOK) {
+ 					pref.mySPO.portName = spo.portName; 
+ 					pref.mySPO.baudRate = spo.baudRate;
+ 					pref.forwardGPS = spo.forwardGpsChkB.getState();
+ 					pref.forwardGpsHost = spo.inputBoxForwardHost.getText();
++					pref.logGPS = spo.logGpsChkB.getState();
++					pref.logGPSTimer = spo.inputBoxLogTimer.getText();
+ 					inpGPS.setText(pref.mySPO.portName+&quot;/&quot;+pref.mySPO.baudRate);
+-
+ 				}
+ 			}
+ 			// change destination waypoint
+
+Modified: trunk/src/CacheWolf/navi/CWGPSPoint.java
+===================================================================
+--- trunk/src/CacheWolf/navi/CWGPSPoint.java	2007-11-25 03:07:18 UTC (rev 1095)
++++ trunk/src/CacheWolf/navi/CWGPSPoint.java	2007-11-25 10:48:37 UTC (rev 1096)
+@@ -182,13 +182,13 @@
+ 			end = 0;
+ 			lastStrExamined = NMEA;
+ 			//Vm.debug(NMEA);
+-			if (writeLog &amp;&amp; (logFlag &amp; LOGRAW) &gt; 0){ 
++/*			if (writeLog &amp;&amp; (logFlag &amp; LOGRAW) &gt; 0){ 
+ 				try {
+ 					logFile.write(NMEA);
+ 					writeLog = false;
+ 				} catch (IOException e) {}
+ 			}
+-			while(true){
++*/			while(true){
+ 				start = NMEA.indexOf(&quot;$GP&quot;, end);  
+ 				if (start == -1) return interpreted;  
+ 				end = NMEA.indexOf(&quot;*&quot;, start);  
+@@ -200,6 +200,14 @@
+ 					//Vm.debug(&quot;checksum wrong&quot;);
+ 					continue;
+ 				}
++				// Write log after finding valid NMEA sequence 
++				if (writeLog &amp;&amp; (logFlag &amp; LOGRAW) &gt; 0){ 
++					try {
++						logFile.write(NMEA.substring(start,end+3)+&quot;\n&quot;);
++						writeLog = false;
++					} catch (IOException e) {}
++				}
++
+ 				Extractor ex = new Extractor (&quot;,&quot; + NMEA.substring(start,end), &quot;,&quot;,&quot;,&quot;,0,true);
+ 				currToken = ex.findNext();
+ 				if (currToken.equals(&quot;$GPGGA&quot;)){
+
+Modified: trunk/src/CacheWolf/navi/GotoPanel.java
+===================================================================
+--- trunk/src/CacheWolf/navi/GotoPanel.java	2007-11-25 03:07:18 UTC (rev 1095)
++++ trunk/src/CacheWolf/navi/GotoPanel.java	2007-11-25 10:48:37 UTC (rev 1096)
+@@ -275,7 +275,7 @@
+ 	}
+ 	
+ 	public void startGps() {
+-		myNavigation.setRawLogging(chkLog.getState(), Convert.toInt(inpLogSeconds.getText()));
++		myNavigation.setRawLogging(pref.logGPS, Convert.toInt(pref.logGPSTimer));
+ 		myNavigation.startGps();
+ 	}
+ 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000988.html">[Cachewolf-svn] r1095 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000990.html">[Cachewolf-svn] r1097 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#989">[ date ]</a>
+              <a href="thread.html#989">[ thread ]</a>
+              <a href="subject.html#989">[ subject ]</a>
+              <a href="author.html#989">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

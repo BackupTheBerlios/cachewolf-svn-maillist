@@ -1,0 +1,461 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2034 - trunk/src/exp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-July/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2034%20-%20trunk/src/exp&In-Reply-To=%3C200907171704.n6HH4vDF013251%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001952.html">
+   <LINK REL="Next"  HREF="001954.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2034 - trunk/src/exp</H1>
+    <B>greiol at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2034%20-%20trunk/src/exp&In-Reply-To=%3C200907171704.n6HH4vDF013251%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2034 - trunk/src/exp">greiol at mail.berlios.de
+       </A><BR>
+    <I>Fri Jul 17 19:04:57 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001952.html">[Cachewolf-svn] r2033 - in trunk: . res_noewe res_noewe/exporticons	src/exp
+</A></li>
+        <LI>Next message: <A HREF="001954.html">[Cachewolf-svn] r2035 - in trunk/src/CacheWolf: . imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1953">[ date ]</a>
+              <a href="thread.html#1953">[ thread ]</a>
+              <a href="subject.html#1953">[ subject ]</a>
+              <a href="author.html#1953">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: greiol
+Date: 2009-07-17 19:04:50 +0200 (Fri, 17 Jul 2009)
+New Revision: 2034
+
+Modified:
+   trunk/src/exp/GpxExportNg.java
+Log:
+speed up exoort
+
+Modified: trunk/src/exp/GpxExportNg.java
+===================================================================
+--- trunk/src/exp/GpxExportNg.java	2009-07-16 20:32:14 UTC (rev 2033)
++++ trunk/src/exp/GpxExportNg.java	2009-07-17 17:04:50 UTC (rev 2034)
+@@ -32,6 +32,7 @@
+ import ewe.sys.Date;
+ import ewe.sys.Handle;
+ import ewe.sys.Process;
++import ewe.sys.Time;
+ import ewe.sys.Vm;
+ import ewe.ui.ControlConstants;
+ import ewe.ui.ControlEvent;
+@@ -68,9 +69,9 @@
+ 	/** export uses only waypoint id */
+ 	final static int WPNAME_ID_CLASSIC = 0;
+ 	/** export uses waypointid + type, terrain, difficulty, size */
+-	final static int WPNAME_ID_SMART = 2;
++	final static int WPNAME_ID_SMART = 1;
+ 	/** export uses cache names (will be made unique by gpsbabel) */
+-	final static int WPNAME_NAME_SMART = 3;
++	final static int WPNAME_NAME_SMART = 2;
+ 	/** write single GPX file */
+ 	final static int OUTPUT_SINGLE = 0;
+ 	/** write one file per &quot;type&quot; as determined by garminmap.xml */
+@@ -106,30 +107,6 @@
+ 	// .concat(&quot;&lt;bounds minlat=\&quot;50.91695\&quot; minlon=\&quot;6.876383\&quot; maxlat=\&quot;50.935183\&quot; maxlon=\&quot;6.918817\&quot; /&gt;&quot;)
+ 	;
+ 
+-	final static String GPXCOMPACT = &quot;\t&lt;wpt lat=\&quot;@@WPLAT@@\&quot; lon=\&quot;@@WPLON@@\&quot;&gt;\n&quot;
+-			.concat(&quot;\t\t&lt;time&gt;@@CACHETIME@@T00:00:00&lt;/time&gt;\n&quot;)
+-			.concat(&quot;\t\t&lt;name&gt;@@WPNAME@@&lt;/name&gt;\n&quot;)
+-			.concat(&quot;\t\t&lt;cmt&gt;@@WPCMT@@&lt;/cmt&gt;\n&quot;)
+-			.concat(&quot;\t\t&lt;desc&gt;@@WPDESC@@&lt;/desc&gt;\n&quot;)
+-			.concat(&quot;\t\t&lt;url&gt;@@WPURL@@&lt;/url&gt;\n&quot;)
+-			.concat(&quot;\t\t&lt;urlname&gt;@@WPURLNAME@@&lt;/urlname&gt;\n&quot;)
+-			.concat(&quot;\t\t&lt;sym&gt;@@WPSYMBOL@@&lt;/sym&gt;\n&quot;)
+-			.concat(&quot;\t\t&lt;type&gt;@@WPTYPE@@&lt;/type&gt;\n&quot;);
+-
+-	final static String GPXEXTENSION = &quot;\t\t&lt;groundspeak:cache id=\&quot;@@CACHEID@@\&quot; available=\&quot;@@CACHEAVAILABLE@@\&quot; archived=\&quot;@@CACHEARCHIVED\&quot; xmlns:groundspeak=\&quot;<A HREF="http://www.groundspeak.com/cache/1/0\">http://www.groundspeak.com/cache/1/0\</A>&quot;&gt;\n&quot;
+-			.concat(&quot;\t\t\t&lt;groundspeak:name&gt;@@CACHENAME@@&lt;/groundspeak:name&gt;\n&quot;)
+-			.concat(&quot;\t\t\t&lt;groundspeak:placed_by&gt;@@CACHEPLACEDBY@@&lt;/groundspeak:placed_by&gt;\n&quot;)
+-			.concat(&quot;\t\t\t&lt;groundspeak:owner id=\&quot;@@CACHEOWNERID@@\&quot;&gt;@@CACHEOWNER@@&lt;/groundspeak:owner&gt;\n&quot;)
+-			.concat(&quot;\t\t\t&lt;groundspeak:type&gt;@@CACHETYPE@@&lt;/groundspeak:type&gt;\n&quot;)
+-			.concat(&quot;\t\t\t&lt;groundspeak:container&gt;@@CACHECONTAINER@@&lt;/groundspeak:container&gt;\n&quot;)
+-			.concat(&quot;\t\t\t&lt;groundspeak:difficulty&gt;@@CACHEDIFFICULTY@@&lt;/groundspeak:difficulty&gt;\n&quot;)
+-			.concat(&quot;\t\t\t&lt;groundspeak:terrain&gt;@@CACHETERRAIN@@&lt;/groundspeak:terrain&gt;\n&quot;)
+-			.concat(&quot;\t\t\t&lt;groundspeak:country&gt;@@CACHECOUNTRY@@&lt;/groundspeak:country&gt;\n&quot;)
+-			.concat(&quot;\t\t\t&lt;groundspeak:state&gt;@@CACHESTATE@@&lt;/groundspeak:state&gt;\n&quot;)
+-			.concat(&quot;\t\t\t&lt;groundspeak:short_description html=\&quot;@@CACHEHTML@@\&quot;&gt;@@CACHESHORTDESCRIPTION@@&lt;/groundspeak:short_description&gt;\n&quot;)
+-			.concat(&quot;\t\t\t&lt;groundspeak:long_description html=\&quot;@@CACHEHTML@@\&quot;&gt;@@CACHELONGDESCRIPTION@@&lt;/groundspeak:long_description&gt;\n&quot;)
+-			.concat(&quot;\t\t\t&lt;groundspeak:encoded_hints&gt;@@CACHEHINT@@&lt;/groundspeak:encoded_hints&gt;\n&quot;);
+-
+ 	final static String GPXLOG = &quot;\t\t\t\t&lt;groundspeak:log id=\&quot;@@LOGID@@\&quot;&gt;\n&quot;
+ 			.concat(&quot;\t\t\t\t\t&lt;groundspeak:date&gt;@@LOGDATE@@T00:00:00&lt;/groundspeak:date&gt;\n&quot;)
+ 			.concat(&quot;\t\t\t\t\t&lt;groundspeak:type&gt;@@LOGTYPE@@&lt;/groundspeak:type&gt;\n&quot;)
+@@ -189,7 +166,7 @@
+ 		exportTarget = exportOptions.getOutputTarget();
+ 		sendToGarmin = exportOptions.getSendToGarmin();
+ 		customIcons = exportOptions.getCustomIcons();
+-
++		
+ 		if (exportTarget == OUTPUT_SEPARATE || exportTarget == OUTPUT_POI) {
+ 			final Hashtable fileHandles = new Hashtable();
+ 			final String outDir;
+@@ -305,11 +282,15 @@
+ 				}
+ 
+ 				if (exportTarget == OUTPUT_POI) {
+-					String tmp[] = new FileBugfix(outDir).list(
+-							prefix + &quot;*.gpi&quot;, ewe.io.FileBase.LIST_FILES_ONLY);
+-					for (int i = 0; i &lt; tmp.length; i++) {
+-						FileBugfix tmpFile = new FileBugfix(outDir + FileBase.separator + tmp[i]);
+-						tmpFile.delete();
++					// only clean up output directory if user has chosen non empty prefix, 
++					// since otherwise all present POI would be deleted 
++					if (! prefix.equals(&quot;&quot;)) {
++						String tmp[] = new FileBugfix(outDir).list(
++								prefix + &quot;*.gpi&quot;, ewe.io.FileBase.LIST_FILES_ONLY);
++						for (int i = 0; i &lt; tmp.length; i++) {
++							FileBugfix tmpFile = new FileBugfix(outDir + FileBase.separator + tmp[i]);
++							tmpFile.delete();
++						}
+ 					}
+ 					pbf.exit(0);
+ 					poiCategories=fileHandles.size();
+@@ -404,7 +385,9 @@
+ 					Global.getPref().dirty = true;
+ 				}
+ 			}
++
+ 			final File file;
++			
+ 			if (!sendToGarmin) {
+ 				final FileChooser fc = new FileChooser(FileChooserBase.SAVE,
+ 						Global.getPref().getExportPath(expName + &quot;-GPX&quot;));
+@@ -421,6 +404,7 @@
+ 			} else {
+ 				file = new File(&quot;&quot;).createTempFile(&quot;gpxexport&quot;, null, null);
+ 			}
++
+ 			try {
+ 				ProgressBarForm pbf = new ProgressBarForm();
+ 				Handle h = new Handle();
+@@ -434,6 +418,8 @@
+ 				pbf.setTask(h, &quot;Exporting ...&quot;);
+ 				pbf.exec();
+ 
++				if (Global.getPref().debug) Vm.debug(&quot;start: &quot;+new Time().getTime());
++
+ 				for (int i = 0; i &lt; Global.getProfile().cacheDB.size(); i++) {
+ 					CacheHolder ch = Global.getProfile().cacheDB.get(i);
+ 					if (!ch.isVisible()) {
+@@ -449,6 +435,8 @@
+ 					h.changed();
+ 				}
+ 
++				if (Global.getPref().debug) Vm.debug(&quot;stop: &quot;+new Time().getTime());
++
+ 				pbf.exit(0);
+ 
+ 				outp.print(&quot;&lt;/gpx&gt;\n&quot;);
+@@ -520,6 +508,7 @@
+ 			return &quot;&quot;;
+ 
+ 		StringBuffer ret = new StringBuffer();
++		ch.getFreshDetails();
+ 
+ 		try {
+ 			ret.append(formatCompact(ch));
+@@ -528,7 +517,7 @@
+ 				ret.append(formatPqExtensions(ch));
+ 			}
+ 
+-			ret.append(&quot;\t&lt;/wpt&gt;\n&quot;);
++			ret.append(&quot;  &lt;/wpt&gt;\n&quot;);
+ 		} catch (IllegalArgumentException e) {
+ 			exportErrors++;
+ 			ch.setIncomplete(true);
+@@ -549,113 +538,104 @@
+ 	 * @return
+ 	 */
+ 	private String formatCompact(CacheHolder ch) {
+-
+-		Transformer trans = new Transformer(true);
+-
+-		trans.add(new Regex(&quot;@@WPLAT@@&quot;, String.valueOf(ch.pos.latDec).replace(',', '.')));
+-
+-		trans.add(new Regex(&quot;@@WPLON@@&quot;, String.valueOf(ch.pos.lonDec).replace(',', '.')));
+-
+-		if (ch.isAddiWpt()) {
+-			try {
+-				trans.add(new Regex(&quot;@@CACHETIME@@&quot;, ch.mainCache.getDateHidden()));
+-			} catch (Exception e) {
+-				Global.getPref().log(ch.getWayPoint() + &quot; has no parent&quot;);
+-				trans.add(new Regex(&quot;@@CACHETIME@@&quot;, &quot;1970-01-01&quot;));
++		
++		StringBuffer ret = new StringBuffer();
++		
++//			.concat(&quot;\t\t&lt;desc&gt;@@WPDESC@@&lt;/desc&gt;\n&quot;)
++		
++		ret.append(&quot;  &lt;wp lat=\&quot;&quot;+String.valueOf(ch.pos.latDec).replace(',', '.')+&quot;\&quot; lon=\&quot;&quot;+String.valueOf(ch.pos.lonDec).replace(',', '.')+&quot;\&quot;&gt;\n&quot;);
++		
++		if (exportStyle != STYLE_GPX_COMPACT) {
++			if (ch.isAddiWpt()) {
++				try {
++					ret.append(&quot;    &lt;time&gt;&quot;+ch.mainCache.getDateHidden()+&quot;T00:00:00&lt;/time&gt;\n&quot;);
++				} catch (Exception e) {
++					Global.getPref().log(ch.getWayPoint() + &quot; has no parent&quot;);
++					exportErrors++;
++					ret.append(&quot;    &lt;time&gt;1970-01-01T00:00:00&lt;/time&gt;\n&quot;);
++				}
++			} else if (ch.getType() == CacheType.CW_TYPE_CUSTOM) {
++				ret.append(&quot;    &lt;time&gt;1970-01-01T00:00:00&lt;/time&gt;\n&quot;);
++			} else {
++				ret.append(&quot;    &lt;time&gt;&quot;+ch.getDateHidden()+&quot;T00:00:00&lt;/time&gt;\n&quot;);
+ 			}
+-		} else if (ch.getType() == CacheType.CW_TYPE_CUSTOM) {
+-			trans.add(new Regex(&quot;@@CACHETIME@@&quot;, &quot;1970-01-01&quot;));
+-		} else {
+-			trans.add(new Regex(&quot;@@CACHETIME@@&quot;, ch.getDateHidden()));
+ 		}
+-
+-		if (exportIds == WPNAME_ID_SMART &amp;&amp; ch.getType() != CacheType.CW_TYPE_CUSTOM) {
++		
++		if (exportIds == WPNAME_ID_SMART) {
+ 			if (ch.isAddiWpt()) {
+-				trans.add(new Regex(&quot;@@WPNAME@@&quot;, SafeXML.cleanGPX(
+-						ch.mainCache.getWayPoint().concat(&quot; &quot;).concat(ch.getWayPoint().substring(0, 2)))));
++				ret.append(&quot;    &lt;name&gt;&quot;.concat(SafeXML.cleanGPX(ch.mainCache.getWayPoint().concat(&quot; &quot;).concat(ch.getWayPoint().substring(0, 2)))).concat(&quot;&lt;/name&gt;\n&quot;));
++			} else if (ch.getType() == CacheType.CW_TYPE_CUSTOM) {
++				ret.append(&quot;    &lt;name&gt;&quot;.concat(SafeXML.cleanGPX(ch.getWayPoint())).concat(&quot;&lt;/name&gt;\n&quot;));
+ 			} else {
+-				trans.add(new Regex(&quot;@@WPNAME@@&quot;, SafeXML.cleanGPX(
+-						ch.getWayPoint()
++				ret.append(&quot;    &lt;name&gt;&quot;.concat(SafeXML.cleanGPX(ch.getWayPoint())
+ 						.concat(&quot; &quot;)
+ 						.concat(CacheType.getExportShortId(ch.getType()))
+ 						.concat(String.valueOf(ch.getHard()))
+ 						.concat(String.valueOf(ch.getTerrain()))
+-						.concat(CacheSize.getExportShortId(ch.getCacheSize())))));
++						.concat(CacheSize.getExportShortId(ch.getCacheSize())))
++						.concat(String.valueOf(ch.getNoFindLogs()))
++						.concat(&quot;&lt;/name&gt;\n&quot;));
+ 			}
++		} else if (exportIds == WPNAME_NAME_SMART) {
++			// TBD
+ 		} else {
+-			trans.add(new Regex(&quot;@@WPNAME@@&quot;, ch.getWayPoint()));
++			ret.append(&quot;    &lt;name&gt;&quot;.concat(SafeXML.cleanGPX(ch.getWayPoint())).concat(&quot;&lt;/name&gt;\n&quot;));
+ 		}
+-
+-		if (ch.getType() == CacheType.CW_TYPE_CUSTOM) {
+-			trans.add(new Regex(&quot;@@WPCMT@@&quot;, SafeXML.cleanGPX(ch.getFreshDetails().LongDescription)));
+-		} else {
++		
++		// no &lt;cmt&gt; for custom
++		if (ch.getType() != CacheType.CW_TYPE_CUSTOM) {
+ 			if (exportIds == WPNAME_ID_SMART &amp;&amp; exportStyle == STYLE_GPX_COMPACT) {
+ 				if (ch.isAddiWpt()) {
+-					trans.add(new Regex(&quot;@@WPCMT@@&quot;, SafeXML.cleanGPX(ch.getCacheName() + &quot; &quot; + ch.getFreshDetails().LongDescription)));
++					ret.append(&quot;    &lt;cmt&gt;&quot;.concat(SafeXML.cleanGPX(ch.getCacheName() + &quot; &quot; + ch.getFreshDetails().LongDescription)).concat(&quot;&lt;/cmt&gt;\n&quot;));
+ 				} else {
+-					trans.add(new Regex(&quot;@@WPCMT@@&quot;, SafeXML.cleanGPX(ch.getCacheName() + &quot; &quot; + &quot;(&quot;+ch.getNoFindLogs()+&quot;)&quot; + &quot; &quot; + Common.rot13(ch.getFreshDetails().Hints))));
++					ret.append(&quot;    &lt;cmt&gt;&quot;.concat(SafeXML.cleanGPX(ch.getCacheName() + &quot; &quot; + Common.rot13(ch.getFreshDetails().Hints))).concat(&quot;&lt;/cmt&gt;\n&quot;));
+ 				}
++			} else if (exportIds == WPNAME_NAME_SMART) {
++				// TBD
+ 			} else {
+ 				if (ch.isAddiWpt()) {
+-					trans.add(new Regex(&quot;@@WPCMT@@&quot;, SafeXML.cleanGPX(ch.getFreshDetails().LongDescription)));
+-				} else {
+-					trans.add(new Regex(&quot;\t\t&lt;cmt&gt;@@WPCMT@@&lt;/cmt&gt;\n&quot;, &quot;&quot;));
+-				}
++					ret.append(&quot;    &lt;cmt&gt;&quot;.concat(SafeXML.cleanGPX(ch.getFreshDetails().LongDescription)).concat(&quot;&lt;/cmt&gt;\n&quot;));
++				} // caches have no &lt;cmt&gt; in gc.com PQs
+ 			}
+ 		}
+ 
+-		if (ch.isAddiWpt()) {
+-			trans.add(new Regex(&quot;@@WPDESC@@&quot;, SafeXML.cleanGPX(ch.getCacheName())));
++		if (ch.isAddiWpt() || ch.getType() == CacheType.CW_TYPE_CUSTOM) {
++			ret.append(&quot;    &lt;desc&gt;&quot;.concat(SafeXML.cleanGPX(ch.getCacheName())).concat(&quot;&lt;/desc&gt;\n&quot;));
+ 		} else {
+-			trans.add(new Regex(&quot;@@WPDESC@@&quot;, SafeXML.cleanGPX(
+-					ch.getCacheName().concat(&quot; by &quot;)
+-					.concat(ch.getCacheOwner())
+-					.concat(&quot;, &quot;)
++			ret.append(&quot;    &lt;desc&gt;&quot;.concat(SafeXML.cleanGPX(ch.getCacheName().concat(&quot; by &quot;).concat(ch.getCacheOwner()).concat(&quot;, &quot;)
+ 					.concat(CacheType.cw2ExportString(ch.getType()))
+-					.concat(&quot; (&quot;)
+-					.concat(CacheTerrDiff.shortDT(ch.getHard()))
+-					.concat(&quot;/&quot;)
+-					.concat(CacheTerrDiff.shortDT(ch.getTerrain()))
+-					.concat(&quot;)&quot;))));
++					.concat(&quot; (&quot;).concat(CacheTerrDiff.shortDT(ch.getHard()))
++					.concat(&quot;/&quot;).concat(CacheTerrDiff.shortDT(ch.getTerrain())).concat(&quot;)&quot;)))
++					.concat(&quot;&lt;/desc&gt;\n&quot;));
+ 		}
+ 
+-		if (ch.getType() == CacheType.CW_TYPE_CUSTOM) {
+-			trans.add(new Regex(&quot;@@WPURL@@&quot;, &quot;&quot;));
+-		} else {
+-			if (ch.isAddiWpt()) {
+-				// TODO: find out URL schema for additional waypoints
+-				// TODO: check for OC caches
+-				trans.add(new Regex(&quot;@@WPURL@@&quot;,&quot;<A HREF="http://www.geocaching.com/seek/wpt.aspx?wp=">http://www.geocaching.com/seek/wpt.aspx?wp=</A>&quot;.concat(ch.getWayPoint())));
+-			} else {
+-				// TODO: check for OC caches
+-				trans.add(new Regex(&quot;@@WPURL@@&quot;,&quot;<A HREF="http://www.geocaching.com/seek/cache_details.aspx?wp=">http://www.geocaching.com/seek/cache_details.aspx?wp=</A>&quot;.concat(ch.getWayPoint())));
++		if (exportStyle != STYLE_GPX_COMPACT) {
++			if (ch.getType() != CacheType.CW_TYPE_CUSTOM) {
++				ret.append(&quot;    &lt;url&gt;&quot;.concat(ch.details.URL).concat(&quot;&lt;/url&gt;\n&quot;));
++				ret.append(&quot;    &lt;urlname&gt;&quot;.concat(SafeXML.cleanGPX(ch.getCacheName())).concat(&quot;&lt;/urlname&gt;\n&quot;));
+ 			}
+ 		}
+ 
+-		if (ch.getType() == CacheType.CW_TYPE_CUSTOM) {
+-			trans.add(new Regex(&quot;@@WPURLNAME@@&quot;, &quot;&quot;));
+-		} else {
+-			trans.add(new Regex(&quot;@@WPURLNAME@@&quot;, SafeXML.cleanGPX(ch.getCacheName())));
+-		}
+-
+ 		if (customIcons) {
+-			trans.add(new Regex(&quot;@@WPSYMBOL@@&quot;, poiMapper.getIcon(ch)));
++			ret.append(&quot;    &lt;sym&gt;&quot;.concat(poiMapper.getIcon(ch)).concat(&quot;&lt;/sym&gt;\n&quot;));
+ 		} else {
+ 			if (ch.isAddiWpt()) {
+-				trans.add(new Regex(&quot;@@WPSYMBOL@@&quot;, CacheType.id2GpxString(ch.getType())
+-						.substring(CacheType.id2GpxString(ch.getType()).indexOf(&quot;|&quot;) + 1)));
++				ret.append(&quot;    &lt;sym&gt;&quot;.concat(CacheType.id2GpxString(ch.getType())
++						.substring(CacheType.id2GpxString(ch.getType()).indexOf(&quot;|&quot;) + 1)).concat(&quot;&lt;/sym&gt;\n&quot;));
+ 			} else if (ch.getType() == CacheType.CW_TYPE_CUSTOM) {
+-				trans.add(new Regex(&quot;@@WPSYMBOL@@&quot;, &quot;Custom&quot;));
++				ret.append(&quot;    &lt;sym&gt;Custom&lt;/sym&gt;\n&quot;);
+ 			} else if (ch.is_found()) {
+-				trans.add(new Regex(&quot;@@WPSYMBOL@@&quot;, &quot;Geocache found&quot;));
++				ret.append(&quot;    &lt;sym&gt;Geocache found&lt;/sym&gt;\n&quot;);
+ 			} else {
+-				trans.add(new Regex(&quot;@@WPSYMBOL@@&quot;, &quot;Geocache&quot;));
++				ret.append(&quot;    &lt;sym&gt;Geocache&lt;/sym&gt;\n&quot;);
+ 			}
+ 		}
+ 
+-		trans.add(new Regex(&quot;@@WPTYPE@@&quot;, CacheType.id2GpxString(ch.getType())));
+-
+-		return trans.replaceFirst(GPXCOMPACT);
++		if (exportStyle != STYLE_GPX_COMPACT) {
++			ret.append(&quot;    &lt;type&gt;&quot;.concat(CacheType.id2GpxString(ch.getType())).concat(&quot;&lt;/type&gt;\n&quot;));
++		}
++		
++		return ret.toString();
+ 	}
+ 
+ 	/**
+@@ -668,39 +648,27 @@
+ 		if (ch.getType() == CacheType.CW_TYPE_CUSTOM || ch.isAddiWpt())
+ 			return &quot;&quot;;
+ 
+-		StringBuffer ret = new StringBuffer();
+-		Transformer trans = new Transformer(true);
+-		ch.getFreshDetails();
+-		trans.add(new Regex(&quot;@@CACHEID@@&quot;, ch.GetCacheID()));
+-		trans.add(new Regex(&quot;@@CACHEAVAILABLE@@&quot;, ch.is_available() ? TRUE : FALSE));
+-		trans.add(new Regex(&quot;@@CACHEARCHIVED&quot;, ch.is_archived() ? TRUE : FALSE));
+-		trans.add(new Regex(&quot;@@CACHENAME@@&quot;, SafeXML.cleanGPX(ch.getCacheName())));
+-		trans.add(new Regex(&quot;@@CACHEPLACEDBY@@&quot;, SafeXML.cleanGPX(ch.getCacheOwner())));
+-		trans.add(new Regex(&quot;@@CACHEOWNERID@@&quot;, &quot;31415&quot;));
+-		trans.add(new Regex(&quot;@@CACHEOWNER@@&quot;, SafeXML.cleanGPX(ch.getCacheOwner())));
+-		trans.add(new Regex(&quot;@@CACHETYPE@@&quot;, CacheType.id2GpxString(ch.getType())));
+-		trans.add(new Regex(&quot;@@CACHECONTAINER@@&quot;, CacheSize.cw2ExportString(ch.getCacheSize())));
+-		trans.add(new Regex(&quot;@@CACHEDIFFICULTY@@&quot;, CacheTerrDiff.shortDT(ch.getHard())));
+-		trans.add(new Regex(&quot;@@CACHETERRAIN@@&quot;, CacheTerrDiff.shortDT(ch.getTerrain())));
+-		trans.add(new Regex(&quot;@@CACHECOUNTRY@@&quot;, SafeXML.cleanGPX(ch.details.Country)));
+-		trans.add(new Regex(&quot;@@CACHESTATE@@&quot;, SafeXML.cleanGPX((ch.details.State))));
+-		trans.add(new Regex(&quot;@@CACHEHTML@@&quot;, ch.is_HTML() ? TRUE : FALSE));
+-		trans.add(new Regex(&quot;@@CACHESHORTDESCRIPTION@@&quot;,&quot;CacheWolf can not provide a short description&quot;));
+-		trans.add(new Regex(&quot;@@CACHELONGDESCRIPTION@@&quot;, SafeXML.cleanGPX(formatLongDescription(ch))));
+-		trans.add(new Regex(&quot;@@CACHEHINT@@&quot;, SafeXML.cleanGPX(ch.details.Hints)));
++		return &quot;    &lt;groundspeak:cache id=\&quot;&quot;.concat(ch.GetCacheID()).concat(&quot;\&quot; available=\&quot;&quot;).concat(ch.is_available() ? TRUE : FALSE).concat(&quot;\&quot; archived=\&quot;&quot;).concat(ch.is_archived() ? TRUE : FALSE).concat(&quot;\&quot; xmlns:groundspeak=\&quot;<A HREF="http://www.groundspeak.com/cache/1/0\">http://www.groundspeak.com/cache/1/0\</A>&quot;&gt;\n&quot;)
++		.concat(&quot;      &lt;groundspeak:name&gt;&quot;).concat(SafeXML.cleanGPX(ch.getCacheName())).concat(&quot;&lt;/groundspeak:name&gt;\n&quot;)
++		.concat(&quot;      &lt;groundspeak:placed_by&gt;&quot;).concat(SafeXML.cleanGPX(ch.getCacheOwner())).concat(&quot;&lt;/groundspeak:placed_by&gt;\n&quot;)
++		.concat(&quot;      &lt;groundspeak:owner id=\&quot;&quot;).concat(&quot;31415&quot;).concat(&quot;\&quot;&gt;&quot;).concat(SafeXML.cleanGPX(ch.getCacheOwner())).concat(&quot;@@CACHEOWNER@@&lt;/groundspeak:owner&gt;\n&quot;)
++		.concat(&quot;      &lt;groundspeak:type&gt;&quot;).concat(CacheType.id2GpxString(ch.getType())).concat(&quot;&lt;/groundspeak:type&gt;\n&quot;)
++		.concat(&quot;      &lt;groundspeak:container&gt;&quot;).concat(CacheSize.cw2ExportString(ch.getCacheSize())).concat(&quot;&lt;/groundspeak:container&gt;\n&quot;)
++		.concat(&quot;      &lt;groundspeak:difficulty&gt;&quot;).concat(CacheTerrDiff.shortDT(ch.getHard())).concat(&quot;&lt;/groundspeak:difficulty&gt;\n&quot;)
++		.concat(&quot;      &lt;groundspeak:terrain&gt;&quot;).concat(CacheTerrDiff.shortDT(ch.getTerrain())).concat(&quot;&lt;/groundspeak:terrain&gt;\n&quot;)
++		.concat(&quot;      &lt;groundspeak:country&gt;&quot;).concat(SafeXML.cleanGPX(ch.details.Country)).concat(&quot;&lt;/groundspeak:country&gt;\n&quot;)
++		.concat(&quot;      &lt;groundspeak:state&gt;&quot;).concat(SafeXML.cleanGPX(ch.details.State)).concat(&quot;&lt;/groundspeak:state&gt;\n&quot;)
++		.concat(&quot;      &lt;groundspeak:short_description html=\&quot;&quot;).concat(ch.is_HTML() ? TRUE : FALSE).concat(&quot;\&quot;&gt;&lt;/groundspeak:short_description&gt;\n&quot;)
++		.concat(&quot;      &lt;groundspeak:long_description html=\&quot;&quot;).concat(ch.is_HTML() ? TRUE : FALSE).concat(&quot;\&quot;&gt;&quot;).concat(SafeXML.cleanGPX(formatLongDescription(ch))).concat(&quot;&lt;/groundspeak:long_description&gt;\n&quot;)
++		.concat(&quot;      &lt;groundspeak:encoded_hints&gt;&quot;).concat(SafeXML.cleanGPX(ch.details.Hints)).concat(&quot;&lt;/groundspeak:encoded_hints&gt;\n&quot;)
++		.concat(&quot;      &lt;groundspeak:logs&gt;\n&quot;)
++		.concat(formatLogs(ch))
++		.concat(&quot;      &lt;/groundspeak:logs&gt;\n&quot;)
++		.concat(&quot;      &lt;groundspeak:travelbugs&gt;\n&quot;)
++//		.concat(formatTbs(ch))
++		.concat(&quot;      &lt;/groundspeak:travelbugs&gt;\n&quot;)
++		.concat(&quot;    &lt;/groundspeak:cache&gt;\n&quot;);
+ 
+-		ret.append(trans.replaceAll(GPXEXTENSION));
+-
+-		ret.append(&quot;\t\t\t&lt;groundspeak:logs&gt;\n&quot;);
+-		ret.append(formatLogs(ch));
+-		ret.append(&quot;\t\t\t&lt;/groundspeak:logs&gt;\n&quot;);
+-
+-		// ret.append(&quot;\t\t\t&lt;groundspeak:travelbugs&gt;\n&quot;);
+-		// ret.append(formatTbs(ch));
+-		// ret.append(&quot;\t\t\t&lt;/groundspeak:travelbugs&gt;\n&quot;);
+-
+-		ret.append(&quot;\t\t&lt;/groundspeak:cache&gt;\n&quot;);
+-		return ret.toString();
+ 	}
+ 
+ 	/**
+@@ -747,7 +715,14 @@
+ 
+ //			if (exportStyle == STYLE_GPX_MYFINDS) 
+ //				logId = log.getLogId();
+-			
++
++//			ret.append(&quot;        &lt;groundspeak:log id=\&quot;&quot;.concat(log.getLogId()).concat(&quot;@@LOGID@@\&quot;&gt;\n&quot;)
++//			ret.append(&quot;        &lt;groundspeak:log id=\&quot;31415\&quot;&gt;\n&quot;
++//			.concat(&quot;          &lt;groundspeak:date&gt;&quot;).concat(log.getDate()).concat(&quot;&lt;/groundspeak:date&gt;\n&quot;)
++//			.concat(&quot;          &lt;groundspeak:type&gt;&quot;).concat(image2TypeText(log.getIcon())).concat(&quot;&lt;/groundspeak:type&gt;\n&quot;)
++//			.concat(&quot;          &lt;groundspeak:finder id=\&quot;@@LOGFINDERID@@\&quot;&gt;@@LOGFINDER@@&lt;/groundspeak:finder&gt;\n&quot;)
++//			.concat(&quot;          &lt;groundspeak:text encoded=\&quot;@@LOGENCODE@@\&quot;&gt;@@LOGTEXT@@&lt;/groundspeak:text&gt;\n&quot;)
++//			.concat(&quot;        &lt;/groundspeak:log&gt;\n&quot;));
+ 			Transformer trans = new Transformer(true);
+ 			trans.add(new Regex(&quot;@@LOGID@@&quot;, logId));
+ 			trans.add(new Regex(&quot;@@LOGDATE@@&quot;, log.getDate()));
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001952.html">[Cachewolf-svn] r2033 - in trunk: . res_noewe res_noewe/exporticons	src/exp
+</A></li>
+	<LI>Next message: <A HREF="001954.html">[Cachewolf-svn] r2035 - in trunk/src/CacheWolf: . imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1953">[ date ]</a>
+              <a href="thread.html#1953">[ thread ]</a>
+              <a href="subject.html#1953">[ subject ]</a>
+              <a href="author.html#1953">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

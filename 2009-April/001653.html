@@ -1,0 +1,178 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1735 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-April/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1735%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200904032336.n33NavhQ016861%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001652.html">
+   <LINK REL="Next"  HREF="001654.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1735 - trunk/src/CacheWolf</H1>
+    <B>mik77 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1735%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200904032336.n33NavhQ016861%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1735 - trunk/src/CacheWolf">mik77 at mail.berlios.de
+       </A><BR>
+    <I>Sat Apr  4 01:36:57 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001652.html">[Cachewolf-svn] [Bug #15475] exportierte GPX Dateien in MapSource	nicht lesbar
+</A></li>
+        <LI>Next message: <A HREF="001654.html">[Cachewolf-svn] r1736 - in trunk/src: CacheWolf exp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1653">[ date ]</a>
+              <a href="thread.html#1653">[ thread ]</a>
+              <a href="subject.html#1653">[ subject ]</a>
+              <a href="author.html#1653">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mik77
+Date: 2009-04-04 01:36:54 +0200 (Sat, 04 Apr 2009)
+New Revision: 1735
+
+Modified:
+   trunk/src/CacheWolf/CacheHolderDetail.java
+   trunk/src/CacheWolf/GPXImporter.java
+   trunk/src/CacheWolf/OCXMLImporter.java
+   trunk/src/CacheWolf/SpiderGC.java
+Log:
+ - save own log in same format as other logs
+
+Modified: trunk/src/CacheWolf/CacheHolderDetail.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolderDetail.java	2009-04-01 17:06:56 UTC (rev 1734)
++++ trunk/src/CacheWolf/CacheHolderDetail.java	2009-04-03 23:36:54 UTC (rev 1735)
+@@ -34,7 +34,7 @@
+ 	  public String URL = EMPTY;
+ 	  public String Solver = EMPTY;
+ 	  public String OwnLogId = EMPTY;
+-	  public String OwnLogText = EMPTY;
++	  public Log OwnLog = null;
+ 	  public String Country = EMPTY;
+ 	  public String State = EMPTY;
+ 	  /** For faster cache import (from opencaching) changes are only written when the details are freed from memory 
+@@ -110,7 +110,7 @@
+ 		  setCacheLogs(newCh.CacheLogs);
+ 		  
+ 		  if (newCh.OwnLogId.length()&gt;0) this.OwnLogId=newCh.OwnLogId;
+-		  if (newCh.OwnLogText.length()&gt;0) this.OwnLogText=newCh.OwnLogText;
++		  if (newCh.OwnLog != null) this.OwnLog = newCh.OwnLog;
+ 		  
+ 		  if (newCh.Country.length()&gt;0) this.Country=newCh.Country;
+ 		  if (newCh.State.length()&gt;0) this.State=newCh.State;
+@@ -179,7 +179,16 @@
+ 			ex = new Extractor(dummy, &quot;&lt;OWNLOGID&gt;&quot;,&quot;&lt;/OWNLOGID&gt;&quot;, 0, true);
+ 			OwnLogId = ex.findNext();
+ 			ex = new Extractor(dummy, &quot;&lt;OWNLOG&gt;&lt;![CDATA[&quot;, &quot;]]&gt;&lt;/OWNLOG&gt;&quot;, 0, true);
+-			OwnLogText = ex.findNext();
++			String ownLogText = ex.findNext();
++			if ( ownLogText.length() &gt; 0 ) {
++				if (ownLogText.indexOf(&quot;&lt;img src='&quot;) &gt;= 0) {
++					OwnLog = new Log( ownLogText + &quot;]]&gt;&quot; );
++				} else {
++					OwnLog = new Log( &quot;icon_smile.gif&quot;, &quot;1900-01-01&quot;, Global.getPref().myAlias, ownLogText );
++				}
++			} else {
++				OwnLog = null;
++			}
+ 			CacheLogs.clear();
+ 			ex = new Extractor(dummy, &quot;&lt;LOG&gt;&quot;,&quot;&lt;/LOG&gt;&quot;, 0, true);
+ 			
+@@ -302,7 +311,11 @@
+ 				  detfile.print(&quot;&lt;HINTS&gt;&lt;![CDATA[&quot;+Hints+&quot;]]&gt;&lt;/HINTS&gt;\r\n&quot;);
+ 				  detfile.print(&quot;&lt;LOGS&gt;\r\n&quot;);
+ 				  detfile.print(&quot;&lt;OWNLOGID&gt;&quot;+OwnLogId+&quot;&lt;/OWNLOGID&gt;\r\n&quot;);
+-				  detfile.print(&quot;&lt;OWNLOG&gt;&lt;![CDATA[&quot;+OwnLogText+&quot;]]&gt;&lt;/OWNLOG&gt;\r\n&quot;);
++				  if ( OwnLog != null ) {
++					  detfile.print(&quot;&lt;OWNLOG&gt;&lt;![CDATA[&quot;+OwnLog.toHtml()+&quot;]]&gt;&lt;/OWNLOG&gt;\r\n&quot;);
++				  } else {
++					  detfile.print(&quot;&lt;OWNLOG&gt;&lt;![CDATA[]]&gt;&lt;/OWNLOG&gt;\r\n&quot;);
++				  }
+ 				  for(int i = 0; i &lt; CacheLogs.size(); i++){
+ 					  detfile.print(CacheLogs.getLog(i).toXML());
+ 				  }
+
+Modified: trunk/src/CacheWolf/GPXImporter.java
+===================================================================
+--- trunk/src/CacheWolf/GPXImporter.java	2009-04-01 17:06:56 UTC (rev 1734)
++++ trunk/src/CacheWolf/GPXImporter.java	2009-04-03 23:36:54 UTC (rev 1735)
+@@ -272,7 +272,7 @@
+ 							chD.CacheStatus=logDate;
+ 							chD.is_found=true;
+ 							chD.OwnLogId = logId;
+-							chD.OwnLogText = logData;
++							chD.OwnLog = new Log(logIcon,logDate,logFinder,logData);
+ 				}
+ 				return;
+ 			}
+
+Modified: trunk/src/CacheWolf/OCXMLImporter.java
+===================================================================
+--- trunk/src/CacheWolf/OCXMLImporter.java	2009-04-01 17:06:56 UTC (rev 1734)
++++ trunk/src/CacheWolf/OCXMLImporter.java	2009-04-03 23:36:54 UTC (rev 1735)
+@@ -645,7 +645,7 @@
+ 						chD.CacheStatus=logDate;
+ 						chD.is_found=true;
+ 						chD.OwnLogId = logId;
+-						chD.OwnLogText = logData;
++						chD.OwnLog = new Log(logIcon, logDate, logFinder, logData, loggerRecommended);
+ 			}
+ 			chD.hasUnsavedChanges = true; //chD.saveCacheDetails(profile.dataDir);
+ 			return;
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2009-04-01 17:06:56 UTC (rev 1734)
++++ trunk/src/CacheWolf/SpiderGC.java	2009-04-03 23:36:54 UTC (rev 1735)
+@@ -1049,7 +1049,7 @@
+ 				chD.is_found = true;
+ 				chD.CacheStatus = d;
+ 				chD.OwnLogId = logId;
+-				chD.OwnLogText = logText;
++				chD.OwnLog = new Log(icon,d,name,logText);
+ 			}
+ 			if (nLogs&lt;=MAXLOGS) reslts.add(new Log(icon,d,name,logText));
+ 
+@@ -1063,7 +1063,7 @@
+ 			exLogId.setSource(singleLog);
+ 			// We cannot simply stop if we have reached MAXLOGS just in case we are waiting for
+ 			// a log by our alias that happened earlier.
+-			if (nLogs&gt;=MAXLOGS &amp;&amp; chD.is_found &amp;&amp; (chD.OwnLogId.length() != 0)) break;
++			if (nLogs&gt;=MAXLOGS &amp;&amp; chD.is_found &amp;&amp; (chD.OwnLogId.length() != 0) &amp;&amp; (chD.OwnLog != null) &amp;&amp; !(chD.OwnLog.getDate().equals(&quot;1900-01-01&quot;))) break;
+ 		}
+ 		if (nLogs&gt;MAXLOGS) {
+ 			reslts.add(Log.maxLog());
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001652.html">[Cachewolf-svn] [Bug #15475] exportierte GPX Dateien in MapSource	nicht lesbar
+</A></li>
+	<LI>Next message: <A HREF="001654.html">[Cachewolf-svn] r1736 - in trunk/src: CacheWolf exp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1653">[ date ]</a>
+              <a href="thread.html#1653">[ thread ]</a>
+              <a href="subject.html#1653">[ subject ]</a>
+              <a href="author.html#1653">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

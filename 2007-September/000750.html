@@ -1,0 +1,573 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r858 - in trunk: resources src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-September/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r858%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200709011231.l81CVxPX018920%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   
+   <LINK REL="Next"  HREF="000751.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r858 - in trunk: resources src/CacheWolf</H1>
+    <B>mik77 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r858%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200709011231.l81CVxPX018920%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r858 - in trunk: resources src/CacheWolf">mik77 at mail.berlios.de
+       </A><BR>
+    <I>Sat Sep  1 14:31:59 CEST 2007</I>
+    <P><UL>
+        
+        <LI>Next message: <A HREF="000751.html">[Cachewolf-svn] r859 - trunk/resources
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#750">[ date ]</a>
+              <a href="thread.html#750">[ thread ]</a>
+              <a href="subject.html#750">[ subject ]</a>
+              <a href="author.html#750">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mik77
+Date: 2007-09-01 14:31:52 +0200 (Sat, 01 Sep 2007)
+New Revision: 858
+
+Modified:
+   trunk/resources/cachewolf.Languages.cfg
+   trunk/resources/rose.png
+   trunk/src/CacheWolf/GotoPanel.java
+   trunk/src/CacheWolf/MovingMap.java
+Log:
+first step of GotoPanel redesign
+
+
+Modified: trunk/resources/cachewolf.Languages.cfg
+===================================================================
+--- trunk/resources/cachewolf.Languages.cfg	2007-08-30 22:11:44 UTC (rev 857)
++++ trunk/resources/cachewolf.Languages.cfg	2007-09-01 12:31:52 UTC (rev 858)
+@@ -299,6 +299,7 @@
+ 		1406=Koordinaten in beliebigem Format oder GCxxxx
+ 		1500=Ziel:
+ 		1501=Aktuell
++		1502=Grad
+ 		1600=Opencahing.de Download
+ 		1601=max. Abstand:
+ 		1602=Bilder downloaden
+@@ -844,6 +845,7 @@
+ 		1406=Enter coordinates in any format or GCxxxx
+ 		1500=DST:
+ 		1501=Current
++		1502=deg
+ 		1600=Opencahing.de Download
+ 		1601=Distance:
+ 		1602=Download Images
+
+Modified: trunk/resources/rose.png
+===================================================================
+(Binary files differ)
+
+Modified: trunk/src/CacheWolf/GotoPanel.java
+===================================================================
+--- trunk/src/CacheWolf/GotoPanel.java	2007-08-30 22:11:44 UTC (rev 857)
++++ trunk/src/CacheWolf/GotoPanel.java	2007-09-01 12:31:52 UTC (rev 858)
+@@ -13,8 +13,6 @@
+ import ewe.sys.*;
+ import ewe.sys.Double;
+ 
+-
+-
+ /**
+  *	Class to create the panel which handles the connection to the GPS-device&lt;br&gt;
+  *	Displays: current position,speed and bearing; relation to destination waypoint&lt;br&gt;
+@@ -31,10 +29,9 @@
+ 	mButton btnGoto, btnMap;
+ 	int currFormat;
+ 
+-	mLabel lblPosition, lblSats, lblSpeed, lblBearMov, lblBearWayP, lblDist, lblHDOP;
+-	mLabel lblSatsText, lblSpeedText, lblDirText, lblDistText, lblSunAzimut;
+-	mLabel lblGPS, lblDST, lblCurr, lblWayP, lblLuminary;
++	mLabel lblGPS, lblPosition, lblDST;
+ 	mLabel lblLog;
++	Color gpsStatus;
+ 	mCheckBox chkLog;
+ 	mInput inpLogSeconds;
+ 
+@@ -48,7 +45,6 @@
+ 	CellPanel ButtonP = new CellPanel();
+ 	CellPanel CoordsP = new CellPanel();
+ 	CellPanel roseP = new CellPanel();
+-	CellPanel GotoP = new CellPanel();
+ 	CellPanel LogP = new CellPanel();
+ 
+ 	ImageControl icRose;
+@@ -61,7 +57,6 @@
+ 
+ 	final static Font BOLD = new Font(&quot;Arial&quot;, Font.BOLD, 14);
+ 
+-	GotoRose rose;
+ 	int ticker = 0;
+ 	
+ 	Menu mnuContextFormt;
+@@ -132,37 +127,7 @@
+ 		icRose.modifyAll(Control.WantHoldDown, 0); // this is necessary in order to make PenHold on a PDA work as right click
+ 		roseP.addLast(icRose,CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.NORTH));
+ 
+-		//Goto
+-		//things from GPS
+-		GotoP.addLast(lblCurr = new mLabel(MyLocale.getMsg(1501,&quot;Current&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		lblCurr.backGround = RED;
+-		lblCurr.font = BOLD;
+-
+-		//GotoP.addNext(lblSatsText = new mLabel(&quot;Sats: &quot;),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		//lblSatsText.font = BOLD;
+-		GotoP.addLast(lblSats = new mLabel(&quot;Sats:    &quot; + Convert.toString(myNavigation.gpsPos.getSats())),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		lblSats.font = BOLD;
+-		GotoP.addLast(lblHDOP = new mLabel(&quot;HDOP:    &quot; + Convert.toString(myNavigation.gpsPos.getHDOP())),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+-		lblHDOP.font = BOLD;
+-
+-
+-		GotoP.addLast(lblSpeed = new mLabel(Convert.toString(myNavigation.gpsPos.getSpeed())),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+-		lblSpeed.font = BOLD;
+-
+-		GotoP.addLast(lblBearMov = new mLabel(&quot;0&quot;),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+-		lblBearMov.font = BOLD;
+-
+-		//things about destination
+-		GotoP.addLast(lblWayP = new mLabel(&quot;WayPoint&quot;),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		lblWayP.backGround = Color.DarkBlue;
+-		lblWayP.foreGround = Color.White;
+-		lblWayP.font = BOLD;
+-		GotoP.addLast(lblBearWayP = new mLabel(&quot;0&quot;),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+-		lblBearWayP.font = BOLD;
+-
+-		GotoP.addLast(lblDist = new mLabel(&quot;0&quot;),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+-		lblDist.font = BOLD;
+-
++		//log
+ 		LogP.addNext(lblLog = new mLabel(&quot;Log &quot;),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		LogP.addNext(chkLog = new mCheckBox(),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		LogP.addNext(inpLogSeconds = new mInput(&quot;10&quot;),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+@@ -172,20 +137,10 @@
+ 		chkLog.setState(false);
+ 		inpLogSeconds.columns = 5;
+ 
+-		LogP.addNext(lblLuminary = new mLabel(SkyOrientation.getLuminaryName(myNavigation.luminary)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		lblLuminary.backGround = YELLOW;
+-		lblLuminary.setTag(SPAN, new Dimension(2,1));
+-
+-		LogP.addLast(lblSunAzimut = new mLabel(&quot;---&quot;),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.NORTH));
+-		lblSunAzimut.setText(&quot;---&quot;);
+-		lblSunAzimut.font = BOLD;
+-
+-
+ 		//add Panels
+ 		this.addLast(ButtonP,CellConstants.DONTSTRETCH, CellConstants.DONTFILL|CellConstants.WEST).setTag(SPAN,new Dimension(2,1));
+ 		this.addLast(CoordsP,CellConstants.HSTRETCH, CellConstants.HFILL|CellConstants.NORTH).setTag(SPAN,new Dimension(2,1));
+-		this.addNext(roseP,CellConstants.DONTSTRETCH, CellConstants.DONTFILL|CellConstants.WEST).setTag(SPAN,new Dimension(1,1));
+-		this.addLast(GotoP,CellConstants.HSTRETCH, CellConstants.HFILL|CellConstants.NORTHWEST).setTag(SPAN,new Dimension(1,2));
++		this.addLast(roseP,CellConstants.DONTSTRETCH, CellConstants.DONTFILL|CellConstants.WEST).setTag(SPAN,new Dimension(2,1));
+ 		this.addLast(LogP,CellConstants.DONTSTRETCH, CellConstants.DONTFILL|CellConstants.NORTHWEST).setTag(SPAN,new Dimension(1,1));
+ 
+ 		// for debuging
+@@ -251,24 +206,11 @@
+ 	
+ 	public void updateDistance() {
+ 		//update distance
+-		Double tmp = new Double();
++		float distance = -1.0f;
+ 		if (myNavigation.gpsPos.isValid() &amp;&amp; myNavigation.destination.isValid() ) {
+-			tmp.set(myNavigation.gpsPos.getDistance(myNavigation.destination)); // TODO distance in navigate.java berechnen
+-			if (tmp.value &gt;= 1){
+-				lblDist.setText(MyLocale.formatDouble(tmp,&quot;0.000&quot;)+ &quot; km&quot;);
+-			}
+-			else {
+-				tmp.set(tmp.value * 1000);
+-				lblDist.setText(tmp.toString(3,0,0) + &quot; m&quot;);
+-			}
++			distance = (float)myNavigation.gpsPos.getDistance(myNavigation.destination);
+ 		}
+-		else lblDist.setText(&quot;--- km&quot;);
+-		// update goto-bearing
+-		tmp.set(myNavigation.gpsPos.getBearing(myNavigation.destination));
+-		if (tmp.value &lt;= 360) 
+-			lblBearWayP.setText(tmp.toString(0,0,0) + &quot; Grad&quot;);
+-		else lblBearWayP.setText(&quot;---&quot; + &quot; Grad&quot;);
+-		compassRose.setWaypointDirection((float)tmp.value);
++		compassRose.setWaypointDirectionDist((float)myNavigation.gpsPos.getBearing(myNavigation.destination), distance);
+ 	}
+ 
+ 	/**
+@@ -279,39 +221,32 @@
+ 		Double speed = new Double();
+ 		Double sunAzimut = new Double();
+ 		Vm.debug(&quot;ticked: voher&quot;);
+-		lblSats.setText(&quot;Sats: &quot; + Convert.toString(myNavigation.gpsPos.getSats()));
+-		lblHDOP.setText(&quot;HDOP: &quot; + Convert.toString(myNavigation.gpsPos.getHDOP()));
++		compassRose.setGpsStatus(fix, myNavigation.gpsPos.getSats(), myNavigation.gpsPos.getHDOP());
+ 		if ((fix &gt; 0) &amp;&amp; (myNavigation.gpsPos.getSats()&gt;= 0)) {
+ 			// display values only, if signal good
+ 			//Vm.debug(&quot;currTrack.add: nachher&quot;);
+ 			lblPosition.setText(myNavigation.gpsPos.toString(currFormat));
+-			speed.set(myNavigation.gpsPos.getSpeed());
+-			lblSpeed.setText(MyLocale.formatDouble(speed,&quot;0.0&quot;) + &quot; km/h&quot;);
+ 			sunAzimut.set(myNavigation.skyOrientationDir.lonDec);
+-			if (sunAzimut.value &gt;= -360) lblSunAzimut.setText(MyLocale.formatDouble(sunAzimut,&quot;0.0&quot;) + &quot; Grad&quot;);
+-			else lblSunAzimut.setText(&quot;--- Grad&quot;);
+ 			bearMov.set(myNavigation.gpsPos.getBear());
+-			lblBearMov.setText(bearMov.toString(0,0,0) + &quot; Grad&quot;);
+-			compassRose.setSunMoveDirections((float)sunAzimut.value, (float)bearMov.value);
+ 			updateDistance();
++			compassRose.setSunMoveDirections((float)sunAzimut.value, (float)bearMov.value, (float)speed.value);
+ 			// Set background to signal quality
+-			lblSats.backGround = GREEN;
+ 		}
+ 
+ 		// receiving data, but signal ist not good
+ 		if ((fix == 0) &amp;&amp; (myNavigation.gpsPos.getSats()&gt;= 0)) {
+-			lblSats.backGround = YELLOW;
++			gpsStatus = YELLOW;
+ 		}
+ 		// receiving no data
+ 		if (fix == -1) {
+-			if (lblSats.backGround != RED) (new MessageBox(&quot;Error&quot;, &quot;No data from GPS\nConnection to serial port closed&quot;,MessageBox.OKB)).exec();
+-			lblSats.backGround = RED;
++			if (gpsStatus != RED) (new MessageBox(&quot;Error&quot;, &quot;No data from GPS\nConnection to serial port closed&quot;,MessageBox.OKB)).exec();
++			gpsStatus = RED;
+ 			myNavigation.stopGps();
+ 		}
+ 		// cannot interprete data
+ 		if (fix == -2) {
+-			if (lblSats.backGround != RED) (new MessageBox(&quot;Error&quot;, &quot;Cannot interpret data from GPS\n possible reasons:\n wrong Port,\n wrong Baudrate,\n not NMEA-Protocol\nConnection to serial port closed\nLast String tried to interprete:\n &quot;+myNavigation.gpsPos.lastStrExamined, MessageBox.OKB)).exec();
+-			lblSats.backGround = RED;
++			if (gpsStatus != RED) (new MessageBox(&quot;Error&quot;, &quot;Cannot interpret data from GPS\n possible reasons:\n wrong Port,\n wrong Baudrate,\n not NMEA-Protocol\nConnection to serial port closed\nLast String tried to interprete:\n &quot;+myNavigation.gpsPos.lastStrExamined, MessageBox.OKB)).exec();
++			gpsStatus = RED;
+ 			myNavigation.stopGps(); // TODO automatic in myNavigate?
+ 		}
+ 	}
+@@ -328,7 +263,7 @@
+ 
+ 	public void gpsStoped() {
+ 		btnGPS.setText(&quot;Start&quot;);
+-		lblSats.backGround = this.backGround;
++		gpsStatus = this.backGround;
+ 		chkLog.modify(0,ControlConstants.Disabled);
+ 		this.repaintNow(); // without this the change in the background color will not be displayed
+ 	}
+@@ -396,7 +331,7 @@
+ 						if (action == miLuminary[i]) {
+ 							myNavigation.setLuminary(i);
+ 							miLuminary[i].modifiers |= MenuItem.Checked;
+-							lblLuminary.setText(SkyOrientation.getLuminaryName(myNavigation.luminary));
++							compassRose.setLuminaryName(SkyOrientation.getLuminaryName(myNavigation.luminary));
+ 						} else miLuminary[i].modifiers &amp;= ~MenuItem.Checked;
+ 					}
+ 				}
+@@ -448,7 +383,17 @@
+ 	float gotoDir = -361;
+ 	float sunDir = -361;
+ 	float moveDir = -361;
++	float distance = -1;
+ 	
++	int m_fix = -1;
++	int m_sats = -1;
++	double m_hdop = -1;
++	float m_speed = -1;
++	
++	String m_Luminary = MyLocale.getMsg(6100, &quot;Sun&quot;);
++	
++	FontMetrics fm;
++	
+ 	final static Color RED = new Color(255,0,0);
+ 	final static Color YELLOW = new Color(255,255,0);
+ 	final static Color GREEN = new Color(0,255,0);
+@@ -465,16 +410,31 @@
+ 		super(fn);
+ 	}
+ 	
+-	public void setWaypointDirection(float wd) {
++	public void setWaypointDirectionDist(float wd, float dist) {
+ 		gotoDir = wd;
++		distance = dist;
+ 	}
+ 	
+-	public void setSunMoveDirections(float sd, float md ) {
++	public void setSunMoveDirections(float sd, float md, float speed ) {
+ 		sunDir = sd;
+ 		moveDir = md;
++		m_speed = speed;
+ 		refresh();
+ 	}
+ 	
++	public void setGpsStatus(int fix, int sats, double hdop) {
++		m_fix = fix;
++		m_sats = sats;
++		m_hdop = hdop;
++		refresh();
++	}
++	
++	public void setLuminaryName(String Luminary) {
++		m_Luminary = Luminary;
++		refresh();
++	}
++
++	
+ 	/**
+ 	 * draw arrows for the directions of movement and destination waypoint
+ 	 * @param ctrl the control to paint on
+@@ -484,9 +444,130 @@
+ 	
+ 	public void doDraw(Graphics g,int options) {
+ 		super.doDraw(g, options);
++		Font font = new Font(&quot;Verdana&quot;, Font.BOLD, 12);
++		g.setFont(font);
++		fm = g.getFontMetrics(font);
+ 		drawArrows(g);
++		drawWayPointData(g);
++		drawGpsData(g);
++		drawLuminaryData(g);
++		drawGpsStatus(g);
+ 	}
++		
++	private void drawWayPointData(Graphics g){
++		String strTemp = &quot;WayPoint&quot;;
++		g.setColor(Color.DarkBlue);
++		g.fillRect(0, 0, fm.getTextWidth(strTemp) + 4 ,fm.getHeight());
++		g.setColor(Color.White);		
++		g.drawText(strTemp, 2, 0);
++		
++		g.setColor(Color.Black);		
++		
++		Double tmp = new Double();
++		strTemp = &quot;&quot;;
++		if ( distance &gt;= 0.0f ) {
++			tmp.set(distance);
++			if (tmp.value &gt;= 1){
++				strTemp = MyLocale.formatDouble(tmp,&quot;0.000&quot;)+ &quot; km&quot;;
++			}
++			else {
++				tmp.set(tmp.value * 1000);
++				strTemp = tmp.toString(3,0,0) + &quot; m&quot;;
++			}
++		}
++		else strTemp = &quot;--- km&quot;;
++		g.drawText(strTemp, 2, 12);
++		
++		tmp.set(gotoDir);
++		if ((tmp.value &lt;= 360) &amp;&amp; (tmp.value &gt;= -360))
++			strTemp = tmp.toString(0,0,0) + &quot; &quot; + MyLocale.getMsg(1502,&quot;deg&quot;);
++		else strTemp = &quot;---&quot; + &quot; &quot; + MyLocale.getMsg(1502,&quot;deg&quot;);
++		g.drawText(strTemp, 2, 24);
++	}
++	
++	private void drawGpsData(Graphics g){
++		g.setColor(RED);
++		
++		String strHeadline = MyLocale.getMsg(1501,&quot;Current&quot;);
++		
++		Double tmp = new Double();
+ 
++		tmp.set(m_speed);
++		String strSpeed = &quot;- km/h&quot;;
++		if (m_speed &gt;= 0) {
++			if (m_speed &gt;= 100) {
++				strSpeed = MyLocale.formatDouble(tmp,&quot;0&quot;) + &quot; km/h&quot;;				
++			}
++			else {
++				strSpeed = MyLocale.formatDouble(tmp,&quot;0.0&quot;) + &quot; km/h&quot;;
++			}
++		}
++		
++		tmp.set(moveDir);
++		String strMoveDir = &quot;---&quot; + &quot; &quot; + MyLocale.getMsg(1502,&quot;deg&quot;);
++		if ((tmp.value &lt;= 360) &amp;&amp; (tmp.value &gt;= -360))
++			strMoveDir = tmp.toString(0,0,0) + &quot; &quot; + MyLocale.getMsg(1502,&quot;deg&quot;);
++
++		int textWidth = java.lang.Math.max(fm.getTextWidth(strSpeed), fm.getTextWidth(strMoveDir));
++		textWidth = java.lang.Math.max(textWidth, fm.getTextWidth(strHeadline));
++		
++		int startX = location.width - (textWidth + 4);
++		g.fillRect(startX, 0, location.width - startX ,12);
++		
++		g.setColor(Color.Black);		
++		g.drawText(strHeadline, startX + 2, 0);		
++		g.drawText(strSpeed, startX + 2, 12);
++		g.drawText(strMoveDir, startX + 2, 24);
++	}
++	
++	private void drawLuminaryData(Graphics g){
++		g.setColor(YELLOW);
++
++		String strSunDir = &quot;---&quot; + &quot; &quot; + MyLocale.getMsg(1502,&quot;deg&quot;);
++		if (sunDir &lt; 360 &amp;&amp; sunDir &gt; -360) {
++			Double tmp = new Double();
++			tmp.set(sunDir);
++			strSunDir = tmp.toString(0,0,0) + &quot; &quot; + MyLocale.getMsg(1502,&quot;deg&quot;);
++		}
++
++		int textWidth = java.lang.Math.max(fm.getTextWidth(m_Luminary), fm.getTextWidth(strSunDir));
++		int startY = location.height - 24;
++		g.fillRect(0, startY, textWidth + 4, location.height - startY);
++
++		g.setColor(Color.Black);		
++		g.drawText(m_Luminary, 2, startY);
++		g.drawText(strSunDir, 2, startY + 12);
++	}
++	
++	private void drawGpsStatus(Graphics g){
++		if ((m_fix &gt; 0) &amp;&amp; (m_sats &gt;= 0)) {
++			// Set background to signal quality
++			g.setColor(GREEN);
++		}
++		else
++		// receiving data, but signal ist not good
++		if ((m_fix == 0) &amp;&amp; (m_sats &gt;= 0)) {
++			g.setColor(YELLOW);
++		}
++		else {
++			g.setColor(RED);
++		}
++
++		String strSats = &quot;Sats: -&quot;;
++		if (m_sats &gt;= 0) strSats = &quot;Sats: &quot; + Convert.toString(m_sats);
++		String strHdop = &quot;HDOP: -&quot;;
++		if (m_hdop &gt;= 0) strHdop = &quot;HDOP: &quot; + Convert.toString(m_hdop);
++
++		int textWidth = java.lang.Math.max(fm.getTextWidth(strSats), fm.getTextWidth(strHdop));
++		int startX = location.width - (textWidth + 4);
++		int startY = location.height - 24;
++		g.fillRect(startX, startY, location.width - startX ,location.height - startY);
++
++		g.setColor(Color.Black);
++		g.drawText(strSats, startX + 2, startY);
++		g.drawText(strHdop, startX + 2, startY + 12);
++	}
++
+ 	private void drawArrows(Graphics g){
+ 		if (g != null)
+ 		{
+@@ -535,10 +616,11 @@
+ 	private void drawArrow(Graphics g, float angle, Color col, float scale) {
+ 		float angleRad;
+ 		int x, y, centerX = location.width/2, centerY = location.height/2;
++		int arrowLength = java.lang.Math.min(centerX, centerY); 
+ 
+ 		angleRad = (angle) * (float)java.lang.Math.PI / 180;
+-		x = centerX + new Float(centerX * java.lang.Math.sin(angleRad) * scale).intValue();
+-		y = centerY - new Float(centerY * java.lang.Math.cos(angleRad) * scale).intValue();
++		x = centerX + new Float(arrowLength * java.lang.Math.sin(angleRad) * scale).intValue();
++		y = centerY - new Float(arrowLength * java.lang.Math.cos(angleRad) * scale).intValue();
+ 		g.setPen(new Pen(col,Pen.SOLID,3));
+ 		g.drawLine(centerX,centerY,x,y);
+ 	}
+
+Modified: trunk/src/CacheWolf/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/MovingMap.java	2007-08-30 22:11:44 UTC (rev 857)
++++ trunk/src/CacheWolf/MovingMap.java	2007-09-01 12:31:52 UTC (rev 858)
+@@ -53,6 +53,7 @@
+ 	public static final String MARK_CACHE_IMAGE = &quot;mark_cache.png&quot;;
+ 	int posCircleX = 0, posCircleY = 0, lastCompareX = Integer.MAX_VALUE, lastCompareY = Integer.MAX_VALUE;
+ 	double posCircleLat, posCircleLon;
++	FontMetrics fm;
+ 
+ 	boolean dontUpdatePos = false; // this is only internaly used to avoid multi-threading problems
+ 	boolean ignoreGps = false; // ignores updateGps-calls if true
+@@ -101,18 +102,19 @@
+ 		buttonImageZoom1to1.properties = AniImage.AlwaysOnTop;
+ 		mmp.addImage(buttonImageZoom1to1);
+ 		//target distance
+-		//Label distLbl = new mLabel(&quot;Distance: ----,-- km&quot;);
++		Font font = new Font(&quot;Helvetica&quot;, Font.PLAIN, 13);
++		fm = getFontMetrics(font);
+ 		DistanceImage = new AniImage();
+ 		DistanceImage.setImage(new Image(120, 15), Color.White); // consider the size of the font used
+ 		DistanceImageGraphics = new Graphics(DistanceImage.image);
+-		DistanceImageGraphics.setFont(new Font(&quot;Helvetica&quot;, Font.PLAIN, 13));
++		DistanceImageGraphics.setFont(font);
+ 		DistanceImage.properties = AniImage.AlwaysOnTop;
+ 		mmp.addImage(DistanceImage);
+ 		//scale
+ 		ScaleImage = new AniImage();
+ 		ScaleImage.setImage(new Image(120, 15), Color.White); // consider the size of the font used
+ 		ScaleImageGraphics = new Graphics(ScaleImage.image);
+-		ScaleImageGraphics.setFont(new Font(&quot;Helvetica&quot;, Font.PLAIN, 13));
++		ScaleImageGraphics.setFont(font);
+ 		ScaleImage.properties = AniImage.AlwaysOnTop;
+ 		mmp.addImage(ScaleImage);
+ 		//resizeTo(pref.myAppWidth, pref.myAppWidth); // is necessary to initialize mapImage.screenSize
+@@ -193,18 +195,17 @@
+ 			int lineLengthPixels = (int)java.lang.Math.round( lineLengthMeters / currentMap.scale );
+ 
+ 			String lineLengthString;
+-			int backgroundStartX = 0;
+ 			if (lineLengthMeters &lt; 1000)
+ 			{
+ 				lineLengthString = Convert.toString((int) lineLengthMeters) + &quot;m&quot;;
+-				backgroundStartX = ScaleImage.location.width - lineLengthPixels - ( ((int)digits+1) * 6 ) - 14;
+ 			}
+ 			else
+ 			{
+ 				lineLengthString = Convert.toString((int) lineLengthMeters / 1000) + &quot;km&quot;;
+-				backgroundStartX = ScaleImage.location.width - lineLengthPixels - ( ((int)digits-2) * 6 ) - 19;
+ 			}
+ 			
++			int backgroundStartX = ScaleImage.location.width - (lineLengthPixels + fm.getTextWidth(lineLengthString) + 7);
++			
+ 			ScaleImageGraphics.setColor(new Color(250,250,250));
+ 			ScaleImageGraphics.fillRect(backgroundStartX, 0, ScaleImage.location.width - backgroundStartX ,ScaleImage.location.height);
+ 
+@@ -230,22 +231,21 @@
+ 				ewe.sys.Double dd = new ewe.sys.Double();
+ 				dd.set(currentDistance);
+ 				String d;
+-				int backgroundWidth = DistanceImage.location.width;
+ 				if (dd.value &lt; 1) {
+ 					dd.value = dd.value * 1000; 
+ 					dd.decimalPlaces = 0;
+ 					d = &quot;Dist: &quot; + dd.toString() + &quot;m&quot;;
+ 					int digits = (int)java.lang.Math.floor( java.lang.Math.log(dd.value) / java.lang.Math.log(10.0) );
+ 					digits = java.lang.Math.max(0, digits);
+-					backgroundWidth = 6 * (digits + 1) + 36;
+ 				} 
+ 				else {
+ 					dd.decimalPlaces = 2;
+ 					d = &quot;Dist: &quot; + dd.toString() + &quot;km&quot;;
+ 					int digits = (int)java.lang.Math.floor( java.lang.Math.log(dd.value) / java.lang.Math.log(10.0) );
+ 					digits = java.lang.Math.max(0, digits);
+-					backgroundWidth = 6 * (digits + 3) + 45;
+ 				}
++				
++				int backgroundWidth = fm.getTextWidth(d) + 4;
+ 
+ 				DistanceImageGraphics.setColor(new Color(250,250,250));
+ 				DistanceImageGraphics.fillRect(0, 0, backgroundWidth ,DistanceImage.location.height);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	
+	<LI>Next message: <A HREF="000751.html">[Cachewolf-svn] r859 - trunk/resources
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#750">[ date ]</a>
+              <a href="thread.html#750">[ thread ]</a>
+              <a href="subject.html#750">[ subject ]</a>
+              <a href="author.html#750">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

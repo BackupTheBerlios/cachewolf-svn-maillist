@@ -1,0 +1,197 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1024 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-October/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1024%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200710280900.l9S90qqB002534%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000916.html">
+   <LINK REL="Next"  HREF="000918.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1024 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1024%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200710280900.l9S90qqB002534%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1024 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sun Oct 28 10:00:52 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000916.html">[Cachewolf-svn] r1023 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000918.html">[Cachewolf-svn] r1025 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#917">[ date ]</a>
+              <a href="thread.html#917">[ thread ]</a>
+              <a href="subject.html#917">[ subject ]</a>
+              <a href="author.html#917">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-10-28 10:00:45 +0100 (Sun, 28 Oct 2007)
+New Revision: 1024
+
+Modified:
+   trunk/src/CacheWolf/CacheHolder.java
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/Preferences.java
+Log:
+Added setting for CacheHolder.maxDetails to preferences (but not to preferences screen). Added number of stored details to system info.
+
+Modified: trunk/src/CacheWolf/CacheHolder.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolder.java	2007-10-28 07:08:30 UTC (rev 1023)
++++ trunk/src/CacheWolf/CacheHolder.java	2007-10-28 09:00:45 UTC (rev 1024)
+@@ -268,7 +268,7 @@
+ 		   details.update(this);
+ 		   return details;
+ 	   }
+-	   if (cachesWithLoadedDetails.size() &gt;= maxDetails) removeOldestDetails();
++	   if (cachesWithLoadedDetails.size() &gt;= Global.getPref().maxDetails) removeOldestDetails();
+ 	   details = new CacheHolderDetail(this);
+ 	   try {
+ 		   details.readCache(Global.getProfile().dataDir);
+@@ -288,15 +288,12 @@
+ 	   cachesWithLoadedDetails.remove(this);
+    }
+    
+-   final static int maxDetails = 50; 
+-   static Vector cachesWithLoadedDetails = new Vector(maxDetails);
++   //final static int maxDetails = 50; 
++   static Vector cachesWithLoadedDetails = new Vector(Global.getPref().maxDetails);
+    
+    public static void removeOldestDetails() { // TODO save changes if requested?
+-	   ((CacheHolder)(cachesWithLoadedDetails.get(0))).releaseCacheDetails();
+-	   ((CacheHolder)(cachesWithLoadedDetails.get(0))).releaseCacheDetails();
+-	   ((CacheHolder)(cachesWithLoadedDetails.get(0))).releaseCacheDetails();
+-	   ((CacheHolder)(cachesWithLoadedDetails.get(0))).releaseCacheDetails();
+-	   ((CacheHolder)(cachesWithLoadedDetails.get(0))).releaseCacheDetails();
++	   for (int i=0; i&lt;Global.getPref().deleteDetails; i++)
++		   ((CacheHolder)(cachesWithLoadedDetails.get(0))).releaseCacheDetails();
+    }
+    
+ /*
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2007-10-28 07:08:30 UTC (rev 1023)
++++ trunk/src/CacheWolf/MainMenu.java	2007-10-28 09:00:45 UTC (rev 1024)
+@@ -556,21 +556,25 @@
+ 			}
+ 			if(mev.selectedItem == sysinfo){
+ 				//Vm.debug(&quot;Checking system...&quot;);
+-				String sysstring;
++				StringBuffer sb=new StringBuffer(400);
+ 				Rect s = (Rect)Window.getGuiInfo(Window.INFO_SCREEN_RECT,null,new Rect(),0);
+ 				Font f = mApp.guiFont;
+-				sysstring =  &quot;Profile: &quot; + profile.dataDir + &quot;&lt;br&gt;&quot; +
+-							 &quot;Platform: &quot; + Vm.getPlatform() + &quot;&lt;br&gt;&quot; +
+-							 &quot;Locale lang is: &quot; + MyLocale.getLocaleLanguage() + &quot;&lt;br&gt;&quot; +
+-							 &quot;Locale country is: &quot; + MyLocale.getLocaleCountry() + &quot;&lt;br&gt;&quot;+
+-							 &quot;Decimal separator is: \&quot;&quot; + pref.digSeparator + &quot;\&quot;&lt;br&gt;&quot; +
+-							 &quot;Device is PDA: &quot; + Vm.isMobile()+ &quot;&lt;br&gt;&quot; +
+-							 &quot;Screen: &quot; + MyLocale.getScreenWidth() + &quot; x &quot; + MyLocale.getScreenHeight() + &quot;&lt;br&gt;&quot;+
+-							 &quot;Font size: &quot; + f.getSize() + &quot;&lt;br&gt;&quot; +
+-							 &quot;Entries in DB: &quot; +cacheDB.size() + &quot;&lt;br&gt;&quot;+
+-							 &quot;File separator is: \&quot;&quot; + Vm.getProperty(&quot;file.separator&quot;,&quot;def&quot;)+ &quot;\&quot;&lt;br&gt;&quot;+
+-							 &quot;Programme directory is &quot; + File.getProgramDirectory()+&quot;&lt;br&gt;&quot;;
+-				InfoScreen is = new InfoScreen(sysstring, &quot;System&quot;, false,pref);
++				sb.append(&quot;Profile: &quot;); 				sb.append(profile.dataDir);
++				sb.append(&quot;&lt;br&gt;Platform: &quot;); 			sb.append(Vm.getPlatform());
++				sb.append(&quot;&lt;br&gt;Locale lang is: &quot;);		sb.append(MyLocale.getLocaleLanguage()); 
++				sb.append(&quot;&lt;br&gt;Locale country is: &quot;); 	sb.append(MyLocale.getLocaleCountry()); 
++				sb.append(&quot;&lt;br&gt;Decimal separator is: \&quot;&quot;); sb.append(pref.digSeparator);
++				sb.append(&quot;\&quot;&lt;br&gt;Device is PDA: &quot;);		sb.append(Vm.isMobile());
++				sb.append(&quot;&lt;br&gt;Screen: &quot;);				sb.append(MyLocale.getScreenWidth()); 
++					sb.append(&quot; x &quot;);	 sb.append(MyLocale.getScreenHeight()); 
++				sb.append(&quot;&lt;br&gt;Font size: &quot;);			sb.append(f.getSize());
++				sb.append(&quot;&lt;br&gt;Entries in DB: &quot;);		sb.append(cacheDB.size());
++				sb.append(&quot;&lt;br&gt;File separator is: \&quot;&quot;); sb.append(Vm.getProperty(&quot;file.separator&quot;,&quot;def&quot;)); 
++				sb.append(&quot;\&quot;&lt;br&gt;Programme directory is &quot;); sb.append(File.getProgramDirectory());
++				sb.append(&quot;&lt;br&gt;Number of details in RAM is &quot;); sb.append(CacheHolder.cachesWithLoadedDetails.size());
++				sb.append(&quot; Max.: &quot;);					sb.append(Global.getPref().maxDetails);
++				sb.append(&quot;&lt;br&gt;&quot;);
++				InfoScreen is = new InfoScreen(sb.toString(), &quot;System&quot;, false,pref);
+ 				is.execute(father.getFrame(), Gui.CENTER_FRAME);
+ 			}
+ 			if(mev.selectedItem == chkVersion){
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2007-10-28 07:08:30 UTC (rev 1023)
++++ trunk/src/CacheWolf/Preferences.java	2007-10-28 09:00:45 UTC (rev 1024)
+@@ -92,6 +92,7 @@
+ 	public boolean tabsAtTop=true;
+ 	/** True if the status bar is to be displayed (hidden if false) */
+ 	public boolean showStatus=true;
++	//public boolean noTabs=false;
+ 	/** True if the application can be closed by clicking on the close button in the top line.
+ 	 * This can be set to avoid accidental closing of the application */
+ 	public boolean hasCloseButton=true;
+@@ -133,7 +134,11 @@
+ 	public boolean northCenteredGoto = true;
+ 	/** If not null, a customs map path has been specified by the user */
+ 	private String customMapsPath=null; 
+-
++	/** Number of CacheHolder details that are kept in memory */
++	public int maxDetails=50;
++	/** Number of details to delete when maxDetails have been stored in cachesWithLoadedDetails */
++	public int deleteDetails=5;
++	
+ 	//////////////////////////////////////////////
+ 	/** The debug switch (Can be used to activate dormant code) by adding
+ 	 * the line: &lt;pre&gt;&lt;debug value=&quot;true&quot;&gt;&lt;/pre&gt;
+@@ -282,6 +287,12 @@
+ 		if (name.equals(&quot;spider&quot;)) {
+ 			forceLogin = Boolean.valueOf(atts.getValue(&quot;forcelogin&quot;)).booleanValue();
+ 		}
++		if (name.equals(&quot;details&quot;)) {
++			maxDetails=Common.parseInt(atts.getValue(&quot;cacheSize&quot;));
++			deleteDetails=Common.parseInt(atts.getValue(&quot;delete&quot;));
++			if (maxDetails&lt;2) maxDetails=2;
++			if (deleteDetails&lt;1) deleteDetails=1;
++		}
+ 	}
+ 
+ 	public void characters( char ch[], int start, int length ) {
+@@ -336,6 +347,7 @@
+ 			outp.print(&quot;	&lt;location lat = \&quot;&quot;+curCentrePt.getLatDeg(CWPoint.DD)+&quot;\&quot; long = \&quot;&quot;+curCentrePt.getLonDeg(CWPoint.DD)+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;spider forcelogin=\&quot;&quot;+forceLogin+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;gotopanel northcentered=\&quot;&quot;+northCenteredGoto+&quot;\&quot; /&gt;\n&quot;);
++			outp.print(&quot;    &lt;details cacheSize=\&quot;&quot;+maxDetails+&quot;\&quot; delete=\&quot;&quot;+deleteDetails+&quot;\&quot;/&gt;\n&quot;);
+ 			if (customMapsPath!=null) outp.print(&quot;	&lt;mapspath dir = \&quot;&quot;+ customMapsPath +&quot;\&quot;/&gt;\n&quot;);
+ 			if (debug) outp.print(&quot;    &lt;debug value=\&quot;true\&quot; /&gt;\n&quot;); // Keep the debug switch if it is set
+ 			// save last path of different exporters
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000916.html">[Cachewolf-svn] r1023 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000918.html">[Cachewolf-svn] r1025 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#917">[ date ]</a>
+              <a href="thread.html#917">[ thread ]</a>
+              <a href="subject.html#917">[ subject ]</a>
+              <a href="author.html#917">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

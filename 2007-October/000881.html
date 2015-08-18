@@ -1,0 +1,137 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r988 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-October/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r988%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200710241838.l9OIcPB3015516%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000880.html">
+   <LINK REL="Next"  HREF="000882.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r988 - trunk/src/CacheWolf</H1>
+    <B>mik77 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r988%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200710241838.l9OIcPB3015516%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r988 - trunk/src/CacheWolf">mik77 at mail.berlios.de
+       </A><BR>
+    <I>Wed Oct 24 20:38:25 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000880.html">[Cachewolf-svn] r987 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000882.html">[Cachewolf-svn] r989 - trunk/resources
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#881">[ date ]</a>
+              <a href="thread.html#881">[ thread ]</a>
+              <a href="subject.html#881">[ subject ]</a>
+              <a href="author.html#881">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mik77
+Date: 2007-10-24 20:38:20 +0200 (Wed, 24 Oct 2007)
+New Revision: 988
+
+Modified:
+   trunk/src/CacheWolf/myTableControl.java
+Log:
+Show progress when updating caches.
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2007-10-22 19:35:46 UTC (rev 987)
++++ trunk/src/CacheWolf/myTableControl.java	2007-10-24 18:38:20 UTC (rev 988)
+@@ -166,27 +166,19 @@
+ 			boolean test = true;
+ 			InfoBox infB = new InfoBox(&quot;Info&quot;, &quot;Loading&quot;, InfoBox.PROGRESS_WITH_WARNINGS);
+ 			infB.exec();
++			
++			Vector cachesToUpdate = new Vector();
+ 			for(int i = 0; i &lt;	cacheDB.size(); i++){
+ 				ch = (CacheHolder)cacheDB.get(i);
+ 				if(ch.is_Checked == true) {
+ 					if ( ch.wayPoint.length()&gt;1 &amp;&amp; (ch.wayPoint.substring(0,2).equalsIgnoreCase(&quot;GC&quot;) 
+-							 					 || ch.wayPoint.substring(0,2).equalsIgnoreCase(&quot;OC&quot;)))
++							|| ch.wayPoint.substring(0,2).equalsIgnoreCase(&quot;OC&quot;)))
+ //						if ( (ch.wayPoint.length() &gt; 1 &amp;&amp; ch.wayPoint.substring(0,2).equalsIgnoreCase(&quot;GC&quot;)))
+ //						Notiz: Wenn es ein addi Wpt ist, sollte eigentlich der Maincache gespidert werden
+ //						Alter code pr&#252;ft aber nur ob ein Maincache von GC existiert und versucht dann den addi direkt zu spidern, was nicht funktioniert
+ //						TODO: Diese Meldungen vor dem Einloggen darstellen						
+ 					{
+-					    infB.setInfo(&quot;Loading: &quot; + ch.wayPoint);
+-					    infB.redisplay();
+-					    if (ch.wayPoint.substring(0,2).equalsIgnoreCase(&quot;GC&quot;))   
+-					    	test = spider.spiderSingle(i, infB);
+-					    else  
+-					    	test = ocSync.syncSingle(i, infB);
+-					    if (!test) {
+-							infB.close(0);
+-							break;
+-						} else 
+-							profile.hasUnsavedChanges=true;	
++						cachesToUpdate.add(new Integer(i));
+ 					} else {
+ 						if (ch.isAddiWpt() &amp;&amp; ch.mainCache!=null &amp;&amp; !ch.mainCache.is_Checked &amp;&amp; !alreadySaid2) { // Is the father ticked?
+ 							alreadySaid2=true;
+@@ -195,10 +187,28 @@
+ 						if (!ch.isAddiWpt() &amp;&amp; !alreadySaid) {
+ 							alreadySaid = true;
+ 							(new MessageBox(&quot;Information&quot;,ch.wayPoint+ &quot;: Diese Funktion steht gegenw&#228;rtig nur f&#252;r Geocaching.com und Opencaching.de zur Verf&#252;gung&quot;, MessageBox.OKB)).execute();
+-			    		}
++						}
+ 					}
++
+ 				}
++			}
+ 
++			for(int j = 0; j &lt;	cachesToUpdate.size(); j++){
++				int i = (Integer)cachesToUpdate.get(j);
++				ch = (CacheHolder)cacheDB.get(i);
++				infB.setInfo(&quot;Loading: &quot; + ch.wayPoint);
++				infB.setInfo(MyLocale.getMsg(5513,&quot;Loading: &quot;) + ch.wayPoint +&quot; (&quot; + (j+1) + &quot; / &quot; + cachesToUpdate.size() + &quot;)&quot;);
++				infB.redisplay();
++				if (ch.wayPoint.substring(0,2).equalsIgnoreCase(&quot;GC&quot;))   
++					test = spider.spiderSingle(i, infB);
++				else  
++					test = ocSync.syncSingle(i, infB);
++				if (!test) {
++					infB.close(0);
++					break;
++				} else 
++					profile.hasUnsavedChanges=true;	
++
+ //				cacheDB.clear();
+ //				profile.readIndex();
+ 			}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000880.html">[Cachewolf-svn] r987 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000882.html">[Cachewolf-svn] r989 - trunk/resources
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#881">[ date ]</a>
+              <a href="thread.html#881">[ thread ]</a>
+              <a href="subject.html#881">[ subject ]</a>
+              <a href="author.html#881">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

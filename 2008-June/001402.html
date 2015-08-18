@@ -1,0 +1,162 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1508 - in trunk/src/CacheWolf: . navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-June/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1508%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C200806080859.m588xt7M020414%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001401.html">
+   <LINK REL="Next"  HREF="001403.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1508 - in trunk/src/CacheWolf: . navi</H1>
+    <B>mik77 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1508%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C200806080859.m588xt7M020414%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1508 - in trunk/src/CacheWolf: . navi">mik77 at mail.berlios.de
+       </A><BR>
+    <I>Sun Jun  8 10:59:55 CEST 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001401.html">[Cachewolf-svn] r1507 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001403.html">[Cachewolf-svn] r1509 - trunk/docs
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1402">[ date ]</a>
+              <a href="thread.html#1402">[ thread ]</a>
+              <a href="subject.html#1402">[ subject ]</a>
+              <a href="author.html#1402">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mik77
+Date: 2008-06-08 10:59:51 +0200 (Sun, 08 Jun 2008)
+New Revision: 1508
+
+Modified:
+   trunk/src/CacheWolf/ProfilesForm.java
+   trunk/src/CacheWolf/navi/MovingMap.java
+Log:
+- Text and compass rose in moving map now scales with selected font size
+- Profile selection a little bit higher where possible (Thanks to Kappler)
+- Nullpointer exception avoided if no map is available.
+
+Modified: trunk/src/CacheWolf/ProfilesForm.java
+===================================================================
+--- trunk/src/CacheWolf/ProfilesForm.java	2008-06-07 22:29:28 UTC (rev 1507)
++++ trunk/src/CacheWolf/ProfilesForm.java	2008-06-08 08:59:51 UTC (rev 1508)
+@@ -65,8 +65,10 @@
+ 		super();
+     	resizable =  false;
+ 		int w=MyLocale.getScreenWidth();
++		int h=MyLocale.getScreenHeight();
+ 		if (w&gt;240) w=240;
+-		setPreferredSize(w,240);
++		if (h&gt;320) h=320;
++		setPreferredSize(w,h);
+ 	    defaultTags.set(CellConstants.INSETS,new Insets(2,2,2,2));		
+ 		title = MyLocale.getMsg(1301,&quot;Select Profile:&quot;);
+ 		if (hasNewButton) {
+
+Modified: trunk/src/CacheWolf/navi/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MovingMap.java	2008-06-07 22:29:28 UTC (rev 1507)
++++ trunk/src/CacheWolf/navi/MovingMap.java	2008-06-08 08:59:51 UTC (rev 1508)
+@@ -141,17 +141,18 @@
+ 		buttonImageZoom1to1.properties = mImage.AlwaysOnTop;
+ 		mmp.addImage(buttonImageZoom1to1);
+ 		//target distance
+-		Font font = new Font(&quot;Helvetica&quot;, Font.PLAIN, 13);
++		int fontSize = ( 3 * pref.fontSize ) / 2;
++		Font font = new Font(&quot;Helvetica&quot;, Font.PLAIN, fontSize );
+ 		fm = getFontMetrics(font);
+ 		DistanceImage = new AniImage();
+-		DistanceImage.setImage(new Image(120, 15), Color.White); // consider the size of the font used
++		DistanceImage.setImage(new Image(MyLocale.getScreenWidth()/2, fm.getHeight() ), Color.White); // consider the size of the font used
+ 		DistanceImageGraphics = new Graphics(DistanceImage.image);
+ 		DistanceImageGraphics.setFont(font);
+ 		DistanceImage.properties = mImage.AlwaysOnTop;
+ 		mmp.addImage(DistanceImage);
+ 		//scale
+ 		ScaleImage = new AniImage();
+-		ScaleImage.setImage(new Image(120, 15), Color.White); // consider the size of the font used
++		ScaleImage.setImage(new Image(MyLocale.getScreenWidth()/2, fm.getHeight() ), Color.White); // consider the size of the font used
+ 		ScaleImageGraphics = new Graphics(ScaleImage.image);
+ 		ScaleImageGraphics.setFont(font);
+ 		ScaleImage.properties = mImage.AlwaysOnTop;
+@@ -957,10 +958,12 @@
+ 					newmap = maps.getMapForArea(posCircle.where, gotoPos.where); // TODO use home-coos if no gps? - consider start from details panel and from gotopanel
+ 					if (newmap == null)	newmap = maps.getBestMap(cll, screen, 10000000000000000000000000000000000f, false); // use map with most available overview if no map containing PosCircle and GotoPos is available
+ 					
+-					lastHighestResolutionGPSDestScale = newmap.scale;	
+-					
+-					if (!posCircleOnScreen) {
+-						newmap = maps.getBestMap(cll, screen, lastHighestResolutionGPSDestScale , false);
++					if (newmap != null) {
++						lastHighestResolutionGPSDestScale = newmap.scale;	
++						
++						if (!posCircleOnScreen) {
++							newmap = maps.getBestMap(cll, screen, lastHighestResolutionGPSDestScale , false);
++						}						
+ 					}
+ 				}
+ 			}
+@@ -2008,6 +2011,9 @@
+ 	Point[] moveDirArrow = null;
+ 	Point[] northDirArrow = null;
+ 	
++	int imageSize = Global.getPref().fontSize * 8;
++	int arrowThickness = imageSize / 28;
++	
+ 	/**
+ 	 * @param gd goto direction
+ 	 * @param sd sun direction
+@@ -2020,7 +2026,7 @@
+ 	}
+ 
+ 	public void newImage() {
+-		setImage(new Image(80,80), Color.White);
++		setImage(new Image(imageSize,imageSize), Color.White);
+ 		draw = new Graphics(image);
+ 	}
+ 	public void setMap(MapInfoObject m) {
+@@ -2146,7 +2152,7 @@
+ 	
+ 	public void drawArrow(Graphics g, Point[] arrow, Color col) {
+ 		if (arrow == null) return;
+-		g.setPen(new Pen(col,Pen.SOLID,3));
++		g.setPen(new Pen(col,Pen.SOLID,arrowThickness));
+ 		g.drawLine(arrow[0].x, arrow[0].y, arrow[1].x,arrow[1].y);
+ 	}
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001401.html">[Cachewolf-svn] r1507 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001403.html">[Cachewolf-svn] r1509 - trunk/docs
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1402">[ date ]</a>
+              <a href="thread.html#1402">[ thread ]</a>
+              <a href="subject.html#1402">[ subject ]</a>
+              <a href="author.html#1402">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

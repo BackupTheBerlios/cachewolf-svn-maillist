@@ -1,0 +1,129 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r560 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r560%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702111932.l1BJW17F016305%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000367.html">
+   <LINK REL="Next"  HREF="000369.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r560 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r560%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702111932.l1BJW17F016305%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r560 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sun Feb 11 20:32:01 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000367.html">[Cachewolf-svn] r559 - trunk/resources
+</A></li>
+        <LI>Next message: <A HREF="000369.html">[Cachewolf-svn] r561 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#368">[ date ]</a>
+              <a href="thread.html#368">[ thread ]</a>
+              <a href="subject.html#368">[ subject ]</a>
+              <a href="author.html#368">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-02-11 20:31:58 +0100 (Sun, 11 Feb 2007)
+New Revision: 560
+
+Modified:
+   trunk/src/CacheWolf/DetailsPanel.java
+Log:
+DetailsPanel: Bugfix: Leere oder kurze Waypoints verursachten IndexOutOfBounds Exceptions bei diversen substring Operations
+Feature: Distanz zum Zentrum wird sofort aktualisiert +
+Ausfuehrliche Warnung wenn zum Addi Wpt kein Master gefunden wird
+
+
+Modified: trunk/src/CacheWolf/DetailsPanel.java
+===================================================================
+--- trunk/src/CacheWolf/DetailsPanel.java	2007-02-11 19:08:33 UTC (rev 559)
++++ trunk/src/CacheWolf/DetailsPanel.java	2007-02-11 19:31:58 UTC (rev 560)
+@@ -296,10 +296,14 @@
+ 				CoordsScreen cs = new CoordsScreen();
+ 				cs.setFields(coords, CWPoint.CW);
+ 				if (cs.execute()== CoordsScreen.IDOK){
++					dirty_details=true;
+ 					coords = cs.getCoords();
+ 					thisCache.pos.set(coords);
+ 					btnWayLoc.setText(coords.toString());
+ 					thisCache.LatLon=coords.toString();
++					// If the current center is valid, calculate the distance and bearing to it
++					CWPoint center=Global.getPref().curCentrePt;
++					if (center.isValid()) thisCache.calcDistance(center);
+ 				}
+ 			}
+ 			ev.consumed=true;
+@@ -313,14 +317,32 @@
+ 		  ch.is_found = ch.CacheStatus.equals(MyLocale.getMsg(318,&quot;Found&quot;));
+ 		  ch.is_black = blackStatus;
+ 		  ch.wayPoint = inpWaypoint.getText().trim();
++		  // If the waypoint does not have a name, give it one
++		  if (ch.wayPoint.equals(&quot;&quot;)) { 
++			  ch.wayPoint=profile.getNewWayPointName();
++		  }
++		  //Don't allow single letter names=&gt; Problems in updateBearingDistance
++		  // This is a hack but faster than slowing down the loop in updateBearingDistance
++		  if (ch.wayPoint.length()&lt;2) ch.wayPoint+=&quot; &quot;;
+ 		  ch.CacheName = inpName.getText().trim();
+-		  ch.LatLon = new CWPoint(btnWayLoc.getText(),CWPoint.CW).toString();
++		  ch.LatLon = ch.pos.toString();
+ 		  ch.DateHidden = inpHidden.getText().trim();
+ 		  ch.CacheOwner = inpOwner.getText().trim();
+-		  ch.is_owned = pref.myAlias.equals(ch.CacheOwner);
++		  // Avoid setting is_owned if alias is empty and username is empty
++		  ch.is_owned = (!pref.myAlias.equals(&quot;&quot;) &amp;&amp; pref.myAlias.equals(ch.CacheOwner)) || 
++				        (!pref.myAlias2.equals(&quot;&quot;) &amp;&amp; pref.myAlias2.equals(ch.CacheOwner));
+ 		  ch.type = transSelect(chcType.getInt());
+-		  if (CacheType.isAddiWpt(ch.type)) 
++		  if (CacheType.isAddiWpt(ch.type)) {
++			  int idx;
++			  if (ch.wayPoint.length()&lt;5)
++				  idx=-1;
++			  else
++				  idx=profile.getCacheIndex(&quot;GC&quot;+ ch.wayPoint.substring(ch.wayPoint.length() == 5?1:2));
++			  if (idx&lt;0) (new MessageBox(MyLocale.getMsg(144,&quot;Warning&quot;),
++					  MyLocale.getMsg(734,&quot;No main cache found for addi waypoint &quot;)+&quot; &quot;+ch.wayPoint+
++					  &quot;\n&quot;+MyLocale.getMsg(735,&quot;Addi Waypoints must have the format xxYYYY, where xx are any 2 chars and YYYY are the main cache's chars after the GC&quot;),FormBase.OKB)).execute();
+ 			  profile.buildReferences();
++		  }
+ 		  // set status also on addi wpts
+ 		  if (ch.hasAddiWpt()){
+ 			  CacheHolder addiWpt;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000367.html">[Cachewolf-svn] r559 - trunk/resources
+</A></li>
+	<LI>Next message: <A HREF="000369.html">[Cachewolf-svn] r561 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#368">[ date ]</a>
+              <a href="thread.html#368">[ thread ]</a>
+              <a href="subject.html#368">[ subject ]</a>
+              <a href="author.html#368">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

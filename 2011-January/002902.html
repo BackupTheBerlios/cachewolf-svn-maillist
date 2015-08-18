@@ -1,0 +1,240 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2913 - in trunk: res_noewe src/CacheWolf	src/CacheWolf/imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2011-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2913%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf%0A%09src/CacheWolf/imp&In-Reply-To=%3C20110116183825.16CFD48128B%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002901.html">
+   <LINK REL="Next"  HREF="002903.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2913 - in trunk: res_noewe src/CacheWolf	src/CacheWolf/imp</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2913%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf%0A%09src/CacheWolf/imp&In-Reply-To=%3C20110116183825.16CFD48128B%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2913 - in trunk: res_noewe src/CacheWolf	src/CacheWolf/imp">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Sun Jan 16 07:38:24 CET 2011</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002901.html">[Cachewolf-svn] r2912 - trunk/src/CacheWolf/imp
+</A></li>
+        <LI>Next message: <A HREF="002903.html">[Cachewolf-svn] r2914 - trunk/res_noewe
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2902">[ date ]</a>
+              <a href="thread.html#2902">[ thread ]</a>
+              <a href="subject.html#2902">[ subject ]</a>
+              <a href="author.html#2902">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2011-01-16 19:38:24 +0100 (Sun, 16 Jan 2011)
+New Revision: 2913
+
+Modified:
+   trunk/res_noewe/spider.def
+   trunk/src/CacheWolf/HttpConnection.java
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+1. owner recognition 
+2. imperial units ft
+3. experiments on fetch http
+
+Modified: trunk/res_noewe/spider.def
+===================================================================
+--- trunk/res_noewe/spider.def	2011-01-14 21:23:30 UTC (rev 2912)
++++ trunk/res_noewe/spider.def	2011-01-16 18:38:24 UTC (rev 2913)
+@@ -75,7 +75,7 @@
+ PMRex              = small_profile.gif
+ distCodeRex        = k=(.*?)&quot;\ style=
+ distCodeKey        = signalthefrog
+-distRex            = (.*?)(?:km|mi)
++distRex            = (.*?)(?:km|mi|ft)
+ DTSRex             = v=(.*?)&quot;\ style=
+ DTSCodeKey         = hbM9fjmrxy7z42LFD58BkKgPGdHscvCqNnw3ptO6lJ
+ waypointRex        = \\(GC(.*?)\\)&lt;br\ /&gt;
+@@ -105,9 +105,9 @@
+ #--------------------------------------
+ getPageByName      = <A HREF="http://www.geocaching.com/seek/cache_details.aspx?wp=">http://www.geocaching.com/seek/cache_details.aspx?wp=</A>
+ fetchAllLogs       = &amp;log=y
+-cacheUnavailable   = class=&quot;OldWarning&quot;&gt;&lt;li&gt;This\ cache\ is\ temporarily\ unavailable
+-cacheArchived      = class=&quot;OldWarning&quot;&gt;&lt;li&gt;This\ cache\ has\ been\ archived
+-premiumCachepage   = class=&quot;Warning&quot;&gt;This\ is\ a\ Premium\ Member\ Only\ Cache
++cacheUnavailable   = cache\ is\ temporarily\ unavailable
++cacheArchived      = cache\ has\ been\ archived
++premiumCachepage   = Premium\ Member\ Only\ Cache
+ latLonRex          = tBody_LatLon&quot;\ style=&quot;font-weight:bold;&quot;&gt;((?s).*?)&lt;/span&gt;
+ shortDescRex       = tBody_ShortDescription&quot;&gt;((?s).*?)&lt;/span&gt;
+ longDescRex        = tBody_LongDescription&quot;&gt;((?s).*?)&lt;td\ valign=&quot;top&quot;\ width=&quot;10%&quot;&gt;\\s*&nbsp;\\s*&lt;/td
+
+Modified: trunk/src/CacheWolf/HttpConnection.java
+===================================================================
+--- trunk/src/CacheWolf/HttpConnection.java	2011-01-14 21:23:30 UTC (rev 2912)
++++ trunk/src/CacheWolf/HttpConnection.java	2011-01-16 18:38:24 UTC (rev 2913)
+@@ -319,6 +319,10 @@
+ public HttpConnection(String url)
+ //===================================================================
+ {
++	setUrl(url);
++}
++public void setUrl(String url)
++{
+ 	if (useProxy) { 
+ 		host = proxy;
+ 		port = proxyPort;
+@@ -621,6 +625,11 @@
+ {
+ 	return (ByteArray)waitOnIO(readInData(connection),&quot;Error reading data.&quot;);
+ }
++public ByteArray readData() throws IOException
++//===================================================================
++{
++	return (ByteArray)waitOnIO(readInData(openSocket),&quot;Error reading data.&quot;);
++}
+ /**
+  * Read in all the data from the Socket, converting it to text using the specified
+  * codec. 
+@@ -697,8 +706,19 @@
+ 			//
+ 			// Create a Socket using an IOHandle.
+ 			//
+-			Handle sh = (openSocket != null) ? new Handle(Handle.Succeeded,openSocket) : new IOHandle();
+-			Socket sock = (openSocket != null) ? openSocket : new Socket(host,port,(IOHandle)sh);
++			Handle sh;
++			Socket sock;
++			if (openSocket != null) {
++				sh = new Handle(Handle.Succeeded,openSocket);
++				sock = openSocket;
++			}
++			else {
++				sh = new IOHandle();
++				sock = new Socket(host,port,(IOHandle)sh);
++				// openSocket = sock;
++			}
++			// Handle sh = (openSocket != null) ? new Handle(Handle.Succeeded,openSocket) : new IOHandle();
++			// Socket sock = (openSocket != null) ? openSocket : new Socket(host,port,(IOHandle)sh);
+ 			try{
+ 				//
+ 				// Now wait until connected.
+@@ -733,8 +753,17 @@
+  * @exception IOException if there was an error connecting or getting the data.
+  */
+ public Socket connect() throws IOException {
+-	return (Socket)waitOnIO(connectAsync(),&quot;Could not connect.&quot;);
++	openSocket = (Socket)waitOnIO(connectAsync(),&quot;Could not connect.&quot;);
++	return openSocket;
+ }
++public void disconnect() {
++	if (openSocket.isOpen()) {
++		openSocket.close(); // releases the handles of the system
++	}
+ }
++public boolean isOpen() {
++	return openSocket.isOpen();
++}
++}
+ 
+ 
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2011-01-14 21:23:30 UTC (rev 2912)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2011-01-16 18:38:24 UTC (rev 2913)
+@@ -1727,7 +1727,7 @@
+ 		}
+ 		String stmp = ewe.net.URL.decodeURL(RexPropDistanceCode.stringMatched(1));
+ 		String ret = decodeXor( stmp, DistanceCodeKey).replace('|', ' ');
+-		RexPropDistance.search(ret); // km oder mi
++		RexPropDistance.search(ret); // km oder mi oder ft		
+ 		if (!RexPropDistance.didMatch()) {
+ 			if (ret.indexOf(&quot;ere&quot;) &gt; -1) return distanceAndDirection; // zur Zeit &quot; Here -1&quot;
+ 			// Versuch den DistanceCodeKey automatisch zu bestimmen
+@@ -1775,6 +1775,10 @@
+ 				String r = RexPropDistance.right(1).substring(3);
+ 				distanceAndDirection[1] = Convert.toDouble(r);
+ 			}
++			if (ret.indexOf(&quot;ft&quot;)&gt;0) {
++				// Umrechnung in miles
++				distanceAndDirection[0]=distanceAndDirection[0] / 5280.0;				
++			}
+ 		}
+ 		else {
+ 			pref.log(&quot;(gc Code change ?) check distCodeKey in spider.def&quot; + Preferences.NEWLINE + doc);
+@@ -2291,12 +2295,11 @@
+ 							ch.getCacheDetails(false).State = &quot;&quot;;
+ 							pref.log(&quot;No location (country/state) found&quot;);
+ 						}
+-
+-						ch.setCacheOwner(SafeXML.cleanback(
+-								getOwner(completeWebPage)).trim());
++						String owner = getOwner(completeWebPage);
++						owner = SafeXML.cleanback(owner).trim();
++						ch.setCacheOwner(owner);
+ 						if (ch.getCacheOwner().equals(pref.myAlias)
+-								|| (pref.myAlias2.length() &gt; 0 &amp;&amp; ch
+-										.getCacheOwner().equals(pref.myAlias2)))
++							|| (pref.myAlias2.length() &gt; 0 &amp;&amp; ch.getCacheOwner().equals(pref.myAlias2)))
+ 							ch.setOwned(true);
+ 						pref.log(&quot;Owner: &quot; + ch.getCacheOwner()
+ 								+ &quot;; is_owned = &quot; + ch.is_owned()
+@@ -3209,16 +3212,21 @@
+ 			if (pref.myproxy.length() &gt; 0 &amp;&amp; pref.proxyActive) {
+ 				pref.log(&quot;[fetch]:Using proxy: &quot; + pref.myproxy + &quot; / &quot; + pref.myproxyport);
+ 			}
+-			conn = new HttpConnection(address);
++			if (conn == null) { conn = new HttpConnection(address); }
++			else { conn.setUrl(address); }
+ 			conn.setRequestorProperty(&quot;User-Agent&quot;, &quot;Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.7.5) Gecko/20041107 Firefox/1.0&quot;);
+ 			if (cookieSession.length() &gt; 0) {conn.setRequestorProperty(&quot;Cookie&quot;, &quot;ASP.NET_SessionId=&quot; + cookieSession + &quot;; userid=&quot; + cookieID);};
+ 			conn.setRequestorProperty(&quot;Connection&quot;, &quot;close&quot;);
+ 			conn.documentIsEncoded = true;
+-			Socket sock = conn.connect();
+-			pref.log(&quot;[fetch]:Connect ok! &quot; + address);
+-			ByteArray daten = conn.readData(sock);
+-			sock.close();
+-			return daten;
++			conn.connect();
++			if (conn.isOpen()) {
++				pref.log(&quot;[fetch]:Connect ok! &quot; + address);
++				ByteArray daten = conn.readData();
++				conn.disconnect();
++				return daten;
++			}
++			pref.log(&quot;[fetch]:Connect not opened! &quot; + address, null);
++			return null;
+ 		} catch (IOException ioex) {
+ 			pref.log(&quot;IOException in fetch&quot;, ioex);
+ 			return null;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002901.html">[Cachewolf-svn] r2912 - trunk/src/CacheWolf/imp
+</A></li>
+	<LI>Next message: <A HREF="002903.html">[Cachewolf-svn] r2914 - trunk/res_noewe
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2902">[ date ]</a>
+              <a href="thread.html#2902">[ thread ]</a>
+              <a href="subject.html#2902">[ subject ]</a>
+              <a href="author.html#2902">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

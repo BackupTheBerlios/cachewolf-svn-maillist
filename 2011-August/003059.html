@@ -1,0 +1,288 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r3068 - trunk/src/CacheWolf/imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2011-August/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r3068%20-%20trunk/src/CacheWolf/imp&In-Reply-To=%3C20110826132628.6D703481131%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003056.html">
+   <LINK REL="Next"  HREF="003057.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r3068 - trunk/src/CacheWolf/imp</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r3068%20-%20trunk/src/CacheWolf/imp&In-Reply-To=%3C20110826132628.6D703481131%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r3068 - trunk/src/CacheWolf/imp">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Fri Aug 26 03:26:28 CEST 2011</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003056.html">[Cachewolf-svn] r3065 - trunk
+</A></li>
+        <LI>Next message: <A HREF="003057.html">[Cachewolf-svn] r3066 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3059">[ date ]</a>
+              <a href="thread.html#3059">[ thread ]</a>
+              <a href="subject.html#3059">[ subject ]</a>
+              <a href="author.html#3059">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2011-08-26 15:26:28 +0200 (Fri, 26 Aug 2011)
+New Revision: 3068
+
+Modified:
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+https login : <A HREF="http://www.geoclub.de/viewtopic.php?f=40&amp;t=57824&amp;start=10">http://www.geoclub.de/viewtopic.php?f=40&amp;t=57824&amp;start=10</A>
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2011-08-26 10:29:21 UTC (rev 3067)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2011-08-26 13:26:28 UTC (rev 3068)
+@@ -1087,36 +1087,77 @@
+ 	} // getCacheCoordinates
+ 
+ 	/**
++	 * create alias Method from login for auto retry
++	 * TODO: Translation for status text!
++	 */
++	private boolean login() {
++		
++		int counter = 5;
++		boolean real_return = false;
++		InfoBox localInfB = new InfoBox(MyLocale.getMsg(5507, &quot;Status&quot;), MyLocale.getMsg(5508, &quot;Logging in...&quot;));
++		localInfB.exec();
++		
++		while (counter &gt; 0) {
++			counter--;
++			switch( origin_login() ) {
++				case 1:
++					real_return = true;
++					counter = 0;
++					break;
++				case 0:
++					localInfB.setInfo(MyLocale.getMsg(5523, &quot;Login error! next try...&quot;)+ &quot;(&quot; + (5 - counter) + &quot;/5)&quot;);
++					break;
++				case 2:
++					(new MessageBox(MyLocale.getMsg(5500, &quot;Error&quot;), MyLocale.getMsg(5501, &quot;Login failed! Wrong account or password?&quot;), FormBase.OKB)).execute();
++					counter = 0;
++					break;
++				case 3:
++					localInfB.setInfo(MyLocale.getMsg(5523, &quot;Login error! next try...&quot;)+ &quot;(&quot; + (5 - counter) + &quot;/5)&quot;);
++					break;
++				case 4:
++					localInfB.setInfo(MyLocale.getMsg(5523, &quot;Login error! next try...&quot;) + &quot;(&quot; + (5 - counter) + &quot;/5)&quot;);
++					break;
++			}			
++		}
++		
++		localInfB.close(0);
++		return real_return;
++		
++	}
++
++	/**
+ 	 * Method to login the user to gc.com It will request a password and use the alias defined in preferences If the
+ 	 * login page cannot be fetched, the password is cleared. If the login fails, an appropriate message is displayed.
++	 * changed return type from boolean to int
++	 * 0 = false / abort
++	 * 1 = true
++	 * 2 = wrong username or password
++	 * 3 = login exception
++	 * 4 = fetch error / offline
++	 * remove messagebox and infobox
+ 	 */
+-	private boolean login() {
++	private int origin_login() {
+ 		if (loggedIn &amp;&amp; !pref.forceLogin) {
+-			return true;
++			return 1;
+ 		}
+-		/*if (pref.userID.length() &gt; 0) {
++
++		if (pref.userID.length() &gt; 0) {
+ 			UrlFetcher.setPermanentRequestorProperty(&quot;Cookie&quot;, null);
+ 			loggedIn = switchToEnglish();
+-			if (loggedIn)
+-				return true;
+-			else {
+-				(new MessageBox(&quot;Login&quot;, &quot;Check UserID in preferences | Einstellungen.\nsee <A HREF="http://cachewolf.aldos.de/userid.html">http://cachewolf.aldos.de/userid.html</A>&quot;, FormBase.OKB)).execute();
+-				return false;
+-			}
+-		} else {*/
+-		//	UrlFetcher.setPermanentRequestorProperty(&quot;Cookie&quot;, null);
+-		/*	if (true) {
+-				(new MessageBox(&quot;Login&quot;, &quot;Check UserID in preferences| Einstellungen.\nsee <A HREF="http://cachewolf.aldos.de/userid.html">http://cachewolf.aldos.de/userid.html</A>&quot;, FormBase.OKB)).execute();
+-				return false; // until SSL/https works
+-			}
+-		}*/
++			if (loggedIn) return 1;
++			//else {
++			//  (new MessageBox(&quot;Login&quot;, &quot;Check UserID in preferences | Einstellungen.\nsee <A HREF="http://cachewolf.aldos.de/userid.html">http://cachewolf.aldos.de/userid.html</A>&quot;, FormBase.OKB)).execute();
++			//	return false;
++			//}
++		} 
++
+ 		loggedIn = false;
+ 		String loginPage, loginPageUrl, loginSuccess;
+ 		try {
+ 			loginPageUrl = p.getProp(&quot;loginPage&quot;);
+ 			loginSuccess = p.getProp(&quot;loginSuccess&quot;);
+ 		} catch (final Exception ex) { // Tag not found in spider.def
+-			return false;
++			return 0;
+ 		}
+ 
+ 		// **0 Get password
+@@ -1131,24 +1172,20 @@
+ 		}
+ 		localInfB.close(0);
+ 		if (code != FormBase.IDOK)
+-			return false;
++			return 0;
+ 
+ 		// **1 now we have user and password for login
+-		localInfB = new InfoBox(MyLocale.getMsg(5507, &quot;Status&quot;), MyLocale.getMsg(5508, &quot;Logging in...&quot;));
+-		localInfB.exec();
++		//localInfB = new InfoBox(MyLocale.getMsg(5507, &quot;Status&quot;), MyLocale.getMsg(5508, &quot;Logging in...&quot;));
++		//localInfB.exec();
+ 		try {
+ 			loginPage = UrlFetcher.fetch(loginPageUrl); // <A HREF="http://www.geocaching.com/login/default.aspx">http://www.geocaching.com/login/default.aspx</A>
+ 			if (loginPage.equals(&quot;&quot;)) {
+-				localInfB.close(0);
+-				(new MessageBox(MyLocale.getMsg(5500, &quot;Error&quot;), MyLocale.getMsg(5499, &quot;Error loading login page.%0aPlease check your internet connection.&quot;), FormBase.OKB)).execute();
+ 				pref.log(&quot;[login]:Could not fetch: gc.com login page &quot; + loginPageUrl, null);
+-				return false;
++				return 4;
+ 			}
+ 		} catch (final Exception ex) {
+-			localInfB.close(0);
+-			(new MessageBox(MyLocale.getMsg(5500, &quot;Error&quot;), MyLocale.getMsg(5499, &quot;Error loading login page.%0aPlease check your internet connection.&quot;), FormBase.OKB)).execute();
+ 			pref.log(&quot;[login]:Could not fetch: gc.com login page&quot;, ex);
+-			return false;
++			return 4;
+ 		}
+ 
+ 		// **2 now we can check the loginpage if logged in else log in
+@@ -1163,10 +1200,8 @@
+ 					try {
+ 						loginPage = UrlFetcher.fetch(&quot;<A HREF="http://www.geocaching.com/login/default.aspx?RESETCOMPLETE=Y">http://www.geocaching.com/login/default.aspx?RESETCOMPLETE=Y</A>&quot;);
+ 					} catch (final Exception ex) {
+-						localInfB.close(0);
+-						(new MessageBox(MyLocale.getMsg(5500, &quot;Error&quot;), MyLocale.getMsg(5499, &quot;Error loading login page.%0aPlease check your internet connection.&quot;), FormBase.OKB)).execute();
+ 						pref.log(&quot;[login]:Could not fetch: gc.com login page&quot;, ex);
+-						return false;
++						return 4;
+ 					}
+ 
+ 				}
+@@ -1179,10 +1214,8 @@
+ 					if (rexViewstate.didMatch()) {
+ 						viewstate = rexViewstate.stringMatched(1);
+ 					} else {;
+-						localInfB.close(0);
+ 						pref.log(&quot;[login]:__VIEWSTATE not found (before login): no login possible.&quot;, null);
+-						// we need the __VIEWSTATE for sending loginData, so we should abort here
+-						return false;
++						return 0;
+ 					}
+ 					
+ 					final StringBuffer sb = new StringBuffer(1000);
+@@ -1215,18 +1248,19 @@
+ 						if (rexCookieSession.didMatch()) {
+ 							cookie = &quot;ASP.NET_SessionId=&quot; + rexCookieSession.stringMatched(1);
+ 						} else {
+-							localInfB.close(0);
+ 							pref.log(&quot;[login]:SessionID not found.&quot;, null);
+-							return false;
++							return 0;
+ 						}
+ 						final Regex rexCookieID = new Regex(&quot;(?i)userid=(.*?);.*&quot;);
+ 						rexCookieID.search(docprops);
+ 						if (rexCookieID.didMatch()) {
+ 							cookie += &quot;; userid=&quot; + rexCookieID.stringMatched(1);
++							// set the user id in user pref
++							pref.userID = rexCookieID.stringMatched(1);
++							pref.savePreferences();
+ 						} else {
+-							localInfB.close(0);
+ 							pref.log(&quot;[login]:userID not found.&quot;, null);
+-							return false;
++							return 0;
+ 						}
+ 						UrlFetcher.setPermanentRequestorProperty(&quot;Cookie&quot;, cookie);
+ 					} else {
+@@ -1234,29 +1268,25 @@
+ 						pref.log(&quot;[login.url]:&quot; + loginPageUrl, null);
+ 						pref.log(&quot;[login.postData]:&quot; + sb.toString(), null);
+ 						pref.log(&quot;[login.Answer]:&quot; + loginPage, null);
+-						localInfB.close(0);
+-						(new MessageBox(MyLocale.getMsg(5500, &quot;Error&quot;), MyLocale.getMsg(5501, &quot;Login failed! Wrong account or password?&quot;), FormBase.OKB)).execute();
+-						return false;
++						return 2;
+ 					}
+ 					if (!this.switchToEnglish())
+-						return false;
++						return 0;
+ 				} catch (final Exception ex) {
+ 					pref.log(&quot;[login]:Login failed with exception.&quot;, ex);
+-					localInfB.close(0);
+-					(new MessageBox(MyLocale.getMsg(5500, &quot;Error&quot;), MyLocale.getMsg(5501, &quot;Login failed. Error loading page after login.&quot;), FormBase.OKB)).execute();
+-					return false;
++					return 3;
+ 				}
+ 			}
+ 		}
+ 
+-		final boolean loginAborted = localInfB.isClosed;
+-		localInfB.close(0);
+-		if (loginAborted)
+-			return false;
+-		else {
++		//final boolean loginAborted = localInfB.isClosed;
++		//localInfB.close(0);
++		//if (loginAborted)
++		//	return 0;
++		//else {
+ 			loggedIn = true;
+-			return true;
+-		}
++			return 1;
++		//}
+ 	}
+ 
+ 	private boolean switchToEnglish() {
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003056.html">[Cachewolf-svn] r3065 - trunk
+</A></li>
+	<LI>Next message: <A HREF="003057.html">[Cachewolf-svn] r3066 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3059">[ date ]</a>
+              <a href="thread.html#3059">[ thread ]</a>
+              <a href="subject.html#3059">[ subject ]</a>
+              <a href="author.html#3059">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

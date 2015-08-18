@@ -1,0 +1,139 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r974 - in trunk: resources src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-October/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r974%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200710131455.l9DEtNRp004242%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000866.html">
+   <LINK REL="Next"  HREF="000868.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r974 - in trunk: resources src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r974%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200710131455.l9DEtNRp004242%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r974 - in trunk: resources src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sat Oct 13 16:55:23 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000866.html">[Cachewolf-svn] r973 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000868.html">[Cachewolf-svn] r975 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#867">[ date ]</a>
+              <a href="thread.html#867">[ thread ]</a>
+              <a href="subject.html#867">[ subject ]</a>
+              <a href="author.html#867">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-10-13 16:55:18 +0200 (Sat, 13 Oct 2007)
+New Revision: 974
+
+Modified:
+   trunk/resources/spider.def
+   trunk/src/CacheWolf/SpiderGC.java
+   trunk/src/CacheWolf/myTableControl.java
+Log:
+SpiderGC: When spidering Addi waypoints, use the prefix given by GC rather than starting at 00. This should avoid having addis twice when using GPX files. (<A HREF="http://www.geoclub.de/ftopic19327-0-asc-0.html">http://www.geoclub.de/ftopic19327-0-asc-0.html</A>)
+
+Modified: trunk/resources/spider.def
+===================================================================
+--- trunk/resources/spider.def	2007-10-13 12:44:44 UTC (rev 973)
++++ trunk/resources/spider.def	2007-10-13 14:55:18 UTC (rev 974)
+@@ -14,6 +14,7 @@
+ # Version 2.10 - 20070825 Travelbug support
+ # Version 2.11 - 20070907 get travelbug mission by tracking number
+ # Version 3.0 - 20071010 adaption to new GC-design
++# Version 3.1 - 20091013 Use the given prefix for addi waypoints
+ #============================================================
+ # A suffix of Rex indicates a regular expression
+ # A suffix of ExStart indicates the start of an Extractor search pattern
+@@ -129,6 +130,8 @@
+ typeRex            = &lt;/a&gt;\ \\((.*)\\)&lt;/td&gt;
+ rowBlockExStart    = &lt;tr
+ rowBlockExEnd      = &lt;/tr&gt;
++prefixExStart      = &lt;td\ valign=\&quot;top\&quot;\ align=\&quot;left\&quot;&gt;
++prefixExEnd        = &lt;/td&gt;
+ 
+ #--------------------------------------
+ #Section2e: Attributes
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2007-10-13 12:44:44 UTC (rev 973)
++++ trunk/src/CacheWolf/SpiderGC.java	2007-10-13 14:55:18 UTC (rev 974)
+@@ -1018,6 +1018,11 @@
+ 			rowBlock = exRowBlock.findNext();
+ 			while(exRowBlock.endOfSearch()==false){
+ 				CacheHolderDetail cxD = new CacheHolderDetail();
++				Extractor exPrefix=new Extractor(rowBlock,p.getProp(&quot;prefixExStart&quot;),p.getProp(&quot;prefixExEnd&quot;),0,true);
++				String prefix=exPrefix.findNext();
++				if (prefix.length()==2)
++					cxD.wayPoint=prefix+wayPoint.substring(2);
++				else	
+ 				cxD.wayPoint = MyLocale.formatLong(counter, &quot;00&quot;) + wayPoint.substring(2);
+ 				counter++;
+ 				try{ // If addi exists, try to read it to preserve the notes
+@@ -1041,8 +1046,10 @@
+ 				}else {
+ 					CacheHolder cx=(CacheHolder) cacheDB.get(idx);
+ 					if (cx.is_Checked &amp;&amp; // Only re-spider existing addi waypoints that are ticked
+-				 	   !cx.is_filtered) // and are visible (i.e.  not filtered)
++				 	   !cx.is_filtered) { // and are visible (i.e.  not filtered)
+ 					   cx.update(cxD);
++					   cx.is_Checked=true;
++					}
+ 				}
+ 				rowBlock = exRowBlock.findNext();
+ 			}
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2007-10-13 12:44:44 UTC (rev 973)
++++ trunk/src/CacheWolf/myTableControl.java	2007-10-13 14:55:18 UTC (rev 974)
+@@ -187,8 +187,8 @@
+ 							break;
+ 						} else 
+ 							profile.hasUnsavedChanges=true;	
+-					} else { 
+-						if (ch.isAddiWpt() &amp;&amp; !ch.mainCache.is_Checked &amp;&amp; !alreadySaid2) { // Is the father ticked?
++					} else {
++						if (ch.isAddiWpt() &amp;&amp; ch.mainCache!=null &amp;&amp; !ch.mainCache.is_Checked &amp;&amp; !alreadySaid2) { // Is the father ticked?
+ 							alreadySaid2=true;
+ 							(new MessageBox(&quot;Information&quot;,&quot;Hilfswegpunkte k&#246;nnnen nicht direkt gespidert werden\nBitte zus&#228;tzlich den Vater anhaken&quot;, MessageBox.OKB)).execute();
+ 						}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000866.html">[Cachewolf-svn] r973 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000868.html">[Cachewolf-svn] r975 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#867">[ date ]</a>
+              <a href="thread.html#867">[ thread ]</a>
+              <a href="subject.html#867">[ subject ]</a>
+              <a href="author.html#867">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,220 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2446 - in trunk: res_noewe src/CacheWolf/imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2446%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf/imp&In-Reply-To=%3C201002082043.o18KhJuJ022041%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002370.html">
+   <LINK REL="Next"  HREF="002372.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2446 - in trunk: res_noewe src/CacheWolf/imp</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2446%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf/imp&In-Reply-To=%3C201002082043.o18KhJuJ022041%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2446 - in trunk: res_noewe src/CacheWolf/imp">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Mon Feb  8 21:43:19 CET 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002370.html">[Cachewolf-svn] r2445 - in trunk: res_noewe res_noewe/languages	src/CacheWolf src/CacheWolf/imp
+</A></li>
+        <LI>Next message: <A HREF="002372.html">[Cachewolf-svn] r2447 - trunk/src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2371">[ date ]</a>
+              <a href="thread.html#2371">[ thread ]</a>
+              <a href="subject.html#2371">[ subject ]</a>
+              <a href="author.html#2371">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2010-02-08 21:43:17 +0100 (Mon, 08 Feb 2010)
+New Revision: 2446
+
+Modified:
+   trunk/res_noewe/spider.def
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+checking type, size, difficulty and terrain changes at download from GC.
+
+Modified: trunk/res_noewe/spider.def
+===================================================================
+--- trunk/res_noewe/spider.def	2010-02-05 20:20:47 UTC (rev 2445)
++++ trunk/res_noewe/spider.def	2010-02-08 20:43:17 UTC (rev 2446)
+@@ -66,7 +66,7 @@
+ waypointRex        = \\(GC(.*?)\\)&lt;br\ /&gt;
+ TypeRex            = k&quot;&gt;&lt;img\ src=&quot;/images/WptTypes/(.*?)\\.gif
+ SizeRex            = /container/(.*?)\\.gif
+-DandTRex           = &lt;td&gt;((.*?)/(.*?))&lt;br
++DandTRex           = &lt;td&gt;\\((.*?)/(.*?)\\)&lt;br
+ found              = alt=&quot;Found\ It!&quot;
+ own                = /WptTypes/name_tag.gif
+ TBRex              = /wpttypes/([0-9]+).gif&quot; alt=&quot;(.*?)&quot;
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2010-02-05 20:20:47 UTC (rev 2445)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2010-02-08 20:43:17 UTC (rev 2446)
+@@ -137,6 +137,7 @@
+ 	private static String propShowOnlyFound;
+ 	private static Regex RexPropListBlock;
+ 	private static Regex RexPropLine;
++	private static Regex RexNumFinds;
+ 	private static Regex RexPropLogDate;
+ 	private static String propAvailable;
+ 	private static String propArchived;
+@@ -726,6 +727,7 @@
+ 			propShowOnlyFound=p.getProp(&quot;showOnlyFound&quot;);
+ 			RexPropListBlock = new Regex(p.getProp(&quot;listBlockRex&quot;));
+ 			RexPropLine = new Regex(p.getProp(&quot;lineRex&quot;));
++			RexNumFinds = new Regex(&quot;Total Records: &lt;b&gt;(.*?)&lt;/b&gt;&quot;);
+ 			RexPropLogDate = new Regex(p.getProp(&quot;logDateRex&quot;));
+ 			propAvailable=p.getProp(&quot;availableRex&quot;);
+ 			propArchived=p.getProp(&quot;archivedRex&quot;);
+@@ -854,14 +856,14 @@
+ 			is_found_GC=CacheDescription.indexOf(propFound)!=-1;
+ 			if (is_found_GC!=ch.is_found()) {ch.setFound(is_found_GC); save=true; ret=true;}
+ 		}
+-		if (ch.is_found() &amp;&amp; chd.OwnLogId.equals(&quot;&quot;)) {ret=true;}
++		if (ch.is_found() &amp;&amp; chd.OwnLogId.equals(&quot;&quot;)) {ret=true;} //missing ownLogID
+ 		boolean is_available_GC=!is_archived_GC &amp;&amp; CacheDescription.indexOf(propAvailable)==-1;
+ 		if (is_available_GC != ch.is_available()) {
+ 			ch.setAvailable(is_available_GC); save=true; numAvailableUpdates+=1; ret=true;}
+-		// we could check for update of terrain,difficult,size,cache type for not necessarily to load the complete cache
+-		if (typeChanged(ch,CacheDescription)) { ret=true;}
+-		if (sizeChanged(ch,CacheDescription)) { ret=true;}
+-		if (newLogExists(ch,CacheDescription)) {numLogUpdates+=1; ret=true;}
++		if (typeChanged(ch,CacheDescription)) { save=true; ret=true;}
++		if (sizeChanged(ch,CacheDescription)) { save=true; ret=true;}
++		if (difficultyOrTerrainChanged(ch,CacheDescription)) {save=true; ret=true;}
++		if (newFoundExists(ch,CacheDescription)) {numLogUpdates+=1; ret=true;}
+ 		if (save) ch.save();
+ 		return ret;
+ 	}
+@@ -871,13 +873,11 @@
+ 	 * @return numFound
+ 	 */
+ 	private int getNumFound(String doc) {
+-		Regex numFindsRex = new Regex(&quot;Total Records: &lt;b&gt;(.*?)&lt;/b&gt;&quot;);
+-		numFindsRex.search(doc);
+-		if (numFindsRex.didMatch()) {
+-			 return Convert.toInt(numFindsRex.stringMatched(1));}
++		RexNumFinds.search(doc);
++		if (RexNumFinds.didMatch()) {
++			 return Convert.toInt(RexNumFinds.stringMatched(1));}
+ 		else return 0;
+ 	}
+-
+ 	private int getFoundInDB() {
+ 		CacheHolder ch;
+ 		int counter = 0;
+@@ -889,7 +889,6 @@
+ 		}
+ 		return counter;
+ 	}
+-
+ 	/**
+ 	 * Get the Distance to the centre
+ 	 * @param doc A previously fetched cachepage
+@@ -906,7 +905,6 @@
+ 			return Convert.toDouble(RexPropDistance.stringMatched(1));
+ 		}
+ 	}
+-
+ 	/**
+ 	 * Get the waypoint name
+ 	 * @param doc A previously fetched cachepage
+@@ -937,7 +935,10 @@
+ 			}
+ 			if(ch.getType()==CacheType.gcSpider2CwType(stmp))
+ 				return false;
+-				else return true;
++				else {
++					ch.setType(CacheType.gcSpider2CwType(stmp));
++					return true;
++				}
+ 		}
+ 		return false;
+ 	}
+@@ -948,14 +949,36 @@
+ 		RexPropSize.search(toCheck);
+ 		if(RexPropSize.didMatch()){
+ 			String stmp=RexPropSize.stringMatched(1);
+-			//gcSpiderString2Cw
+ 			if(ch.getCacheSize()==CacheSize.gcSpiderString2Cw(stmp))
+ 				return false;
+-				else return true;
++				else {
++					ch.setCacheSize(CacheSize.gcSpiderString2Cw(stmp));
++					return true;
++				}
+ 		}
+ 		return false;
+ 	}
+-
++	/*
++	 * check for changed Difficulty or Terrain
++	 */
++	private boolean difficultyOrTerrainChanged(CacheHolder ch, String toCheck) {
++		boolean ret = false;
++		RexPropDandT.search(toCheck);	
++		if(RexPropDandT.didMatch()){
++			String stmp=RexPropDandT.stringMatched(1);
++			if(!(ch.getHard()==CacheTerrDiff.v1Converter(stmp))) {
++				ch.setHard(CacheTerrDiff.v1Converter(stmp));
++				ret=true;
++			}
++			stmp=RexPropDandT.stringMatched(2);
++			if(!(ch.getTerrain()==CacheTerrDiff.v1Converter(stmp))) {
++				ch.setTerrain(CacheTerrDiff.v1Converter(stmp));
++				ret=true;
++			}
++		}
++		return ret;
++	}
++	
+ 	/**
+ 	 * Get the direction
+ 	 * @param doc A previously fetched cachepage
+@@ -991,7 +1014,7 @@
+ 	 * @param String cacheDescGC
+ 	 * @return boolean newLogExists
+ 	 */
+-	private boolean newLogExists(CacheHolder ch, String cacheDescrition) {
++	private boolean newFoundExists(CacheHolder ch, String cacheDescrition) {
+ 		if(!pref.checkLog) return false;
+ 		// String[] CacheDesc=mString.split(cacheDescrition,'\n');
+ 		Time lastLogCW = new Time();
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002370.html">[Cachewolf-svn] r2445 - in trunk: res_noewe res_noewe/languages	src/CacheWolf src/CacheWolf/imp
+</A></li>
+	<LI>Next message: <A HREF="002372.html">[Cachewolf-svn] r2447 - trunk/src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2371">[ date ]</a>
+              <a href="thread.html#2371">[ thread ]</a>
+              <a href="subject.html#2371">[ subject ]</a>
+              <a href="author.html#2371">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

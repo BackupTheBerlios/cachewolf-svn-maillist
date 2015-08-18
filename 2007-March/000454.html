@@ -1,0 +1,124 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r636 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-March/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r636%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200703020332.l223WGCi020910%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000453.html">
+   <LINK REL="Next"  HREF="000455.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r636 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r636%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200703020332.l223WGCi020910%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r636 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Fri Mar  2 04:32:16 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000453.html">[Cachewolf-svn] r635 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000455.html">[Cachewolf-svn] r637 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#454">[ date ]</a>
+              <a href="thread.html#454">[ thread ]</a>
+              <a href="subject.html#454">[ subject ]</a>
+              <a href="author.html#454">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-03-02 04:32:10 +0100 (Fri, 02 Mar 2007)
+New Revision: 636
+
+Modified:
+   trunk/src/CacheWolf/CWGPSPoint.java
+   trunk/src/CacheWolf/MovingMap.java
+   trunk/src/CacheWolf/Navigate.java
+Log:
+MovingMap: Bug fixed: start der MM mit eingeschaltetem GPS aber ohne GPS-fix, springt jetzt nicht mehr an lat/lon 0/0 und zeigt gelben PosCircle an.
+
+Modified: trunk/src/CacheWolf/CWGPSPoint.java
+===================================================================
+--- trunk/src/CacheWolf/CWGPSPoint.java	2007-03-02 01:55:23 UTC (rev 635)
++++ trunk/src/CacheWolf/CWGPSPoint.java	2007-03-02 03:32:10 UTC (rev 636)
+@@ -215,7 +215,7 @@
+ 						case 9: try {this.Alt = Common.parseDouble(currToken); interpreted = true; } catch (NumberFormatException e) {} break;
+ 						} // switch
+ 					} // while
+-					this.set(latNS, latDeg, latMin, &quot;0&quot;, lonEW, lonDeg, lonMin, &quot;0&quot;, CWPoint.DMM);
++					if (Fix &gt; 0) this.set(latNS, latDeg, latMin, &quot;0&quot;, lonEW, lonDeg, lonMin, &quot;0&quot;, CWPoint.DMM);
+ 
+ 				} // if
+ 
+
+Modified: trunk/src/CacheWolf/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/MovingMap.java	2007-03-02 01:55:23 UTC (rev 635)
++++ trunk/src/CacheWolf/MovingMap.java	2007-03-02 03:32:10 UTC (rev 636)
+@@ -599,7 +599,7 @@
+ 			posCircleY = pref.myAppHeight/2;
+ 		}
+ 		posCircle.hidden = false;
+-		posCircle.setLocation(posCircleX-posCircle.getWidth()/2, posCircleY-posCircle.getHeight()/2);
++		posCircle.move(posCircleX-posCircle.getWidth()/2, posCircleY-posCircle.getHeight()/2); // posCircle.setLocation caused a problem -&gt; hiding the posCircle in some situation
+ 	}
+ 
+ 	public void movePosCircleToLatLon(CWPoint p, boolean repaint) {
+@@ -1042,7 +1042,8 @@
+ 		autoSelectMap = true;
+ 		forceMapLoad = true;
+ 		showMap();
+-//		updatePosition(gotoPanel.gpsPosition.latDec, gotoPanel.gpsPosition.latDec); is called from GotoPanel.ticked
++		if (myNavigation.gpsPos.Fix &lt;=0) updatePosition(posCircleLat, posCircleLon);
++		else updateGps(myNavigation.gpsPos.getFix());
+ 	}
+ 
+ 	/** sets and displays the map
+
+Modified: trunk/src/CacheWolf/Navigate.java
+===================================================================
+--- trunk/src/CacheWolf/Navigate.java	2007-03-02 01:55:23 UTC (rev 635)
++++ trunk/src/CacheWolf/Navigate.java	2007-03-02 03:32:10 UTC (rev 636)
+@@ -184,7 +184,7 @@
+  */
+ class SerialThread extends mThread{
+ 	SerialPort comSp;   
+-	byte[] comBuff = new byte[1024];  
++	byte[] comBuff = new byte[1024*10]; // when some action takes a long time (eg. loading or zooming a map), a lot of data can be in the buffer, read that at once
+ 	int comLength = 0;
+ 	CWGPSPoint myGPS;
+ 	boolean run, tcpForward;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000453.html">[Cachewolf-svn] r635 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000455.html">[Cachewolf-svn] r637 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#454">[ date ]</a>
+              <a href="thread.html#454">[ thread ]</a>
+              <a href="subject.html#454">[ subject ]</a>
+              <a href="author.html#454">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

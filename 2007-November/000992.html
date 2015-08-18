@@ -1,0 +1,306 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1099 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-November/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1099%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200711251502.lAPF2Kf3010514%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000991.html">
+   <LINK REL="Next"  HREF="000993.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1099 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1099%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200711251502.lAPF2Kf3010514%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1099 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Sun Nov 25 16:02:20 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000991.html">[Cachewolf-svn] r1098 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000993.html">[Cachewolf-svn] r1100 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#992">[ date ]</a>
+              <a href="thread.html#992">[ thread ]</a>
+              <a href="subject.html#992">[ subject ]</a>
+              <a href="author.html#992">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-11-25 16:02:11 +0100 (Sun, 25 Nov 2007)
+New Revision: 1099
+
+Modified:
+   trunk/src/CacheWolf/CacheHolderDetail.java
+   trunk/src/CacheWolf/Log.java
+   trunk/src/CacheWolf/OCXMLImporter.java
+   trunk/src/CacheWolf/OCXMLImporterScreen.java
+   trunk/src/CacheWolf/Profile.java
+   trunk/src/CacheWolf/myTableControl.java
+Log:
+Download from opencaching: import recommendation and show according star in the logs, pending: transfer the information into cacheholder
+
+Modified: trunk/src/CacheWolf/CacheHolderDetail.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolderDetail.java	2007-11-25 14:39:40 UTC (rev 1098)
++++ trunk/src/CacheWolf/CacheHolderDetail.java	2007-11-25 15:02:11 UTC (rev 1099)
+@@ -154,7 +154,7 @@
+ 			ex = new Extractor(text, &quot;&lt;LOGS&gt;&quot;,&quot;&lt;/LOGS&gt;&quot;, 0, true);
+ 			dummy = ex.findNext();
+ 			CacheLogs.clear();
+-			ex = new Extractor(dummy, &quot;&lt;LOG&gt;&lt;![CDATA[&quot;,&quot;]]&gt;&lt;/LOG&gt;&quot;, 0, true);
++			ex = new Extractor(dummy, &quot;&lt;LOG&gt;&quot;,&quot;&lt;/LOG&gt;&quot;, 0, true);
+ 			
+ 			dummy = ex.findNext();
+ 			while(ex.endOfSearch()==false){
+
+Modified: trunk/src/CacheWolf/Log.java
+===================================================================
+--- trunk/src/CacheWolf/Log.java	2007-11-25 14:39:40 UTC (rev 1098)
++++ trunk/src/CacheWolf/Log.java	2007-11-25 15:02:11 UTC (rev 1099)
+@@ -11,16 +11,21 @@
+ 	private String logger;
+ 	/** The logged message */
+ 	private String message;
++	/** true, if the logger recommended the cache */
++	private boolean recommended = false;
+ 	
+ 	/** Create a log from a single line in format&lt;br&gt;
+-	 * &lt;pre&gt;&lt;img src='ICON'&gt;&nbsp;DATE LOGGER&lt;br&gt;MESSAGE
++	 * &lt;pre&gt;RECOMMENDED=&quot;1&quot;&lt;img src='ICON'&gt;&nbsp;DATE LOGGER&lt;br&gt;MESSAGE
+ 	 * or &lt;img src='ICON'&gt;&nbsp;DATE by LOGGER&lt;br&gt;MESSAGE&lt;/pre&gt;
+ 	 * @param logLine
+ 	 */
+ 	Log(String logLine) {
+-//		&lt;img src='icon_smile.gif'&gt;&nbsp;2007-01-14 xyz&lt;br&gt;a wonderful log
++//		RECOMMENDED=&quot;1&quot;&lt;img src='icon_smile.gif'&gt;&nbsp;2007-01-14 xyz&lt;br&gt;a wonderful log
+ 		try {
+-			int ic1=logLine.indexOf(&quot;&lt;img src='&quot;);
++			int ic1=logLine.indexOf(&quot;RECOMMENDED=\&quot;1\&quot;&quot;);
++			if (ic1 &gt;= 0) 
++				recommended = true; else recommended = false;
++			ic1=logLine.indexOf(&quot;&lt;img src='&quot;);
+ 			int ic2=logLine.indexOf(&quot;'&quot;,ic1+10);
+ 			icon=logLine.substring(ic1+10,ic2);
+ 			int d1=logLine.indexOf(&quot;;&quot;);
+@@ -29,7 +34,7 @@
+ 			if (logLine.substring(l1,l1+3).equals(&quot;by &quot;)) l1+=3;
+ 			int l2=logLine.indexOf(&quot;&lt;br&gt;&quot;,l1);
+ 			logger=logLine.substring(l1,l2);
+-			message=logLine.substring(l2+4);
++			message=logLine.substring(l2+4, logLine.indexOf(&quot;]]&gt;&quot;, l1));
+ 		} catch (Exception ex) {
+ 			if (logLine.indexOf(&quot;&lt;img&quot;)&lt;0) { // Have we reached the line that states max logs reached 
+ 				icon=MAXLOGICON; 
+@@ -43,10 +48,15 @@
+ 	}
+ 	
+ 	Log(String icon, String date, String logger, String message) {
++		this(icon, date, logger, message, false);
++	}
++	
++	Log(String icon, String date, String logger, String message, boolean recommended_) {
+ 		this.icon=icon;
+ 		this.date=date;
+ 		this.logger=logger;
+ 		this.message=message.trim();
++		this.recommended = recommended_;
+ 	}
+ 	
+ 	public static Log maxLog() {
+@@ -77,13 +87,20 @@
+ 	public void setMessage(String message) {
+ 		this.message = message.trim();
+ 	}
++	public void setRecommandation (boolean recommended_) {
++		recommended = recommended_;
++	}
+ 
+ 	/** Return XML representation of log for storing in cache.xml */
+ 	public String toXML(){
+ 		StringBuffer s=new StringBuffer(400);
+-		s.append(&quot;&lt;LOG&gt;&lt;![CDATA[&quot;);
++		s.append(&quot;&lt;LOG&gt;&quot;);
++		if (recommended)
++			s.append(&quot;RECOMMENDED=\&quot;1\&quot;&quot;);
++		s.append(&quot;&lt;![CDATA[&quot;);
+ 		s.append(toHtml());
+-		s.append(&quot;]]&gt;&lt;/LOG&gt;\r\n&quot;);
++		s.append(&quot;]]&gt;)&quot;);
++		s.append(&quot;&lt;/LOG&gt;\r\n&quot;);
+ 		return s.toString();
+ 	}
+ 	
+@@ -92,9 +109,9 @@
+ //		&lt;img src='icon_smile.gif'&gt;&nbsp;2007-01-14 xyz&lt;br&gt;a wonderful log
+ 		if (icon.equals(MAXLOGICON)) return &quot;&lt;hr&gt;&quot;+MyLocale.getMsg(736,&quot;Too many logs&quot;)+&quot;&lt;hr&gt;&quot;;
+ 		StringBuffer s=new StringBuffer(300);
+-		s.append(&quot;&lt;img src='&quot;);
+-		s.append(icon);
+-		s.append(&quot;'&gt;&nbsp;&quot;);
++		s.append(&quot;&lt;img src='&quot;+icon+&quot;'&gt;&quot;);
++		if (recommended) s.append(&quot;&lt;img src='recommendedlog.gif'&gt;&quot;);
++		s.append(&quot;&nbsp;&quot;);
+ 		s.append(date);
+ 		s.append(&quot; by &quot;);
+ 		s.append(logger);
+
+Modified: trunk/src/CacheWolf/OCXMLImporter.java
+===================================================================
+--- trunk/src/CacheWolf/OCXMLImporter.java	2007-11-25 14:39:40 UTC (rev 1098)
++++ trunk/src/CacheWolf/OCXMLImporter.java	2007-11-25 15:02:11 UTC (rev 1099)
+@@ -52,6 +52,7 @@
+ 	String cacheID = new String();
+ 
+ 	String logData, logIcon, logDate, logFinder;
++	boolean loggerRecommended;
+ 	int logtype;
+ 	String user;
+ 	double longitude;
+@@ -76,18 +77,30 @@
+ 		}//for
+ 
+ 	}
+-	
++	/**
++	 * 
++	 * @param number
++	 * @param infB
++	 * @return true, if some change was made to the cacheDB
++	 */
++	/** true, if not the last syncdate shall be used, but the caches shall be reloaded
++	 * only used in syncSingle */
++	boolean reload;
+ 	public boolean syncSingle(int number, InfoBox infB) {
+ 		boolean success=true;
+ 
+ 		ch = (CacheHolder)cacheDB.get(number);
+-		chD= new CacheHolderDetail(ch);
++		chD= new CacheHolderDetail(ch); //TODO is this still correct? use getDetails ?
+ 
+-		if (infB.isClosed) return false; 
++		if (infB.isClosed) {
++			if (askForOptions) return false; 
++			else return true;
++		}
+ 		if (askForOptions) {
+-			OCXMLImporterScreen importOpt = new OCXMLImporterScreen( MyLocale.getMsg(1600, &quot;Opencaching.de Download&quot;),OCXMLImporterScreen.IMAGES);
++			OCXMLImporterScreen importOpt = new OCXMLImporterScreen( MyLocale.getMsg(1600, &quot;Opencaching.de Download&quot;),OCXMLImporterScreen.IMAGES | OCXMLImporterScreen.ALL);
+ 			if (importOpt.execute() == OCXMLImporterScreen.IDCANCEL) {	return false; }
+ 			askForOptions = false;
++			reload = importOpt.missingCheckBox.getState();
+ 		}
+ 
+ 		// this is only a dummy-InfoBox for capturing the output
+@@ -96,10 +109,12 @@
+ //		inf.relayout(false);
+ //		inf.exec();
+ 
+-		
+-		String lastS = ch.lastSyncOC;
+-		if (lastS.length() &lt; 14) lastS = &quot;20050801000000&quot;;
+-
++		String lastS; 
++		if (reload)  lastS = &quot;20050801000000&quot;;
++		else {
++			if (ch.lastSyncOC.length() &lt; 14) lastS = &quot;20050801000000&quot;;
++			else lastS = ch.lastSyncOC;
++		}
+ 		dateOfthisSync = new Time();
+ 		dateOfthisSync.parse(lastS, &quot;yyyyMMddHHmmss&quot;);
+ 	
+@@ -385,6 +400,7 @@
+ 			break;
+ 			case 3: logIcon = GPXImporter.typeText2Image(&quot;Note&quot;);
+ 			}
++			loggerRecommended = atts.getValue(&quot;recommended&quot;).equals(&quot;1&quot;);
+ 			return;
+ 		}
+ 
+@@ -588,8 +604,7 @@
+ 
+ 	private void endCacheLog(String name){
+ 		if (name.equals(&quot;cachelog&quot;)){ // &lt;/cachelog&gt;
+-			chD.CacheLogs.merge(new Log(logIcon,logDate,logFinder,logData));
+-			//TODO Optimize this. Currently the cache needs to be saved after every log as we don't know whether the next log is for the same cache.
++			chD.CacheLogs.merge(new Log(logIcon, logDate, logFinder, logData, loggerRecommended));
+ 			chD.saveChanges = true; //chD.saveCacheDetails(profile.dataDir);
+ 			return;
+ 		}
+
+Modified: trunk/src/CacheWolf/OCXMLImporterScreen.java
+===================================================================
+--- trunk/src/CacheWolf/OCXMLImporterScreen.java	2007-11-25 14:39:40 UTC (rev 1098)
++++ trunk/src/CacheWolf/OCXMLImporterScreen.java	2007-11-25 15:02:11 UTC (rev 1099)
+@@ -29,10 +29,6 @@
+ 		super();
+ 		pref = Global.getPref(); // myPreferences sollte sp&#228;ter auch diese Einstellungen speichern
+ 		
+-		switch (options){
+-		
+-		}
+-
+ 		this.title = title;
+ 		if ((options &amp; DIST) &gt; 0) {
+ 			this.addNext(distLbl = new mLabel(MyLocale.getMsg(1601,&quot;Distance:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2007-11-25 14:39:40 UTC (rev 1098)
++++ trunk/src/CacheWolf/Profile.java	2007-11-25 15:02:11 UTC (rev 1099)
+@@ -170,6 +170,7 @@
+ 			detfile.print(&quot;&lt;/CACHELIST&gt;\n&quot;);
+ 			detfile.close();
+ 			buildReferences(); //TODO Why is this needed here?
++			CacheHolder.saveAllModifiedDetails();
+ 			if(showprogress) pbf.exit(0);
+ 		}catch(Exception e){
+ 			Vm.debug(&quot;Problem writing to index file &quot;+e.toString());
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2007-11-25 14:39:40 UTC (rev 1098)
++++ trunk/src/CacheWolf/myTableControl.java	2007-11-25 15:02:11 UTC (rev 1099)
+@@ -216,7 +216,7 @@
+ 			}
+ 			infB.close(0);
+ //			profile.hasUnsavedChanges=true;	
+-			profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
++			profile.saveIndex(pref,Profile.SHOW_PROGRESS_BAR);
+ 			profile.restoreFilter();
+ 			profile.updateBearingDistance();
+ 			tbp.refreshTable();
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000991.html">[Cachewolf-svn] r1098 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000993.html">[Cachewolf-svn] r1100 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#992">[ date ]</a>
+              <a href="thread.html#992">[ thread ]</a>
+              <a href="subject.html#992">[ subject ]</a>
+              <a href="author.html#992">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

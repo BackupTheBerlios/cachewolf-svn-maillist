@@ -1,0 +1,244 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r591 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r591%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702142118.l1ELIpGG009102%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000401.html">
+   <LINK REL="Next"  HREF="000403.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r591 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r591%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702142118.l1ELIpGG009102%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r591 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Wed Feb 14 22:18:51 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000401.html">[Cachewolf-svn] r590 - trunk/resources
+</A></li>
+        <LI>Next message: <A HREF="000403.html">[Cachewolf-svn] r592 - in trunk: resources src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#402">[ date ]</a>
+              <a href="thread.html#402">[ thread ]</a>
+              <a href="subject.html#402">[ subject ]</a>
+              <a href="author.html#402">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-02-14 22:18:41 +0100 (Wed, 14 Feb 2007)
+New Revision: 591
+
+Modified:
+   trunk/src/CacheWolf/DataMover.java
+   trunk/src/CacheWolf/MainForm.java
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/Profile.java
+Log:
+Filter: Der Filterstatus (aktiv und/oder invertiert) wird beim Lesen des Profils wieder hergestellt
+Die Blacklist wird immer deaktiviert.
+
+Modified: trunk/src/CacheWolf/DataMover.java
+===================================================================
+--- trunk/src/CacheWolf/DataMover.java	2007-02-14 21:14:07 UTC (rev 590)
++++ trunk/src/CacheWolf/DataMover.java	2007-02-14 21:18:41 UTC (rev 591)
+@@ -85,8 +85,8 @@
+ 				}
+ 			}//if srcHolder...
+ 		}//for ... i &lt; srcDB ...
+-		// write indexfiles
+-		dstProfile.saveIndex(pref, Profile.NO_SHOW_PROGRESS_BAR);
++		// write indexfiles and keep the filter status
++		dstProfile.saveIndex(pref, Profile.NO_SHOW_PROGRESS_BAR,dstProfile.filterActive,dstProfile.filterInverted);
+ 	}
+ 	
+ 	public void moveCaches() {
+@@ -136,7 +136,7 @@
+ 			}//if srcHolder...
+ 		}//for ... i &lt; srcDB ...
+ 		// write indexfiles
+-		dstProfile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
++		dstProfile.saveIndex(pref, Profile.NO_SHOW_PROGRESS_BAR,dstProfile.filterActive,dstProfile.filterInverted);
+ 		profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
+ 	}
+ 
+
+Modified: trunk/src/CacheWolf/MainForm.java
+===================================================================
+--- trunk/src/CacheWolf/MainForm.java	2007-02-14 21:14:07 UTC (rev 590)
++++ trunk/src/CacheWolf/MainForm.java	2007-02-14 21:18:41 UTC (rev 591)
+@@ -67,9 +67,7 @@
+ 			profile.readIndex();
+ 			pref.curCentrePt.set(profile.centre);
+ 			profile.updateBearingDistance();
+-			Filter flt=new Filter();
+-			flt.setFilter();
+-			flt.doFilter();
++			profile.restoreFilter();
+ 		} catch (Exception e){
+ 			if(pref.debug == true) Vm.debug(&quot;MainForm:: Exception:: &quot; + e.toString());
+ 		}
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2007-02-14 21:14:07 UTC (rev 590)
++++ trunk/src/CacheWolf/MainMenu.java	2007-02-14 21:18:41 UTC (rev 591)
+@@ -215,6 +215,7 @@
+ 						filtBlack.modifiers&amp;=~MenuItem.Checked;
+ 						Filter.showBlacklisted=false;
+ 						infB.close(0);
++						profile.restoreFilter(); // Restore the isActive &amp; isInverted status of the filter
+ 						tbp.resetModel();
+ 				}
+ 			}
+@@ -497,19 +498,20 @@
+ 			}
+ 			if(mev.selectedItem == sysinfo){
+ 				//Vm.debug(&quot;Checking system...&quot;);
+-				String sysstring = new String();
++				String sysstring;
+ 				Rect s = (Rect)Window.getGuiInfo(Window.INFO_SCREEN_RECT,null,new Rect(),0);
+ 				Font f = mApp.guiFont;
+-				sysstring += &quot;Platform: &quot; + Vm.getPlatform() + &quot;&lt;br&gt;&quot;;
+-				sysstring += &quot;Locale lang is: &quot; + MyLocale.getLocaleLanguage() + &quot;&lt;br&gt;&quot;;
+-				sysstring += &quot;Locale country is: &quot; + MyLocale.getLocaleCountry() + &quot;&lt;br&gt;&quot;;
+-				sysstring += &quot;Decimal seperator is: \&quot;&quot; + pref.digSeparator + &quot;\&quot;&lt;br&gt;&quot;;
+-				sysstring += &quot;Device is PDA: &quot; + Vm.isMobile()+ &quot;&lt;br&gt;&quot;;
+-				sysstring += &quot;Screen: &quot; + MyLocale.getScreenWidth() + &quot; x &quot; + MyLocale.getScreenHeight() + &quot;&lt;br&gt;&quot;;
+-				sysstring += &quot;Font size: &quot; + f.getSize() + &quot;&lt;br&gt;&quot;;
+-				sysstring += &quot;Entries in DB: &quot; +cacheDB.size() + &quot;&lt;br&gt;&quot;;
+-				sysstring += &quot;File seperator is: \&quot;&quot; + Vm.getProperty(&quot;file.separator&quot;,&quot;def&quot;)+ &quot;\&quot;&lt;br&gt;&quot;;
+-				sysstring += &quot;Programme directory is &quot; + File.getProgramDirectory()+&quot;&lt;br&gt;&quot;;
++				sysstring =  &quot;Profile: &quot; + profile.dataDir + &quot;&lt;br&gt;&quot; +
++							 &quot;Platform: &quot; + Vm.getPlatform() + &quot;&lt;br&gt;&quot; +
++							 &quot;Locale lang is: &quot; + MyLocale.getLocaleLanguage() + &quot;&lt;br&gt;&quot; +
++							 &quot;Locale country is: &quot; + MyLocale.getLocaleCountry() + &quot;&lt;br&gt;&quot;+
++							 &quot;Decimal separator is: \&quot;&quot; + pref.digSeparator + &quot;\&quot;&lt;br&gt;&quot; +
++							 &quot;Device is PDA: &quot; + Vm.isMobile()+ &quot;&lt;br&gt;&quot; +
++							 &quot;Screen: &quot; + MyLocale.getScreenWidth() + &quot; x &quot; + MyLocale.getScreenHeight() + &quot;&lt;br&gt;&quot;+
++							 &quot;Font size: &quot; + f.getSize() + &quot;&lt;br&gt;&quot; +
++							 &quot;Entries in DB: &quot; +cacheDB.size() + &quot;&lt;br&gt;&quot;+
++							 &quot;File separator is: \&quot;&quot; + Vm.getProperty(&quot;file.separator&quot;,&quot;def&quot;)+ &quot;\&quot;&lt;br&gt;&quot;+
++							 &quot;Programme directory is &quot; + File.getProgramDirectory()+&quot;&lt;br&gt;&quot;;
+ 				InfoScreen is = new InfoScreen(sysstring, &quot;System&quot;, false,pref);
+ 				is.execute(father.getFrame(), Gui.CENTER_FRAME);
+ 			}
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2007-02-14 21:14:07 UTC (rev 590)
++++ trunk/src/CacheWolf/Profile.java	2007-02-14 21:18:41 UTC (rev 591)
+@@ -55,6 +55,9 @@
+ 	public String filterDist=new String(&quot;L&quot;);
+ 	public String filterDiff=new String(&quot;L&quot;);
+ 	public String filterTerr=new String(&quot;L&quot;);
++	// Saved filterstatus - is only refreshed from class Filter when Profile is saved
++	public boolean filterActive=false;
++	public boolean filterInverted=false;
+ 
+ 	public boolean selectionChanged = true; // (&quot;H&#228;ckchen&quot;) used by movingMap to get to knao if it should update the caches in the map 
+ 	/** True if the profile has been modified and not saved
+@@ -82,15 +85,21 @@
+ 		hasUnsavedChanges=false;
+ 	}
+ 
+-
+ 	/**
+ 	 *	Method to save the index.xml file that holds the total information
+ 	 *	on available caches in the database. The database is nothing else
+ 	 *	than the collection of caches in a directory.
+ 	 *   
+ 	 *   Not sure whether we need to keep 'pref' in method signature. May eventually remove it. 
++	 *   
++	 *   Saves the index with the filter settings from Filter
+ 	 */
+ 	public void saveIndex(Preferences pref, boolean showprogress){
++		saveIndex(pref,showprogress, Filter.filterActive,Filter.filterInverted);
++	}
++
++	/** Save index with filter settings given */ 
++	public void saveIndex(Preferences pref, boolean showprogress, boolean saveFilterActive, boolean saveFilterInverted){
+ 		ProgressBarForm pbf = new ProgressBarForm();
+ 		Handle h = new Handle();
+ 		if(showprogress){
+@@ -123,7 +132,8 @@
+ 				distOC = &quot;0&quot;;
+ 			}
+ 
+-			detfile.print(&quot;    &lt;FILTER rose = \&quot;&quot;+filterRose+&quot;\&quot; type = \&quot;&quot;+filterType+
++			detfile.print(&quot;    &lt;FILTER status = \&quot;&quot;+(saveFilterActive?&quot;T&quot;:&quot;F&quot;)+(saveFilterInverted?&quot;T&quot;:&quot;F&quot;)+ 
++					&quot;\&quot; rose = \&quot;&quot;+filterRose+&quot;\&quot; type = \&quot;&quot;+filterType+
+ 					&quot;\&quot; var = \&quot;&quot;+filterVar+&quot;\&quot; dist = \&quot;&quot;+filterDist.replace('&quot;',' ')+&quot;\&quot; diff = \&quot;&quot;+
+ 					filterDiff+&quot;\&quot; terr = \&quot;&quot;+filterTerr+&quot;\&quot; size = \&quot;&quot;+filterSize+&quot;\&quot; /&gt;\n&quot;);
+ 			detfile.print(&quot;    &lt;SYNCOC date = \&quot;&quot;+last_sync_opencaching+&quot;\&quot; dist = \&quot;&quot;+distOC+&quot;\&quot;/&gt;\n&quot;);
+@@ -234,7 +244,13 @@
+ 					distOC=text.substring(start,text.indexOf(&quot;\&quot;&quot;,start));
+ 				} else if (text.indexOf(&quot;&lt;FILTER&quot;)&gt;=0){
+ 					ex.setSource(text);
+-					filterRose = ex.findNext();
++					String temp=ex.findNext(); // Filter status is now first, need to deal with old versions which don't have filter status
++					if (temp.length()==2) {
++						filterActive=temp.charAt(0)=='T';
++						filterInverted=temp.charAt(1)=='T';
++						filterRose = ex.findNext();
++					} else 
++						filterRose = temp;
+ 					filterType = ex.findNext();
+ 					filterVar = ex.findNext();
+ 					filterDist = ex.findNext();
+@@ -256,6 +272,20 @@
+ 		normalizeFilters();
+ 		hasUnsavedChanges=false;
+ 	}
++	
++	/** Restore the filter to the values stored in this profile 
++	 *  Called from Main Form and MainMenu 
++	 *  The values of Filter.isActive and Filter.isInactive are set by the filter 
++	 **/
++	void restoreFilter() {
++		Filter flt=new Filter();
++		if (filterActive) {
++			flt.setFilter();
++			flt.doFilter();
++		}
++		if (filterInverted) 
++			flt.invertFilter();
++	}
+ 
+ 	public int getCacheIndex(String wp){
+ 		int retval = -1;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000401.html">[Cachewolf-svn] r590 - trunk/resources
+</A></li>
+	<LI>Next message: <A HREF="000403.html">[Cachewolf-svn] r592 - in trunk: resources src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#402">[ date ]</a>
+              <a href="thread.html#402">[ thread ]</a>
+              <a href="subject.html#402">[ subject ]</a>
+              <a href="author.html#402">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

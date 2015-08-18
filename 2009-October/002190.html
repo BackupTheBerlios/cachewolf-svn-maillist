@@ -1,0 +1,366 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2266 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-October/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2266%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200910111550.n9BFor7j003433%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002189.html">
+   <LINK REL="Next"  HREF="002191.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2266 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2266%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200910111550.n9BFor7j003433%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2266 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sun Oct 11 17:50:53 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002189.html">[Cachewolf-svn] r2265 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="002191.html">[Cachewolf-svn] r2267 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2190">[ date ]</a>
+              <a href="thread.html#2190">[ thread ]</a>
+              <a href="subject.html#2190">[ subject ]</a>
+              <a href="author.html#2190">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2009-10-11 17:50:51 +0200 (Sun, 11 Oct 2009)
+New Revision: 2266
+
+Modified:
+   trunk/src/CacheWolf/Profile.java
+Log:
+Profile: Speed up reading and writing by reducing the update frequency of the progress bar
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2009-10-11 11:58:59 UTC (rev 2265)
++++ trunk/src/CacheWolf/Profile.java	2009-10-11 15:50:51 UTC (rev 2266)
+@@ -20,14 +20,14 @@
+ 
+ /**
+  * This class holds a profile, i.e. a group of caches with a centre location
+- * 
++ *
+  * @author salzkammergut
+  *
+  */
+ public class Profile {
+ 
+ 	/** The list of caches (CacheHolder objects). A pointer to this object exists in many classes in parallel to
+-	 *  this object, i.e. the respective class contains both a {@link Profile} object and a cacheDB Vector. 
++	 *  this object, i.e. the respective class contains both a {@link Profile} object and a cacheDB Vector.
+ 	 */
+ 	public CacheDB cacheDB=new CacheDB();
+ 	/** The centre point of this group of caches. Read from ans stored to index.xml file */
+@@ -59,9 +59,9 @@
+ 	private boolean showBlacklisted = false;
+ 	private boolean showSearchResult = false;
+ 
+-	public boolean selectionChanged = true; // (&quot;H&#228;ckchen&quot;) used by movingMap to get to knao if it should update the caches in the map 
++	public boolean selectionChanged = true; // (&quot;H&#228;ckchen&quot;) used by movingMap to get to knao if it should update the caches in the map
+ 	/** True if the profile has been modified and not saved
+-	 * The following modifications set this flag: New profile centre, Change of waypoint data 
++	 * The following modifications set this flag: New profile centre, Change of waypoint data
+ 	 */
+ 	private boolean hasUnsavedChanges = false;
+ 	public boolean byPassIndexActive = false;
+@@ -83,7 +83,7 @@
+ 	/**
+ 	 * Returns &lt;code&gt;true&lt;/code&gt; if profile needs to be changed when profile is left. Returns
+ 	 * &lt;code&gt;false&lt;/code&gt; if no relevant changes have been made.
+-	 * 
++	 *
+ 	 * @return hasUnsavedChanges
+ 	 */
+ 	public boolean hasUnsavedChanges() {
+@@ -94,14 +94,14 @@
+ 	 * Remember that profile needs to be saved. Flag is set &lt;code&gt;true&lt;/code&gt; when parameter is
+ 	 * true, but it's not set to &lt;code&gt;false&lt;/code&gt; when parameter is &lt;code&gt;false&lt;/code&gt;.&lt;br&gt;
+ 	 * This is only done internally on saving the cache.
+-	 * 
++	 *
+ 	 * @param hasUnsavedChanges
+ 	 *            the hasUnsavedChanges to set
+ 	 */
+ 	public void notifyUnsavedChanges(boolean changes) {
+ 		hasUnsavedChanges = hasUnsavedChanges || changes;
+ 	}
+-	
++
+ 	public void resetUnsavedChanges() {
+ 		hasUnsavedChanges = false;
+ 	}
+@@ -123,25 +123,26 @@
+ 		this.notifyUnsavedChanges(coords.equals(this.centre));
+ 		this.centre.set(coords);
+ 	}
+-	
++
+ 	/**
+ 	 *	Method to save the index.xml file that holds the total information
+ 	 *	on available caches in the database. The database is nothing else
+ 	 *	than the collection of caches in a directory.
+-	 *   
+-	 *   Not sure whether we need to keep 'pref' in method signature. May eventually remove it. 
+-	 *   
++	 *
++	 *   Not sure whether we need to keep 'pref' in method signature. May eventually remove it.
++	 *
+ 	 *   Saves the index with the filter settings from Filter
+ 	 */
+ //	public void saveIndex(Preferences pref, boolean showprogress){
+ //		saveIndex(pref,showprogress, Filter.filterActive,Filter.filterInverted);
+ //	}
+ 
+-	
+-	/** Save index with filter settings given */ 
+-	public void saveIndex(Preferences pref, boolean showprogress) { 
++
++	/** Save index with filter settings given */
++	public void saveIndex(Preferences pref, boolean showprogress) {
+ 		ProgressBarForm pbf = new ProgressBarForm();
+ 		Handle h = new Handle();
++		int updFrequ=Vm.isMobile()?10:40; // Number of caches between screen updates
+ 		if(showprogress){
+ 			pbf.showMainTask = false;
+ 			pbf.setTask(h,&quot;Saving Index&quot;);
+@@ -204,11 +205,11 @@
+ 			for (int i = 0; i &lt; size; i++) {
+ 				if (showprogress) {
+ 					h.progress = (float) i / (float) size;
+-					h.changed();
++					if ((i%updFrequ)==0) h.changed();
+ 				}
+ 				ch = cacheDB.get(i);
+ 				// //Vm.debug(&quot;Saving: &quot; + ch.CacheName);
+-				if (ch.getWayPoint().length() &gt; 0) { 
++				if (ch.getWayPoint().length() &gt; 0) {
+ 					detfile.print(ch.toXML());
+ 				}
+ 			}
+@@ -233,7 +234,7 @@
+ 	 *	than the collection of caches in a directory.
+ 	 */
+ 	public void readIndex(InfoBox infoBox) {
+-
++		int updFrequ=Vm.isMobile()?10:40; // Number of caches between screen updates
+ 		try {
+ 			selectionChanged = true;
+ 			boolean fmtDec = false;
+@@ -249,7 +250,7 @@
+ 			String text = in.readLine(); // &lt;CACHELIST&gt;
+ 			if (text!=null &amp;&amp; text.indexOf(&quot;decimal&quot;)&gt;0) fmtDec=true;
+ 			Extractor ex = new Extractor(null, &quot; = \&quot;&quot;, &quot;\&quot; &quot;, 0, true);
+-			
++
+ 			//ewe.sys.Time startT=new ewe.sys.Time();
+ 			boolean convertWarningDisplayed = false;
+ 			while ((text = in.readLine()) != null){
+@@ -262,7 +263,7 @@
+ 						}
+ 					}
+ 					if (infoBox!=null) {
+-						if (wptNo - 10 &gt;= lastShownWpt) {
++						if (wptNo - updFrequ &gt;= lastShownWpt) {
+ 							infoBox.setInfo(mainInfoText+&quot;\n&quot;+String.valueOf(wptNo));
+ 							lastShownWpt = wptNo;
+ 						}
+@@ -277,13 +278,13 @@
+ 						start=text.indexOf(&quot;lon=\&quot;&quot;)+5;
+ 						String lon=text.substring(start,text.indexOf(&quot;\&quot;&quot;,start)).replace(notDecSep,decSep);
+ 						centre.set(Convert.parseDouble(lat),Convert.parseDouble(lon));
+-					} else {	
++					} else {
+ 						int start=text.indexOf(&quot;lat=\&quot;&quot;)+5;
+ 						String lat=SafeXML.cleanback(text.substring(start,text.indexOf(&quot;\&quot;&quot;,start)));
+ 						start=text.indexOf(&quot;long=\&quot;&quot;)+6;
+ 						String lon=SafeXML.cleanback(text.substring(start,text.indexOf(&quot;\&quot;&quot;,start)));
+ 						centre.set(lat+&quot; &quot;+lon,TransformCoordinates.CW); // Fast parse
+-					}	
++					}
+ 				} else if (text.indexOf(&quot;&lt;VERSION&quot;)&gt;=0) {
+ 					int start=text.indexOf(&quot;value = \&quot;&quot;)+9;
+ 					indexXmlVersion  = Integer.valueOf(text.substring(start,text.indexOf(&quot;\&quot;&quot;,start))).intValue();
+@@ -309,13 +310,13 @@
+ 					String temp=ex.findNext(); // Filter status is now first, need to deal with old versions which don't have filter status
+ 					if (temp.length()==2) {
+ 						// Compatibility with previous versions
+-						if (temp.charAt(0)=='T') 
++						if (temp.charAt(0)=='T')
+ 							setFilterActive(Filter.FILTER_ACTIVE);
+ 						else
+ 							setFilterActive(Common.parseInt(temp.substring(0,1)));
+ 						setFilterInverted(temp.charAt(1)=='T');
+ 						setFilterRose(ex.findNext());
+-					} else 
++					} else
+ 						setFilterRose(temp);
+ 					setFilterType(ex.findNext());
+ 					//Need this to stay &quot;downward&quot; compatible. New type introduced
+@@ -376,7 +377,7 @@
+ 			//ewe.sys.Time endT=new ewe.sys.Time();
+ 			//Vm.debug(&quot;Time=&quot;+((((endT.hour*60+endT.minute)*60+endT.second)*1000+endT.millis)-(((startT.hour*60+startT.minute)*60+startT.second)*1000+startT.millis)));
+ 			//Vm.debug(&quot;Start:&quot;+startT.format(&quot;H:mm:ss.SSS&quot;));
+-			//Vm.debug(&quot;End  :&quot;+endT.format(&quot;H:mm:ss.SSS&quot;));	
++			//Vm.debug(&quot;End  :&quot;+endT.format(&quot;H:mm:ss.SSS&quot;));
+ 			// Build references between caches and addi wpts
+ 			if (infoBox!=null) {
+ 				infoBox.setInfo(MyLocale.getMsg(5004,&quot;Building references...&quot;));
+@@ -389,21 +390,21 @@
+ 			Global.getPref().log(&quot;index.xml not found in directory &quot;+dataDir); // Normal when profile is opened for first time
+ 			//e.printStackTrace();
+ 		} catch (IOException e){
+-			Global.getPref().log(&quot;Problem reading index.xml in dir: &quot;+dataDir,e,true); 
++			Global.getPref().log(&quot;Problem reading index.xml in dir: &quot;+dataDir,e,true);
+ 		}
+ 		// TODO Brauchen wir das noch?
+ 		this.getCurrentFilter().normaliseFilters();
+ 		resetUnsavedChanges();
+ 	}
+ 
+-	/** Restore the filter to the values stored in this profile 
+-	 *  Called from Main Form and MainMenu 
+-	 *  The values of Filter.isActive and Filter.isInactive are set by the filter 
++	/** Restore the filter to the values stored in this profile
++	 *  Called from Main Form and MainMenu
++	 *  The values of Filter.isActive and Filter.isInactive are set by the filter
+ 	 **/
+ 	public void restoreFilter() {
+-		restoreFilter( true );		
++		restoreFilter( true );
+ 	}
+-	
++
+ 	void restoreFilter(boolean clearIfInactive) {
+ 		boolean inverted=isFilterInverted(); // Save it as doFilter will clear filterInverted
+ 		Filter flt=new Filter();
+@@ -423,7 +424,7 @@
+ 			}
+ 		}
+ 	}
+-	
++
+ 	public int getCacheIndex(String wp) {
+ 		return cacheDB.getIndex(wp);
+ 	}
+@@ -444,7 +445,7 @@
+ 	}
+ 
+ 	/**
+-	 * 
++	 *
+ 	 * @param forcache maincache
+ 	 * @return
+ 	 */
+@@ -459,7 +460,7 @@
+ 
+ 	/**
+ 	 * Call this after getNewAddiWayPointName to set the references between main and addi correctly
+-	 * 
++	 *
+ 	 * @param ch
+ 	 */
+ 	public void setAddiRef(CacheHolder ch) {
+@@ -575,12 +576,12 @@
+ 			ch.addiWpts.clear();
+ 			ch.mainCache = null;
+ 		}
+-		
++
+ 		// Build references
+ 		int max = cacheDB.size();
+ 		for (int i = 0; i &lt; max; i++) {
+ 			ch = cacheDB.get(i);
+-			if (ch.isAddiWpt()) 
++			if (ch.isAddiWpt())
+ 				setAddiRef(ch);
+ 		}
+ 		// sort addi wpts
+@@ -688,13 +689,13 @@
+ 
+ 	/**
+ 	 * If &lt;code&gt;true&lt;/code&gt; then the cache list will only display the
+-	 * caches that are result of a search.   
++	 * caches that are result of a search.
+ 	 * @return &lt;code&gt;True&lt;/code&gt; if list should only display search results
+ 	 */
+ 	public boolean showSearchResult() {
+ 		return showSearchResult;
+ 	}
+-	
++
+ 	/**
+ 	 * Sets parameter if cache list should only display the caches that are
+ 	 * results of a search.
+@@ -758,7 +759,7 @@
+ 		this.notifyUnsavedChanges(filterNoCoord != this.getFilterNoCoord());
+     	this.currentFilter.setFilterNoCoord(filterNoCoord);
+     }
+-	
++
+ 	public String getLast_sync_opencaching() {
+ 		return last_sync_opencaching;
+ 	}
+@@ -789,7 +790,7 @@
+ 	public String getRelativeCustomMapsPath() {
+ 		return relativeCustomMapsPath;
+ 	}
+-	
++
+ 	public void setRelativeCustomMapsPath(String rCMPath) {
+ 		this.notifyUnsavedChanges(!rCMPath.equals(this.relativeCustomMapsPath));
+ 		this.relativeCustomMapsPath = rCMPath;
+@@ -805,13 +806,13 @@
+ 	public void setCurrentFilter(FilterData currentFilter) {
+     	this.currentFilter = currentFilter;
+     }
+-	
++
+ 	private class MyComparer implements ewe.util.Comparer {
+ 
+ 		public int compare(Object o1, Object o2) {
+ 			return ((CacheHolder) o1).getWayPoint().compareTo(
+ 			        ((CacheHolder) o2).getWayPoint());
+ 		}
+-		
++
+ 	}
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002189.html">[Cachewolf-svn] r2265 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="002191.html">[Cachewolf-svn] r2267 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2190">[ date ]</a>
+              <a href="thread.html#2190">[ thread ]</a>
+              <a href="subject.html#2190">[ subject ]</a>
+              <a href="author.html#2190">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

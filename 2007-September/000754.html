@@ -1,0 +1,128 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r862 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-September/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r862%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200709011744.l81HiDXe015667%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000753.html">
+   <LINK REL="Next"  HREF="000755.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r862 - trunk/src/CacheWolf</H1>
+    <B>mik77 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r862%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200709011744.l81HiDXe015667%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r862 - trunk/src/CacheWolf">mik77 at mail.berlios.de
+       </A><BR>
+    <I>Sat Sep  1 19:44:13 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000753.html">[Cachewolf-svn] r861 - in trunk: resources src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000755.html">[Cachewolf-svn] r863 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#754">[ date ]</a>
+              <a href="thread.html#754">[ thread ]</a>
+              <a href="subject.html#754">[ subject ]</a>
+              <a href="author.html#754">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mik77
+Date: 2007-09-01 19:44:06 +0200 (Sat, 01 Sep 2007)
+New Revision: 862
+
+Modified:
+   trunk/src/CacheWolf/GotoPanel.java
+   trunk/src/CacheWolf/Preferences.java
+Log:
+save north centered status in preferences and restore on next startup
+
+Modified: trunk/src/CacheWolf/GotoPanel.java
+===================================================================
+--- trunk/src/CacheWolf/GotoPanel.java	2007-09-01 16:56:50 UTC (rev 861)
++++ trunk/src/CacheWolf/GotoPanel.java	2007-09-01 17:44:06 UTC (rev 862)
+@@ -412,7 +412,7 @@
+ 	
+ 	FontMetrics fm;
+ 	
+-	boolean northCentered = true;
++	boolean northCentered = Global.getPref().northCenteredGoto;
+ 	
+ 	final static Color RED = new Color(255,0,0);
+ 	final static Color YELLOW = new Color(255,255,0);
+@@ -774,6 +774,10 @@
+ 	
+ 	public void setNorthCentered(boolean nc) {
+ 		northCentered = nc;
++		if (northCentered != Global.getPref().northCenteredGoto) {
++			Global.getPref().northCenteredGoto = northCentered;
++			Global.getPref().savePreferences();
++		}
+ 		refresh();
+ 	}
+ 	
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2007-09-01 16:56:50 UTC (rev 861)
++++ trunk/src/CacheWolf/Preferences.java	2007-09-01 17:44:06 UTC (rev 862)
+@@ -90,6 +90,8 @@
+ 	/** If this flag is true, only non-logged travelbug journeys will be shown */
+ 	public boolean travelbugShowOnlyNonLogged=false;
+ 	
++	public boolean northCenteredGoto = true;
++	
+ 	public String mapsPath = &quot;maps/standard&quot;;
+ 	// Helper variables for XML parser 
+ 	private StringBuffer collectElement=null; 
+@@ -399,6 +401,9 @@
+ 			travelbugColWidth=atts.getValue(&quot;colwidths&quot;);	
+ 			travelbugShowOnlyNonLogged=Boolean.valueOf(atts.getValue(&quot;shownonlogged&quot;)).booleanValue();
+ 		}
++		if (name.equals(&quot;gotopanel&quot;)) {
++			northCenteredGoto = Boolean.valueOf(atts.getValue(&quot;northcentered&quot;)).booleanValue();
++		}
+ 	}
+ 
+ 	public void characters( char ch[], int start, int length ) {
+@@ -448,6 +453,7 @@
+ 			outp.print(&quot;    &lt;garmin connection = \&quot;&quot;+garminConn+&quot;\&quot; GPSBabelOptions = \&quot;&quot;+garminGPSBabelOptions+&quot;\&quot; /&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;opencaching downloadPicsOC=\&quot;&quot;+downloadPicsOC+&quot;\&quot; downloadMaps=\&quot;&quot;+downloadMapsOC+&quot;\&quot; downloadMissing=\&quot;&quot;+downloadmissingOC+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;	&lt;location lat = \&quot;&quot;+curCentrePt.getLatDeg(CWPoint.DD)+&quot;\&quot; long = \&quot;&quot;+curCentrePt.getLonDeg(CWPoint.DD)+&quot;\&quot;/&gt;\n&quot;);
++			outp.print(&quot;    &lt;gotopanel northcentered=\&quot;&quot;+northCenteredGoto+&quot;\&quot; /&gt;\n&quot;);
+ 			if (customMapsPath!=null) outp.print(&quot;	&lt;mapspath dir = \&quot;&quot;+ customMapsPath +&quot;\&quot;/&gt;\n&quot;);
+ 			if (debug) outp.print(&quot;    &lt;debug value=\&quot;true\&quot; /&gt;\n&quot;); // Keep the debug switch if it is set
+ 			// save last path of different exporters
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000753.html">[Cachewolf-svn] r861 - in trunk: resources src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000755.html">[Cachewolf-svn] r863 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#754">[ date ]</a>
+              <a href="thread.html#754">[ thread ]</a>
+              <a href="subject.html#754">[ subject ]</a>
+              <a href="author.html#754">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

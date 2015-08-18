@@ -1,0 +1,173 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2969 - in trunk: res_noewe/webmapservices	src/CacheWolf src/CacheWolf/navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2011-April/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2969%20-%20in%20trunk%3A%20res_noewe/webmapservices%0A%09src/CacheWolf%20src/CacheWolf/navi&In-Reply-To=%3C20110401104801.79D67480B1A%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   
+   <LINK REL="Next"  HREF="002961.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2969 - in trunk: res_noewe/webmapservices	src/CacheWolf src/CacheWolf/navi</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2969%20-%20in%20trunk%3A%20res_noewe/webmapservices%0A%09src/CacheWolf%20src/CacheWolf/navi&In-Reply-To=%3C20110401104801.79D67480B1A%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2969 - in trunk: res_noewe/webmapservices	src/CacheWolf src/CacheWolf/navi">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Fri Apr  1 12:48:01 CEST 2011</I>
+    <P><UL>
+        
+        <LI>Next message: <A HREF="002961.html">[Cachewolf-svn] r2970 - in trunk: res_noewe src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2960">[ date ]</a>
+              <a href="thread.html#2960">[ thread ]</a>
+              <a href="subject.html#2960">[ subject ]</a>
+              <a href="author.html#2960">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2011-04-01 12:48:01 +0200 (Fri, 01 Apr 2011)
+New Revision: 2969
+
+Modified:
+   trunk/res_noewe/webmapservices/pt_t500.wms
+   trunk/src/CacheWolf/UrlFetcher.java
+   trunk/src/CacheWolf/navi/MapLoader.java
+Log:
+1. expedia will work again
+2. portugal wms: defaults changed
+
+Modified: trunk/res_noewe/webmapservices/pt_t500.wms
+===================================================================
+--- trunk/res_noewe/webmapservices/pt_t500.wms	2011-03-31 09:48:15 UTC (rev 2968)
++++ trunk/res_noewe/webmapservices/pt_t500.wms	2011-04-01 10:48:01 UTC (rev 2969)
+@@ -12,10 +12,10 @@
+ #LayersUrlPart:     LAYERS=sc500k|Carta de Portugal Continental 1:500.000|0.249451424214819|249451.424214819
+ LayersUrlPart:     LAYERS=sc500k
+ StylesUrlPart:     STYLES=
+-ImageFormatUrlPart:FORMAT=image/png
++ImageFormatUrlPart:FORMAT=image/jpeg
+ BoundingBoxTopLeftWGS84: N 42.2787 W 10.1943
+ BoundingBoxBottomRightWGS84: N 36.7636 W 5.71067
+ MinScale:   0
+-MaxScale:   45
+-RecommendedScale:   5
+-ImageFileExtension: .png
++MaxScale:   100
++RecommendedScale:   50
++ImageFileExtension: .jpg
+
+Modified: trunk/src/CacheWolf/UrlFetcher.java
+===================================================================
+--- trunk/src/CacheWolf/UrlFetcher.java	2011-03-31 09:48:15 UTC (rev 2968)
++++ trunk/src/CacheWolf/UrlFetcher.java	2011-04-01 10:48:01 UTC (rev 2969)
+@@ -42,6 +42,7 @@
+ 	static PropertyList permanentRequestorProperties = null;
+ 	static String postData=null;
+ 	static String urltmp=null;
++	static String realUrl=null;
+ 	static boolean forceRedirect=false;
+ 	
+ 	public static PropertyList getDocumentProperties() {
+@@ -49,7 +50,7 @@
+ 			return conn.documentProperties;
+ 		else return null;
+ 	}
+-	public static String getRealUrl() { return urltmp; };
++	public static String getRealUrl() { return realUrl; };
+ 	public static void setMaxRedirections(int value) { maxRedirections=value; };
+ 	public static void setForceRedirect() { forceRedirect=true; };
+ 	public static void setRequestorProperties(PropertyList value) { requestorProperties=value; };
+@@ -95,10 +96,18 @@
+ 	 */
+ 	public static ByteArray fetchByteArray(String url) throws IOException {	
+ 		int i=0;
+-		conn = new HttpConnection(url);		
++		conn = new HttpConnection(url); //todo reuse: don#t reuse, some params are not correctly reset with SetUrl		
+ 		urltmp = url;
+ 		do  { // allow max 5 redirections (http 302 location)
+ 			i++;
++			if (urltmp == null) {
++				// hack for expedia, doing the original url again. 
++				// expedia always must redirect &gt;=1 time, but sometimes that is missed
++				// see also: <A HREF="http://www.geoclub.de/viewtopic.php?p=305071#305071">http://www.geoclub.de/viewtopic.php?p=305071#305071</A>
++				urltmp=url;
++				i=i-1;
++			}
++			realUrl=urltmp;
+ 			conn.setUrl(urltmp);
+ 			conn.documentIsEncoded = isUrlEncoded(urltmp);
+ 			if (permanentRequestorProperties == null) initPermanentRequestorProperty();
+@@ -112,13 +121,11 @@
+ 			if (conn.responseCode &gt;= 400) throw new IOException(&quot;URL: &quot;+ urltmp + &quot;\nhttp response code: &quot; + conn.responseCode);
+ 			urltmp = conn.getRedirectTo();
+ 			if(urltmp!=null){
+-				URL eweUrl = new URL(url);
+-				if(urltmp.indexOf(eweUrl.getHost())&lt;0){
+-					urltmp = new URL(eweUrl.getProtocol(), eweUrl.getHost(),eweUrl.getPort(), urltmp).url;
+-				}
+-				urltmp = STRreplace.replace(urltmp, eweUrl.getHost() + &quot;/\\.\\./&quot;, eweUrl.getHost() + &quot;/&quot;);
++				conn.disconnect();
++				conn=conn.getRedirectedConnection(urltmp);
++				forceRedirect=false; // one time or more redirected
+ 			}
+-		} while (((urltmp != null) || (urltmp == null) &amp;&amp; forceRedirect) &amp;&amp; i &lt;= maxRedirections ); 
++		} while (((urltmp != null) || (urltmp == null) &amp;&amp; forceRedirect) &amp;&amp; i &lt;= maxRedirections );	
+ 		if (i &gt; maxRedirections) throw new IOException(&quot;too many http redirections while trying to fetch: &quot;+url + &quot; only &quot;+maxRedirections+&quot; are allowed&quot;);
+ 		ByteArray daten;
+ 		if (conn.isOpen()) {
+
+Modified: trunk/src/CacheWolf/navi/MapLoader.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MapLoader.java	2011-03-31 09:48:15 UTC (rev 2968)
++++ trunk/src/CacheWolf/navi/MapLoader.java	2011-04-01 10:48:01 UTC (rev 2969)
+@@ -519,9 +519,14 @@
+ 		if(!dateiF.exists()){
+ 			if (forceredirect) UrlFetcher.setForceRedirect();
+ 			UrlFetcher.fetchDataFile(realurl, datei);
+-			String ct = (String) UrlFetcher.getDocumentProperties().getValue(&quot;content-type&quot;,&quot;&quot;);
++			String ct=null;
++			try {
++				ct = (String) UrlFetcher.getDocumentProperties().getValue(&quot;content-type&quot;,&quot;&quot;);
++			} catch (Exception e) {
++				ct=&quot;document property content-type does not exist!&quot;;
++			}
+ 			if (!ct.substring(0, 5).equalsIgnoreCase(&quot;image&quot;) )  {
+-				dateiF = new FileBugfix(datei); //??? muss das nochmal ???
++				dateiF = new FileBugfix(datei);
+ 				dateiF.delete();
+ 				throw new IOException(MyLocale.getMsg(4808, &quot;downloadImage: content-type:&quot;)+&quot; &quot; + ct + MyLocale.getMsg(4809, &quot; is not an image, begin of content:&quot;)+&quot; (deleted)&quot;);
+ 			}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	
+	<LI>Next message: <A HREF="002961.html">[Cachewolf-svn] r2970 - in trunk: res_noewe src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2960">[ date ]</a>
+              <a href="thread.html#2960">[ thread ]</a>
+              <a href="subject.html#2960">[ subject ]</a>
+              <a href="author.html#2960">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

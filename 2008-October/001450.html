@@ -1,0 +1,936 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1556 - in experiments/EVE/src/cachewolf: . exp imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-October/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1556%20-%20in%20experiments/EVE/src/cachewolf%3A%20.%20exp%20imp&In-Reply-To=%3C200810252102.m9PL2q6R022270%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001449.html">
+   <LINK REL="Next"  HREF="001451.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1556 - in experiments/EVE/src/cachewolf: . exp imp</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1556%20-%20in%20experiments/EVE/src/cachewolf%3A%20.%20exp%20imp&In-Reply-To=%3C200810252102.m9PL2q6R022270%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1556 - in experiments/EVE/src/cachewolf: . exp imp">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sat Oct 25 23:02:52 CEST 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001449.html">[Cachewolf-svn] r1555 - in experiments/EVE/src/cachewolf: . exp imp
+</A></li>
+        <LI>Next message: <A HREF="001451.html">[Cachewolf-svn] r1557 - experiments/engywuck
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1450">[ date ]</a>
+              <a href="thread.html#1450">[ thread ]</a>
+              <a href="subject.html#1450">[ subject ]</a>
+              <a href="author.html#1450">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2008-10-25 23:02:40 +0200 (Sat, 25 Oct 2008)
+New Revision: 1556
+
+Modified:
+   experiments/EVE/src/cachewolf/Attribute.java
+   experiments/EVE/src/cachewolf/CacheHolder.java
+   experiments/EVE/src/cachewolf/DetailsPanel.java
+   experiments/EVE/src/cachewolf/Filter.java
+   experiments/EVE/src/cachewolf/MainTab.java
+   experiments/EVE/src/cachewolf/Parser.java
+   experiments/EVE/src/cachewolf/RadarPanel.java
+   experiments/EVE/src/cachewolf/ShowCacheInBrowser.java
+   experiments/EVE/src/cachewolf/TablePanel.java
+   experiments/EVE/src/cachewolf/exp/GPXExporter.java
+   experiments/EVE/src/cachewolf/exp/HTMLExporter.java
+   experiments/EVE/src/cachewolf/exp/MSARCSVExporter.java
+   experiments/EVE/src/cachewolf/exp/TPLExporter.java
+   experiments/EVE/src/cachewolf/exp/TomTomExporter.java
+   experiments/EVE/src/cachewolf/imp/DBImporter.java
+   experiments/EVE/src/cachewolf/imp/GPXImporter.java
+   experiments/EVE/src/cachewolf/imp/OCXMLImporter.java
+   experiments/EVE/src/cachewolf/imp/SpiderGC.java
+Log:
+CacheHolder: Changed field cacheSize from String to int.
+Externally (in index.xml) the cache size is still stored as a text field. Only internally it is stored as a number.
+
+
+Modified: experiments/EVE/src/cachewolf/Attribute.java
+===================================================================
+--- experiments/EVE/src/cachewolf/Attribute.java	2008-10-25 19:17:53 UTC (rev 1555)
++++ experiments/EVE/src/cachewolf/Attribute.java	2008-10-25 21:02:40 UTC (rev 1556)
+@@ -22,7 +22,7 @@
+ 	 * The attribute names are identical to the image names.
+ 	 * Internally the first image name has number 0, the next number 1 and so on.
+ 	 */
+-	public static final String [] attributeNames= {
++	protected static final String [] attributeNames= {
+ 			&quot;error.gif&quot;,			//00 Unknown attribute
+ 			&quot;available-no.gif&quot;, 	//01 not 24-7
+ 			&quot;available-yes.gif&quot;, 	//02 available 24-7
+
+Modified: experiments/EVE/src/cachewolf/CacheHolder.java
+===================================================================
+--- experiments/EVE/src/cachewolf/CacheHolder.java	2008-10-25 19:17:53 UTC (rev 1555)
++++ experiments/EVE/src/cachewolf/CacheHolder.java	2008-10-25 21:02:40 UTC (rev 1556)
+@@ -37,7 +37,9 @@
+ 	/** The date when the cache was hidden in format yyyy-mm-dd */
+ 	public String dateHidden = EMPTY;
+ 	/** The size of the cache (as per GC cache sizes Micro, Small, ....) */
+-	public String cacheSize = &quot;None&quot;;
++	public int cacheSize = 0;
++	/** The pre-defined GC cache sizes */
++	public static String[] cacheSizeList={&quot;Not Chosen&quot;,&quot;Micro&quot;,&quot;Small&quot;,&quot;Regular&quot;,&quot;Large&quot;,&quot;Very Large&quot;, &quot;Other&quot;};
+ 	/** The distance from the centre in km */
+ 	public double kilom = 0;
+ 	/** The formatted distance such as &quot;x.xx km&quot; */
+@@ -124,6 +126,22 @@
+ 		notDecSep=decSep=='.'?',':'.';
+ 	}
+ 
++	public void setCacheSize(String cacheSize) {
++		if(cacheSize.equals(&quot;Not Chosen&quot;)) this.cacheSize=0;
++		else if(cacheSize.equals(&quot;Micro&quot;)) this.cacheSize=1;
++		else if(cacheSize.equals(&quot;Small&quot;)) this.cacheSize=2;
++		else if(cacheSize.equals(&quot;Regular&quot;)) this.cacheSize=3;
++		else if(cacheSize.equals(&quot;Large&quot;)) this.cacheSize=4;
++		else if(cacheSize.equals(&quot;Very Large&quot;)) this.cacheSize=5;
++		else if(cacheSize.equals(&quot;Other&quot;)) this.cacheSize=6;
++		else this.cacheSize=0;
++	}
++
++	public String getCacheSize() {
++		return cacheSizeList[cacheSize];
++	}
++
++
+ 	public CacheHolder(String xmlString) {
+ 		int start,end;
+ 		try {
+@@ -166,7 +184,7 @@
+ 			is_filtered = xmlString.substring(start+1,end).equals(&quot;true&quot;);
+ 
+ 			start=xmlString.indexOf('&quot;',end+1); end=xmlString.indexOf('&quot;',start+1);
+-			cacheSize = xmlString.substring(start+1,end);
++			setCacheSize(xmlString.substring(start+1,end));
+ 
+ 			start=xmlString.indexOf('&quot;',end+1); end=xmlString.indexOf('&quot;',start+1);
+ 			is_available = xmlString.substring(start+1,end).equals(&quot;true&quot;);
+@@ -268,7 +286,7 @@
+ 		this.cacheOwner = ch.cacheOwner;
+ 
+ 		this.dateHidden = ch.dateHidden;
+-		this.cacheSize = ch.cacheSize;
++		this.cacheSize=ch.cacheSize;
+ 		this.kilom = ch.kilom;
+ 		this.distance = ch.distance;
+ 		this.bearing = ch.bearing;
+@@ -385,7 +403,7 @@
+ 		sb.append(&quot;\&quot; dif = \&quot;&quot;);		sb.append(hard);
+ 		sb.append(&quot;\&quot; terrain = \&quot;&quot; );	sb.append(terrain );
+ 		sb.append(&quot;\&quot; filtered = \&quot;&quot; ); sb.append(is_filtered); // This was 'dirty', but dirty is not used
+-		sb.append(&quot;\&quot; size = \&quot;&quot;);		sb.append(cacheSize);
++		sb.append(&quot;\&quot; size = \&quot;&quot;);		sb.append(getCacheSize());
+ 		sb.append(&quot;\&quot; online = \&quot;&quot; );	sb.append(is_available);
+ 		sb.append(&quot;\&quot; archived = \&quot;&quot; );	sb.append(is_archived);
+ 		sb.append(&quot;\&quot; has_bug = \&quot;&quot; ); 	sb.append(has_bug);
+
+Modified: experiments/EVE/src/cachewolf/DetailsPanel.java
+===================================================================
+--- experiments/EVE/src/cachewolf/DetailsPanel.java	2008-10-25 19:17:53 UTC (rev 1555)
++++ experiments/EVE/src/cachewolf/DetailsPanel.java	2008-10-25 21:02:40 UTC (rev 1556)
+@@ -11,7 +11,7 @@
+ *	Class to create the panel to show the cache details.&lt;br&gt;
+ *	Also allows for creation of a custom waypoint.&lt;br&gt;
+ *
+-*   
++*
+ */
+ public class DetailsPanel extends CellPanel{
+ 	Input inpWaypoint = new Input();
+@@ -21,29 +21,29 @@
+ 	Input inpOwner = new Input();
+ 	Button btnAddDateTime;
+ 	Choice chcType = new Choice(CacheType.wayTypeList(),0);
+-	Choice chcSize = new Choice(new String[]{&quot;&quot;, &quot;Micro&quot;, &quot;Small&quot;, &quot;Regular&quot;, &quot;Large&quot;,&quot;Other&quot;,&quot;Very Large&quot;,&quot;None&quot;},0);
++	Choice chcSize = new Choice(CacheHolder.cacheSizeList,0);
+ 	ComboBox chcStatus = new ComboBox(new String[]{&quot;&quot;, MyLocale.getMsg(313,&quot;Flag 1&quot;), MyLocale.getMsg(314,&quot;Flag 2&quot;), MyLocale.getMsg(315,&quot;Flag 3&quot;), MyLocale.getMsg(316,&quot;Flag 4&quot;), MyLocale.getMsg(317,&quot;Search&quot;), MyLocale.getMsg(318,&quot;Found&quot;), MyLocale.getMsg(319,&quot;Not Found&quot;), MyLocale.getMsg(320,&quot;Owner&quot;)},0);
+ 	Button btnNewWpt, btnShowBug, btnShowMap, btnGoto, btnAddPicture, btnBlack, btnNotes;
+ 	Button btnFoundDate,btnHiddenDate;
+ 	CacheHolder thisCache;
+-	Panel pnlTools = new Panel(); 
++	Panel pnlTools = new Panel();
+ 	AttributesViewer attV;
+ 	TextPad mNotes;
+-	
++
+ 	private boolean dirty_notes = false;
+ 	private boolean dirty_details = false;
+ 	private boolean blackStatus = false;
+ 	private boolean blackStatusChanged=false;
+ 	private boolean needsTableUpdate = false;
+ 	private boolean isBigScreen = false;
+-	
++
+ 	Preferences pref; // Test
+ 	Profile profile;
+ 	Picture imgBlack;
+ 	Picture imgBlackNo;
+ 	Picture imgShowBug, imgShowBugNo;
+ 	Label lblDiff, lblTerr;
+-	
++
+ 	public DetailsPanel(){
+ 		pref = Global.getPref();
+ 		profile=Global.getProfile();
+@@ -54,9 +54,9 @@
+ 		// Use larger Button-Icons on VGA-mobiles
+ 		int sw = MyLocale.getScreenWidth();
+ 		String imagesize=&quot;&quot;;
+-		if (eve.sys.Device.isMobile() &amp;&amp; sw &gt;= 400) imagesize=&quot;_vga&quot;;  
++		if (eve.sys.Device.isMobile() &amp;&amp; sw &gt;= 400) imagesize=&quot;_vga&quot;;
+ 		// Button 1: New Waypoint
+-		pnlTools.addNext(btnNewWpt = new Button(new Picture(&quot;newwpt&quot;+imagesize+&quot;.png&quot;,new Color(255,0,0),0))); 
++		pnlTools.addNext(btnNewWpt = new Button(new Picture(&quot;newwpt&quot;+imagesize+&quot;.png&quot;,new Color(255,0,0),0)));
+ 		btnNewWpt.setToolTip(MyLocale.getMsg(311,&quot;Create Waypoint&quot;));
+ 		PenEvent.wantPenMoved(btnNewWpt,PenEvent.WANT_PEN_MOVED_ONOFF,true);
+ 		// Button 2: Goto
+@@ -65,30 +65,30 @@
+ 		// Button 3: Travelbugs
+ 		imgShowBug = new Picture(&quot;bug&quot;+imagesize+&quot;.gif&quot;);
+ 		imgShowBugNo = new Picture(&quot;bug_no&quot;+imagesize+&quot;.gif&quot;);
+-		pnlTools.addNext(btnShowBug = new Button(imgShowBugNo)); 
++		pnlTools.addNext(btnShowBug = new Button(imgShowBugNo));
+ 		//btnShowBug.modify(Control.Disabled,0);
+ 		btnShowBug.setToolTip(MyLocale.getMsg(346,&quot;Show travelbugs&quot;));
+ 		// Button 4: Show Map
+-		pnlTools.addNext(btnShowMap = new Button(new Picture(&quot;globe_small&quot;+imagesize+&quot;.gif&quot;))); 
++		pnlTools.addNext(btnShowMap = new Button(new Picture(&quot;globe_small&quot;+imagesize+&quot;.gif&quot;)));
+ 		btnShowMap.setToolTip(MyLocale.getMsg(347,&quot;Show map&quot;));
+ 		// Button 5: Add images
+-		pnlTools.addNext(btnAddPicture = new Button(new Picture(&quot;images&quot;+imagesize+&quot;.gif&quot;))); 
++		pnlTools.addNext(btnAddPicture = new Button(new Picture(&quot;images&quot;+imagesize+&quot;.gif&quot;)));
+ 		btnAddPicture.setToolTip(MyLocale.getMsg(348,&quot;Add user pictures&quot;));
+ 		// Button 6: Toggle blacklist status
+-		imgBlackNo = new Picture(&quot;no_black&quot;+imagesize+&quot;.png&quot;,Color.Black,0); 
+-		imgBlack = new Picture(&quot;is_black&quot;+imagesize+&quot;.png&quot;,Color.White,0); 
+-		pnlTools.addNext(btnBlack=new Button(imgBlackNo)); 
++		imgBlackNo = new Picture(&quot;no_black&quot;+imagesize+&quot;.png&quot;,Color.Black,0);
++		imgBlack = new Picture(&quot;is_black&quot;+imagesize+&quot;.png&quot;,Color.White,0);
++		pnlTools.addNext(btnBlack=new Button(imgBlackNo));
+ 		btnBlack.setToolTip(MyLocale.getMsg(349,&quot;Toggle Blacklist status&quot;));
+ 		// Button 7: Notes
+-		pnlTools.addNext(btnNotes=new Button(new Picture(&quot;notes&quot;+imagesize+&quot;.gif&quot;,Color.DarkBlue,0))); 
++		pnlTools.addNext(btnNotes=new Button(new Picture(&quot;notes&quot;+imagesize+&quot;.gif&quot;,Color.DarkBlue,0)));
+ 		btnNotes.setToolTip(MyLocale.getMsg(351,&quot;Add/Edit notes&quot;));
+ 		// Button 8: Date/time stamp
+-		pnlTools.addLast(btnAddDateTime = new Button(new Picture(&quot;date_time&quot;+imagesize+&quot;.png&quot;))); 
++		pnlTools.addLast(btnAddDateTime = new Button(new Picture(&quot;date_time&quot;+imagesize+&quot;.png&quot;)));
+ 		btnAddDateTime.setToolTip(MyLocale.getMsg(350,&quot;Add timestamp to notes&quot;));
+ 		//showMap.modify(Control.Disabled,0);
+ 		pnlTools.stretchFirstRow=true;
+ 		this.addLast(pnlTools,CellConstants.DONTSTRETCH, CellConstants.WEST).setTag(TAG_SPAN,new Dimension(3,1));;
+-		
++
+ 		////////////////////
+ 		// Main body of screen
+ 		////////////////////
+@@ -98,49 +98,49 @@
+ 		line1Panel.addNext(chcType,CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 		line1Panel.addLast(lblDiff=new Label(MyLocale.getMsg(1000,&quot;D&quot;)+&quot;: 5.5&quot;),CellConstants.DONTSTRETCH,(CellConstants.DONTFILL|CellConstants.EAST));
+ 		this.addLast(line1Panel,HSTRETCH,HFILL);
+-		
++
+ 		this.addNext(new Label(MyLocale.getMsg(301,&quot;Size:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		Panel line2Panel = new Panel(); line2Panel.stretchFirstColumn=true; 	
++		Panel line2Panel = new Panel(); line2Panel.stretchFirstColumn=true;
+ 		line2Panel.addNext(chcSize,CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 		line2Panel.addLast(lblTerr=new Label(MyLocale.getMsg(1001,&quot;T&quot;)+&quot;: 5.5&quot;),CellConstants.DONTSTRETCH,(CellConstants.DONTFILL|CellConstants.EAST));
+-		this.addLast(line2Panel,HSTRETCH,HFILL); 
+-		
++		this.addLast(line2Panel,HSTRETCH,HFILL);
++
+ 		this.addNext(new Label(MyLocale.getMsg(302,&quot;Waypoint:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		this.addLast(inpWaypoint,CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+-		
++
+ 		this.addNext(new Label(MyLocale.getMsg(303,&quot;Name:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		this.addLast(inpName,CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+-		
++
+ 		this.addNext(new Label(MyLocale.getMsg(304,&quot;Location:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		this.addLast(btnWayLoc,CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+-		
++
+ 		this.addNext(new Label(MyLocale.getMsg(307,&quot;Status:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		Panel cp=new Panel(); cp.stretchFirstColumn=true;
+ 		cp.addNext(chcStatus,CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 		cp.addLast(btnFoundDate=new Button(new Picture(&quot;calendar&quot;+imagesize+&quot;.png&quot;)),DONTSTRETCH,DONTFILL);
+ 		this.addLast(cp,HSTRETCH,HFILL);
+-		
++
+ 		this.addNext(new Label(MyLocale.getMsg(306,&quot;Owner:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		this.addLast(inpOwner,CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+-		
++
+ 		this.addNext(new Label(MyLocale.getMsg(305,&quot;Hidden on:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		Panel ip=new Panel(); ip.stretchFirstColumn=true;
+ 		ip.addNext(inpHidden,CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 		ip.addLast(btnHiddenDate=new Button(new Picture(&quot;calendar&quot;+imagesize+&quot;.png&quot;)),DONTSTRETCH,DONTFILL);
+ 		this.addLast(ip,HSTRETCH,HFILL);
+ 		inpHidden.modifyAll(DisplayOnly,0);
+-		
++
+ 		attV=new AttributesViewer();
+ 		this.addLast(attV);
+ 		if ((MyLocale.getScreenWidth() &gt;= 400) &amp;&amp; (MyLocale.getScreenHeight() &gt;= 600)){
+-			isBigScreen = true;  
++			isBigScreen = true;
+ 			this.addLast(new Label(MyLocale.getMsg(308,&quot;Notes:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 			mNotes = new TextPad();
+ 			mNotes.modify(ControlConstants.NotEditable,0);
+ 			this.addLast(new MyScrollBarPanel(mNotes));
+ 		}
+ 	}
+-	
++
+ 	public void clear() {
+ 		attV.clear();
+ 	}
+@@ -158,8 +158,8 @@
+ 	public boolean hasBlackStatusChanged() {
+ 		return blackStatusChanged;
+ 	}
+-	
+-	
++
++
+ 	/**
+ 	* @param chD details of the cache to display
+ 	* @param dbindex index in cacheDB, in which changes will be saved
+@@ -186,7 +186,7 @@
+ 		} else {
+ 			btnBlack.image = imgBlackNo;
+ 		}
+-		blackStatus=ch.is_black; 
++		blackStatus=ch.is_black;
+ 		blackStatusChanged=false;
+ 		btnBlack.repaintNow();
+ 		if (inpWaypoint.getText().length() == 0)
+@@ -199,20 +199,13 @@
+ 			btnShowBug.image = imgShowBugNo;
+ 		}
+ 		btnShowBug.repaintNow();
+-		if(ch.cacheSize.equals(&quot;Micro&quot;)) chcSize.setInt(1);
+-		if(ch.cacheSize.equals(&quot;Small&quot;)) chcSize.setInt(2);
+-		if(ch.cacheSize.equals(&quot;Regular&quot;)) chcSize.setInt(3);
+-		if(ch.cacheSize.equals(&quot;Large&quot;)) chcSize.setInt(4);
+-		if(ch.cacheSize.equals(&quot;Other&quot;)) chcSize.setInt(5);
+-		if(ch.cacheSize.equals(&quot;Very Large&quot;)) chcSize.setInt(6);
+-		if(ch.cacheSize.equals(&quot;None&quot;)) chcSize.setInt(7);
+-		if(ch.cacheSize.equals(&quot;Not chosen&quot;)) chcSize.setInt(7);
++		chcSize.setInt(ch.cacheSize);
+ 		attV.showImages(ch.getCacheDetails(true).attributes);
+ 		lblTerr.setText((ch.terrain.length()&gt;0) ? (MyLocale.getMsg(1001,&quot;T&quot;)+&quot;: &quot;+ch.terrain) : &quot;&quot;);
+-		lblDiff.setText((ch.hard.length()&gt;0)    ? (MyLocale.getMsg(1000,&quot;D&quot;)+&quot;: &quot;+ch.hard) : &quot;&quot;); 
++		lblDiff.setText((ch.hard.length()&gt;0)    ? (MyLocale.getMsg(1000,&quot;D&quot;)+&quot;: &quot;+ch.hard) : &quot;&quot;);
+ 		if(isBigScreen)	mNotes.setText(ch.details.cacheNotes);	}
+-	
+-	
++
++
+ 	/**
+ 	*	Translate the cache type to the value in the cache type dropdown
+ 	*	control.
+@@ -222,7 +215,7 @@
+ 		if (c_type&lt;0) c_type=0;
+ 		return c_type;
+ 	}
+-	
++
+ 	/**
+ 	*	Method to translate a selected cache type in the drop down control
+ 	*	to a &quot;true&quot; cache type.&lt;br&gt;
+@@ -232,28 +225,28 @@
+ 	public int transSelect(int num){
+ 		return CacheType.wayTypeNo[num];
+ 	}
+-	
++
+ 	/**
+ 	 * if is addi -&gt; returns the respective AddiWpt
+-	 * if is main -&gt; returns the respective MainWpt 
++	 * if is main -&gt; returns the respective MainWpt
+ 	 *
+ 	 */
+ 	public void createWptName() {
+ 		String wpt = inpWaypoint.getText().toUpperCase();
+-		if (CacheType.isAddiWpt(transSelect(chcType.getInt())) &amp;&amp; 
++		if (CacheType.isAddiWpt(transSelect(chcType.getInt())) &amp;&amp;
+ 				(Global.mainTab.mainCache.startsWith(&quot;GC&quot;)||Global.mainTab.mainCache.startsWith(&quot;OC&quot;)||Global.mainTab.mainCache.startsWith(&quot;CW&quot;)) &amp;&amp;
+ 				wpt.startsWith(&quot;CW&quot;)) {
+ 			// for what was this?:
+ 			Global.mainTab.lastselected=Global.mainTab.mainCache; //I don't know exactly, but it's needed for creating a series of Addis
+-			
++
+ 			inpWaypoint.setText(Global.getProfile().getNewAddiWayPointName(Global.mainTab.mainCache));
+-		} 
+-		if (!CacheType.isAddiWpt(transSelect(chcType.getInt())) &amp;&amp; !(wpt.startsWith(&quot;GC&quot;) 
++		}
++		if (!CacheType.isAddiWpt(transSelect(chcType.getInt())) &amp;&amp; !(wpt.startsWith(&quot;GC&quot;)
+ 				|| wpt.startsWith(&quot;OC&quot;) || wpt.startsWith(&quot;CW&quot;)) ) {
+ 			inpWaypoint.setText(Global.getProfile().getNewWayPointName());
+ 		}
+ 	}
+-	
++
+ 	/**
+ 	*	Method to react to a user input.
+ 	*/
+@@ -275,7 +268,7 @@
+ 				dirty_notes=true; // TODO I think this is redundant, because the notes are saved seperately by the notes screen itself
+ 				NotesScreen nsc = new NotesScreen(thisCache.getCacheDetails(true));
+ 				nsc.execute(this.getFrame(), Gui.CENTER_FRAME);
+-				if(isBigScreen) mNotes.setText(thisCache.getCacheDetails(true).cacheNotes);	
++				if(isBigScreen) mNotes.setText(thisCache.getCacheDetails(true).cacheNotes);
+ 			} else if(ev.target == btnShowMap){
+ 				Global.mainTab.switchToMovingMap(thisCache.pos, true);
+ /*				try {
+@@ -295,7 +288,7 @@
+ 				if (!cp.isValid()){
+ 					MessageBox tmpMB = new MessageBox(MyLocale.getMsg(312,&quot;Error&quot;), MyLocale.getMsg(4111,&quot;Coordinates must be entered in the format N DD MM.MMM E DDD MM.MMM&quot;), MessageBox.OKB);
+ 					tmpMB.exec();
+-				} else {				
++				} else {
+ 					pref.curCentrePt.set(cp);
+ 					Global.mainTab.updateBearDist();
+ 				}
+@@ -352,7 +345,7 @@
+ 				}
+ 			} else if (ev.target==btnFoundDate) {
+ 				DateTimeChooser dc=new DateTimeChooser(Vm.getLocale(), true);
+-				dc.title=MyLocale.getMsg(328,&quot;Date found&quot;); 
++				dc.title=MyLocale.getMsg(328,&quot;Date found&quot;);
+ 				dc.setPreferredSize(240,240);
+ 				String foundDate=chcStatus.getText();
+ 				if (foundDate.startsWith(MyLocale.getMsg(318,&quot;Found&quot;)+&quot; &quot;)) foundDate=foundDate.substring(MyLocale.getMsg(318,&quot;Found&quot;).length()+1);
+@@ -373,7 +366,7 @@
+ 			} else if (ev.target==btnHiddenDate) {
+ 				//DateTimeChooser.dayFirst=true;
+ 				DateTimeChooser dc=new DateTimeChooser(Vm.getLocale(),false);
+-				dc.title=MyLocale.getMsg(329,&quot;Hidden date&quot;); 
++				dc.title=MyLocale.getMsg(329,&quot;Hidden date&quot;);
+ 				dc.setPreferredSize(240,240);
+ 				if (inpHidden.getText().length()==10)
+ 				try {
+@@ -393,31 +386,31 @@
+ 			ev.consumed=true;
+ 		}
+ 	}
+-	
++
+ 	public void saveDirtyWaypoint() {
+-		// We have to update two objects: thisCache (a CacheHolderDetail) which contains 
++		// We have to update two objects: thisCache (a CacheHolderDetail) which contains
+ 		// the full cache which will be written to the cache.xml file AND
+ 		// the CacheHolder object which sits in cacheDB
+ 		  // Strip the found message if the status contains a date
+-		if (chcStatus.getText().startsWith(MyLocale.getMsg(318,&quot;Found&quot;)) &amp;&amp; 
++		if (chcStatus.getText().startsWith(MyLocale.getMsg(318,&quot;Found&quot;)) &amp;&amp;
+ 				  chcStatus.getText().length()&gt;=MyLocale.getMsg(318,&quot;Found&quot;).length()+11)
+ 			  thisCache.cacheStatus = chcStatus.getText().substring(MyLocale.getMsg(318,&quot;Found&quot;).length()+1);
+-		  else	  
++		  else
+ 			  thisCache.cacheStatus = chcStatus.getText();
+ 		  thisCache.is_found = chcStatus.getText().startsWith(MyLocale.getMsg(318,&quot;Found&quot;));
+ 		  thisCache.cacheOwner = inpOwner.getText().trim();
+ 		  thisCache.is_owned = thisCache.cacheStatus.equals(MyLocale.getMsg(320,&quot;Owner&quot;));
+ 		  // Avoid setting is_owned if alias is empty and username is empty
+ 		  if(thisCache.is_owned == false){
+-			  thisCache.is_owned = (!pref.myAlias.equals(&quot;&quot;) &amp;&amp; pref.myAlias.equals(thisCache.cacheOwner)) || 
++			  thisCache.is_owned = (!pref.myAlias.equals(&quot;&quot;) &amp;&amp; pref.myAlias.equals(thisCache.cacheOwner)) ||
+ 					        (!pref.myAlias2.equals(&quot;&quot;) &amp;&amp; pref.myAlias2.equals(thisCache.cacheOwner));
+ 		  }
+ 		  thisCache.is_black = blackStatus;
+ 		  String oldWaypoint=thisCache.wayPoint;
+ 		  thisCache.wayPoint = inpWaypoint.getText().toUpperCase().trim();
+-		  thisCache.cacheSize = chcSize.getText();
++		  thisCache.setCacheSize(chcSize.getText());
+ 		  // If the waypoint does not have a name, give it one
+-		  if (thisCache.wayPoint.equals(&quot;&quot;)) { 
++		  if (thisCache.wayPoint.equals(&quot;&quot;)) {
+ 			  thisCache.wayPoint=profile.getNewWayPointName();
+ 		  }
+ 		  //Don't allow single letter names=&gt; Problems in updateBearingDistance
+@@ -431,11 +424,11 @@
+ 		 // thisCache.saveCacheDetails(profile.dataDir); // this is redundant, because all changes affecting the details are immediately saved
+ 		  // Now update the table
+ 		  CacheHolder ch = thisCache; // TODO variable ch is redundant
+-		  
++
+ 	  /* The references have to be rebuilt if:
+ 	   *   - the cachetype changed from addi-&gt;normal or normal-&gt;addi
+-	   *   - the old cachetype or the new cachetype were 'addi' and 
+-	   *     the waypointname has changed 
++	   *   - the old cachetype or the new cachetype were 'addi' and
++	   *     the waypointname has changed
+ 	   */
+ 	  if (CacheType.isAddiWpt(ch.type)!=CacheType.isAddiWpt(oldType) ||
+ 		 ((CacheType.isAddiWpt(ch.type) || CacheType.isAddiWpt(oldType)) &amp;&amp;
+@@ -455,7 +448,7 @@
+ 				  }
+ 				  profile.buildReferences(); // TODO this takes quite long -&gt; use profile.setAddiRef instead
+ 			  } else {
+-				  profile.buildReferences(); // we have to do this to release the link between the two caches  
++				  profile.buildReferences(); // we have to do this to release the link between the two caches
+ 			  }
+ 		  }
+ 		  // set status also on addi wpts
+@@ -468,11 +461,11 @@
+ 	}
+ 
+ 	private class TravelbugInCacheScreen extends Form {
+-		
++
+ 		private DispPanel disp = new DispPanel();
+ 		private Button btCancel;
+ 		private TravelbugJourneyList tbjList;
+-		
++
+ 		TravelbugInCacheScreen(String text, String title) {
+ 			this.title=title;
+ 			this.setPreferredSize(pref.myAppWidth, pref.myAppHeight);
+@@ -499,7 +492,7 @@
+ 				TBMenuItems[0]= mnuPickupTB = new MenuItem(MyLocale.getMsg(6016,&quot;Pick up Travelbug&quot;));
+ 				TBMenuItems[1]= mnuDropTB = new MenuItem(MyLocale.getMsg(6017,&quot;Drop Travelbug&quot;));
+ 				mnuPopup=new Menu(TBMenuItems,&quot;&quot;);
+-			} 
++			}
+ 			public void penRightReleased(Point p){
+ 				setMenu(mnuPopup);
+ 				doShowMenu(p); // direct call (not through doMenu) is neccesary because it will exclude the whole table
+@@ -509,8 +502,8 @@
+ 				doShowMenu(p);
+ 			}
+ 			public void popupMenuEvent(Object selectedItem){
+-				if (selectedItem==mnuPickupTB) { 
+-					Travelbug tb=TravelbugPickup.pickupTravelbug(thisCache.getCacheDetails(true).travelbugs);	
++				if (selectedItem==mnuPickupTB) {
++					Travelbug tb=TravelbugPickup.pickupTravelbug(thisCache.getCacheDetails(true).travelbugs);
+ 					if (tb!=null) {
+ 						dirty_details=true;
+ 						// Get the list of my travelbugs
+@@ -522,7 +515,7 @@
+ 						tbjList=null;
+ 						setHtml(thisCache.getCacheDetails(true).travelbugs.toHtml());
+ 						repaint();
+-						thisCache.has_bug=thisCache.getCacheDetails(true).travelbugs.size()&gt;0;						
++						thisCache.has_bug=thisCache.getCacheDetails(true).travelbugs.size()&gt;0;
+ 					}
+ 				} else if (selectedItem==mnuDropTB) {
+ 					tbjList=new TravelbugJourneyList();
+@@ -541,18 +534,18 @@
+ 					setHtml(thisCache.getCacheDetails(true).travelbugs.toHtml());
+ 					repaint();
+ 					dirty_details=true;
+-				} else 
++				} else
+ 					super.popupMenuEvent(selectedItem);
+ 			}
+ 		}
+ 
+-	
++
+ 	}
+ 
+ //#############################################################################
+ //  NotesScreen
+ //#############################################################################
+-	
++
+ 	/**
+ 	*	This class displays a form to show and edit notes for a cache.
+ 	*/
+@@ -563,7 +556,7 @@
+ 		Button btSave = new Button(MyLocale.getMsg(127,&quot;Save&quot;));
+ 		Button cancelBtn = new Button(&quot;Cancel&quot;);
+ 		ScrollBarPanel sbp = new MyScrollBarPanel(wayNotes);
+-		
++
+ 		public NotesScreen(CacheHolderDetail ch){
+ 			this.title = &quot;Notes&quot;;
+ 			String imagesize = &quot;&quot;;
+@@ -579,7 +572,7 @@
+ 			titleControls.addNext(cancelBtn,CellConstants.HSTRETCH,CellConstants.HFILL);
+ 			titleControls.addLast(btSave,CellConstants.HSTRETCH,CellConstants.HFILL);
+ 		}
+-		
++
+ 		public void onEvent(Event ev){
+ 			if(ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.PRESSED){
+ 				if (ev.target == addDateTime){
+@@ -604,7 +597,7 @@
+ 							this.close(0);
+ 						}
+ 					} else this.close(0); // no changes -&gt; exit without asking
+-				} 
++				}
+ 				if(ev.target == titleOK){
+ 					if ( (!thisCache.cacheNotes.equals(wayNotes.getText())) ) {
+ 						if ( (new MessageBox(&quot;Warning&quot;, &quot;Save changes made to the notes?&quot;
+@@ -618,6 +611,6 @@
+ 			super.onEvent(ev);
+ 		}
+ 	}
+-	
+ 
++
+ }
+
+Modified: experiments/EVE/src/cachewolf/Filter.java
+===================================================================
+--- experiments/EVE/src/cachewolf/Filter.java	2008-10-25 19:17:53 UTC (rev 1555)
++++ experiments/EVE/src/cachewolf/Filter.java	2008-10-25 21:02:40 UTC (rev 1556)
+@@ -474,11 +474,11 @@
+ 			///////////////////////////////
+ 			if (hasSizeMatchPattern) {
+ 				cacheSizePattern=0;
+-				if (ch.cacheSize.startsWith(&quot;M&quot;)) cacheSizePattern = MICRO;
+-				else if (ch.cacheSize.startsWith(&quot;S&quot;)) cacheSizePattern = SMALL;
+-				else if (ch.cacheSize.startsWith(&quot;R&quot;)) cacheSizePattern = REGULAR;
+-				else if (ch.cacheSize.startsWith(&quot;L&quot;)) cacheSizePattern = LARGE;
+-				else if (ch.cacheSize.startsWith(&quot;V&quot;)) cacheSizePattern = VERYLARGE;
++				if (ch.cacheSize==1) cacheSizePattern = MICRO;
++				else if (ch.cacheSize==2) cacheSizePattern = SMALL;
++				else if (ch.cacheSize==3) cacheSizePattern = REGULAR;
++				else if (ch.cacheSize==4) cacheSizePattern = LARGE;
++				else if (ch.cacheSize==5) cacheSizePattern = VERYLARGE;
+ 				else cacheSizePattern = OTHER;
+ 				if ((cacheSizePattern &amp; sizeMatchPattern) == 0) { ch.is_filtered=true; continue; }
+ 			}
+
+Modified: experiments/EVE/src/cachewolf/MainTab.java
+===================================================================
+--- experiments/EVE/src/cachewolf/MainTab.java	2008-10-25 19:17:53 UTC (rev 1555)
++++ experiments/EVE/src/cachewolf/MainTab.java	2008-10-25 21:02:40 UTC (rev 1556)
+@@ -346,7 +346,7 @@
+ 			ch.type=0;
+ 			lastselected=ch.wayPoint;
+ 		}
+-		ch.cacheSize = &quot;None&quot;;
++		ch.setCacheSize(&quot;None&quot;);
+ 		chD = ch.getCacheDetails(true);
+ 		this.ch = ch;
+ 		cacheDB.add(ch);
+
+Modified: experiments/EVE/src/cachewolf/Parser.java
+===================================================================
+--- experiments/EVE/src/cachewolf/Parser.java	2008-10-25 19:17:53 UTC (rev 1555)
++++ experiments/EVE/src/cachewolf/Parser.java	2008-10-25 21:02:40 UTC (rev 1556)
+@@ -1399,7 +1399,7 @@
+ 		CacheHolder ch = new CacheHolder();
+ 		ch.wayPoint = wayPoint;
+ 		ch.type = type;
+-		ch.cacheSize = &quot;None&quot;;
++		ch.setCacheSize(&quot;None&quot;);
+ 		ch.cacheName= name;
+ 
+ 		Global.getProfile().hasUnsavedChanges=true;
+
+Modified: experiments/EVE/src/cachewolf/RadarPanel.java
+===================================================================
+--- experiments/EVE/src/cachewolf/RadarPanel.java	2008-10-25 19:17:53 UTC (rev 1555)
++++ experiments/EVE/src/cachewolf/RadarPanel.java	2008-10-25 21:02:40 UTC (rev 1556)
+@@ -309,7 +309,7 @@
+ 			RadarPanelImage imgRP=(RadarPanelImage) which;
+ 			java.util.Vector cacheDB=Global.getProfile().cacheDB;
+ 			CacheHolder ch=(CacheHolder) cacheDB.get(imgRP.rownum);
+-			String s=ch.wayPoint+&quot;  &quot;+ch.cacheSize+&quot; / &quot;+strDifficulty+&quot;=&quot;+ch.hard+&quot;  &quot;+strTerrain+&quot;=&quot;+ch.terrain;
++			String s=ch.wayPoint+&quot;  &quot;+ch.getCacheSize()+&quot; / &quot;+strDifficulty+&quot;=&quot;+ch.hard+&quot;  &quot;+strTerrain+&quot;=&quot;+ch.terrain;
+ 			String s1=ch.cacheName;
+ 			if (s1.length()&gt;40) s1=s1.substring(0,40);
+ 			int tw=fm.getTextWidth(s)+2;
+
+Modified: experiments/EVE/src/cachewolf/ShowCacheInBrowser.java
+===================================================================
+--- experiments/EVE/src/cachewolf/ShowCacheInBrowser.java	2008-10-25 19:17:53 UTC (rev 1555)
++++ experiments/EVE/src/cachewolf/ShowCacheInBrowser.java	2008-10-25 21:02:40 UTC (rev 1556)
+@@ -75,7 +75,7 @@
+ 						tpl.setParam(&quot;TYPE&quot;, &quot;\&quot;<A HREF="file://">file://</A>&quot;+File.getProgramDirectory()+&quot;/&quot;+CacheType.transOCType(chD.type)+&quot;.gif\&quot;&quot;);
+ 					else
+ 						tpl.setParam(&quot;TYPE&quot;, &quot;\&quot;<A HREF="file://">file://</A>&quot;+File.getProgramDirectory()+&quot;/&quot;+chD.type+&quot;.gif\&quot;&quot;);
+-					tpl.setParam(&quot;SIZE&quot;, chD.cacheSize);
++					tpl.setParam(&quot;SIZE&quot;, chD.getCacheSize());
+ 					tpl.setParam(&quot;WAYPOINT&quot;, chD.wayPoint);
+ 					tpl.setParam(&quot;CACHE_NAME&quot;, chD.cacheName);
+ 					tpl.setParam(&quot;OWNER&quot;, chD.cacheOwner);
+
+Modified: experiments/EVE/src/cachewolf/TablePanel.java
+===================================================================
+--- experiments/EVE/src/cachewolf/TablePanel.java	2008-10-25 19:17:53 UTC (rev 1555)
++++ experiments/EVE/src/cachewolf/TablePanel.java	2008-10-25 21:02:40 UTC (rev 1556)
+@@ -611,7 +611,6 @@
+ 		private boolean sortAsc = false;
+ 		private int sortedBy = -1;
+ 		private FontMetrics fm;
+-		private Picture picSizeMicro,picSizeSmall,picSizeReg,picSizeLarge,picSizeVLarge;
+ 		/** This is the modifier (Shift &amp; Control key status) for Pen Events
+ 		 * it is set in myTableControl.onEvent */
+ 		public int penEventModifiers;
+@@ -619,6 +618,11 @@
+ 		public boolean showExtraWptInfo=true;
+ 		private IconAndText iAndT = new IconAndText();
+ 		private IconAndText wpVal = new IconAndText();
++		private Object [] picSizeList={&quot;?&quot;,new Picture(&quot;sizeMicro.png&quot;,Color.White,0),
++					new Picture(&quot;sizeSmall.png&quot;,Color.White,0),
++					new Picture(&quot;sizeReg.png&quot;,Color.White,0),
++					new Picture(&quot;sizeLarge.png&quot;,Color.White,0),
++					new Picture(&quot;sizeVLarge.png&quot;,Color.White,0)};
+ 
+ 		public ListTableModel(ListTableControl tc, FontMetrics fm){
+ 			super();
+@@ -641,11 +645,6 @@
+ 			bug = new Picture(&quot;bug_table.png&quot;,Color.DarkBlue,0);
+ 			checkboxTicked = new Picture(&quot;checkboxTicked.png&quot;);
+ 			checkboxUnticked= new Picture(&quot;checkboxUnticked.png&quot;);
+-			picSizeMicro=new Picture(&quot;sizeMicro.png&quot;,Color.White,0);
+-			picSizeSmall=new Picture(&quot;sizeSmall.png&quot;,Color.White,0);
+-			picSizeReg=new Picture(&quot;sizeReg.png&quot;,Color.White,0);
+-			picSizeLarge=new Picture(&quot;sizeLarge.png&quot;,Color.White,0);
+-			picSizeVLarge=new Picture(&quot;sizeVLarge.png&quot;,Color.White,0);
+ 			iAndT.fontMetrics=fm;
+ 			wpVal.fontMetrics=fm;
+ 			//updateRows();
+@@ -795,15 +794,7 @@
+ 						case 11: // Bearing
+ 							return ch.bearing;
+ 						case 12: // Size
+-							if (ch.cacheSize.length()==0) return &quot;?&quot;;
+-							switch (ch.cacheSize.charAt(0)) {
+-								case 'M': return picSizeMicro;
+-								case 'S': return picSizeSmall;
+-								case 'R': return picSizeReg;
+-								case 'L': return picSizeLarge;
+-								case 'V': return picSizeVLarge;
+-								default: return &quot;?&quot;;
+-							}
++							return picSizeList[ch.cacheSize];
+ 						case 13: // OC number of recommendations
+ 							if (ch.wayPoint.startsWith(&quot;OC&quot;))
+ 								return Convert.formatInt(ch.numRecommended);
+@@ -967,8 +958,8 @@
+ 				} else if (colToCompare==12) {
+ 					for (int i=0; i&lt;visibleSize; i++) {
+ 						CacheHolder ch=(CacheHolder) cacheDB.get(i);
+-						if (ch.cacheSize.length()==0) ch.sort=&quot;?&quot;;
+-						else switch (ch.cacheSize.charAt(0)) {
++						if (ch.getCacheSize().length()==0) ch.sort=&quot;?&quot;;
++						else switch (ch.getCacheSize().charAt(0)) {
+ 							case 'M': ch.sort=&quot;1&quot;; break;
+ 							case 'S': ch.sort=&quot;2&quot;; break;
+ 							case 'R': ch.sort=&quot;3&quot;; break;
+
+Modified: experiments/EVE/src/cachewolf/exp/GPXExporter.java
+===================================================================
+--- experiments/EVE/src/cachewolf/exp/GPXExporter.java	2008-10-25 19:17:53 UTC (rev 1555)
++++ experiments/EVE/src/cachewolf/exp/GPXExporter.java	2008-10-25 21:02:40 UTC (rev 1556)
+@@ -71,7 +71,7 @@
+ 				strBuf.append(&quot;      &lt;groundspeak:placed_by&gt;&quot;).append(SafeXML.cleanGPX(ch.cacheOwner)).append(&quot;&lt;/groundspeak:placed_by&gt;\r\n&quot;);
+ 				strBuf.append(&quot;      &lt;groundspeak:owner&gt;&quot;).append(SafeXML.cleanGPX(ch.cacheOwner)+&quot;&lt;/groundspeak:owner&gt;\r\n&quot;);
+ 				strBuf.append(&quot;      &lt;groundspeak:type&gt;&quot;).append(CacheType.transType(ch.type)).append(&quot;&lt;/groundspeak:type&gt;\r\n&quot;);
+-				strBuf.append(&quot;      &lt;groundspeak:container&gt;&quot;).append(ch.cacheSize).append(&quot;&lt;/groundspeak:container&gt;\r\n&quot;);
++				strBuf.append(&quot;      &lt;groundspeak:container&gt;&quot;).append(ch.getCacheSize()).append(&quot;&lt;/groundspeak:container&gt;\r\n&quot;);
+ 				strBuf.append(&quot;      &lt;groundspeak:difficulty&gt;&quot;).append(ch.hard.replace(',','.')).append(&quot;&lt;/groundspeak:difficulty&gt;\r\n&quot;);
+ 				strBuf.append(&quot;      &lt;groundspeak:terrain&gt;&quot;).append(ch.terrain.replace(',','.')).append(&quot;&lt;/groundspeak:terrain&gt;\r\n&quot;);
+ 				String dummyHTML = ch.is_HTML ? STRING_TRUE:STRING_FALSE;
+
+Modified: experiments/EVE/src/cachewolf/exp/HTMLExporter.java
+===================================================================
+--- experiments/EVE/src/cachewolf/exp/HTMLExporter.java	2008-10-25 19:17:53 UTC (rev 1555)
++++ experiments/EVE/src/cachewolf/exp/HTMLExporter.java	2008-10-25 21:02:40 UTC (rev 1556)
+@@ -92,7 +92,7 @@
+ 					chD=ch.getCacheDetails(false,true);
+ 					varParams = new Hashtable();
+ 					varParams.put(&quot;TYPE&quot;, CacheType.transType(chD.type));
+-					varParams.put(&quot;SIZE&quot;, chD.cacheSize);
++					varParams.put(&quot;SIZE&quot;, chD.getCacheSize());
+ 					varParams.put(&quot;WAYPOINT&quot;, chD.wayPoint);
+ 					varParams.put(&quot;NAME&quot;, chD.cacheName);
+ 					varParams.put(&quot;OWNER&quot;, chD.cacheOwner);
+@@ -108,7 +108,7 @@
+ 					try{
+ 						Template page_tpl = new Template(template_init_page);
+ 						page_tpl.setParam(&quot;TYPE&quot;, CacheType.transType(chD.type));
+-						page_tpl.setParam(&quot;SIZE&quot;, chD.cacheSize);
++						page_tpl.setParam(&quot;SIZE&quot;, chD.getCacheSize());
+ 						page_tpl.setParam(&quot;WAYPOINT&quot;, chD.wayPoint);
+ 						page_tpl.setParam(&quot;NAME&quot;, chD.cacheName);
+ 						page_tpl.setParam(&quot;OWNER&quot;, chD.cacheOwner);
+
+Modified: experiments/EVE/src/cachewolf/exp/MSARCSVExporter.java
+===================================================================
+--- experiments/EVE/src/cachewolf/exp/MSARCSVExporter.java	2008-10-25 19:17:53 UTC (rev 1555)
++++ experiments/EVE/src/cachewolf/exp/MSARCSVExporter.java	2008-10-25 21:02:40 UTC (rev 1556)
+@@ -27,7 +27,7 @@
+ 		str.append(&quot;\&quot;&quot; + ch.wayPoint + &quot; - &quot; + ch.cacheName + &quot;\&quot;;&quot;);
+ 		str.append(lat + &quot;;&quot; + lon +&quot;;&quot;);
+ 		str.append(&quot;\&quot;&quot; + CacheType.transType(ch.type)+ &quot;\&quot;;&quot;);
+-		str.append(&quot;\&quot;&quot; + ch.cacheSize + &quot;\&quot;;&quot;);
++		str.append(&quot;\&quot;&quot; + ch.getCacheSize() + &quot;\&quot;;&quot;);
+ 		str.append(&quot;\&quot;&quot; + ch.wayPoint + &quot;\&quot;;&quot;);
+ 		str.append(&quot;\&quot;&quot; + ch.dateHidden + &quot;\&quot;;&quot;);
+ 		str.append(&quot;\&quot;&quot; + ch.URL + &quot;\&quot;\r\n&quot;);
+
+Modified: experiments/EVE/src/cachewolf/exp/TPLExporter.java
+===================================================================
+--- experiments/EVE/src/cachewolf/exp/TPLExporter.java	2008-10-25 19:17:53 UTC (rev 1555)
++++ experiments/EVE/src/cachewolf/exp/TPLExporter.java	2008-10-25 21:02:40 UTC (rev 1556)
+@@ -203,8 +203,8 @@
+ 						varParams = new Hashtable();
+ 						varParams.put(&quot;TYPE&quot;, CacheType.transType(chD.type));
+ 						varParams.put(&quot;SHORTTYPE&quot;, CacheType.transType(chD.type).substring(0,1));
+-						varParams.put(&quot;SIZE&quot;, chD.cacheSize);
+-						varParams.put(&quot;SHORTSIZE&quot;, chD.cacheSize.substring(0,1));
++						varParams.put(&quot;SIZE&quot;, chD.getCacheSize());
++						varParams.put(&quot;SHORTSIZE&quot;, chD.getCacheSize().substring(0,1));
+ 						varParams.put(&quot;WAYPOINT&quot;, chD.wayPoint);
+ 						varParams.put(&quot;OWNER&quot;, chD.cacheOwner);
+ 						varParams.put(&quot;DIFFICULTY&quot;, dec.replaceAll(chD.hard));
+
+Modified: experiments/EVE/src/cachewolf/exp/TomTomExporter.java
+===================================================================
+--- experiments/EVE/src/cachewolf/exp/TomTomExporter.java	2008-10-25 19:17:53 UTC (rev 1555)
++++ experiments/EVE/src/cachewolf/exp/TomTomExporter.java	2008-10-25 21:02:40 UTC (rev 1556)
+@@ -191,7 +191,7 @@
+ 			outp.writeBytes(&quot;/&quot;);
+ 			outp.writeBytes(ch.terrain);
+ 			outp.writeBytes(&quot; - &quot;);
+-			outp.writeBytes(ch.cacheSize);
++			outp.writeBytes(ch.getCacheSize());
+ 			outp.writeBytes(&quot;\&quot;\r\n&quot;);
+ 		} catch (IOException e) {
+ 			Vm.debug(&quot;Error writing to file&quot;);
+@@ -208,7 +208,7 @@
+ 		try {
+ 			d = 2;
+ 			outp.writeByte((byte)d);
+-			data = ch.wayPoint.length()+ch.cacheName.length()+ch.cacheOwner.length()+ch.hard.length()+ch.terrain.length()+ch.cacheSize.length()+27;
++			data = ch.wayPoint.length()+ch.cacheName.length()+ch.cacheOwner.length()+ch.hard.length()+ch.terrain.length()+ch.getCacheSize().length()+27;
+ 			writeIntBinary(outp, data);
+ 			latlon = Common.parseDouble(lon);
+ 			latlon *=100000;
+@@ -230,7 +230,7 @@
+ 			outp.writeBytes(&quot;/&quot;);
+ 			outp.writeBytes(ch.terrain);
+ 			outp.writeBytes(&quot; - &quot;);
+-			outp.writeBytes(ch.cacheSize);
++			outp.writeBytes(ch.getCacheSize());
+ 			d = 0;
+ 			outp.writeByte((byte)d);
+ 		} catch (IOException e) {
+
+Modified: experiments/EVE/src/cachewolf/imp/DBImporter.java
+===================================================================
+--- experiments/EVE/src/cachewolf/imp/DBImporter.java	2008-10-25 19:17:53 UTC (rev 1555)
++++ experiments/EVE/src/cachewolf/imp/DBImporter.java	2008-10-25 21:02:40 UTC (rev 1556)
+@@ -135,7 +135,7 @@
+ 				// Size
+ 				i=line.indexOf(&quot;\&quot;&quot;,j+1);
+ 				j=line.indexOf(&quot;\&quot;&quot;,i+1);
+-				ch.cacheSize=line.substring(i+1,j);
++				ch.setCacheSize(line.substring(i+1,j));
+ 				//waypoint
+ 				i=line.indexOf(&quot; &quot;,j+1);
+ 				j=line.indexOf(&quot; &quot;,i+1);
+
+Modified: experiments/EVE/src/cachewolf/imp/GPXImporter.java
+===================================================================
+--- experiments/EVE/src/cachewolf/imp/GPXImporter.java	2008-10-25 19:17:53 UTC (rev 1555)
++++ experiments/EVE/src/cachewolf/imp/GPXImporter.java	2008-10-25 21:02:40 UTC (rev 1556)
+@@ -414,7 +414,7 @@
+ 		// aditional wapypoint
+ 		if (name.equals(&quot;type&quot;)&amp;&amp; inWpt &amp;&amp; !inCache &amp;&amp; strData.startsWith(&quot;Waypoint&quot;)){
+ 			chD.type= CacheType.typeText2Number(strData);
+-			chD.cacheSize = &quot;None&quot;;
++			chD.setCacheSize(&quot;None&quot;);
+ 		}
+ 
+ 
+@@ -440,12 +440,12 @@
+ 			return;
+ 		}
+ 		if (name.equals(&quot;groundspeak:container&quot;)|| name.equals(&quot;container&quot;)){
+-			chD.cacheSize = strData;
++			chD.setCacheSize(strData);
+ 			return;
+ 		}
+ 
+ 		if (name.equals(&quot;terra:size&quot;)){
+-			chD.cacheSize = TCSizetoText(strData);
++			chD.setCacheSize(TCSizetoText(strData));
+ 		}
+ 
+ 		if (name.equals(&quot;groundspeak:short_description&quot;)|| name.equals(&quot;summary&quot;)) {
+
+Modified: experiments/EVE/src/cachewolf/imp/OCXMLImporter.java
+===================================================================
+--- experiments/EVE/src/cachewolf/imp/OCXMLImporter.java	2008-10-25 19:17:53 UTC (rev 1555)
++++ experiments/EVE/src/cachewolf/imp/OCXMLImporter.java	2008-10-25 21:02:40 UTC (rev 1556)
+@@ -387,7 +387,7 @@
+ 			return;
+ 		}
+ 		if(name.equals(&quot;size&quot;)){
+-			chD.cacheSize = transSize(atts.getValue(&quot;id&quot;));
++			chD.setCacheSize(transSize(atts.getValue(&quot;id&quot;)));
+ 			return;
+ 		}
+ 
+
+Modified: experiments/EVE/src/cachewolf/imp/SpiderGC.java
+===================================================================
+--- experiments/EVE/src/cachewolf/imp/SpiderGC.java	2008-10-25 19:17:53 UTC (rev 1555)
++++ experiments/EVE/src/cachewolf/imp/SpiderGC.java	2008-10-25 21:02:40 UTC (rev 1556)
+@@ -612,8 +612,8 @@
+ 						else pref.log(&quot;Got hints&quot;);
+ 
+ 						pref.log(&quot;Trying size&quot;);
+-						chD.cacheSize = getSize(completeWebPage);
+-						if (pref.debug) pref.log(&quot;Size: &quot; + chD.cacheSize);
++						chD.setCacheSize(getSize(completeWebPage));
++						if (pref.debug) pref.log(&quot;Size: &quot; + chD.getCacheSize());
+ 						else pref.log(&quot;Got size&quot;);
+ 
+ 						pref.log(&quot;Trying difficulty&quot;);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001449.html">[Cachewolf-svn] r1555 - in experiments/EVE/src/cachewolf: . exp imp
+</A></li>
+	<LI>Next message: <A HREF="001451.html">[Cachewolf-svn] r1557 - experiments/engywuck
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1450">[ date ]</a>
+              <a href="thread.html#1450">[ thread ]</a>
+              <a href="subject.html#1450">[ subject ]</a>
+              <a href="author.html#1450">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

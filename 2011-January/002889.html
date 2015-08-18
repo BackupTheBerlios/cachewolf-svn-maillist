@@ -1,0 +1,216 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2900 - in branches/r1.2/src/CacheWolf: . exp imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2011-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2900%20-%20in%20branches/r1.2/src/CacheWolf%3A%20.%20exp%20imp&In-Reply-To=%3C20110106194027.4B4FC480986%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002888.html">
+   <LINK REL="Next"  HREF="002890.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2900 - in branches/r1.2/src/CacheWolf: . exp imp</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2900%20-%20in%20branches/r1.2/src/CacheWolf%3A%20.%20exp%20imp&In-Reply-To=%3C20110106194027.4B4FC480986%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2900 - in branches/r1.2/src/CacheWolf: . exp imp">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Thu Jan  6 08:40:27 CET 2011</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002888.html">[Cachewolf-svn] r2899 - branches/r1.2/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="002890.html">[Cachewolf-svn] r2901 - in branches/r1.2/docs: . CacheWolf_Doku
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2889">[ date ]</a>
+              <a href="thread.html#2889">[ thread ]</a>
+              <a href="subject.html#2889">[ subject ]</a>
+              <a href="author.html#2889">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2011-01-06 20:40:26 +0100 (Thu, 06 Jan 2011)
+New Revision: 2900
+
+Modified:
+   branches/r1.2/src/CacheWolf/DateFormat.java
+   branches/r1.2/src/CacheWolf/exp/GpxExportNg.java
+   branches/r1.2/src/CacheWolf/imp/SpiderGC.java
+Log:
+1. <A HREF="http://www.geoclub.de/viewtopic.php?f=40&amp;t=51713">http://www.geoclub.de/viewtopic.php?f=40&amp;t=51713</A>
+2. code cosmetic in spider.java
+
+
+Modified: branches/r1.2/src/CacheWolf/DateFormat.java
+===================================================================
+--- branches/r1.2/src/CacheWolf/DateFormat.java	2011-01-04 14:43:52 UTC (rev 2899)
++++ branches/r1.2/src/CacheWolf/DateFormat.java	2011-01-06 19:40:26 UTC (rev 2900)
+@@ -100,5 +100,17 @@
+ 		}
+ 		return &quot;&quot;;
+ 	}
++	// from lastSyncDate (yyyyMMddHHmmss) to gpxLogdate (yyyy-MM-dd)
++	// if no lastSyncDate returns current Date 
++	public static String yyyyMMddHHmmss2gpxLogdate(String yyyyMMddHHmmss) {
++		Time d = new Time();
++		try {
++			d.parse(yyyyMMddHHmmss, &quot;yyyyMMddHHmmss&quot;);
++		} catch (IllegalArgumentException e) {
++			d = new Time();
++			d.parse(yyyyMMddHHmmss, &quot;yyyyMMddHHmmss&quot;);
++		}		
++		return d.format(&quot;yyyy-MM-dd&quot;); // +d.format(&quot;HH:mm:ss&quot;); is set to 00:00:00 at gpxExport
++	}
+ 
+ }
+
+Modified: branches/r1.2/src/CacheWolf/exp/GpxExportNg.java
+===================================================================
+--- branches/r1.2/src/CacheWolf/exp/GpxExportNg.java	2011-01-04 14:43:52 UTC (rev 2899)
++++ branches/r1.2/src/CacheWolf/exp/GpxExportNg.java	2011-01-06 19:40:26 UTC (rev 2900)
+@@ -34,6 +34,7 @@
+ import CacheWolf.CacheTerrDiff;
+ import CacheWolf.CacheType;
+ import CacheWolf.Common;
++import CacheWolf.DateFormat;
+ import CacheWolf.Global;
+ import CacheWolf.Log;
+ import CacheWolf.LogList;
+@@ -559,8 +560,8 @@
+ 			ret.append(&quot;  &lt;/wpt&gt;&quot;).append(newLine);
+ 		} catch (IllegalArgumentException e) {
+ 			exportErrors++;
+-			ch.setIncomplete(true);
+-			Global.getPref().log(&quot;GPX Export: &quot; + ch.getWayPoint() + &quot; set to incomplete &quot;,	e, true);
++			ch.checkIncomplete();  // ch.setIncomplete(true);
++			Global.getPref().log(&quot;GPX Export: &quot; + ch.getWayPoint() + &quot; check incomplete &quot;,	e, true);
+ 			return &quot;&quot;;
+ 		} catch (Exception e) {
+ 			exportErrors++;
+@@ -807,7 +808,8 @@
+ 			append(&quot;&lt;br /&gt;&quot;).
+ 			append(newLine);
+ 		}
+-		Log log = new Log(&quot;icon_note.gif&quot;, &quot;2000-01-01&quot;, &quot;CacheWolf&quot;,logText.toString());
++		if (logText.length() == 0 &amp;&amp; !ch.getLastSync().equals(&quot;&quot;)) logText.append(MyLocale.getMsg(1051,&quot;Last sync date&quot;));
++		Log log = new Log(&quot;icon_note.gif&quot;, DateFormat.yyyyMMddHHmmss2gpxLogdate(ch.getLastSync()), &quot;CacheWolf&quot;, logText.toString());
+ 		return log;
+ 	}
+ 	
+
+Modified: branches/r1.2/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- branches/r1.2/src/CacheWolf/imp/SpiderGC.java	2011-01-04 14:43:52 UTC (rev 2899)
++++ branches/r1.2/src/CacheWolf/imp/SpiderGC.java	2011-01-06 19:40:26 UTC (rev 2900)
+@@ -688,6 +688,7 @@
+ 	private boolean doDownloadGui(int menu) {
+ 
+ 		OCXMLImporterScreen options;
++		direction = &quot;&quot;;
+ 		if (menu == 0 &amp;&amp; spiderAllFinds) {
+ 			options = new OCXMLImporterScreen(MyLocale.getMsg(217,
+ 					&quot;Spider all finds from geocaching.com&quot;),
+@@ -705,7 +706,6 @@
+ 			// setting default values for options not used (if necessary)
+ 			maxDistance = 1.0;
+ 			minDistance = 0.0;
+-			direction = &quot;&quot;;
+ 		} else if (menu == 0) {
+ 			options = new OCXMLImporterScreen(MyLocale.getMsg(131,
+ 					&quot;Download from geocaching.com&quot;), OCXMLImporterScreen.ISGC
+@@ -728,22 +728,14 @@
+ 			// setting default values for options not used (if necessary)
+ 
+ 			String minDist = options.minDistanceInput.getText();
+-			if (minDist.length() == 0)
+-				minDist = &quot;0&quot;;
+ 			minDistance = Common.parseDouble(minDist);
+-			profile
+-					.setMinDistGC(Double.toString(minDistance)
+-							.replace(',', '.'));
++			profile.setMinDistGC(Double.toString(minDistance).replace(',', '.'));
+ 
+-			direction = options.directionInput.getText().toUpperCase();
+-			direction = direction.replace(' ', ','); // separator blank to ,
+-			direction = direction.replace(';', ','); // separator ; to ,
+-			profile.setDirectionGC(direction);
+-			direction = direction.replace('O', 'E'); // synonym for East
+-			direction = direction.replace('Z', 'S'); // synonym for South
+-			direction = direction.replace('P', 'S'); // synonym for South
++			direction = options.directionInput.getText();
++			directions = mString.split(direction, '-');
+ 
+ 			doNotgetFound = options.foundCheckBox.getState();
++			profile.setDirectionGC(direction);
+ 
+ 		} else if (menu == 1) { // menu = 1 input values for get Caches along a
+ 								// route
+@@ -764,7 +756,6 @@
+ 			// setting default values for options not used (if necessary)
+ 			minDistance = 0.0;
+ 			doNotgetFound = options.foundCheckBox.getState();
+-			direction = &quot;&quot;;
+ 			maxUpdate = 0;
+ 			fileName = options.fileName;
+ 		} else { // if (menu == 2) {
+@@ -782,8 +773,6 @@
+ 
+ 		if (menu == 0) {
+ 
+-			// handling input of common options
+-
+ 			int maxNew = -1;
+ 			String maxNumberString = options.maxNumberInput.getText();
+ 			if (maxNumberString.length() != 0) {
+@@ -810,17 +799,12 @@
+ 
+ 		if (options.maxDistanceInput != null) {
+ 			String maxDist = options.maxDistanceInput.getText();
+-			if (maxDist.length() == 0)
+-				return false;
+ 			maxDistance = Common.parseDouble(maxDist);
+-			if (maxDistance == 0)
+-				return false;
+-			if (maxDistance &lt; 0.5)
+-				maxDistance = 0.5; // zur Sicherheit mindenstens 500 meter Umkreis
++			if (maxDistance == 0) return false;
++			if (maxDistance &lt; 0.5) maxDistance = 0.5; // zur Sicherheit bei &quot;along the route&quot; mindenstens 500 meter Umkreis
+ 			profile.setDistGC(Double.toString(maxDistance));
+ 		}
+ 
+-		directions = mString.split(direction, '-');
+ 		// works even if TYPE not in options
+ 		cacheTypeRestriction = options.getCacheTypeRestriction(p);
+ 		restrictedCacheType = options.getRestrictedCacheType(p);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002888.html">[Cachewolf-svn] r2899 - branches/r1.2/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="002890.html">[Cachewolf-svn] r2901 - in branches/r1.2/docs: . CacheWolf_Doku
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2889">[ date ]</a>
+              <a href="thread.html#2889">[ thread ]</a>
+              <a href="subject.html#2889">[ subject ]</a>
+              <a href="author.html#2889">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

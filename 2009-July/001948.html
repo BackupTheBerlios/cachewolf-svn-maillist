@@ -1,0 +1,183 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2029 - in trunk/src/CacheWolf: . imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-July/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2029%20-%20in%20trunk/src/CacheWolf%3A%20.%20imp&In-Reply-To=%3C200907141937.n6EJbBvc009699%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001947.html">
+   <LINK REL="Next"  HREF="001949.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2029 - in trunk/src/CacheWolf: . imp</H1>
+    <B>mik77 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2029%20-%20in%20trunk/src/CacheWolf%3A%20.%20imp&In-Reply-To=%3C200907141937.n6EJbBvc009699%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2029 - in trunk/src/CacheWolf: . imp">mik77 at mail.berlios.de
+       </A><BR>
+    <I>Tue Jul 14 21:37:11 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001947.html">[Cachewolf-svn] r2028 - trunk
+</A></li>
+        <LI>Next message: <A HREF="001949.html">[Cachewolf-svn] r2030 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1948">[ date ]</a>
+              <a href="thread.html#1948">[ thread ]</a>
+              <a href="subject.html#1948">[ subject ]</a>
+              <a href="author.html#1948">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mik77
+Date: 2009-07-14 21:37:09 +0200 (Tue, 14 Jul 2009)
+New Revision: 2029
+
+Modified:
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+Always load (not store) all logs when spidering own finds.
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2009-07-14 11:36:13 UTC (rev 2028)
++++ trunk/src/CacheWolf/MainMenu.java	2009-07-14 19:37:09 UTC (rev 2029)
+@@ -761,7 +761,7 @@
+ 		
+ 		OCXMLImporterScreen options = new OCXMLImporterScreen(MyLocale.getMsg(5003,&quot;Options&quot;), OCXMLImporterScreen.IMAGES| OCXMLImporterScreen.TRAVELBUGS| OCXMLImporterScreen.MAXLOGS);
+ 		if (options.execute() == FormBase.IDCANCEL) {	return; }
+-		
++				
+ 		SpiderGC spider = new SpiderGC(pref, profile, false);
+ 		OCXMLImporter ocSync = new OCXMLImporter(pref, profile);
+ 		//Vm.debug(&quot;ByPass? &quot; + profile.byPassIndexActive);
+@@ -771,6 +771,8 @@
+ 		InfoBox infB = new InfoBox(&quot;Info&quot;, &quot;Loading&quot;, InfoBox.PROGRESS_WITH_WARNINGS);
+ 		infB.exec();
+ 		
++		boolean loadAllLogs = (pref.maxLogsToSpider &gt; 5);
++		
+ 		Vector cachesToUpdate = new Vector();
+ 		for(int i = 0; i &lt;	cacheDB.size(); i++){
+ 			ch = cacheDB.get(i);
+@@ -808,7 +810,7 @@
+ 			infB.setInfo(MyLocale.getMsg(5513,&quot;Loading: &quot;) + ch.getWayPoint() +&quot; (&quot; + (j+1) + &quot; / &quot; + cachesToUpdate.size() + &quot;)&quot;);
+ 			infB.redisplay();
+ 			if (ch.getWayPoint().substring(0,2).equalsIgnoreCase(&quot;GC&quot;)) {
+-				int test = spider.spiderSingle(i, infB,forceLogin);
++				int test = spider.spiderSingle(i, infB, forceLogin, loadAllLogs);
+ 				if (test == SpiderGC.SPIDER_CANCEL) {
+ 					infB.close(0);
+ 					break;
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2009-07-14 11:36:13 UTC (rev 2028)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2009-07-14 19:37:09 UTC (rev 2029)
+@@ -67,7 +67,6 @@
+ 	/**
+ 	 * The maximum number of logs that will be stored
+ 	 */
+-	public static int MAXLOGS=250; // Can be pre-set from preferences
+ 	public static String passwort = &quot;&quot;; // Can be pre-set from preferences
+ 	public static boolean loggedIn = false;
+ 
+@@ -104,7 +103,6 @@
+ 			pref.logInit();
+ 			p=new SpiderProperties();
+ 		}
+-		MAXLOGS=pref.maxLogsToSpider;
+ 	}
+ 
+ 	/**
+@@ -252,7 +250,7 @@
+ 	 * It assumes a login has already been performed!
+ 	 * @return 1 if spider was successful, -1 if spider was cancelled by closing the infobox, 0 error, but continue with next cache
+ 	 */
+-	public int spiderSingle(int number, InfoBox pInfB, boolean forceLogin){
++	public int spiderSingle(int number, InfoBox pInfB, boolean forceLogin, boolean loadAllLogs){
+ 		int ret=-1;
+ 		this.infB = pInfB;
+ 		CacheHolder ch = new CacheHolder(); // cacheDB.get(number);
+@@ -266,7 +264,6 @@
+ 		}
+ 		try{
+ 			// Read the cache data from GC.COM and compare to old data
+-			boolean loadAllLogs = (MAXLOGS &gt; 5);
+ 			ret=getCacheByWaypointName(ch,true,pref.downloadPics,pref.downloadTBs,false,loadAllLogs);
+ 			// Save the spidered data
+ 			if (ret == SPIDER_OK) {
+@@ -619,7 +616,7 @@
+ 		//=======
+ 		// Now ready to spider each cache in the list
+ 		//=======
+-		boolean loadAllLogs = (MAXLOGS &gt; 5);
++		boolean loadAllLogs = (pref.maxLogsToSpider &gt; 5) || spiderAllFinds;
+ 
+ 		int spiderErrors = 0;
+ 
+@@ -670,7 +667,7 @@
+ 				infB.setInfo(MyLocale.getMsg(5513,&quot;Loading: &quot;) + ch.getWayPoint() +&quot; (&quot; + (cachesToLoad.size()+j) + &quot; / &quot; + totalCachesToLoad + &quot;)&quot;);
+ 				infB.redisplay();
+ 
+-				int test = spiderSingle(cacheDB.getIndex(ch), infB,false);
++				int test = spiderSingle(cacheDB.getIndex(ch), infB,false,loadAllLogs);
+ 				if (test == SPIDER_CANCEL) {
+ 					break;
+ 				} else if (test == SPIDER_ERROR) {
+@@ -1136,7 +1133,7 @@
+ 				chD.OwnLogId = logId;
+ 				chD.OwnLog = new Log(icon,d,name,logText);
+ 			}
+-			if (nLogs&lt;=MAXLOGS) reslts.add(new Log(icon,d,name,logText));
++			if (nLogs&lt;=pref.maxLogsToSpider) reslts.add(new Log(icon,d,name,logText));
+ 
+ 			singleLog = exSingleLog.findNext();
+ 			exIcon.setSource(singleLog);
+@@ -1148,11 +1145,11 @@
+ 			exLogId.setSource(singleLog);
+ 			// We cannot simply stop if we have reached MAXLOGS just in case we are waiting for
+ 			// a log by our alias that happened earlier.
+-			if (nLogs&gt;=MAXLOGS &amp;&amp; chD.getParent().is_found() &amp;&amp; (chD.OwnLogId.length() != 0) &amp;&amp; (chD.OwnLog != null) &amp;&amp; !(chD.OwnLog.getDate().equals(&quot;1900-01-01&quot;))) break;
++			if (nLogs&gt;=pref.maxLogsToSpider &amp;&amp; chD.getParent().is_found() &amp;&amp; (chD.OwnLogId.length() != 0) &amp;&amp; (chD.OwnLog != null) &amp;&amp; !(chD.OwnLog.getDate().equals(&quot;1900-01-01&quot;))) break;
+ 		}
+-		if (nLogs&gt;MAXLOGS) {
++		if (nLogs&gt;pref.maxLogsToSpider) {
+ 			reslts.add(Log.maxLog());
+-			pref.log(&quot;Too many logs. MAXLOGS reached (&quot;+MAXLOGS+&quot;)&quot;);
++			pref.log(&quot;Too many logs. MAXLOGS reached (&quot;+pref.maxLogsToSpider+&quot;)&quot;);
+ 		} else
+ 			pref.log(nLogs+&quot; logs found&quot;);
+ 		return reslts;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001947.html">[Cachewolf-svn] r2028 - trunk
+</A></li>
+	<LI>Next message: <A HREF="001949.html">[Cachewolf-svn] r2030 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1948">[ date ]</a>
+              <a href="thread.html#1948">[ thread ]</a>
+              <a href="subject.html#1948">[ subject ]</a>
+              <a href="author.html#1948">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

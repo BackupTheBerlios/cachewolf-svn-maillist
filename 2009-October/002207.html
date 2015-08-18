@@ -1,0 +1,353 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2283 - in trunk: res_noewe/languages resources	src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-October/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2283%20-%20in%20trunk%3A%20res_noewe/languages%20resources%0A%09src/CacheWolf&In-Reply-To=%3C200910152153.n9FLrMJ5013690%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002206.html">
+   <LINK REL="Next"  HREF="002208.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2283 - in trunk: res_noewe/languages resources	src/CacheWolf</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2283%20-%20in%20trunk%3A%20res_noewe/languages%20resources%0A%09src/CacheWolf&In-Reply-To=%3C200910152153.n9FLrMJ5013690%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2283 - in trunk: res_noewe/languages resources	src/CacheWolf">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Thu Oct 15 23:53:22 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002206.html">[Cachewolf-svn] r2282 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="002208.html">[Cachewolf-svn] r2284 - in trunk: res_noewe/languages src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2207">[ date ]</a>
+              <a href="thread.html#2207">[ thread ]</a>
+              <a href="subject.html#2207">[ subject ]</a>
+              <a href="author.html#2207">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2009-10-15 23:53:16 +0200 (Thu, 15 Oct 2009)
+New Revision: 2283
+
+Added:
+   trunk/resources/nosort.png
+   trunk/resources/nosort_vga.png
+Modified:
+   trunk/res_noewe/languages/DE.cfg
+   trunk/src/CacheWolf/StatusBar.java
+   trunk/src/CacheWolf/TablePanel.java
+   trunk/src/CacheWolf/myTableModel.java
+Log:
+preparation for changing to possibility of autosort (<A HREF="http://www.geoclub.de/viewtopic.php?f=40&amp;t=38566&amp;start=50">http://www.geoclub.de/viewtopic.php?f=40&amp;t=38566&amp;start=50</A>)
+
+Modified: trunk/res_noewe/languages/DE.cfg
+===================================================================
+--- trunk/res_noewe/languages/DE.cfg	2009-10-13 21:34:22 UTC (rev 2282)
++++ trunk/res_noewe/languages/DE.cfg	2009-10-15 21:53:16 UTC (rev 2283)
+@@ -742,9 +742,9 @@
+ 		4407=Die vorgefundenen Dateien entsprechen nicht dem aktuellen Format.%0aDaher werden sie nun in das aktuelle Format konvertiert. Abh%e4ngig von der Gr%f6%dfe des Profils und dem verwendeten Rechner kann das einige Minuten dauern. Wir bitten um Geduld.
+ 		4408=Konnte keine Verbindung zum GPSD herstellen:
+ 		4409=%0aM%f6gliche Gr%fcnde:%0a Adresse/Port falsch%0a GPSD l%e4uft dort nicht
+-		4500=Ges:
+-		4501=Gez:
+-		4502=Gef:
++		4500=Alle:
++		4501=Sehe:
++		4502=Fund:
+ 		4600=Nicht alle Caches k%f6nnen angezeigt werden. Inkompatibler Blacklist-Status.
+ 		4700=Ignoriere Fehler beim%0aLaden der Kalibrierungsdatei%0a
+ 		4701=Suche nach bester Karte
+
+Added: trunk/resources/nosort.png
+===================================================================
+(Binary files differ)
+
+
+Property changes on: trunk/resources/nosort.png
+___________________________________________________________________
+Name: svn:mime-type
+   + application/octet-stream
+
+Added: trunk/resources/nosort_vga.png
+===================================================================
+(Binary files differ)
+
+
+Property changes on: trunk/resources/nosort_vga.png
+___________________________________________________________________
+Name: svn:mime-type
+   + application/octet-stream
+
+Modified: trunk/src/CacheWolf/StatusBar.java
+===================================================================
+--- trunk/src/CacheWolf/StatusBar.java	2009-10-13 21:34:22 UTC (rev 2282)
++++ trunk/src/CacheWolf/StatusBar.java	2009-10-15 21:53:16 UTC (rev 2283)
+@@ -25,35 +25,45 @@
+ 	private mButton btnCacheTour;
+ 	private mImage imgCacheTour;
+ 	private boolean MobileVGA;
+-	
++	private mImage imgNoSorting;
++	private mButton btnNoSorting;
++	private myTableModel table;
++
++	public void setMyTableModel(myTableModel myTableModel) {
++		table=myTableModel;
++	}
++
+ 	public StatusBar(Preferences p, CacheDB db){
+ 		pref=p;
+ 		MobileVGA = pref.useBigIcons;
+ 		String imagesize=&quot;&quot;;
+-		if(MobileVGA) imagesize=&quot;_vga&quot;;  
++		if(MobileVGA) imagesize=&quot;_vga&quot;;
+ 		addNext(btnCacheTour=new mButton(imgCacheTour=new mImage(&quot;cachetour&quot;+imagesize+&quot;.png&quot;)),CellConstants.DONTSTRETCH, CellConstants.DONTFILL);
+ 		imgCacheTour.transparentColor=Color.White;
+ 		if(MobileVGA)
+ 			btnCacheTour.setPreferredSize(28,20);
+ 		else
+ 			btnCacheTour.setPreferredSize(20,13);
+-		btnCacheTour.borderWidth=0; 
++		btnCacheTour.borderWidth=0;
+ 		btnCacheTour.setToolTip(MyLocale.getMsg(197,&quot;Show/Hide cachetour&quot;));
+-		addNext(btnFlt= new mButton(imgFlt=new mImage(&quot;filter&quot; + imagesize + &quot;.png&quot;)),CellConstants.DONTSTRETCH, CellConstants.DONTFILL); 
+-		btnFlt.backGround=new ewe.fx.Color(0,255,0); 
+-		if(MobileVGA)
+-			btnFlt.setPreferredSize(28,20);
+-		else
+-			btnFlt.setPreferredSize(20,13);
++
++		addNext(btnFlt= new mButton(imgFlt=new mImage(&quot;filter&quot; + imagesize + &quot;.png&quot;)),CellConstants.DONTSTRETCH, CellConstants.DONTFILL);
++		btnFlt.backGround=new ewe.fx.Color(0,255,0);
+ 		btnFlt.borderWidth=0; imgFlt.transparentColor=Color.White;
+-		btnFlt.setToolTip(&quot;Filter status&quot;);
++		btnFlt.setToolTip(&quot;Klick : Filter&quot;);
++
++		addNext(btnNoSorting=new mButton(imgNoSorting=new mImage(&quot;nosort&quot; + imagesize + &quot;.png&quot;)),CellConstants.DONTSTRETCH, CellConstants.FILL);
++		btnNoSorting.borderWidth=0; imgNoSorting.transparentColor=Color.White;
++		btnNoSorting.setToolTip(&quot;Klick : Keine Sortierung&quot;);
++
+ 		stats = new DBStats(db);
+ 		addNext(disp = new mLabel(&quot;&quot;),CellConstants.DONTSTRETCH, CellConstants.FILL);
+ 		disp.setToolTip(MyLocale.getMsg(196,&quot;Total # of caches (GC&amp;OC)\nTotal # visible\nTotal # found&quot;));
++
+ 		addLast(lblCenter=new mLabel(&quot;&quot;),CellConstants.STRETCH, WEST|CellConstants.FILL);
+ 		lblCenter.setToolTip(MyLocale.getMsg(195,&quot;Current centre&quot;));
+ 	}
+-	
++
+ 	public void updateDisplay(){
+ 		String strStatus, strCenter=&quot;&quot;;
+ 		strStatus = MyLocale.getMsg(4500,&quot;Tot:&quot;) + &quot; &quot; + stats.total() + &quot; &quot; +
+@@ -72,13 +82,13 @@
+ 		// Current centre can only be displayed if screen is big
+ 		// Otherwise it forces a scrollbar
+ 		// This can happen even on bigger screens with big fonts
+-		if ((MyLocale.getScreenWidth()&gt;=320) &amp;&amp; !(MobileVGA &amp;&amp; (pref.fontSize &gt; 20))) 
++		if ((MyLocale.getScreenWidth()&gt;=320) &amp;&amp; !(MobileVGA &amp;&amp; (pref.fontSize &gt; 20)))
+ 			strCenter=&quot;  \u00a4 &quot; + pref.curCentrePt.toString();
+-		
++
+ 		lblCenter.setText(strCenter);
+ 		relayout(true); // in case the numbers increased and need more space
+ 	}
+-	
++
+ 	public void onEvent(Event ev) {
+ 		if (ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.PRESSED){
+ 			if (ev.target == btnFlt){
+@@ -92,8 +102,11 @@
+ 				Global.mainTab.tbP.refreshTable();
+ 			}
+ 			if (ev.target == btnCacheTour){
+-				Global.mainForm.toggleCacheListVisible();			
++				Global.mainForm.toggleCacheListVisible();
+ 			}
++			if (ev.target==btnNoSorting){
++				table.sortTable(-1,true);
++			}
+ 			Gui.takeFocus(Global.mainTab.tbP.tc, ControlConstants.ByKeyboard);
+ 		}
+ 		super.onEvent(ev);
+
+Modified: trunk/src/CacheWolf/TablePanel.java
+===================================================================
+--- trunk/src/CacheWolf/TablePanel.java	2009-10-13 21:34:22 UTC (rev 2282)
++++ trunk/src/CacheWolf/TablePanel.java	2009-10-15 21:53:16 UTC (rev 2283)
+@@ -38,6 +38,7 @@
+ 		myMod.hasRowHeaders = false;
+ 		myMod.hasColumnHeaders  = true;
+ 		tc.setTableModel(myMod);
++		statBar.setMyTableModel(myMod);
+ 	}
+ 	
+ 	/** Mark the row as selected so that myTableModel can color it grey */
+
+Modified: trunk/src/CacheWolf/myTableModel.java
+===================================================================
+--- trunk/src/CacheWolf/myTableModel.java	2009-10-13 21:34:22 UTC (rev 2282)
++++ trunk/src/CacheWolf/myTableModel.java	2009-10-15 21:53:16 UTC (rev 2283)
+@@ -66,7 +66,7 @@
+ 	private mImage bug;
+     private static mImage imgSortUp, imgSortDown;
+ 	private boolean sortAscending = false;
+-	private int sortedBy = -1;
++	private int sortedBy = -1; // -1 don't sort 
+ 	private FontMetrics fm;
+ //	private mImage picSizeMicro,picSizeSmall,picSizeReg,picSizeLarge,picSizeVLarge,picSizeNonPhysical;
+ 	private mImage picHasSolver,picHasNotes;
+@@ -76,7 +76,7 @@
+ 	public int penEventModifiers;
+ 
+ //	private int lastRow=-1;
+-	private myTableControl tcControl;
++	public myTableControl tcControl;
+ 	public boolean showExtraWptInfo=true;
+ 
+ 	public myTableModel(myTableControl tc, FontMetrics fm){
+@@ -307,24 +307,18 @@
+ 	}
+ 
+ 	public Object getCellData(int row, int col){
+-		// if(row == -1) return colName[colMap[col]];
+-		if(row == -1)
+-        {
+-            if( sortedBy &gt; 0 &amp;&amp; colMap[col] == sortedBy )
+-            {
+-                if( sortAscending )
+-                {
++		if(row == -1) {
++            if( sortedBy &gt; 0 &amp;&amp; colMap[col] == sortedBy ) {
++                if( sortAscending ) {
+                     return new IconAndText( imgSortUp, colName[colMap[col]], fm);
+                     //return &quot;^ &quot;+colName[colMap[col]];
+                 }
+-                else
+-                {
++                else {
+                     return new IconAndText( imgSortDown, colName[colMap[col]], fm);
+                     //return &quot;v &quot;+colName[colMap[col]];
+                 }
+             }
+-            else
+-            {
++            else {
+                 return colName[colMap[col]];
+             }
+         }
+@@ -457,39 +451,13 @@
+ 				}
+ 			}
+ 			if(cell.y == -1){ // Hit a header =&gt; sort the table accordingly
+-				CacheHolder ch=null;
+-				// cell.x is the physical column but we have to sort by the
+-				// column it is mapped into
++				// cell.x is the physical column 
++				// but we have to sort by the column it is mapped into
+ 				int mappedCol=colMap[cell.x];
+-				if (mappedCol==0) { // Click on Tickbox header
+-					// Hide/unhide the additional information about a waypoint such as
+-					// travelbugs/number of notfound logs/yellow circle/red circle etc.
+-					// This helps on small PDA screens
+-					showExtraWptInfo=!showExtraWptInfo;
+-					this.table.repaint();
+-					return true;
+-				}
+-				Vm.showWait(true);
+-				Point a = tcControl.getSelectedCell(null);
+-				if((a != null) &amp;&amp; (a.y &gt;= 0) &amp;&amp; (a.y &lt; cacheDB.size())) ch = cacheDB.get(a.y);
+-				if (mappedCol == sortedBy) sortAscending=!sortAscending;
+-				else sortAscending = true; // always start ascending 
+-				sortedBy = mappedCol;
+-				cacheDB.sort(new MyComparer(cacheDB, mappedCol,numRows), !sortAscending);
+-				updateRows();
+-				if(a != null &amp;&amp; ch!=null){
+-					int rownum = Global.getProfile().getCacheIndex(ch.getWayPoint());
+-					if(rownum &gt;= 0){
+-						tcControl.cursorTo(rownum, 0, true);
+-	/*					tcControl.scrollToVisible(rownum, 0);
+-						tcControl.clearSelectedCells(new Vector());
+-						for(int i= 0; i &lt; MAXCOLUMNS; i++){
+-							tcControl.addToSelection(rownum,i);
+-						}
+-		*/			}
+-				}
+-				Vm.showWait(false);
+-				tcControl.update(true);
++				boolean sortvalue = true;
++				if (mappedCol==0) sortvalue = !showExtraWptInfo;
++				else if (mappedCol == sortedBy) sortvalue=!sortAscending;
++				sortTable(mappedCol,sortvalue);
+ 				retval = true;
+ 			}
+ 		} catch(NullPointerException npex){
+@@ -499,6 +467,34 @@
+ 		return retval;
+ 	}
+ 
++    public void sortTable(int mappedCol, boolean howToDo){
++        sortedBy = mappedCol;
++        if( mappedCol &lt;= 0 ) {
++        	// 0 is Tickbox header
++			// Hide/unhide the additional information about a waypoint such as
++			// travelbugs/number of notfound logs/yellow circle/red circle etc.
++			// This helps on small PDA screens
++            if (mappedCol == 0) showExtraWptInfo=howToDo;
++        }
++        else {
++            sortAscending = howToDo;
++            Vm.showWait( true );
++            // get selected Cache
++            Point a = tcControl.getSelectedCell( null );
++            CacheHolder ch = null;
++            if ( ( a != null ) &amp;&amp; ( a.y &gt;= 0 ) &amp;&amp; ( a.y &lt; cacheDB.size() ) ) ch = cacheDB.get( a.y );
++            cacheDB.sort( new MyComparer( cacheDB, sortedBy, numRows ), !sortAscending );
++            updateRows(); // = cacheDB.rebuild(sortedVector of ch, invisibleVector of ch)
++            // select previously selected Cache again
++            if( ch != null ) {
++                int rownum = Global.getProfile().getCacheIndex( ch.getWayPoint() );
++                if( rownum &gt;= 0 ) tcControl.cursorTo( rownum, 0, true );
++            }
++            Vm.showWait( false );
++        }
++        tcControl.update( true ); // repaint    	
++    }
++
+ 	/** Toggle the select status for a group of caches
+ 	 * If from==to, the addi Waypoints are also toggled if the cache is a main waypoint
+ 	 * If from!=to, each cache is toggled irrespective of its type (main or addi)
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002206.html">[Cachewolf-svn] r2282 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="002208.html">[Cachewolf-svn] r2284 - in trunk: res_noewe/languages src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2207">[ date ]</a>
+              <a href="thread.html#2207">[ thread ]</a>
+              <a href="subject.html#2207">[ subject ]</a>
+              <a href="author.html#2207">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

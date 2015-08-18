@@ -1,0 +1,123 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1484 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-May/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1484%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200805282143.m4SLhhmj020345%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001377.html">
+   <LINK REL="Next"  HREF="001379.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1484 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1484%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200805282143.m4SLhhmj020345%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1484 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Wed May 28 23:43:43 CEST 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001377.html">[Cachewolf-svn] r1483 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001379.html">[Cachewolf-svn] r1485 - trunk/res_noewe
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1378">[ date ]</a>
+              <a href="thread.html#1378">[ thread ]</a>
+              <a href="subject.html#1378">[ subject ]</a>
+              <a href="author.html#1378">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2008-05-28 23:43:39 +0200 (Wed, 28 May 2008)
+New Revision: 1484
+
+Modified:
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/SpiderGC.java
+Log:
+SpiderSingle: Bugfix for Commit 1476 which asked for Login at every cache. Now even with forcedLogin, only on login is performed for the first cache to be refreshed.
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2008-05-28 21:21:36 UTC (rev 1483)
++++ trunk/src/CacheWolf/MainMenu.java	2008-05-28 21:43:39 UTC (rev 1484)
+@@ -673,6 +673,7 @@
+ 		}
+ 
+ 		int spiderErrors = 0;
++		boolean forceLogin=Global.getPref().forceLogin; // To ensure that spiderSingle only logs in once if forcedLogin=true
+ 		for(int j = 0; j &lt;	cachesToUpdate.size(); j++){
+ 			int i = ((Integer)cachesToUpdate.get(j)).intValue();
+ 			ch = (CacheHolder)cacheDB.get(i);
+@@ -680,7 +681,7 @@
+ 			infB.setInfo(MyLocale.getMsg(5513,&quot;Loading: &quot;) + ch.wayPoint +&quot; (&quot; + (j+1) + &quot; / &quot; + cachesToUpdate.size() + &quot;)&quot;);
+ 			infB.redisplay();
+ 			if (ch.wayPoint.substring(0,2).equalsIgnoreCase(&quot;GC&quot;)) {
+-				int test = spider.spiderSingle(i, infB);
++				int test = spider.spiderSingle(i, infB,forceLogin);
+ 				if (test == -1) {
+ 					infB.close(0);
+ 					break;
+@@ -689,6 +690,7 @@
+ 				} else {
+ 					profile.hasUnsavedChanges=true;	
+ 				}
++				forceLogin=false;
+ 			}
+ 			else {
+ 				if (!ocSync.syncSingle(i, infB)) {
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2008-05-28 21:21:36 UTC (rev 1483)
++++ trunk/src/CacheWolf/SpiderGC.java	2008-05-28 21:43:39 UTC (rev 1484)
+@@ -207,14 +207,14 @@
+ 	 * It assumes a login has already been performed!
+ 	 * @return 1 if spider was successful, -1 if spider was cancelled by closing the infobox, 0 error, but continue with next cache
+ 	 */
+-	public int spiderSingle(int number, InfoBox infB){
++	public int spiderSingle(int number, InfoBox infB, boolean forceLogin){
+ 		int ret=-1;
+ 		this.infB = infB;
+ 		CacheHolder ch = (CacheHolder)cacheDB.get(number);
+ 		if (ch.isAddiWpt()) return -1;  // No point re-spidering an addi waypoint, comes with parent
+ 
+ 		// check if we need to login
+-		if (!loggedIn || Global.getPref().forceLogin){
++		if (!loggedIn || forceLogin){
+ 			if (this.login()!=FormBase.IDOK) return -1;
+ 			// loggedIn is already set by this.login()
+ 		}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001377.html">[Cachewolf-svn] r1483 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001379.html">[Cachewolf-svn] r1485 - trunk/res_noewe
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1378">[ date ]</a>
+              <a href="thread.html#1378">[ thread ]</a>
+              <a href="subject.html#1378">[ subject ]</a>
+              <a href="author.html#1378">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

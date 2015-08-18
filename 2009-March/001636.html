@@ -1,0 +1,222 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1720 - trunk/src/build
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-March/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1720%20-%20trunk/src/build&In-Reply-To=%3C200903192057.n2JKvwcl006222%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001635.html">
+   <LINK REL="Next"  HREF="001637.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1720 - trunk/src/build</H1>
+    <B>greiol at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1720%20-%20trunk/src/build&In-Reply-To=%3C200903192057.n2JKvwcl006222%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1720 - trunk/src/build">greiol at mail.berlios.de
+       </A><BR>
+    <I>Thu Mar 19 21:57:58 CET 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001635.html">[Cachewolf-svn] r1719 - trunk
+</A></li>
+        <LI>Next message: <A HREF="001637.html">[Cachewolf-svn] r1721 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1636">[ date ]</a>
+              <a href="thread.html#1636">[ thread ]</a>
+              <a href="subject.html#1636">[ subject ]</a>
+              <a href="author.html#1636">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: greiol
+Date: 2009-03-19 21:57:54 +0100 (Thu, 19 Mar 2009)
+New Revision: 1720
+
+Modified:
+   trunk/src/build/CabHelper.java
+Log:
+code cleanup 2/x
+added stub to fix version warning at install time, but need more input
+add empty log file, so it will be removed with package. prefs.xml still stays in directory
+
+Modified: trunk/src/build/CabHelper.java
+===================================================================
+--- trunk/src/build/CabHelper.java	2009-03-19 19:42:04 UTC (rev 1719)
++++ trunk/src/build/CabHelper.java	2009-03-19 20:57:54 UTC (rev 1720)
+@@ -11,14 +11,15 @@
+ 	private static final Boolean DEBUG = true;
+ 	private static final String PROJECT_NAME = &quot;CW-Test&quot;;
+ 	private static final String DOSNL = &quot;\r\n&quot;;
++	
++	private static HashMap&lt;String, HashMap&lt;String, String&gt;&gt; cabMapping = new HashMap&lt;String, HashMap&lt;String, String&gt;&gt;();
++	private static Integer numFiles = 0;
++	private static Integer numDirectories = 0;
+ 
+ 	public static void main(String[] args) {
+ 		File zipFile;
+ 		File outDir;
+ 		String outDirName;
+-		Integer numDirectories = 0;
+-		Integer numFiles = 0;
+-		HashMap&lt;String, HashMap&lt;String, String&gt;&gt; cabMapping = new HashMap&lt;String, HashMap&lt;String, String&gt;&gt;();
+ 		StringBuffer outBuffer = new StringBuffer();
+ 		
+ 		//
+@@ -67,35 +68,30 @@
+ 			zipList = zip.entries();
+ 
+ 			while (zipList.hasMoreElements()) {
++				
+ 				ZipEntry zipEntry = (ZipEntry) zipList.nextElement();
++				
+ 				if (zipEntry.isDirectory()) {
+ 					String dirName = winifyPath(zipEntry.getName());
+-					if (cabMapping.get(dirName) == null) {
+-						cabMapping.put(dirName, new HashMap&lt;String, String&gt;());
+-						numDirectories++;
+-					}
++					pushDirToMap(winifyPath(dirName));
+ 				} else {
+-					String inFileName = zipEntry.getName().replace(
+-							File.separatorChar, '\\');
+-					String outFileName = String.format(&quot;%08d.DMY&quot;, numFiles);
+-					String inDirName = &quot;&quot;;
++					String inCabFileName;
++					String outCabFileName;
++					String inCabDirName;
++					File dummyFile;
++					
++					dummyFile = new File(zipEntry.getName());
++					
++					inCabFileName = dummyFile.getName();
++					inCabDirName = pushDirToMap(winifyPath(dummyFile.getParent()));
++					outCabFileName = String.format(&quot;%08d.DMY&quot;, numFiles);
++					
+ 					copyInputStream(zip.getInputStream(zipEntry),
+ 							new BufferedOutputStream(new FileOutputStream(
+-									outDirName + File.separator + outFileName)));
+-					Integer lastSlash = inFileName.lastIndexOf('\\');
+-					if (lastSlash == -1) {
+-						inDirName = &quot;&quot;;
+-					} else {
+-						inDirName = inFileName.substring(0, lastSlash);
+-						inFileName = inFileName.substring(lastSlash + 1);
+-					}
+-					if (cabMapping.get(inDirName) == null) {
+-						cabMapping
+-								.put(inDirName, new HashMap&lt;String, String&gt;());
+-						numDirectories++;
+-					}
+-					cabMapping.get(inDirName).put(outFileName, inFileName);
++									outDirName + File.separator + outCabFileName)));
+ 
++					cabMapping.get(inCabDirName).put(outCabFileName, inCabFileName);
++
+ 					numFiles++;
+ 				}
+ 			}
+@@ -104,6 +100,17 @@
+ 			System.exit(1);
+ 		}
+ 		
++		// create an empty logfile and push it on the stack
++		try {
++			File dummyFile = new File(outDirName + File.separator + String.format(&quot;%08d.DMY&quot;, numFiles));
++			dummyFile.createNewFile();
++			cabMapping.get(&quot;&quot;).put(String.format(&quot;%08d.DMY&quot;, numFiles), &quot;log.txt&quot;);
++			numFiles++;
++		} catch (Exception e) {
++			e.printStackTrace();
++			System.exit(1);
++		}
++
+ 		//
+ 		// output generation
+ 		//
+@@ -114,6 +121,11 @@
+ 		// header section with summary
+ 		outBuffer.append(&quot;\t&lt;characteristic type=\&quot;Install\&quot;&gt;&quot;).append(DOSNL);
+ 		outBuffer.append(&quot;\t\t&lt;parm name=\&quot;InstallPhase\&quot; value=\&quot;install\&quot; /&gt;&quot;).append(DOSNL);
++/*
++		// this should remove the version warning at the end of the cab install, but we need more input
++                outBuffer.append(&quot;\t\t&lt;parm name=\&quot;OSVersionMin\&quot; value=\&quot;1.0\&quot; /&gt;&quot;).append(DOSNL);
++                outBuffer.append(&quot;\t\t&lt;parm name=\&quot;OSVersionMax\&quot; value=\&quot;6.99\&quot; /&gt;&quot;).append(DOSNL);
++*/
+ 		outBuffer.append(String.format(&quot;\t\t&lt;parm name=\&quot;AppName\&quot; value=\&quot;%s\&quot; /&gt;&quot;,PROJECT_NAME)).append(DOSNL);
+ 		outBuffer.append(String.format(&quot;\t\t&lt;parm name=\&quot;InstallDir\&quot; value=\&quot;%%CE1%%\\%s\&quot; translation=\&quot;install\&quot; /&gt;&quot;,PROJECT_NAME)).append(DOSNL);
+ 		outBuffer.append(String.format(&quot;\t\t&lt;parm name=\&quot;NumDirs\&quot; value=\&quot;%d\&quot; /&gt;&quot;,numDirectories)).append(DOSNL);
+@@ -242,12 +254,14 @@
+ 	 * or \)to the format later used by the PocketPC (\) and cutting of any
+ 	 * leading or trainling \
+ 	 * 
+-	 * @param path
+-	 *            path to normalize for use in cab
++	 * @param path path to normalize for use in cab
+ 	 * @return normalized path
+ 	 */
+ 	private static final String winifyPath(String path) {
+-			path = path.replace(File.separatorChar, '\\');
++		if (path == null) {
++			return &quot;&quot;;
++		}
++		path = path.replace(File.separatorChar, '\\');
+ 		if (path.indexOf('\\') == 0) {
+ 			path = path.substring(1);
+ 		}
+@@ -268,4 +282,24 @@
+ 			System.out.println(str);
+ 		}
+ 	}
++	
++	/**
++	 * check if a given directory already is a key in cabMapping
++	 * if directory is not a key yet, put it on the map and
++	 * associate an empty hashmap to it
++	 *
++	 * @param directory name of directory that was pushed to the map
++	 */
++	private static final String pushDirToMap(String directory) {
++		if ( directory == null ) {
++			directory = &quot;&quot;;
++		}
++		
++		if (cabMapping.get(directory) == null) {
++			cabMapping.put(directory, new HashMap&lt;String, String&gt;());
++			numDirectories++;
++		}
++		
++		return directory;
++	}
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001635.html">[Cachewolf-svn] r1719 - trunk
+</A></li>
+	<LI>Next message: <A HREF="001637.html">[Cachewolf-svn] r1721 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1636">[ date ]</a>
+              <a href="thread.html#1636">[ thread ]</a>
+              <a href="subject.html#1636">[ subject ]</a>
+              <a href="author.html#1636">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,217 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1249 - in trunk: res_noewe res_noewe/languages	src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-March/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1249%20-%20in%20trunk%3A%20res_noewe%20res_noewe/languages%0A%09src/CacheWolf&In-Reply-To=%3C200803161707.m2GH7fKs008559%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001142.html">
+   <LINK REL="Next"  HREF="001144.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1249 - in trunk: res_noewe res_noewe/languages	src/CacheWolf</H1>
+    <B>mik77 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1249%20-%20in%20trunk%3A%20res_noewe%20res_noewe/languages%0A%09src/CacheWolf&In-Reply-To=%3C200803161707.m2GH7fKs008559%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1249 - in trunk: res_noewe res_noewe/languages	src/CacheWolf">mik77 at mail.berlios.de
+       </A><BR>
+    <I>Sun Mar 16 18:07:41 CET 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001142.html">[Cachewolf-svn] r1248 - in trunk/src/CacheWolf: . navi
+</A></li>
+        <LI>Next message: <A HREF="001144.html">[Cachewolf-svn] r1250 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1143">[ date ]</a>
+              <a href="thread.html#1143">[ thread ]</a>
+              <a href="subject.html#1143">[ subject ]</a>
+              <a href="author.html#1143">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mik77
+Date: 2008-03-16 18:07:36 +0100 (Sun, 16 Mar 2008)
+New Revision: 1249
+
+Modified:
+   trunk/res_noewe/languages/DE.cfg
+   trunk/res_noewe/languages/EN.cfg
+   trunk/res_noewe/spider.def
+   trunk/src/CacheWolf/SpiderGC.java
+   trunk/src/CacheWolf/TravelbugJourneyScreen.java
+Log:
+Get name of travelbug when getting mission via tracking number
+
+Modified: trunk/res_noewe/languages/DE.cfg
+===================================================================
+--- trunk/res_noewe/languages/DE.cfg	2008-03-16 16:07:20 UTC (rev 1248)
++++ trunk/res_noewe/languages/DE.cfg	2008-03-16 17:07:36 UTC (rev 1249)
+@@ -733,7 +733,7 @@
+ 		6041=Lege TB in aktuellen Cache
+ 		6042=Neuer Travelbug
+ 		6043=Travelbug l%f6schen
+-		6044=Ziel von GC holen
++		6044=Ziel (und Name) abrufen
+ 		6045=On-line %d6ffnen
+ 		6046=Nur nicht geloggte zeigen
+ 		6047=Ausgew%e4hlte Zeilen l%f6schen
+
+Modified: trunk/res_noewe/languages/EN.cfg
+===================================================================
+--- trunk/res_noewe/languages/EN.cfg	2008-03-16 16:07:20 UTC (rev 1248)
++++ trunk/res_noewe/languages/EN.cfg	2008-03-16 17:07:36 UTC (rev 1249)
+@@ -719,7 +719,7 @@
+ 		6041=Drop TB in cache
+ 		6042=New Travelbug
+ 		6043=Delete Travelbug
+-		6044=Get Mission
++		6044=Get mission (and name)
+ 		6045=Open on-line
+ 		6046=Show only not logged
+ 		6047=Delete selected Travelbugs
+
+Modified: trunk/res_noewe/spider.def
+===================================================================
+--- trunk/res_noewe/spider.def	2008-03-16 16:07:20 UTC (rev 1248)
++++ trunk/res_noewe/spider.def	2008-03-16 17:07:36 UTC (rev 1249)
+@@ -16,6 +16,7 @@
+ # Version 3.0 - 20071010 adaption to new GC-design
+ # Version 3.1 - 20071013 Use the given prefix for addi waypoints
+ # Version 3.2 - 20071024 longer end sequence for longDescRex
++# Version 3.3 - 20080316 get travelbug name by tracking number
+ #============================================================
+ # A suffix of Rex indicates a regular expression
+ # A suffix of ExStart indicates the start of an Extractor search pattern
+@@ -105,7 +106,10 @@
+ bugGuidExEnd       = &quot;
+ bugNotFound        = No\ results\ were\ found\ for\ your\ search
+ bugTotalRecords    = Total\ Records:\ &lt;b&gt;1&lt;/b&gt;
++bugNameStart       = &lt;span id=&quot;lbHeading&quot;&gt;
++bugNameEnd         = &lt;/span&gt;
+ 
++
+ #--------------------------------------
+ #Section2c: Images
+ #--------------------------------------
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2008-03-16 16:07:20 UTC (rev 1248)
++++ trunk/src/CacheWolf/SpiderGC.java	2008-03-16 17:07:36 UTC (rev 1249)
+@@ -1318,6 +1318,36 @@
+ 			return &quot;&quot;;
+ 		}
+ 	}
++	
++	/**
++	 * Fetch a bug's mission and namefor a given tracking number
++	 * @param TB the travelbug
++	 * @return true if suceeded
++	 */
++	public boolean getBugMissionAndNameByTrackNr(Travelbug TB) {
++		String bugDetails;
++		String trackNr = TB.getTrackingNo();
++		try{
++			pref.log(&quot;Fetching bug detailsByTrackNr: &quot;+trackNr);
++			bugDetails = fetch(p.getProp(&quot;getBugByTrackNr&quot;)+trackNr);
++		}catch(Exception ex){
++			pref.log(&quot;Could not fetch bug details&quot;);
++			bugDetails=&quot;&quot;;
++		}
++		try {
++			if (bugDetails.indexOf(p.getProp(&quot;bugNotFound&quot;))&gt;=0) {
++//				(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), MyLocale.getMsg(6020,&quot;Travelbug not found.&quot;), MessageBox.OKB)).execute();
++				return false;
++			}
++			Extractor exDetails = new Extractor(bugDetails,p.getProp(&quot;bugDetailsStart&quot;),p.getProp(&quot;bugDetailsEnd&quot;),0,Extractor.EXCLUDESTARTEND);
++			TB.setMission( exDetails.findNext() );
++			Extractor exName = new Extractor(bugDetails,p.getProp(&quot;bugNameStart&quot;),p.getProp(&quot;bugNameEnd&quot;),0,Extractor.EXCLUDESTARTEND);
++			TB.setName( exName.findNext() );
++			return true;
++		} catch (Exception ex) {
++			return false;
++		}
++	}
+ 
+ 	private class myProperties extends Properties {
+ 		myProperties() {
+
+Modified: trunk/src/CacheWolf/TravelbugJourneyScreen.java
+===================================================================
+--- trunk/src/CacheWolf/TravelbugJourneyScreen.java	2008-03-16 16:07:20 UTC (rev 1248)
++++ trunk/src/CacheWolf/TravelbugJourneyScreen.java	2008-03-16 17:07:36 UTC (rev 1249)
+@@ -534,28 +534,30 @@
+ 			TravelbugJourney tbj=tblMyTravelbugJourneys.getTBJourney(selectedRow);
+ 			SpiderGC spider=new SpiderGC(Global.getPref(),Global.getProfile(),false);
+ 			Vm.showWait(true);
+-			String strBugMission = &quot;&quot;;
+-			// First check whether ID is set
+-			if (tbj.getTb().getGuid().length()==0) {
+-				//if not, try to get mission by tracking number
++			
++			//if we have an ID, get mission by ID
++			if (tbj.getTb().getGuid().length()!=0) {
++				tbj.getTb().setMission(spider.getBugMissionByGuid(tbj.getTb().getGuid()));
++			} else {
++				//try to get mission and name by tracking number
++				boolean suceeded = false;
+ 				if (tbj.getTb().getTrackingNo().length() != 0) {
+-					strBugMission = spider.getBugMissionByTrackNr(tbj.getTb().getTrackingNo());
++					suceeded = spider.getBugMissionAndNameByTrackNr(tbj.getTb());
+ 				}
+ 				//if this has't worked, try to get ID by name
+-				if (strBugMission.length() == 0) {
++				if (!suceeded) {
+ 					tbj.getTb().setGuid(spider.getBugId(tbj.getTb().getName().trim()));
++					//if we have an ID now, get mission by ID
++					if (tbj.getTb().getGuid().length()!=0) {
++						tbj.getTb().setMission(spider.getBugMissionByGuid(tbj.getTb().getGuid()));
++					}
+ 				}
+- 			}
+-			// If we have an ID, we can get the mission
+-			if ( (strBugMission.length() == 0) &amp;&amp; (tbj.getTb().getGuid().length()!=0)) { 
+-				strBugMission = spider.getBugMissionByGuid(tbj.getTb().getGuid());
+ 			}
+-			if (strBugMission.length() != 0) {
+-				tbj.getTb().setMission(strBugMission);
+-			}			
++			
+ 			Vm.showWait(false);
+ 			tcTbJourneyList.repaint();
+ 			txtMission.setHtml(tbj.getTb().getMission());
++			inpName.setText(tbj.getTb().getName());
+ 			lblId.setText(tbj.getTb().getGuid());
+ 			lowerpane.repaint();
+ 		}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001142.html">[Cachewolf-svn] r1248 - in trunk/src/CacheWolf: . navi
+</A></li>
+	<LI>Next message: <A HREF="001144.html">[Cachewolf-svn] r1250 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1143">[ date ]</a>
+              <a href="thread.html#1143">[ thread ]</a>
+              <a href="subject.html#1143">[ subject ]</a>
+              <a href="author.html#1143">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

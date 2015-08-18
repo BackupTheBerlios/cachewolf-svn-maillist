@@ -1,0 +1,190 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2233 - in trunk: res_noewe/webmapservices	src/CacheWolf/navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-October/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2233%20-%20in%20trunk%3A%20res_noewe/webmapservices%0A%09src/CacheWolf/navi&In-Reply-To=%3C200910021033.n92AXg1L023295%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002156.html">
+   <LINK REL="Next"  HREF="002158.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2233 - in trunk: res_noewe/webmapservices	src/CacheWolf/navi</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2233%20-%20in%20trunk%3A%20res_noewe/webmapservices%0A%09src/CacheWolf/navi&In-Reply-To=%3C200910021033.n92AXg1L023295%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2233 - in trunk: res_noewe/webmapservices	src/CacheWolf/navi">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Fri Oct  2 12:33:42 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002156.html">[Cachewolf-svn] r2232 - in trunk: . tools tools/MakeWMSFile	tools/MakeWMSFile/capxml2wms tools/MakeWMSFile/capxml2wms/My	Project tools/MakeWMSFile/capxml2wms/bin	tools/MakeWMSFile/capxml2wms/bin/Debug	tools/MakeWMSFile/capxml2wms/bin/Release
+</A></li>
+        <LI>Next message: <A HREF="002158.html">[Cachewolf-svn] r2234 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2157">[ date ]</a>
+              <a href="thread.html#2157">[ thread ]</a>
+              <a href="subject.html#2157">[ subject ]</a>
+              <a href="author.html#2157">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2009-10-02 12:33:37 +0200 (Fri, 02 Oct 2009)
+New Revision: 2233
+
+Modified:
+   trunk/res_noewe/webmapservices/readme_wms.txt
+   trunk/src/CacheWolf/navi/MapLoader.java
+   trunk/src/CacheWolf/navi/MapLoaderGui.java
+Log:
+MapLoader / WMS: new feature: several scales can be recommended
+
+Modified: trunk/res_noewe/webmapservices/readme_wms.txt
+===================================================================
+--- trunk/res_noewe/webmapservices/readme_wms.txt	2009-10-01 21:57:36 UTC (rev 2232)
++++ trunk/res_noewe/webmapservices/readme_wms.txt	2009-10-02 10:33:37 UTC (rev 2233)
+@@ -104,7 +104,10 @@
+ # map download dialog as default. Scale is measured in meters per pixel
+ # vertical, so, multiply it by 1.41 (=sqrt(2)) to get the scale as measured
+ # above in MinScale and MaxScale
+-RecommendedScale:	0.5
++# You can recommend several scales, separate them by one space. The first 
++# one will be pre-selected the others will appear in the drop-down box.
++# Anyway the user can still enter any scale he wishes 
++RecommendedScale:	1 2.5 5 25
+ # set this according to ImageFormatUrlPart (must start with &quot;.&quot;)
+ ImageFileExtension: .png
+ 
+
+Modified: trunk/src/CacheWolf/navi/MapLoader.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MapLoader.java	2009-10-01 21:57:36 UTC (rev 2232)
++++ trunk/src/CacheWolf/navi/MapLoader.java	2009-10-02 10:33:37 UTC (rev 2233)
+@@ -303,7 +303,7 @@
+ 	String MainUrl; //<A HREF="http://www.geoserver.nrw.de/GeoOgcWms1.3/servlet/TK25?SERVICE=WMS">http://www.geoserver.nrw.de/GeoOgcWms1.3/servlet/TK25?SERVICE=WMS</A>
+ 	/** including &quot;.&quot; */
+ 	String imageFileExt; // &quot;.gif&quot;, &quot;.jpg&quot;...
+-	float recommendedScale;
++	float recommendedScales[];
+ 	double minscale;
+ 	double maxscale;
+ 	Area boundingBox;
+@@ -475,7 +475,12 @@
+ 		maxscale = maxscaleWMS / Math.sqrt(2);
+ 		imageFileExt = wms.getProperty(&quot;ImageFileExtension&quot;, &quot;&quot;).trim();
+ 		if (imageFileExt == &quot;&quot;) throw new IllegalArgumentException(MyLocale.getMsg(4821, &quot;WebMapService: property &gt;ImageFileExtension:&lt; missing in file:\n&quot;) + filename);
+-		recommendedScale = (float) Common.parseDouble(wms.getProperty(&quot;RecommendedScale&quot;, &quot;5&quot;).trim());
++		String [] recommendedScalesStr = mString.split(wms.getProperty(&quot;RecommendedScale&quot;, &quot;5&quot;).trim(), ' ');
++		recommendedScales = new float[recommendedScalesStr.length];
++		for (int i=0; i &lt; recommendedScales.length; i++) {
++			recommendedScales[i] = Convert.toFloat(recommendedScalesStr[i].replace(',', '.'));
++		}
++		
+ 	}
+ 
+ 	private static final int TOPLEFT_INDEX = 0;
+@@ -671,7 +676,7 @@
+ 		MainUrl = &quot;<A HREF="Rhttp://www.expedia.de/pub/agent.dll?qscr=mrdt&amp;ID=3kQaz.">Rhttp://www.expedia.de/pub/agent.dll?qscr=mrdt&amp;ID=3kQaz.</A>&quot;; //&quot;<A HREF="Rhttp://">Rhttp://</A>&quot; forces doenloadUrl to retry the URL until it gets an http-redirect and then downloads from there 
+ 		imageFileExt = &quot;.gif&quot;;
+ 		mapType = &quot;expedia&quot;;
+-		recommendedScale = 5;
++		recommendedScales = new float[]{5};
+ 		minscale = getMetersPerPixel(0.00000000000000000000001f);
+ 		maxscale = getMetersPerPixel((float)new CWPoint(0,0).getDistance(new CWPoint(0,180)) * 2 * 1000 / 1000); // whole world * 1000 because of km -&gt; m. /1000 because we have 1000x1000 Pixel usually
+ 		boundingBox = new Area(new CWPoint(90,-180), new CWPoint(-90,180));
+
+Modified: trunk/src/CacheWolf/navi/MapLoaderGui.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MapLoaderGui.java	2009-10-01 21:57:36 UTC (rev 2232)
++++ trunk/src/CacheWolf/navi/MapLoaderGui.java	2009-10-02 10:33:37 UTC (rev 2233)
+@@ -7,6 +7,7 @@
+ import CacheWolf.Global;
+ import CacheWolf.InfoBox;
+ import CacheWolf.MyLocale;
++import CacheWolf.NewProfileForm;
+ import CacheWolf.Preferences;
+ import ewe.io.FileBase;
+ import ewe.sys.Convert;
+@@ -39,8 +40,8 @@
+ 	mLabel coosLbl;
+ 	mButton coosBtn;
+ 	mLabel scaleLbl = new mLabel(MyLocale.getMsg(1807,&quot;Approx. m per pixel:&quot;));
+-	mInput scaleInput = new mInput (&quot;3&quot;);
+-	mInput scaleInputPerCache = new mInput (&quot;1&quot;);
++	mComboBox scaleInput = new mComboBox();
++	mComboBox scaleInputPerCache = new mComboBox();
+ 	mLabel overlappingLbl = new mLabel(MyLocale.getMsg(1808,&quot;overlapping in pixel:&quot;));
+         mInput overlappingInput = new mInput(&quot;&quot;+pref.mapOverlapping);
+ 	mCheckBox overviewChkBox = new mCheckBox(MyLocale.getMsg(1809,&quot;download an overview map&quot;));
+@@ -95,8 +96,6 @@
+ 		pnlTiles.addLast(coosBtn = new mButton(center.toString()));
+ 		pnlTiles.addNext(scaleLbl);
+ 		mapLoader.setCurrentMapService(sortingMapServices[mapServiceChoice.selectedIndex]);
+-		scaleInput.setText(Convert.toString(mapLoader.currentOnlineMapService.recommendedScale));
+-		scaleInputPerCache.setText(Convert.toString(mapLoader.currentOnlineMapService.recommendedScale));
+ 		this.focusFirst();
+ 		pnlTiles.addLast(scaleInput);
+ 		//	pnlTiles.addLast(resolutionLbl);
+@@ -135,8 +134,20 @@
+ 		pnlPerCache.addLast(okBPerCache, CellConstants.DONTSTRETCH, (CellConstants.DONTFILL));
+ 
+ 		mTab.addCard(pnlPerCache, MyLocale.getMsg(1814, &quot;Per cache&quot;), MyLocale.getMsg(1813, &quot;Per Cache&quot;));
++		setRecommScaleInput();
+ 		this.addLast(mTab);
+ 	}
++	
++	private void setRecommScaleInput(){
++		String[] recScales = new String[mapLoader.currentOnlineMapService.recommendedScales.length];
++		for (int i=0; i&lt;recScales.length; i++) {
++			recScales[i] = Convert.toString(mapLoader.currentOnlineMapService.recommendedScales[i]);
++		}
++		scaleInput.choice.set(recScales, 0); // setText(Convert.toString(mapLoader.currentOnlineMapService.recommendedScales));
++		scaleInputPerCache.choice.set(recScales, 0);
++		scaleInput.setText(recScales[0]);
++		scaleInputPerCache.setText(recScales[0]);
++	}
+ 
+ 	/**
+ 	 * sort the map services in order to have the services, which cover
+@@ -392,8 +403,7 @@
+ 		if (ev instanceof DataChangeEvent){
+ 		    if (ev.target == mapServiceChoice) {
+ 			mapLoader.setCurrentMapService(sortingMapServices[mapServiceChoice.selectedIndex]);
+-			scaleInput.setText(Convert.toString(mapLoader.currentOnlineMapService.recommendedScale));
+-			scaleInputPerCache.setText(Convert.toString(mapLoader.currentOnlineMapService.recommendedScale));
++			setRecommScaleInput();
+ 		    }
+ 		    else if (ev.target == overlappingInput){
+ 			pref.mapOverlapping = Convert.toInt(overlappingInput.getText ());
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002156.html">[Cachewolf-svn] r2232 - in trunk: . tools tools/MakeWMSFile	tools/MakeWMSFile/capxml2wms tools/MakeWMSFile/capxml2wms/My	Project tools/MakeWMSFile/capxml2wms/bin	tools/MakeWMSFile/capxml2wms/bin/Debug	tools/MakeWMSFile/capxml2wms/bin/Release
+</A></li>
+	<LI>Next message: <A HREF="002158.html">[Cachewolf-svn] r2234 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2157">[ date ]</a>
+              <a href="thread.html#2157">[ thread ]</a>
+              <a href="subject.html#2157">[ subject ]</a>
+              <a href="author.html#2157">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

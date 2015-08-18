@@ -1,0 +1,389 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r506 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r506%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702041800.l14I0w32006088%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000297.html">
+   <LINK REL="Next"  HREF="000299.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r506 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r506%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702041800.l14I0w32006088%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r506 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sun Feb  4 19:00:58 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000297.html">[Cachewolf-svn] r505 - in trunk: resources src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000299.html">[Cachewolf-svn] r507 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#298">[ date ]</a>
+              <a href="thread.html#298">[ thread ]</a>
+              <a href="subject.html#298">[ subject ]</a>
+              <a href="author.html#298">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-02-04 19:00:27 +0100 (Sun, 04 Feb 2007)
+New Revision: 506
+
+Modified:
+   trunk/src/CacheWolf/Filter.java
+   trunk/src/CacheWolf/FilterScreen.java
+   trunk/src/CacheWolf/GPXImporter.java
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/Preferences.java
+   trunk/src/CacheWolf/Profile.java
+Log:
+Blacklistfilter
+Die Blacklist wird jetzt ueber eine Toggle im Menue Filter umgeschalten.
+Der Filter funktioniert ganz gleich egal ob die Blacklist selektiert oder deselektiert ist.
++Nachtrag zum Filter Update (Profile)
+
+Modified: trunk/src/CacheWolf/Filter.java
+===================================================================
+--- trunk/src/CacheWolf/Filter.java	2007-02-04 15:23:46 UTC (rev 505)
++++ trunk/src/CacheWolf/Filter.java	2007-02-04 18:00:27 UTC (rev 506)
+@@ -13,7 +13,7 @@
+ public class Filter{
+ 	
+ 	private static final int SMALLER = -1;
+-	private static final int EQUAL = -1;
++	private static final int EQUAL = 0;
+ 	private static final int GREATER = 1;
+ 
+ 	private static final int TRADITIONAL = 1;
+@@ -219,19 +219,6 @@
+ 	}
+ 	
+ 	/**
+-	 * Filters the cachelist for those caches marked is_black == true.
+-	 * Only caches matching are then displayed in the table
+-	 * @param cacheDB
+-	 */
+-	public void showBlacklist(Vector cacheDB){
+-		CacheHolder ch;
+-		for(int i = cacheDB.size()-1; i &gt;=0 ; i--){
+-			ch = (CacheHolder)cacheDB.get(i);
+-			ch.is_filtered=!ch.is_black;
+-		}
+-	}
+-	
+-	/**
+ 	 * Set the filter from the filter data stored in the profile
+ 	 * (the filterscreen also updates the profile)
+ 	 */
+@@ -314,6 +301,7 @@
+ 		int cacheTypePattern;
+ 		int cacheRosePattern;
+ 		int cacheSizePattern;
++		boolean showBlackListed=Global.getPref().showBlacklisted;
+ 		// Values from filterscreen are parsed outside the main filter loop (fsc=FilterSCreen)
+ 		double dummyd1;
+ 		//Loop db and match once against type pattern and once against rose pattern
+@@ -325,7 +313,7 @@
+ 		// A cache is only displayed (i.e. is_filtered = false) if it meets all 9 filter criteria
+ 		for(int i = cacheDB.size()-1; i &gt;=0 ; i--){
+ 			ch = (CacheHolder)cacheDB.get(i);
+-			ch.is_filtered = false;
++			ch.is_filtered = ch.is_black^showBlackListed;
+ 			///////////////////////////////
+ 			// Filter criterium 1: Cache type
+ 			///////////////////////////////
+@@ -455,22 +443,29 @@
+ 	/**
+ 	*	Invert is_filtered flag on all caches
+ 	*/
+-	public void invertFilter(Vector cacheDB){
++	public void invertFilter(){
++		Vector cacheDB=Global.getProfile().cacheDB;
+ 		CacheHolder ch;
++		boolean showBlackListed=Global.getPref().showBlacklisted;
+ 		for(int i = cacheDB.size()-1; i &gt;=0 ; i--){
+ 			ch = (CacheHolder)cacheDB.get(i);
+-			ch.is_filtered=!ch.is_filtered; // skg: More efficient
++			if (ch.is_black==showBlackListed)
++				ch.is_filtered=!ch.is_filtered; // Only invert those that would be shown under blacklist filter
++			else
++				ch.is_filtered=true; // Hide all those that have the wrong is_black status
+ 		}
+ 	}
+ 	
+ 	/**
+ 	*	Clear the is_filtered flag from the cache database.
+ 	*/
+-	public void clearFilter(Vector cacheDB){
++	public void clearFilter(){
++		Vector cacheDB=Global.getProfile().cacheDB;
+ 		CacheHolder ch;
++		boolean showBlackListed=Global.getPref().showBlacklisted;
+ 		for(int i = cacheDB.size()-1; i &gt;=0 ; i--){
+ 			ch = (CacheHolder)cacheDB.get(i);
+-			ch.is_filtered=ch.is_black || CacheType.isAddiWpt(ch.type); // Always filter blacklisted caches
++			ch.is_filtered=(ch.is_black^showBlackListed) || CacheType.isAddiWpt(ch.type); // Always filter blacklisted caches
+ 		}
+ 		Profile prof=Global.getProfile();
+ 		prof.filterType = new String(Profile.FILTERTYPE);
+
+Modified: trunk/src/CacheWolf/FilterScreen.java
+===================================================================
+--- trunk/src/CacheWolf/FilterScreen.java	2007-02-04 15:23:46 UTC (rev 505)
++++ trunk/src/CacheWolf/FilterScreen.java	2007-02-04 18:00:27 UTC (rev 506)
+@@ -267,7 +267,7 @@
+ 		btPanel.addLast(btnRoute = new mButton(&quot;Route&quot;),CellConstants.STRETCH, CellConstants.FILL);
+ 		addLast(btPanel.setTag(Control.SPAN, new Dimension(3,1)), CellConstants.STRETCH, CellConstants.FILL);
+ 		setPreferredSize(240,240);
+-		
++		cp.select(3);
+ 	}
+ 	
+ 	
+
+Modified: trunk/src/CacheWolf/GPXImporter.java
+===================================================================
+--- trunk/src/CacheWolf/GPXImporter.java	2007-02-04 15:23:46 UTC (rev 505)
++++ trunk/src/CacheWolf/GPXImporter.java	2007-02-04 18:00:27 UTC (rev 506)
+@@ -84,7 +84,7 @@
+ */	
+ 	public void doIt(int how){
+ 		Filter flt = new Filter();
+-		flt.clearFilter(cacheDB);
++		flt.clearFilter();
+ 		try{
+ 			ewe.io.Reader r;
+ 			String file;
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2007-02-04 15:23:46 UTC (rev 505)
++++ trunk/src/CacheWolf/MainMenu.java	2007-02-04 18:00:27 UTC (rev 506)
+@@ -106,25 +106,27 @@
+ 		///////////////////////////////////////////////////////////////////////
+ 		// Create the &quot;Filter&quot; pulldown menu
+ 		///////////////////////////////////////////////////////////////////////
+-		MenuItem[] filterMenuItems=new MenuItem[6];
++		MenuItem[] filterMenuItems=new MenuItem[7];
+ 		filterMenuItems[0] = filtCreate  = new MenuItem(MyLocale.getMsg(114,&quot;Create&quot;)); 
+ 		filterMenuItems[1] = filtInvert  = new MenuItem(MyLocale.getMsg(115,&quot;Invert&quot;)); 
+ 		filterMenuItems[2] = filtClear   = new MenuItem(MyLocale.getMsg(116,&quot;Clear&quot;));
+-		filterMenuItems[3] = filtBlack   = new MenuItem(MyLocale.getMsg(161,&quot;Show Blacklist&quot;));
+-		filterMenuItems[4] = new MenuItem(&quot;-&quot;);
+-		filterMenuItems[5] = filtSelected = new MenuItem(MyLocale.getMsg(160,&quot;Selected&quot;));
++		filterMenuItems[3] = mnuSeparator;
++		filterMenuItems[4] = filtBlack   = new MenuItem(MyLocale.getMsg(161,&quot;Show Blacklist&quot;));
++		filterMenuItems[5] = mnuSeparator;
++		filterMenuItems[6] = filtSelected = new MenuItem(MyLocale.getMsg(160,&quot;Selected&quot;));
+ 		
+ 		///////////////////////////////////////////////////////////////////////
+ 		// Create a combined &quot;Filter and Search&quot; pulldown menu for devices with small screens
+ 		///////////////////////////////////////////////////////////////////////
+-		MenuItem[] filterAndSearchMenuItems=new MenuItem[7];
++		MenuItem[] filterAndSearchMenuItems=new MenuItem[8];
+ 		filterAndSearchMenuItems[0]=filtCreate;
+ 		filterAndSearchMenuItems[1]=filtInvert;
+ 		filterAndSearchMenuItems[2]=filtClear;
+-		filterAndSearchMenuItems[3]=filtBlack;
+-		filterAndSearchMenuItems[4]=mnuSeparator;
+-		filterAndSearchMenuItems[5]=search;
+-		filterAndSearchMenuItems[6]=searchClr;
++		filterAndSearchMenuItems[3]=mnuSeparator;
++		filterAndSearchMenuItems[4]=filtBlack;
++		filterAndSearchMenuItems[5]=mnuSeparator;
++		filterAndSearchMenuItems[6]=search;
++		filterAndSearchMenuItems[7]=searchClr;
+ 		
+ 		// Depending on screen width display either filter and searach menus or the combined menu 
+ 		if (MyLocale.getScreenWidth()&gt;300) {
+@@ -195,6 +197,8 @@
+ 					pref.lastProfile=profile.name=f.profileDir;
+ 					pref.savePreferences(); // Remember that this was the last profile used
+ 					profile.dataDir=pref.baseDir+f.profileDir+&quot;/&quot;;
++					pref.showBlacklisted=false;
++					filtBlack.modifiers&amp;=~MenuItem.Checked;
+ 					tbp.refreshTable();
+ 				}
+ 				f.close(0);
+@@ -204,6 +208,8 @@
+ 					profile.cacheDB.clear();
+ 					profile.readIndex();
+ 					pref.curCentrePt.set(profile.centre);
++					filtBlack.modifiers&amp;=~MenuItem.Checked;
++					pref.showBlacklisted=false;
+ 					tbp.resetModel();
+ 					Global.mainTab.tbP.gotoFirstLine();
+ 				}
+@@ -252,11 +258,15 @@
+ 						}
+ 					}
+ 				}
++				pref.showBlacklisted=false;
++				filtBlack.modifiers&amp;=~MenuItem.Checked;
+ 				tbp.resetModel();
+ 			}
+ 			if(mev.selectedItem == loadOC){
+ 				OCXMLImporter oc = new OCXMLImporter(pref,profile);
+ 				oc.doIt();
++				pref.showBlacklisted=false;
++				filtBlack.modifiers&amp;=~MenuItem.Checked;
+ 				tbp.resetModel();
+ 			}
+ 			if(mev.selectedItem == filtCreate){
+@@ -266,12 +276,14 @@
+ 			}
+ 			if(mev.selectedItem == filtInvert){
+ 				Filter flt = new Filter();
+-				flt.invertFilter(cacheDB);
++				flt.invertFilter();
+ 				tbp.refreshTable();
+ 			}
+ 			if(mev.selectedItem == filtBlack){
++				filtBlack.modifiers^=MenuItem.Checked;
++				pref.showBlacklisted=!pref.showBlacklisted;
+ 				Filter flt = new Filter();
+-				flt.showBlacklist(cacheDB);
++				flt.clearFilter();
+ 				tbp.refreshTable();
+ 			}
+ 			if(mev.selectedItem == exportGPS){
+@@ -310,17 +322,16 @@
+ 			}
+ 			if(mev.selectedItem == filtClear){
+ 				Filter flt = new Filter();
+-				flt.clearFilter(cacheDB);
++				flt.clearFilter();
+ 				tbp.refreshTable();
+ 			}
+ 			
+ 			if(mev.selectedItem == filtSelected){
+ 				CacheHolder ch;
+-				for(int i = 0; i &lt;	cacheDB.size(); i++){
++				for(int i = cacheDB.size()-1; i&gt;=0; i--){
+ 					ch = (CacheHolder)cacheDB.get(i);
+-					ch.is_filtered = false;
+-					if(ch.is_Checked == true) ch.is_filtered = true;
+-					cacheDB.set(i, ch);
++					ch.is_filtered = ch.is_Checked;
++					//cacheDB.set(i, ch);
+ 				}
+ 				tbp.refreshTable();
+ 			}
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2007-02-04 15:23:46 UTC (rev 505)
++++ trunk/src/CacheWolf/Preferences.java	2007-02-04 18:00:27 UTC (rev 506)
+@@ -43,6 +43,8 @@
+ 	public boolean showDeletedImages=true; /* Used in ImagePanel */
+ 	public boolean solverIgnoreCase=false;
+ 
++	/** Toggle for showing blacklisted caches. Can be toggled through the Filter menu */
++	public boolean showBlacklisted=false;
+ 	public int myAppHeight = 0;
+ 	public int myAppWidth = 0;
+ 	//public int nLogs = 5;
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2007-02-04 15:23:46 UTC (rev 505)
++++ trunk/src/CacheWolf/Profile.java	2007-02-04 18:00:27 UTC (rev 506)
+@@ -38,8 +38,10 @@
+ 	public final static String FILTERTYPE=&quot;11111111111000000&quot;;
+ 	public final static String FILTERROSE=&quot;1111111111111111&quot;;
+ 	public final static String FILTERVAR=&quot;11111111&quot;;
++	public final static String FILTERSIZE=&quot;111111&quot;;
+ 	public String filterType = new String(FILTERTYPE);
+ 	public String filterRose = new String(FILTERROSE);
++	public String filterSize = new String(FILTERSIZE);
+ 	//filter settings for archived ... owner (section) in filterscreen
+ 	public String filterVar = new String(FILTERVAR);
+ 	public String filterDist=new String(&quot;&quot;);
+@@ -101,7 +103,7 @@
+ 			
+ 			detfile.print(&quot;    &lt;FILTER rose = \&quot;&quot;+filterRose+&quot;\&quot; type = \&quot;&quot;+filterType+
+ 					 &quot;\&quot; var = \&quot;&quot;+filterVar+&quot;\&quot; dist = \&quot;&quot;+filterDist.replace('&quot;',' ')+&quot;\&quot; diff = \&quot;&quot;+
+-					 filterDiff+&quot;\&quot; terr = \&quot;&quot;+filterTerr+&quot;\&quot; /&gt;\n&quot;);
++					 filterDiff+&quot;\&quot; terr = \&quot;&quot;+filterTerr+&quot;\&quot; size = \&quot;&quot;+filterSize+&quot;\&quot; /&gt;\n&quot;);
+ 			detfile.print(&quot;    &lt;SYNCOC date = \&quot;&quot;+last_sync_opencaching+&quot;\&quot; dist = \&quot;&quot;+distOC+&quot;\&quot;/&gt;\n&quot;);
+ 			for(int i = 0; i&lt;cacheDB.size();i++){
+ 				ch = (CacheHolder)cacheDB.get(i);
+@@ -214,13 +216,14 @@
+ 					filterDist = ex.findNext();
+ 					filterDiff = ex.findNext();
+ 					filterTerr = ex.findNext();
++					filterSize = ex.findNext();
+ //					 Bilbowolf: Pattern for storing filter &lt;FILTER type=&quot;01001101&quot; rose = &quot;010010101&quot; var = &quot;0101&quot; dist = &quot;&lt;12&quot; diff = &quot;&gt;13&quot; terr = &quot;&lt;1&quot;/&gt;
+ 				}
+ 			}
+ 			in.close();
+ 			// Build references between caches and addi wpts
+ 			buildReferences();
+-			
++			normalizeFilters();
+ 		} catch (FileNotFoundException e) {
+ 			Vm.debug(&quot;index.xml not found&quot;); // Normal when profile is opened for first time
+ 			//e.printStackTrace();
+@@ -339,4 +342,27 @@
+ 					}// if
+ 			   }// for
+ 		   }
++		   
++    /** Ensure that all filters have the proper length so that the 'charAt' access in the filter
++     * do not cause nullPointer Exceptions
++     */
++    private void normalizeFilters() {
++		if (filterRose.length()&lt;16) { 
++			filterRose=(filterRose+&quot;1111111111111111&quot;).substring(0,16); 
++		}  
++		if (filterVar.length()&lt;8) { 
++			filterVar=(filterVar+&quot;11111111&quot;).substring(0,8); 
++		}  
++		if (filterType.length()&lt;16) { 
++			filterType=(filterType+&quot;11111111111111111&quot;).substring(0,11);
++			filterType=(filterType+&quot;000000&quot;).substring(0,17);
++		} 
++		if (filterSize.length()&lt;6) {
++			filterSize=(filterSize+&quot;111111&quot;).substring(0,6);
++		}
++		if (filterDist.length()==0) filterDist=&quot;L&quot;;
++		if (filterDiff.length()==0) filterDiff=&quot;L&quot;;
++		if (filterTerr.length()==0) filterTerr=&quot;L&quot;;
++    }
++		   
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000297.html">[Cachewolf-svn] r505 - in trunk: resources src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000299.html">[Cachewolf-svn] r507 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#298">[ date ]</a>
+              <a href="thread.html#298">[ thread ]</a>
+              <a href="subject.html#298">[ subject ]</a>
+              <a href="author.html#298">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

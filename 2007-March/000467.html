@@ -1,0 +1,584 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r644 - in trunk: resources src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-March/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r644%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200703170639.l2H6dJgr029069%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000466.html">
+   <LINK REL="Next"  HREF="000468.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r644 - in trunk: resources src/CacheWolf</H1>
+    <B>bilbowolf at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r644%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200703170639.l2H6dJgr029069%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r644 - in trunk: resources src/CacheWolf">bilbowolf at mail.berlios.de
+       </A><BR>
+    <I>Sat Mar 17 07:39:19 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000466.html">[Cachewolf-svn] [Feature #1974] Cache Attribute anzeigen und filtern
+</A></li>
+        <LI>Next message: <A HREF="000468.html">[Cachewolf-svn] r645 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#467">[ date ]</a>
+              <a href="thread.html#467">[ thread ]</a>
+              <a href="subject.html#467">[ subject ]</a>
+              <a href="author.html#467">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: bilbowolf
+Date: 2007-03-17 07:39:12 +0100 (Sat, 17 Mar 2007)
+New Revision: 644
+
+Modified:
+   trunk/resources/cachewolf.Languages.cfg
+   trunk/src/CacheWolf/CacheHolder.java
+   trunk/src/CacheWolf/CacheWolf.java
+   trunk/src/CacheWolf/Profile.java
+   trunk/src/CacheWolf/SpiderGC.java
+   trunk/src/CacheWolf/Version.java
+   trunk/src/CacheWolf/myTableModel.java
+Log:
+
+
+Modified: trunk/resources/cachewolf.Languages.cfg
+===================================================================
+--- trunk/resources/cachewolf.Languages.cfg	2007-03-12 22:50:43 UTC (rev 643)
++++ trunk/resources/cachewolf.Languages.cfg	2007-03-17 06:39:12 UTC (rev 644)
+@@ -685,6 +685,10 @@
+ 		4501=Vis:
+ 		4502=Fnd:
+ 		5000=Load Cachelist
++		5500=Fehler
++		5501=Login nicht m%f6glich
++		5502=Lade erste Seite
++		5502=Konnte erste Seite nicht laden
+ 		{..}
+ 	{..}
+ {..}
+
+Modified: trunk/src/CacheWolf/CacheHolder.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolder.java	2007-03-12 22:50:43 UTC (rev 643)
++++ trunk/src/CacheWolf/CacheHolder.java	2007-03-17 06:39:12 UTC (rev 644)
+@@ -66,6 +66,7 @@
+   public boolean is_log_update = false;
+   public boolean is_update = false;
+   public boolean is_selected = false;
++  public boolean is_incomplete=false;
+   public boolean is_HTML = true;
+   public boolean is_Checked = false;
+   public Vector addiWpts = new Vector();
+
+Modified: trunk/src/CacheWolf/CacheWolf.java
+===================================================================
+--- trunk/src/CacheWolf/CacheWolf.java	2007-03-12 22:50:43 UTC (rev 643)
++++ trunk/src/CacheWolf/CacheWolf.java	2007-03-17 06:39:12 UTC (rev 644)
+@@ -240,7 +240,6 @@
+ 		//if (Gui.screenIs(Gui.PDA_SCREEN) &amp;&amp; Vm.isMobile()) {
+ 		//	Vm.setSIP(Vm.SIP_LEAVE_BUTTON);
+ 		//}
+-		
+ 		if(args.length &gt; 0){
+ 			if(args[0].equals(&quot;test&quot;)){
+ 				Test t=new Test(); 
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2007-03-12 22:50:43 UTC (rev 643)
++++ trunk/src/CacheWolf/Profile.java	2007-03-17 06:39:12 UTC (rev 644)
+@@ -151,7 +151,7 @@
+ 					detfile.print(&quot;    &lt;CACHE name = \&quot;&quot;+SafeXML.clean(ch.CacheName)+&quot;\&quot; owner = \&quot;&quot;+SafeXML.clean(ch.CacheOwner)+
+ 							//&quot;\&quot; lat = \&quot;&quot;+ SafeXML.clean(ch.LatLon) +
+ 							&quot;\&quot; lat = \&quot;&quot;+ ch.pos.latDec + &quot;\&quot; lon = \&quot;&quot;+ch.pos.lonDec+
+-							&quot;\&quot; hidden = \&quot;&quot;+ch.DateHidden+&quot;\&quot; wayp = \&quot;&quot;+SafeXML.clean(ch.wayPoint)+&quot;\&quot; status = \&quot;&quot;+ch.CacheStatus+&quot;\&quot; type = \&quot;&quot;+ch.type+&quot;\&quot; dif = \&quot;&quot;+ch.hard+&quot;\&quot; terrain = \&quot;&quot; + ch.terrain + &quot;\&quot; dirty = \&quot;&quot; + ch.dirty + &quot;\&quot; size = \&quot;&quot;+ch.CacheSize+&quot;\&quot; online = \&quot;&quot; + Convert.toString(ch.is_available) + &quot;\&quot; archived = \&quot;&quot; + Convert.toString(ch.is_archived) + &quot;\&quot; has_bug = \&quot;&quot; + Convert.toString(ch.has_bug) + &quot;\&quot; black = \&quot;&quot; + Convert.toString(ch.is_black) + &quot;\&quot; owned = \&quot;&quot; + Convert.toString(ch.is_owned) + &quot;\&quot; found = \&quot;&quot; + Convert.toString(ch.is_found) + &quot;\&quot; is_new = \&quot;&quot; + Convert.toString(ch.is_new) +&quot;\&quot; is_log_update = \&quot;&quot; + Convert.toString(ch.is_log_update) + &quot;\&quot; is_update = \&quot;&quot; + Convert.toString(ch.is_update) + &quot;\&quot; is_HTML = \&quot;&quot; + Convert.toString(ch.is_HTML) + &quot;\&quot; DNFLOGS = \&quot;&quot; + ch.noFindLogs + &quot;\&quot; ocCacheID = \&quot;&quot; + ch.ocCacheID + &quot;\&quot; /&gt;\n&quot;);
++							&quot;\&quot; hidden = \&quot;&quot;+ch.DateHidden+&quot;\&quot; wayp = \&quot;&quot;+SafeXML.clean(ch.wayPoint)+&quot;\&quot; status = \&quot;&quot;+ch.CacheStatus+&quot;\&quot; type = \&quot;&quot;+ch.type+&quot;\&quot; dif = \&quot;&quot;+ch.hard+&quot;\&quot; terrain = \&quot;&quot; + ch.terrain + &quot;\&quot; dirty = \&quot;&quot; + ch.dirty + &quot;\&quot; size = \&quot;&quot;+ch.CacheSize+&quot;\&quot; online = \&quot;&quot; + Convert.toString(ch.is_available) + &quot;\&quot; archived = \&quot;&quot; + Convert.toString(ch.is_archived) + &quot;\&quot; has_bug = \&quot;&quot; + Convert.toString(ch.has_bug) + &quot;\&quot; black = \&quot;&quot; + Convert.toString(ch.is_black) + &quot;\&quot; owned = \&quot;&quot; + Convert.toString(ch.is_owned) + &quot;\&quot; found = \&quot;&quot; + Convert.toString(ch.is_found) + &quot;\&quot; is_new = \&quot;&quot; + Convert.toString(ch.is_new) +&quot;\&quot; is_log_update = \&quot;&quot; + Convert.toString(ch.is_log_update) + &quot;\&quot; is_update = \&quot;&quot; + Convert.toString(ch.is_update) + &quot;\&quot; is_HTML = \&quot;&quot; + Convert.toString(ch.is_HTML) + &quot;\&quot; DNFLOGS = \&quot;&quot; + ch.noFindLogs + &quot;\&quot; ocCacheID = \&quot;&quot; + ch.ocCacheID + &quot;\&quot; is_INCOMPLETE = \&quot;&quot;+Convert.toString(ch.is_incomplete)+&quot;\&quot; /&gt;\n&quot;);
+ 				}
+ 			}
+ 			detfile.print(&quot;&lt;/CACHELIST&gt;\n&quot;);
+@@ -220,6 +220,7 @@
+ 					ch.is_HTML = ex.findNext().equals(&quot;false&quot;) ? false : true;
+ 					ch.noFindLogs = Convert.toInt(ex.findNext());
+ 					ch.ocCacheID = ex.findNext();
++					ch.is_incomplete = ex.findNext().equals(&quot;true&quot;) ? true : false;
+ 					// remove &quot;/&gt;
+ 					ch.ocCacheID = STRreplace.replace(ch.ocCacheID,&quot;\&quot;/&gt;&quot;, null);
+ 					// remove additional &quot; if present
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2007-03-12 22:50:43 UTC (rev 643)
++++ trunk/src/CacheWolf/SpiderGC.java	2007-03-17 06:39:12 UTC (rev 644)
+@@ -34,8 +34,11 @@
+ /**
+ *	Class to spider caches from gc.com
+ *	It uses a generic parse tree to parse the page and build a gpx file.
++*	ClassID (for cachewolf.languages.cfg = 5500
+ */
+ public class SpiderGC{
++	
++	private static int ERR_LOGIN = -10;
+ 	private static Preferences pref;
+ 	private Profile profile;
+ 	static String viewstate = &quot;&quot;;
+@@ -72,6 +75,7 @@
+ 			start = fetch(&quot;<A HREF="http://www.geocaching.com/login/Default.aspx">http://www.geocaching.com/login/Default.aspx</A>&quot;);
+ 		}catch(Exception ex){
+ 			pref.log(&quot;Could not fetch: gc.com start page&quot;,ex);
++			return ERR_LOGIN;
+ 		}
+ 		if (!infB.isClosed) {
+ 			Regex rexCookieID = new Regex(&quot;Set-Cookie: userid=(.*?);.*&quot;);
+@@ -95,6 +99,8 @@
+ 			}catch(Exception ex){
+ 				Vm.debug(&quot;Could not login: gc.com start page&quot;);
+ 				pref.log(&quot;Login failed.&quot;);
++				infB.close(0);
++				return ERR_LOGIN;
+ 			}
+ 			
+ 			rex.search(start);
+@@ -257,7 +263,11 @@
+ 			Vm.showWait(false);
+ 			return;
+ 		}
+-		
++		if(ok == ERR_LOGIN){
++			Vm.showWait(false);
++			(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), MyLocale.getMsg(5501,&quot;Login failed!&quot;), MessageBox.OKB)).execute();
++			return;
++		}
+ 		OCXMLImporterScreen options = new OCXMLImporterScreen(&quot;Spider Options&quot;, OCXMLImporterScreen.INCLUDEFOUND);
+ 		options.distanceInput.setText(&quot;&quot;);
+ 		if (options.execute() == OCXMLImporterScreen.IDCANCEL) {Vm.showWait(false);	return; }
+@@ -265,23 +275,27 @@
+ 		if (dist.length()== 0) return;
+ 		distance = Convert.toDouble(dist);
+ 		//boolean getMaps = options.mapsCheckBox.getState();
+-		boolean getFound = options.foundCheckBox.getState();
+-		Vm.debug(&quot;Get found? &quot;+getFound);
++		boolean doNotgetFound = options.foundCheckBox.getState();
++		Vm.debug(&quot;Do not get found? &quot;+doNotgetFound);
+ 		boolean getImages = options.imagesCheckBox.getState();
+ 		options.close(0);
+ 		
+ 		
+-		infB = new InfoBox(&quot;Status&quot;, &quot;Fetching first page...&quot;);
++		infB = new InfoBox(&quot;Status&quot;, MyLocale.getMsg(5502,&quot;Fetching first page...&quot;));
+ 		infB.exec();
+ 		//Get first page
+ 		try{
+ 			String ln = new String(&quot;<A HREF="http://www.geocaching.com/seek/nearest.aspx?lat=">http://www.geocaching.com/seek/nearest.aspx?lat=</A>&quot; + origin.getLatDeg(CWPoint.DD) + &quot;&amp;lon=&quot; +origin.getLonDeg(CWPoint.DD));
+-			if(getFound) ln = ln + &quot;&amp;f=1&quot;;
++			if(doNotgetFound) ln = ln + &quot;&amp;f=1&quot;;
+ 			start = fetch(ln);
+-			pref.log(&quot;First page: &quot; + start);
++			pref.log(&quot;Got first page: &quot; + ln);
+ 		}catch(Exception ex){
++			infB.close(0);
++			(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), MyLocale.getMsg(5503,&quot;Error fetching first list page.&quot;), MessageBox.OKB)).execute();
+ 			pref.log(&quot;Error fetching first list page&quot;);
+ 			Vm.debug(&quot;Could not get list&quot;);
++			Vm.showWait(false);
++			return;
+ 		}
+ 		String dummy = &quot;&quot;;
+ 		//String lineBlck = &quot;&quot;;
+@@ -304,7 +318,10 @@
+ 					Vm.debug(&quot;Problem opening details file&quot;);
+ 				}
+ 			*/
+-			rexLine.search(dummy);
++			try{
++				rexLine.search(dummy);
++			}catch(NullPointerException nex){}
++			
+ 			while(rexLine.didMatch()){
+ 				//Vm.debug(getDist(rexLine.stringMatched(1)) + &quot; / &quot; +getWP(rexLine.stringMatched(1)));
+ 				found_on_page++;
+@@ -323,21 +340,27 @@
+ 				doc = URL.encodeURL(&quot;__VIEWSTATE&quot;,false) +&quot;=&quot;+ URL.encodeURL(viewstate,false);
+ 				doc += &quot;&amp;&quot; + URL.encodeURL(&quot;lat&quot;,false) +&quot;=&quot;+ URL.encodeURL(origin.getLatDeg(CWPoint.DD),false);
+ 				doc += &quot;&amp;&quot; + URL.encodeURL(&quot;lon&quot;,false) +&quot;=&quot;+ URL.encodeURL(origin.getLonDeg(CWPoint.DD),false);
+-				doc += &quot;&amp;f=1&quot;;
++				//if(doNotgetFound) doc += &quot;&amp;f=1&quot;;
+ 				doc += &quot;&amp;&quot; + URL.encodeURL(&quot;__EVENTTARGET&quot;,false) +&quot;=&quot;+ URL.encodeURL(&quot;ResultsPager:_ctl&quot;+page_number,false);
+ 				doc += &quot;&amp;&quot; + URL.encodeURL(&quot;__EVENTARGUMENT&quot;,false) +&quot;=&quot;+ URL.encodeURL(&quot;&quot;,false);
+ 				try{
+-					pref.log(&quot;Fetching next list page&quot;);
++					start = &quot;&quot;;
++					pref.log(&quot;Fetching next list page:&quot; + doc);
+ 					start = fetch_post(&quot;<A HREF="http://www.geocaching.com/seek/nearest.aspx">http://www.geocaching.com/seek/nearest.aspx</A>&quot;, doc, &quot;/seek/nearest.aspx&quot;);
+ 				}catch(Exception ex){
+ 					Vm.debug(&quot;Couldn't get the next page&quot;);
++					pref.log(&quot;Error getting next page&quot;);
++				}finally{
++					
+ 				}
+ 			}
+ 			//Vm.debug(&quot;Distance is now: &quot; + distance);
+ 			found_on_page = 0;
+ 		}
++		
+ 		pref.log(&quot;Found &quot; + cachesToLoad.size() + &quot; caches&quot;);
+ 		if (!infB.isClosed) infB.setInfo(&quot;Found &quot; + cachesToLoad.size() + &quot; caches&quot;);
++		
+ 		// Now ready to spider each cache
+ 		String wpt = &quot;&quot;;
+ 		CacheHolder ch;
+@@ -349,114 +372,111 @@
+ 			if(searchWpt(wpt) == -1){
+ 				infB.setInfo(&quot;Loading: &quot; + wpt +&quot;(&quot; + (i+1) + &quot; / &quot; + cachesToLoad.size() + &quot;)&quot;);
+ 				doc = &quot;<A HREF="http://www.geocaching.com/seek/cache_details.aspx?wp=">http://www.geocaching.com/seek/cache_details.aspx?wp=</A>&quot; + wpt +&quot;&amp;log=y&quot;;
++				start = &quot;&quot;;
+ 				try{
+ 					pref.log(&quot;Fetching: &quot; + wpt);
+ 					start = fetch(doc);
+ 				}catch(Exception ex){
+-					pref.log(&quot;Could not fetch &quot; + wpt);
++					pref.log(&quot;Could not fetch detail page for: &quot; + wpt);
+ 					Vm.debug(&quot;Couldn't get cache detail page&quot;);
++				}finally{
++					//	just continue please!
++					pref.log(&quot;Trying for details.&quot;);
+ 				}
+-				ch.is_new = true;
+-				ch.is_HTML = true;
+-				ch.is_available = true;
+-				ch.is_archived = false;
+-				ch.wayPoint = wpt;
+-				if(start.indexOf(&quot;This cache is temporarily unavailable&quot;) &gt;= 0) ch.is_available = false;
+-				if(start.indexOf(&quot;This cache has been archived&quot;) &gt;= 0) ch.is_archived = true;
+-				//Vm.debug(ch.wayPoint);
+-				try{
+-					pref.log(&quot;Trying logs&quot;);
+-					ch.CacheLogs = getLogs(start, ch);
+-					int z = 0;
+-					String loganal = &quot;&quot;;
+-					while(z &lt; ch.CacheLogs.size() &amp;&amp; z &lt; 5){
+-						loganal = (String)ch.CacheLogs.get(z);
+-						if(loganal.indexOf(&quot;icon_sad&quot;)&gt;0) {
+-							z++;
+-						}else break;
++				if(start != null &amp;&amp; start.length()!=0){
++					pref.log(&quot;Fetch doc ok... going into details.&quot;);
++					ch.is_new = true;
++					ch.is_HTML = true;
++					ch.is_available = true;
++					ch.is_archived = false;
++					ch.wayPoint = wpt;
++					if(start.indexOf(&quot;This cache is temporarily unavailable&quot;) &gt;= 0) ch.is_available = false;
++					if(start.indexOf(&quot;This cache has been archived&quot;) &gt;= 0) ch.is_archived = true;
++					//Vm.debug(ch.wayPoint);
++					try{
++						pref.log(&quot;Trying logs&quot;);
++						ch.CacheLogs = getLogs(start, ch);
++						int z = 0;
++						String loganal = &quot;&quot;;
++						while(z &lt; ch.CacheLogs.size() &amp;&amp; z &lt; 5){
++							loganal = (String)ch.CacheLogs.get(z);
++							if(loganal.indexOf(&quot;icon_sad&quot;)&gt;0) {
++								z++;
++							}else break;
++						}
++						ch.noFindLogs = z;
++						pref.log(&quot;Found logs&quot;);
++						ch.LatLon = getLatLon(start);
++						ch.pos.set(ch.LatLon); // Slow parse no problem
++						//Vm.debug(&quot;LatLon: &quot; + ch.LatLon);
++						pref.log(&quot;Trying description&quot;);
++						ch.LongDescription = getLongDesc(start);
++						
++						pref.log(&quot;Got description&quot;);
++						pref.log(&quot;Getting cache name&quot;);
++						ch.CacheName = SafeXML.cleanback(getName(start));
++						pref.log(&quot;Got cache name&quot;);
++						//Vm.debug(&quot;Name: &quot; + ch.CacheName);
++						pref.log(&quot;Trying owner&quot;);
++						ch.CacheOwner = SafeXML.cleanback(getOwner(start)).trim();
++						if(ch.CacheOwner.equalsIgnoreCase(pref.myAlias) || (pref.myAlias2.length()&gt;0 &amp;&amp; ch.CacheOwner.equalsIgnoreCase(pref.myAlias2))) ch.is_owned = true;
++						pref.log(&quot;Got owner&quot;);
++						//Vm.debug(&quot;Owner: &quot; + ch.CacheOwner);
++						pref.log(&quot;Trying date hidden&quot;);
++						ch.DateHidden = getDateHidden(start);
++						pref.log(&quot;Got date hidden&quot;);
++						//Vm.debug(&quot;Hidden: &quot; + ch.DateHidden);
++						pref.log(&quot;Trying hints&quot;);
++						ch.Hints = getHints(start);
++						pref.log(&quot;Got hints&quot;);
++						//Vm.debug(&quot;Hints: &quot; + ch.Hints);
++						//Vm.debug(&quot;Got the hints&quot;);
++						pref.log(&quot;Trying size&quot;);
++						ch.CacheSize = getSize(start);
++						pref.log(&quot;Got size&quot;);
++						//Vm.debug(&quot;Size: &quot; + ch.CacheSize);
++						pref.log(&quot;Trying difficulty&quot;);
++						ch.hard = getDiff(start);
++						pref.log(&quot;Got difficulty&quot;);
++						//Vm.debug(&quot;Hard: &quot; + ch.hard);
++						pref.log(&quot;Trying terrain&quot;);
++						ch.terrain = getTerr(start);
++						pref.log(&quot;Got terrain&quot;);
++						//Vm.debug(&quot;Terr: &quot; + ch.terrain);
++						pref.log(&quot;Trying cache type&quot;);
++						ch.type = getType(start);
++						pref.log(&quot;Got cache type&quot;);
++						//Vm.debug(&quot;Type: &quot; + ch.type);
++						if(getImages){
++							pref.log(&quot;Trying images&quot;);
++							getImages(start, ch);
++							pref.log(&quot;Got images&quot;);
++						}
++						if (infB.isClosed) break;
++						ch.Bugs = getBugs(start);
++						if(ch.Bugs.length()&gt;0) ch.has_bug = true; else ch.has_bug = false;
++						pref.log(&quot;Getting additional waypoints&quot;);
++						getAddWaypoints(start, ch);
++						pref.log(&quot;Got additional waypoints&quot;);
++						ch.saveCacheDetails(profile.dataDir);
++						cacheDB.add(ch);
++						profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
++					}catch(Exception ex){
++						pref.log(&quot;There was an error in the last step:&quot;);
++						pref.log(&quot;Cache was: &quot; + wpt);
++						pref.log(&quot;Error was: &quot; + ex.toString());
++						//ch.is_incomplete = true;
++						//cacheDB.add(ch);
++						//profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
++					}finally{
++						//just continue please!
++						pref.log(&quot;Continuing with next cache.&quot;);
+ 					}
+-					ch.noFindLogs = z;
+-					pref.log(&quot;Found logs&quot;);
+-					ch.LatLon = getLatLon(start);
+-					ch.pos.set(ch.LatLon); // Slow parse no problem
+-					//Vm.debug(&quot;LatLon: &quot; + ch.LatLon);
+-					pref.log(&quot;Trying description&quot;);
+-					ch.LongDescription = getLongDesc(start);
+-					
+-					pref.log(&quot;Got description&quot;);
+-					pref.log(&quot;Getting cache name&quot;);
+-					ch.CacheName = SafeXML.cleanback(getName(start));
+-					pref.log(&quot;Got cache name&quot;);
+-					//Vm.debug(&quot;Name: &quot; + ch.CacheName);
+-					pref.log(&quot;Trying owner&quot;);
+-					ch.CacheOwner = SafeXML.cleanback(getOwner(start)).trim();
+-					if(ch.CacheOwner.equalsIgnoreCase(pref.myAlias) || (pref.myAlias2.length()&gt;0 &amp;&amp; ch.CacheOwner.equalsIgnoreCase(pref.myAlias2))) ch.is_owned = true;
+-					pref.log(&quot;Got owner&quot;);
+-					//Vm.debug(&quot;Owner: &quot; + ch.CacheOwner);
+-					pref.log(&quot;Trying date hidden&quot;);
+-					ch.DateHidden = getDateHidden(start);
+-					pref.log(&quot;Got date hidden&quot;);
+-					//Vm.debug(&quot;Hidden: &quot; + ch.DateHidden);
+-					pref.log(&quot;Trying hints&quot;);
+-					ch.Hints = getHints(start);
+-					pref.log(&quot;Got hints&quot;);
+-					//Vm.debug(&quot;Hints: &quot; + ch.Hints);
+-					//Vm.debug(&quot;Got the hints&quot;);
+-					pref.log(&quot;Trying size&quot;);
+-					ch.CacheSize = getSize(start);
+-					pref.log(&quot;Got size&quot;);
+-					//Vm.debug(&quot;Size: &quot; + ch.CacheSize);
+-					pref.log(&quot;Trying difficulty&quot;);
+-					ch.hard = getDiff(start);
+-					pref.log(&quot;Got difficulty&quot;);
+-					//Vm.debug(&quot;Hard: &quot; + ch.hard);
+-					pref.log(&quot;Trying terrain&quot;);
+-					ch.terrain = getTerr(start);
+-					pref.log(&quot;Got terrain&quot;);
+-					//Vm.debug(&quot;Terr: &quot; + ch.terrain);
+-					pref.log(&quot;Trying cache type&quot;);
+-					ch.type = getType(start);
+-					pref.log(&quot;Got cache type&quot;);
+-					//Vm.debug(&quot;Type: &quot; + ch.type);
+-					if(getImages){
+-						pref.log(&quot;Trying images&quot;);
+-						getImages(start, ch);
+-						pref.log(&quot;Got images&quot;);
+-					}
+-					if (infB.isClosed) break;
+-					ch.Bugs = getBugs(start);
+-					if(ch.Bugs.length()&gt;0) ch.has_bug = true; else ch.has_bug = false;
+-					pref.log(&quot;Getting additional waypoints&quot;);
+-					getAddWaypoints(start, ch);
+-					pref.log(&quot;Got additional waypoints&quot;);
+-					ch.saveCacheDetails(profile.dataDir);
+-					cacheDB.add(ch);
+-					profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
+-				}catch(Exception ex){
+-					pref.log(&quot;There was an error in the last step:&quot;);
+-					pref.log(&quot;Cache was: &quot; + wpt);
+-					pref.log(&quot;Error was: &quot; + ex.toString());
+-				}finally{
+-					//just continue please!
+-					pref.log(&quot;Continuing with next cache.&quot;);
+ 				}
+ 			}
+ 		}
+-		profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
+ 		infB.close(0);
+ 		Vm.showWait(false);
+-		/*
+-		try{
+-		  PrintWriter detfile = new PrintWriter(new BufferedWriter(new FileWriter(&quot;debug.txt&quot;)));
+-		  detfile.print(start);
+-		  detfile.close();
+-		} catch (Exception e) {
+-			Vm.debug(&quot;Problem opening details file&quot;);
+-		}
+-		
+-		*/
+-		
+-		
+ 	}
+ 	private int searchWpt(String wpt){
+ 		Integer INTR = (Integer)indexDB.get(wpt);
+@@ -825,34 +845,43 @@
+ 	*	it will be a gc.com address. This method is used to obtain
+ 	*	the result of a search for caches screen.
+ 	*/
+-	private static String fetch(String address) throws IOException
+-	   	{
+-			//Vm.debug(address);
+-			HttpConnection conn;
+-			if(pref.myproxy.length() &gt; 0){
+-				pref.log(&quot;Using proxy: &quot; + pref.myproxy + &quot; / &quot; +pref.myproxyport);
+-				conn = new HttpConnection(pref.myproxy, Convert.parseInt(pref.myproxyport), address);
++	private static String fetch(String address)
++	   	{	
++			CharArray c_data;
++			String data = new String();
++			try{
+ 				//Vm.debug(address);
+-			} else {
+-				conn = new HttpConnection(address);
++				HttpConnection conn;
++				if(pref.myproxy.length() &gt; 0){
++					pref.log(&quot;Using proxy: &quot; + pref.myproxy + &quot; / &quot; +pref.myproxyport);
++					conn = new HttpConnection(pref.myproxy, Convert.parseInt(pref.myproxyport), address);
++					//Vm.debug(address);
++				} else {
++					conn = new HttpConnection(address);
++				}
++				conn.setRequestorProperty(&quot;USER_AGENT&quot;, &quot;Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.7.5) Gecko/20041107 Firefox/1.0&quot;);
++				if(cookieSession.length()&gt;0){
++					conn.setRequestorProperty(&quot;Cookie: &quot;, &quot;ASP.NET_SessionId=&quot;+cookieSession +&quot;; userid=&quot;+cookieID);
++					pref.log(&quot;Cookie Zeug: &quot; + &quot;Cookie: ASP.NET_SessionId=&quot;+cookieSession +&quot;; userid=&quot;+cookieID);
++				}
++				conn.setRequestorProperty(&quot;Connection&quot;, &quot;close&quot;);
++				conn.documentIsEncoded = true;
++				pref.log(&quot;Connecting&quot;);
++				Socket sock = conn.connect();
++				pref.log(&quot;Connect ok!&quot;);
++				ByteArray daten = conn.readData(sock);
++				pref.log(&quot;Read socket ok&quot;);
++				JavaUtf8Codec codec = new JavaUtf8Codec();
++				c_data = codec.decodeText(daten.data, 0, daten.length, true, null);
++				data = c_data.toString();
++				////Vm.debug(c_data.toString());
++				sock.close();
++			}catch(IOException ioex){
++				pref.log(&quot;IOException in fetch&quot;);
++			}finally{
++				//continue
+ 			}
+-			conn.setRequestorProperty(&quot;USER_AGENT&quot;, &quot;Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.7.5) Gecko/20041107 Firefox/1.0&quot;);
+-			if(cookieSession.length()&gt;0){
+-				conn.setRequestorProperty(&quot;Cookie: &quot;, &quot;ASP.NET_SessionId=&quot;+cookieSession +&quot;; userid=&quot;+cookieID);
+-				pref.log(&quot;Cookie Zeug: &quot; + &quot;Cookie: ASP.NET_SessionId=&quot;+cookieSession +&quot;; userid=&quot;+cookieID);
+-			}
+-			conn.setRequestorProperty(&quot;Connection&quot;, &quot;close&quot;);
+-			conn.documentIsEncoded = true;
+-			pref.log(&quot;Connecting&quot;);
+-			Socket sock = conn.connect();
+-			pref.log(&quot;Connect ok!&quot;);
+-			ByteArray daten = conn.readData(sock);
+-			pref.log(&quot;Read socket ok&quot;);
+-			JavaUtf8Codec codec = new JavaUtf8Codec();
+-			CharArray c_data = codec.decodeText(daten.data, 0, daten.length, true, null);
+-			////Vm.debug(c_data.toString());
+-			sock.close();
+-			return c_data.toString();
++			return data;
+ 		}
+ 	
+ 	/**
+
+Modified: trunk/src/CacheWolf/Version.java
+===================================================================
+--- trunk/src/CacheWolf/Version.java	2007-03-12 22:50:43 UTC (rev 643)
++++ trunk/src/CacheWolf/Version.java	2007-03-17 06:39:12 UTC (rev 644)
+@@ -7,7 +7,7 @@
+ import ewe.sys.*;
+ 
+ public class Version {
+-	static final String VER_MAJOR = &quot;&quot;;
++	static final String VER_MAJOR = &quot;0.9n&quot;;
+ 	static final String VER_MINOR = &quot;&quot;;
+ 	static final String VER_BUILD = &quot; RC &quot;;
+ 	static final String VER_SVN =&quot;$LastChangedRevision$&quot;;  // the  number is automatically replaced by subversion to the latest versionnumer of this file (svn:keywords LastChangedRevision)
+
+Modified: trunk/src/CacheWolf/myTableModel.java
+===================================================================
+--- trunk/src/CacheWolf/myTableModel.java	2007-03-12 22:50:43 UTC (rev 643)
++++ trunk/src/CacheWolf/myTableModel.java	2007-03-17 06:39:12 UTC (rev 644)
+@@ -33,7 +33,7 @@
+ 	int usedColumns; // Columns actually used (&lt;=MAXCOLUMNS)
+ 	static Image cacheImages[] = new Image[454];
+ 	static Image noFindLogs[] = new Image[4];
+-	Image red, blue, green, yellow;
++	Image red, blue, green, yellow, skull;
+ 	mImage bug;
+ 	myTableControl tcControl;
+ 	boolean sortAsc = false;
+@@ -88,6 +88,7 @@
+ 		blue = new Image(&quot;blue.png&quot;);
+ 		green = new Image(&quot;green.png&quot;);
+ 		yellow = new Image(&quot;yellow.png&quot;);
++		skull = new Image(&quot;skull.png&quot;);
+ 		bug = new mImage(&quot;bug.png&quot;);
+ 		checkboxTicked = new Image(&quot;checkboxTicked.png&quot;);
+ 		checkboxUnticked= new Image(&quot;checkboxUnticked.png&quot;);
+@@ -227,6 +228,7 @@
+ 					case 3: // Terrain
+ 						return (String)ch.terrain;
+ 					case 4: // Waypoint
++						if(ch.is_incomplete) return new IconAndText((IImage)skull, ch.wayPoint, fm);
+ 						if(ch.is_update    ) return new IconAndText((IImage)red, ch.wayPoint, fm); // TODO this is for sure quite inefficient, better store it, don't create always new when the table is refreshed or only scrolled
+ 						if(ch.is_new       ) return new IconAndText((IImage)yellow, ch.wayPoint, fm);
+ 						if(ch.is_log_update) return new IconAndText((IImage)blue, ch.wayPoint, fm);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000466.html">[Cachewolf-svn] [Feature #1974] Cache Attribute anzeigen und filtern
+</A></li>
+	<LI>Next message: <A HREF="000468.html">[Cachewolf-svn] r645 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#467">[ date ]</a>
+              <a href="thread.html#467">[ thread ]</a>
+              <a href="subject.html#467">[ subject ]</a>
+              <a href="author.html#467">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

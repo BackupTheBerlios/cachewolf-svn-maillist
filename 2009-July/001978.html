@@ -1,0 +1,335 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2056 - experiments/greiol/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-July/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2056%20-%20experiments/greiol/src/CacheWolf&In-Reply-To=%3C200907271945.n6RJj81K004976%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001977.html">
+   <LINK REL="Next"  HREF="001979.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2056 - experiments/greiol/src/CacheWolf</H1>
+    <B>greiol at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2056%20-%20experiments/greiol/src/CacheWolf&In-Reply-To=%3C200907271945.n6RJj81K004976%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2056 - experiments/greiol/src/CacheWolf">greiol at mail.berlios.de
+       </A><BR>
+    <I>Mon Jul 27 21:45:08 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001977.html">[Cachewolf-svn] r2055 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001979.html">[Cachewolf-svn] r2057 - experiments/greiol/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1978">[ date ]</a>
+              <a href="thread.html#1978">[ thread ]</a>
+              <a href="subject.html#1978">[ subject ]</a>
+              <a href="author.html#1978">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: greiol
+Date: 2009-07-27 21:45:06 +0200 (Mon, 27 Jul 2009)
+New Revision: 2056
+
+Modified:
+   experiments/greiol/src/CacheWolf/CacheHolder.java
+   experiments/greiol/src/CacheWolf/CacheHolderDetail.java
+   experiments/greiol/src/CacheWolf/DetailsPanel.java
+Log:
+part4
+
+Modified: experiments/greiol/src/CacheWolf/CacheHolder.java
+===================================================================
+--- experiments/greiol/src/CacheWolf/CacheHolder.java	2009-07-27 08:32:55 UTC (rev 2055)
++++ experiments/greiol/src/CacheWolf/CacheHolder.java	2009-07-27 19:45:06 UTC (rev 2056)
+@@ -725,6 +725,7 @@
+ 	 * cache should be set to do so.
+ 	 */
+ 	public void save() {
++		checkIncomplete();
+ 		this.getFreshDetails().saveCacheDetails(Global.getProfile().dataDir);
+ 	}
+ 	
+@@ -1075,9 +1076,19 @@
+     	return wayPoint;
+     }
+ 
++	/**
++	 * set a new waypointd id and rename all associated files (details &amp; images)
++	 * @param wayPoint new waypoint identifier
++	 */
+ 	public void setWayPoint(String wayPoint) {
+-		Global.getProfile().notifyUnsavedChanges(!wayPoint.equals(this.wayPoint));		
+-    	this.wayPoint = wayPoint;
++		if (!wayPoint.equals(this.wayPoint)){
++			if (getFreshDetails().rename(wayPoint)) {
++				this.wayPoint = wayPoint;
++				Global.getProfile().notifyUnsavedChanges(true);
++			} else {
++				Global.getPref().log(&quot;Could not rename &quot;+this.wayPoint+&quot; to &quot;+wayPoint);
++			}
++		}
+     }
+ 
+ 	public String getCacheName() {
+@@ -1461,23 +1472,5 @@
+ 		Global.getProfile().notifyUnsavedChanges(hasNote != this.hasNote);		
+ 		this.hasNote = hasNote;
+ 	}
+-	
+-	/**
+-	 * rename a waypoint and all its associated files
+-	 * @param newWptId new waypoint id (will be converted to upper case)
+-	 * @return true on success, false on error
+-	 */
+-	public boolean rename(String newWptId) {
+-		newWptId = newWptId.toUpperCase();
+-		getFreshDetails();
+-		if (details.rename(newWptId)) {
+-			setWayPoint(newWptId);
+-			save();
+-			Global.getProfile().notifyUnsavedChanges(true);
+-			return true;
+-		} else {
+-			return false;
+-		}
+-	}
+ }
+ 
+
+Modified: experiments/greiol/src/CacheWolf/CacheHolderDetail.java
+===================================================================
+--- experiments/greiol/src/CacheWolf/CacheHolderDetail.java	2009-07-27 08:32:55 UTC (rev 2055)
++++ experiments/greiol/src/CacheWolf/CacheHolderDetail.java	2009-07-27 19:45:06 UTC (rev 2056)
+@@ -451,9 +451,6 @@
+ 			String profiledir = Global.getProfile().dataDir;
+ 			int oldWptLength = getParent().getWayPoint().length();
+ 			
+-			// just in case ... (got the pun? ;) )
+-			newWptId = newWptId.toUpperCase();
+-			
+ 			// update image information
+ 			for(int i = 0;i&lt;images.size();i++){
+ 				String filename = images.get(i).getFilename();
+@@ -523,6 +520,7 @@
+ 				//TODO: any chance of a roll back?
+ 				//TODO: should we ignore a file not found?
+ 			}
++			hasUnsavedChanges = true;
+ 			
+ 			return success;
+ 		}
+
+Modified: experiments/greiol/src/CacheWolf/DetailsPanel.java
+===================================================================
+--- experiments/greiol/src/CacheWolf/DetailsPanel.java	2009-07-27 08:32:55 UTC (rev 2055)
++++ experiments/greiol/src/CacheWolf/DetailsPanel.java	2009-07-27 19:45:06 UTC (rev 2056)
+@@ -48,43 +48,43 @@
+ 	private static mInput inpOwner;
+ 	/** waypoint coordinates, open change coordinates dialog */
+ 	private static mButton btnCoordinates;
+-	/** FIXME */
++	/** set center to current waypoint */
+ 	private static mButton btnCenter;
+ 	/** add time stamp to notes */
+ 	private static mButton btnAddDateTime;
+-	/** FIXME */
++	/** create a new waypoint */
+ 	private static mButton btnNewWpt;
+ 	/** show details for travelbus in waypoint */
+ 	private static mButton btnShowBug;
+-	/** FIXME */
++	/** switch to moving map and center on waypoint coordinates */
+ 	private static mButton btnShowMap;
+-	/** FIXME */
++	/** set waypoint as destination and switch to goto ppanel */
+ 	private static mButton btnGoto;
+-	/** FIXME */
++	/** add a user picture to waypoint */
+ 	private static mButton btnAddPicture;
+ 	/** toggle blacklist status */
+ 	private static mButton btnBlack;
+ 	/** add or edit notes for waypoint */
+ 	private static mButton btnNotes;
+-	/** FIXME */
++	/** set found date */
+ 	private static mButton btnFoundDate;
+-	/** FIXME */
++	/** set hidden date */
+ 	private static mButton btnHiddenDate;
+-	/** FIXME */
++	/** set terrain value */
+ 	private static mButton btnTerr;
+-	/** FIXME */
++	/** set difficulty value */
+ 	private static mButton btnDiff;
+ 	/** drop down list with cache types */
+ 	private static mChoice chcType;
+ 	/** drop down list with container sizes */
+ 	private static mChoice chcSize;
+-	/** FIXME */
++	/** select waypoint status */
+ 	private static mComboBox chcStatus;
+-	/** FIXME */
++	/** toolbar panel */
+ 	private static CellPanel pnlTools;
+-	/** FIXME */
++	/** notes for waypoint */
+ 	private static mTextPad cacheNotes;
+-	/** FIXME */
++	/** shows number of additional waypoints */
+ 	private static mLabel lblAddiCount;
+ 	/** FIXME move to image broker?*/
+ 	private static mImage imgBlack, imgBlackNo, imgShowBug, imgShowBugNo, imgNewWpt, imgGoto, imgNotes;
+@@ -406,12 +406,16 @@
+ 	protected boolean saveIfNeeded() {
+ 		// waypoint
+ 		// userimages ???
+-		// coordinates
+ 		// status
+-		// terrain
+-		// difficulty
++		
++		//FIXME: check boolean flags
++
++		/** one or more properties have changed and details need to be saved */
+ 		boolean needsSaving = false;
+-		int newDifficulty, newTerrain;
++		/** rebuild references if type changed from addi to custom or cache and vice versa */
++		boolean rebuildReferences = false;
++		/** temp vars */
++		byte tmpbyte;
+ 		
+ 		if (!inpHidden.getText().equals(ch.getDateHidden())) {
+ 			ch.setDateHidden(inpHidden.getText());
+@@ -434,6 +438,7 @@
+ 		}
+ 		
+ 		if (ch.getType() != CacheType.guiSelect2Cw(chcType.getInt())) {
++			//check if type changed addi &lt;-&gt; custom||cahe to rebuild references
+ 			ch.setType(CacheType.guiSelect2Cw(chcType.getInt()));
+ 			needsSaving = true;
+ 		}
+@@ -446,9 +451,22 @@
+ 		
+ 		if (!ch.pos.toString().equals(btnCoordinates.getText())) {
+ 			ch.LatLon = btnCoordinates.getText();
+-			/// PUH!
++			ch.pos = new CWPoint(ch.LatLon);
++			needsSaving = true;
+ 		}
+ 		
++		tmpbyte = decodeTerrDiff(btnDiff.getText(), ch.isCacheWpt());
++		if (tmpbyte != ch.getHard()) {
++			ch.setHard(tmpbyte);
++			needsSaving = true;
++		}
++		
++		tmpbyte = decodeTerrDiff(btnTerr.getText(), ch.isCacheWpt());
++		if (tmpbyte != ch.getTerrain()) {
++			ch.setTerrain(tmpbyte);
++			needsSaving = true;
++		}
++		
+ 		if (isBigScreen) {
+ 			if (!cacheNotes.getText().equals(ch.getFreshDetails().getCacheNotes())) {
+ 				ch.getFreshDetails().setCacheNotes(cacheNotes.getText());
+@@ -456,26 +474,11 @@
+ 			}
+ 		}
+ 		
+-		// ch.setAttributesToAddiWpts();
+-		//		boolean saveWpt = false;
+-		//		boolean renameWpt = false;
+-		//		int newdiff;
+-		//		int newTerr;
+-		//	
+-		//		Objects to check:
+-
+-
+-		//		if (!this.inpWaypoint.equals(thisCache.getWayPoint())) {
+-		//			saveWpt = true;
+-		//			renameWpt = true;
+-		//		}
+-		//		if (!this.chcSize)
+-		//		if (!this.chcStatus)
+-		//		if (!this.chcType)
+-		//		if (newdiff)
+-		//		if (newterr)
+-		//		if (btnBlack.getImage()
+-		needsTableUpdate = needsTableUpdate || needsSaving;
++		if (needsSaving) {
++			ch.save();
++			needsTableUpdate = true;
++		}
++		
+ 		return true;
+ 	}
+ 
+@@ -516,6 +519,23 @@
+ 		return dirty_notes || needsTableUpdate;
+ 		//return dirty_notes || dirty_details || needsTableUpdate;
+ 	}
++	
++	/**
++	 * convert the string displayed in the terrain in difficulty buttons to a byte for intrernal use&lt;br&gt;
++	 * assumes that the relevant information will at positions 3 and 5 in a 0 indexed string 
++	 * @param td string for terrain or difficulty
++	 * @param isCache true if waypoint is a cache, false for addis and custom
++	 * @return 0 for additional or custum waypoints, -1 for caches if td is not valid, parsed byte otherwise
++	 */
++	private byte decodeTerrDiff(String td, boolean isCache) {
++		if (! isCache) return 0;
++		
++		td = td.substring(3,1).concat(td.substring(5,1));
++		
++		if (td.equals(&quot;--&quot;)) return -1;
++		
++		return Byte.parseByte(td);
++	}
+ 
+ 	public boolean hasBlackStatusChanged() {
+ 		return blackStatusChanged;
+@@ -623,6 +643,9 @@
+ 					note = note + dtm.toString();
+ 				note = note + &quot;\n&quot;;
+ 				ch.getCacheDetails(true).setCacheNotes(note);
++				if (isBigScreen) {
++					cacheNotes.setText(ch.details.getCacheNotes());
++				}
+ 				//FIXME: better use saveDirtyWaypoint()?
+ 				ch.save();
+ 				
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001977.html">[Cachewolf-svn] r2055 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001979.html">[Cachewolf-svn] r2057 - experiments/greiol/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1978">[ date ]</a>
+              <a href="thread.html#1978">[ thread ]</a>
+              <a href="subject.html#1978">[ subject ]</a>
+              <a href="author.html#1978">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

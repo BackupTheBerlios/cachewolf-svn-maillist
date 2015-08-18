@@ -1,0 +1,211 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1911 - trunk/src/exp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-June/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1911%20-%20trunk/src/exp&In-Reply-To=%3C200906161703.n5GH3mRD011153%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001828.html">
+   <LINK REL="Next"  HREF="001830.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1911 - trunk/src/exp</H1>
+    <B>greiol at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1911%20-%20trunk/src/exp&In-Reply-To=%3C200906161703.n5GH3mRD011153%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1911 - trunk/src/exp">greiol at mail.berlios.de
+       </A><BR>
+    <I>Tue Jun 16 19:03:48 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001828.html">[Cachewolf-svn] r1910 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001830.html">[Cachewolf-svn] r1912 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1829">[ date ]</a>
+              <a href="thread.html#1829">[ thread ]</a>
+              <a href="subject.html#1829">[ subject ]</a>
+              <a href="author.html#1829">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: greiol
+Date: 2009-06-16 19:03:40 +0200 (Tue, 16 Jun 2009)
+New Revision: 1911
+
+Modified:
+   trunk/src/exp/GpxExportNg.java
+Log:
+added logs
+
+Modified: trunk/src/exp/GpxExportNg.java
+===================================================================
+--- trunk/src/exp/GpxExportNg.java	2009-06-16 17:02:29 UTC (rev 1910)
++++ trunk/src/exp/GpxExportNg.java	2009-06-16 17:03:40 UTC (rev 1911)
+@@ -5,6 +5,9 @@
+ import CacheWolf.CacheTerrDiff;
+ import CacheWolf.CacheType;
+ import CacheWolf.Global;
++import CacheWolf.CWPoint;
++import CacheWolf.LogList;
++import CacheWolf.Log;
+ 
+ import com.stevesoft.ewe_pat.Regex;
+ import com.stevesoft.ewe_pat.Transformer;
+@@ -80,7 +83,7 @@
+ 						.concat(&quot;\t\t\t&lt;groundspeak:encoded_hints&gt;@@CACHEHINT@@&lt;/groundspeak:encoded_hints&gt;\n&quot;);
+ 
+ 	final static String GPXLOG = &quot;\t\t\t\t&lt;groundspeak:log id=\&quot;@@LOGID@@\&quot;&gt;\n&quot;
+-						.concat(&quot;\t\t\t\t\t&lt;groundspeak:date&gt;@@LOGDATE@@&lt;/groundspeak:date&gt;\n&quot;)
++						.concat(&quot;\t\t\t\t\t&lt;groundspeak:date&gt;@@LOGDATE@@T00:00:00&lt;/groundspeak:date&gt;\n&quot;)
+ 						.concat(&quot;\t\t\t\t\t&lt;groundspeak:type&gt;@@LOGTYPE@@&lt;/groundspeak:type&gt;\n&quot;)
+ 						.concat(&quot;\t\t\t\t\t&lt;groundspeak:finder id=\&quot;@@LOGFINDERID@@\&quot;&gt;@@LOGFINDER@@&lt;/groundspeak:finder&gt;\n&quot;)
+ 						.concat(&quot;\t\t\t\t\t&lt;groundspeak:text encoded=\&quot;@@LOGENCODE@@\&quot;&gt;@@LOGTEXT@@&lt;/groundspeak:text&gt;\n&quot;)
+@@ -296,10 +299,10 @@
+ 		
+ 		ret.append(trans.replaceAll(GPXEXTENSION));
+ 		
+-//		ret.append(&quot;\t\t\t&lt;groundspeak:logs&gt;\n&quot;);
+-//		ret.append(formatLogs(ch));
+-//		ret.append(&quot;\t\t\t&lt;/groundspeak:logs&gt;\n&quot;);
+-//		
++		ret.append(&quot;\t\t\t&lt;groundspeak:logs&gt;\n&quot;);
++		ret.append(formatLogs(ch));
++		ret.append(&quot;\t\t\t&lt;/groundspeak:logs&gt;\n&quot;);
++		
+ //		ret.append(&quot;\t\t\t&lt;groundspeak:travelbugs&gt;\n&quot;);
+ //		ret.append(formatTbs(ch));
+ //		ret.append(&quot;\t\t\t&lt;/groundspeak:travelbugs&gt;\n&quot;);
+@@ -319,9 +322,23 @@
+ 	}
+ 	
+ 	public String formatLogs(CacheHolder ch) {
+-		Transformer trans = new Transformer(true);
+-		return &quot;&quot;;
+-//		return trans.replaceFirst(GPXLOG);
++		LogList logs = ch.getFreshDetails().CacheLogs;
++		StringBuffer ret = new StringBuffer();
++		if (0 == logs.size()) return &quot;&quot;;
++		for (int i = 0; i &lt; logs.size(); i++) {
++			Log log = logs.getLog(i);
++			if (outType == GPX_MYFINDSPQ &amp;&amp; !log.getLogger().equals(Global.getPref().myAlias)) continue;
++			Transformer trans = new Transformer(true);
++			trans.add(new Regex(&quot;@@LOGID@@&quot;,&quot;&quot;));
++			trans.add(new Regex(&quot;@@LOGDATE@@&quot;,log.getDate()));
++			trans.add(new Regex(&quot;@@LOGTYPE@@&quot;,image2TypeText(log.getIcon())));
++			trans.add(new Regex(&quot;@@LOGFINDERID@@&quot;,&quot;&quot;));
++			trans.add(new Regex(&quot;@@LOGFINDER@@&quot;,log.getLogger()));
++			trans.add(new Regex(&quot;@@LOGENCODE@@&quot;,&quot;&quot;));
++			trans.add(new Regex(&quot;@@LOGTEXT@@&quot;,log.getMessage()));
++			ret.append(trans.replaceAll(GPXLOG));
++		}
++		return ret.toString();
+ 	}
+ 	
+ 	public String formatHeader() {
+@@ -334,18 +351,25 @@
+ 		if (ch.isAddiWpt() || ch.getType() == CacheType.CW_TYPE_CUSTOM) {
+ 			return ch.details.LongDescription;
+ 		} else {
+-			Vm.debug(&quot;real cache&quot;);
++
+ 			StringBuffer ret = new StringBuffer();
+ 			String delim = &quot;&quot;;
+ 			ret.append(ch.details.LongDescription);
+ 			if (ch.is_HTML()) {
+ 				delim=&quot;&lt;br /&gt;&quot;;
++			} else {
++				delim=&quot;\n&quot;;
+ 			}
+ 			//FIXME: format is not quite right yet
+-			//FIXME: cut Addis off in GPXimporter otherwiese people who use GPX to feed CacheWolf have them doubled
++			//FIXME: cut Addis off in GPXimporter otherwise people who use GPX to feed CacheWolf have them doubled
+ 			if (ch.addiWpts.size() &gt; 0) {
+-				Vm.debug(&quot;adding waypoints&quot;);
+-				ret.append(delim).append(&quot;\n&quot;).append(&quot;Additional Waypoints&quot;).append(delim).append(&quot;\n&quot;);
++
++				if (ch.is_HTML()) {
++					ret.append(&quot;&lt;p&gt;Additional Waypoints&lt;/p&gt;&quot;);
++				} else {
++					ret.append(&quot;Additional Waypoints\n&quot;);
++				}
++
+ 				Iterator iter = ch.addiWpts.iterator();
+ 				while (iter.hasNext()) {
+ 					CacheHolder addi = (CacheHolder) iter.next();
+@@ -353,15 +377,42 @@
+ 					trans.add(new Regex(&quot;@@ADDIID@@&quot;,addi.getWayPoint()));
+ 					trans.add(new Regex(&quot;@@ADDISHORT@@&quot;,addi.getCacheName()));
+ 					trans.add(new Regex(&quot;@@ADDIDELIM@@&quot;,delim));
+-					trans.add(new Regex(&quot;@@ADDILAT@@&quot;,addi.LatLon));
++					trans.add(new Regex(&quot;@@ADDILAT@@&quot;,formatAddiLatLon(addi.pos)));
+ 					trans.add(new Regex(&quot;@@ADDILON@@&quot;,&quot;&quot;));
+ 					trans.add(new Regex(&quot;@@ADDILONG@@&quot;,addi.getFreshDetails().LongDescription));
+ 					ret.append(trans.replaceAll(GPXADDIINMAIN));
+ 				}
+ 				ret.append(delim).append(&quot;\n&quot;);
+-
+ 			}
+ 			return ret.toString();
+ 		}
+ 	}
++	
++	public static String image2TypeText(String image){
++		if (image.equals(&quot;icon_smile.gif&quot;)) return &quot;Found it&quot;;
++		if (image.equals(&quot;icon_sad.gif&quot;)) return &quot;Didn't find it&quot;;
++		if (image.equals(&quot;icon_note.gif&quot;)) return &quot;Write note&quot;;
++		if (image.equals(&quot;icon_enabled.gif&quot;)) return &quot;Enable Listing&quot;;
++		if (image.equals(&quot;icon_disabled.gif&quot;)) return &quot;Temporarily Disable Listing&quot;;
++		if (image.equals(&quot;icon_camera.gif&quot;)) return &quot;Webcam Photo Taken&quot;;
++		if (image.equals(&quot;11.png&quot;)) return &quot;Webcam Photo Taken&quot;;
++		if (image.equals(&quot;icon_attended.gif&quot;)) return &quot;Attended&quot;;
++		if (image.equals(&quot;green.gif&quot;)) return &quot;Publish Listing&quot;;
++		if (image.equals(&quot;icon_rsvp.gif&quot;)) return &quot;Will Attend&quot;;
++		if (image.equals(&quot;big_smile.gif&quot;)) return &quot;Post Reviewer Note&quot;;
++		if (image.equals(&quot;traffic_cone.gif&quot;)) return &quot;Archive (show)&quot;;
++		if (image.equals(&quot;icon_maint.gif&quot;)) return &quot;Owner Maintenance&quot;;
++		if (image.equals(&quot;icon_needsmaint.gif&quot;)) return &quot;Needs Maintenance&quot;;
++		if (image.equals(&quot;coord_update.gif&quot;)) return &quot;Update Coordinates&quot;;
++
++		return image;
++	}
++	
++	private String formatAddiLatLon(CWPoint pos) {
++		if (pos.isValid()) {
++			return pos.toString();
++		} else {
++			return &quot;N/S  __ &#176; __ . ___ W/E ___ &#176; __ . ___&quot;;
++		}
++	}
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001828.html">[Cachewolf-svn] r1910 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001830.html">[Cachewolf-svn] r1912 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1829">[ date ]</a>
+              <a href="thread.html#1829">[ thread ]</a>
+              <a href="subject.html#1829">[ subject ]</a>
+              <a href="author.html#1829">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

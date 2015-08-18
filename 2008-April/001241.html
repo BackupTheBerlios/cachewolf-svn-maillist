@@ -1,0 +1,173 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1347 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-April/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1347%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200804082341.m38NfXYl014962%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001240.html">
+   <LINK REL="Next"  HREF="001242.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1347 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1347%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200804082341.m38NfXYl014962%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1347 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Wed Apr  9 01:41:33 CEST 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001240.html">[Cachewolf-svn] r1346 - in trunk/src/CacheWolf: . navi
+</A></li>
+        <LI>Next message: <A HREF="001242.html">[Cachewolf-svn] r1348 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1241">[ date ]</a>
+              <a href="thread.html#1241">[ thread ]</a>
+              <a href="subject.html#1241">[ subject ]</a>
+              <a href="author.html#1241">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2008-04-09 01:41:31 +0200 (Wed, 09 Apr 2008)
+New Revision: 1347
+
+Added:
+   trunk/src/CacheWolf/NewProfileWizard.java
+Modified:
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/ProfilesForm.java
+Log:
+NewProfileWizard: now also displayed when started from the selection of profiles
+Details: the &lt;cache&gt;.xml are now saved regardless on wheter &quot;save unsaved changes&quot; is ansered with &quot;no&quot;
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2008-04-08 20:45:25 UTC (rev 1346)
++++ trunk/src/CacheWolf/MainMenu.java	2008-04-08 23:41:31 UTC (rev 1347)
+@@ -233,28 +233,11 @@
+ 			// subMenu for profiles, part of &quot;Application&quot; menu 
+ 			///////////////////////////////////////////////////////////////////////
+ 			if(mev.selectedItem == mnuNewProfile){
+-				Global.mainTab.saveUnsavedChanges(true);
+-				NewProfileForm f=new NewProfileForm(pref.baseDir);
+-				int code=f.execute(getFrame(), Gui.CENTER_FRAME);
+-				if (code==0) {
+-					profile.clearProfile(); 
+-					pref.lastProfile=profile.name=f.profileDir;
+-					pref.savePreferences(); // Remember that this was the last profile used
+-					profile.dataDir=pref.baseDir+f.profileDir+&quot;/&quot;;
+-					
+-					CoordsScreen cs = new CoordsScreen();
+-					cs.setFields(new CWPoint(), CWPoint.CW);
+-					if (cs.execute() == FormBase.IDOK) {
+-						profile.centre.set(cs.getCoords());
+-						profile.hasUnsavedChanges=true;
+-					}
+-
++				if (NewProfileWizard.startNewProfileWizard(getFrame()) ) {
+ 					Filter.showBlacklisted=false;
+ 					filtBlack.modifiers&amp;=~MenuItem.Checked;
+-					tbp.refreshTable();
+-					Global.mainForm.setTitle(&quot;Cachewolf &quot;+Version.getRelease()+&quot; - &quot;+profile.name);
++					tbp.refreshTable(); // TODO if the list was empty before a new profile was created, this causes a ArrayIndexOutOfBoundsException, it doesn't cause any harm, but should be caught at the appropriate point
+ 				}
+-				f.close(0);
+ 			}
+ 			if(mev.selectedItem == mnuOpenProfile){
+ 				Global.mainTab.saveUnsavedChanges(true);
+@@ -458,6 +441,7 @@
+ 			}
+ 			if(mev.selectedItem == exit){
+ 				Global.mainTab.saveUnsavedChanges(true);
++				CacheHolder.saveAllModifiedDetails();
+ 				tbp.saveColWidth(pref);
+ 				ewe.sys.Vm.exit(0);
+ 			}
+
+Added: trunk/src/CacheWolf/NewProfileWizard.java
+===================================================================
+--- trunk/src/CacheWolf/NewProfileWizard.java	2008-04-08 20:45:25 UTC (rev 1346)
++++ trunk/src/CacheWolf/NewProfileWizard.java	2008-04-08 23:41:31 UTC (rev 1347)
+@@ -0,0 +1,31 @@
++package CacheWolf;
++
++import ewe.ui.FormBase;
++import ewe.ui.Gui;
++
++public class NewProfileWizard {
++
++	static public boolean startNewProfileWizard(ewe.ui.Frame parent) {
++		if (Global.mainTab != null) Global.mainTab.saveUnsavedChanges(true);
++		Preferences pref = Global.getPref();
++		NewProfileForm f=new NewProfileForm(pref.baseDir);
++		int code=f.execute(parent, Gui.CENTER_FRAME);
++		if (code==0) {
++			Profile profile = Global.getProfile();
++			profile.clearProfile(); 
++			pref.lastProfile=profile.name=f.profileDir;
++			pref.savePreferences(); // Remember that this was the last profile used
++			profile.dataDir=pref.baseDir+f.profileDir+&quot;/&quot;;
++			
++			CoordsScreen cs = new CoordsScreen();
++			cs.setFields(new CWPoint(), CWPoint.CW);
++			if (cs.execute() == FormBase.IDOK) {
++				profile.centre.set(cs.getCoords());
++				profile.hasUnsavedChanges=true;
++			}
++			Global.mainForm.setTitle(&quot;Cachewolf &quot;+Version.getRelease()+&quot; - &quot;+profile.name);
++		}
++		f.close(0);
++		return (code == 0);
++	}
++}
+
+Modified: trunk/src/CacheWolf/ProfilesForm.java
+===================================================================
+--- trunk/src/CacheWolf/ProfilesForm.java	2008-04-08 20:45:25 UTC (rev 1346)
++++ trunk/src/CacheWolf/ProfilesForm.java	2008-04-08 23:41:31 UTC (rev 1347)
+@@ -121,8 +121,10 @@
+ 				}
+ 			}
+ 			if (ev.target == btnNew){
+-				newSelectedProfile=createNewProfile();
+-				if (newSelectedProfile.length()&gt;0) close(1);
++				if (NewProfileWizard.startNewProfileWizard(getFrame()) ) {
++					newSelectedProfile = Global.getProfile().name;
++					close(1);
++				}
+ 			}
+ 		}
+ 		super.onEvent(ev);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001240.html">[Cachewolf-svn] r1346 - in trunk/src/CacheWolf: . navi
+</A></li>
+	<LI>Next message: <A HREF="001242.html">[Cachewolf-svn] r1348 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1241">[ date ]</a>
+              <a href="thread.html#1241">[ thread ]</a>
+              <a href="subject.html#1241">[ subject ]</a>
+              <a href="author.html#1241">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,338 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1991 - in trunk/src/CacheWolf: . imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-July/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1991%20-%20in%20trunk/src/CacheWolf%3A%20.%20imp&In-Reply-To=%3C200907050756.n657uQGb000934%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001909.html">
+   <LINK REL="Next"  HREF="001911.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1991 - in trunk/src/CacheWolf: . imp</H1>
+    <B>engywuck at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1991%20-%20in%20trunk/src/CacheWolf%3A%20.%20imp&In-Reply-To=%3C200907050756.n657uQGb000934%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1991 - in trunk/src/CacheWolf: . imp">engywuck at mail.berlios.de
+       </A><BR>
+    <I>Sun Jul  5 09:56:26 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001909.html">[Cachewolf-svn] r1990 - trunk/res_noewe/webmapservices
+</A></li>
+        <LI>Next message: <A HREF="001911.html">[Cachewolf-svn] r1992 - in trunk/src/CacheWolf: . imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1910">[ date ]</a>
+              <a href="thread.html#1910">[ thread ]</a>
+              <a href="subject.html#1910">[ subject ]</a>
+              <a href="author.html#1910">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: engywuck
+Date: 2009-07-05 09:56:24 +0200 (Sun, 05 Jul 2009)
+New Revision: 1991
+
+Modified:
+   trunk/src/CacheWolf/CacheHolderDetail.java
+   trunk/src/CacheWolf/CacheImages.java
+   trunk/src/CacheWolf/ImageInfo.java
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+Image URLs are now saved. Images from geocaching.com are not refetched when updating the cache, as the URLs are unique. Results in a nice improvement of update speed :-) (See <A HREF="http://www.geoclub.de/viewtopic.php?f=40&amp;t=33353">http://www.geoclub.de/viewtopic.php?f=40&amp;t=33353</A>)
+
+Modified: trunk/src/CacheWolf/CacheHolderDetail.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolderDetail.java	2009-07-04 23:14:49 UTC (rev 1990)
++++ trunk/src/CacheWolf/CacheHolderDetail.java	2009-07-05 07:56:24 UTC (rev 1991)
+@@ -236,7 +236,13 @@
+ 			dummy = ex.findNext();
+ 			while(ex.endOfSearch() == false){
+ 				imageInfo = new ImageInfo();
+-				imageInfo.setFilename(SafeXML.strxmldecode(dummy));
++				int pos=dummy.indexOf(&quot;&lt;URL&gt;&quot;);
++				if (pos&gt;0) {
++					imageInfo.setFilename(SafeXML.strxmldecode(dummy.substring(0,pos)));
++					imageInfo.setURL(SafeXML.strxmldecode((dummy.substring(pos+5,dummy.indexOf(&quot;&lt;/URL&gt;&quot;)))));
++				} else {
++					imageInfo.setFilename(SafeXML.strxmldecode(dummy));
++				}
+ 				this.images.add(imageInfo);
+ 				dummy = ex.findNext();
+ 			}
+@@ -369,7 +375,12 @@
+ 				  String stbuf = new String();
+ 				  for(int i = 0;i&lt;images.size();i++){
+ 						stbuf = images.get(i).getFilename();
+-						detfile.print(&quot;    &lt;IMG&gt;&quot;+SafeXML.strxmlencode(stbuf)+&quot;&lt;/IMG&gt;\n&quot;);
++						String urlBuf = images.get(i).getURL();
++						if (urlBuf != null &amp;&amp; !urlBuf.equals(&quot;&quot;)) {
++							detfile.print(&quot;    &lt;IMG&gt;&quot;+SafeXML.strxmlencode(stbuf)+&quot;&lt;URL&gt;&quot;+SafeXML.strxmlencode(urlBuf)+&quot;&lt;/URL&gt;&lt;/IMG&gt;\n&quot;);
++						} else {
++							detfile.print(&quot;    &lt;IMG&gt;&quot;+SafeXML.strxmlencode(stbuf)+&quot;&lt;/IMG&gt;\n&quot;);
++						}
+ 				  }
+ 				  int iis = images.size();
+ 				  for(int i = 0;i&lt;iis;i++){
+
+Modified: trunk/src/CacheWolf/CacheImages.java
+===================================================================
+--- trunk/src/CacheWolf/CacheImages.java	2009-07-04 23:14:49 UTC (rev 1990)
++++ trunk/src/CacheWolf/CacheImages.java	2009-07-05 07:56:24 UTC (rev 1991)
+@@ -3,6 +3,7 @@
+  */
+ package CacheWolf;
+ 
++import utils.FileBugfix;
+ import ewe.util.Vector;
+ 
+ /**
+@@ -137,4 +138,38 @@
+ 		return this.getDisplayImages(false);
+ 	}
+ 	
++	/**
++	 * Checks if a image of a given URL needs to be spidered. It does &lt;b&gt;not&lt;/b&gt; need to be spidered
++	 * if the following conditions meet: &lt;ul&gt;
++	 * &lt;li&gt;The url is from &lt;code&gt;<A HREF="http://img.geocaching.com/cache/&lt;/code">http://img.geocaching.com/cache/&lt;/code</A>&gt; or 
++	 * &lt;code&gt;<A HREF="http://img.groundspeak.com/cache/&lt;/code">http://img.groundspeak.com/cache/&lt;/code</A>&gt;. (Reason: Images at these places don't change - 
++	 * if images change, they get a new url.)&lt;/li&gt;
++	 * &lt;li&gt;An image with the given URL is among the images of the caches image object.&lt;/li&gt;
++	 * &lt;li&gt;The image is present in the file system.&lt;/li&gt;
++	 * &lt;/ul&gt; If no spidering is needed, then the &lt;code&gt;ImageInfo&lt;/code&gt; object of the equivalent image is
++	 * returned, otherwise (when spidering is needed) &lt;code&gt;null&lt;/code&gt; is returned.
++	 * @param pUrl URL to check
++	 * @return ImageInfo object
++	 */
++	public ImageInfo needsSpidering(String pUrl, String pFilename) {
++		String url = pUrl.toLowerCase();
++		ImageInfo result = null;
++		if (this.size() &gt; 0 &amp;&amp; 
++				(url.startsWith(&quot;<A HREF="http://img.geocaching.com/cache/">http://img.geocaching.com/cache/</A>&quot;)
++				 || url.startsWith(&quot;<A HREF="http://img.groundspeak.com/cache/">http://img.groundspeak.com/cache/</A>&quot;))) {
++			for (int i=0; i&lt;this.size(); i++) {
++				ImageInfo img = this.get(i);
++				if (img.getURL().toLowerCase().equals(url) 
++						&amp;&amp; img.getFilename().equals(pFilename)) {
++					String location = Global.getProfile().dataDir + pFilename;
++					if ((new FileBugfix(location)).exists()) {
++						result = img;
++						break;
++					}
++				}
++			}
++		}
++		return result;
++	}
++	
+ }
+\ No newline at end of file
+
+Modified: trunk/src/CacheWolf/ImageInfo.java
+===================================================================
+--- trunk/src/CacheWolf/ImageInfo.java	2009-07-04 23:14:49 UTC (rev 1990)
++++ trunk/src/CacheWolf/ImageInfo.java	2009-07-05 07:56:24 UTC (rev 1991)
+@@ -8,15 +8,17 @@
+  */
+ public class ImageInfo {
+ 	
+-	private String filename=&quot;&quot;;
+-	private String title=&quot;&quot;;
++	private String filename=null;
++	private String title=null;
+ 	private String comment=null;
++	private String URL;
+ 
+ 	/**
+ 	 * Gets the filename of the image (without path)
+ 	 * @return Filename
+ 	 */
+ 	public String getFilename() {
++		if (filename == null) return &quot;&quot;;
+     	return filename;
+     }
+ 	/**
+@@ -31,6 +33,7 @@
+ 	 * @return Title
+ 	 */
+ 	public String getTitle() {
++		if (title == null) return &quot;&quot;;
+     	return title;
+     }
+ 	/**
+@@ -60,5 +63,13 @@
+ 			this.comment = comment;
+ 		}
+     }
++	public String getURL() {
++		if (URL == null) return &quot;&quot;;
++    	return URL;
++    }
+ 	
++	public void setURL(String url) {
++    	URL = url;
++    }
++	
+ }
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2009-07-04 23:14:49 UTC (rev 1990)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2009-07-05 07:56:24 UTC (rev 1991)
+@@ -33,6 +33,7 @@
+ import CacheWolf.CacheDB;
+ import CacheWolf.CacheHolder;
+ import CacheWolf.CacheHolderDetail;
++import CacheWolf.CacheImages;
+ import CacheWolf.CacheSize;
+ import CacheWolf.CacheTerrDiff;
+ import CacheWolf.CacheType;
+@@ -1170,9 +1171,17 @@
+ 		int imgCounter = 0;
+ 		String imgName, oldImgName, imgType, imgUrl, imgComment;
+ 		Vector spideredUrls=new Vector(15);
+-		ImageInfo imageInfo;
++		ImageInfo imageInfo=null;
+ 		Extractor exImgBlock,exImgComment;
+ 		int idxUrl; // Index of already spidered Url in list of spideredUrls
++		CacheImages lastImages=null;
++		
++		// First: Get current image object of waypoint before spidering images.
++		CacheHolder oldCh = Global.getProfile().cacheDB.get(chD.getParent().getWayPoint());
++		if (oldCh != null) {
++			lastImages = oldCh.getFreshDetails().images;
++		}
++		
+ 		//========
+ 		//In the long description
+ 		//========
+@@ -1205,16 +1214,26 @@
+ 						// Check whether image was already spidered for this cache
+ 						idxUrl=spideredUrls.find(imgUrl);
+ 						imgName = chD.getParent().getWayPoint() + &quot;_&quot; + Convert.toString(imgCounter);
+-						imageInfo = new ImageInfo();
+-						if (idxUrl&lt;0) { // New image
+-							pref.log(&quot;Loading image: &quot; + imgUrl+&quot; as &quot;+imgName);
+-							spiderImage(imgUrl, imgName+imgType);
+-							imageInfo.setFilename(imgName+imgType);
++						if (lastImages != null) {
++							imageInfo = lastImages.needsSpidering(imgUrl, imgName+imgType);
++						}
++						if (imageInfo == null) {
++							imageInfo = new ImageInfo();
++							if (idxUrl&lt;0) { // New image
++								pref.log(&quot;Loading image: &quot; + imgUrl+&quot; as &quot;+imgName);
++								spiderImage(imgUrl, imgName+imgType);
++								imageInfo.setFilename(imgName+imgType);
++								imageInfo.setURL(imgUrl);
++								spideredUrls.add(imgUrl);
++							} else { // Image already spidered as wayPoint_'idxUrl'
++								pref.log(&quot;Already loaded image: &quot; + imgUrl);
++								oldImgName = chD.getParent().getWayPoint() + &quot;_&quot; + Convert.toString(idxUrl);
++								imageInfo.setFilename(oldImgName+imgType);
++								imageInfo.setURL(imgUrl);
++							}
++						} else {
++							pref.log(&quot;Already exising image: &quot; + imgUrl);
+ 							spideredUrls.add(imgUrl);
+-						} else { // Image already spidered as wayPoint_'idxUrl'
+-							pref.log(&quot;Already loaded image: &quot; + imgUrl);
+-							oldImgName = chD.getParent().getWayPoint() + &quot;_&quot; + Convert.toString(idxUrl);
+-							imageInfo.setFilename(oldImgName+imgType);
+ 						}
+ 						imageInfo.setTitle(imgName);
+ 						imageInfo.setComment(null);
+@@ -1254,16 +1273,26 @@
+ 						// Check whether image was already spidered for this cache
+ 						idxUrl=spideredUrls.find(imgUrl);
+ 						imgName = chD.getParent().getWayPoint() + &quot;_&quot; + Convert.toString(imgCounter);
+-						imageInfo = new ImageInfo();
+-						if (idxUrl&lt;0) { // New image
+-							pref.log(&quot;Loading image: &quot; + imgUrl+&quot; as &quot;+imgName);
+-							spiderImage(imgUrl, imgName+imgType);
+-							imageInfo.setFilename(imgName+imgType);
++						if (lastImages != null) {
++							imageInfo = lastImages.needsSpidering(imgUrl, imgName+imgType);
++						}
++						if (imageInfo == null) {
++							imageInfo = new ImageInfo();
++							if (idxUrl&lt;0) { // New image
++								pref.log(&quot;Loading image: &quot; + imgUrl+&quot; as &quot;+imgName);
++								spiderImage(imgUrl, imgName+imgType);
++								imageInfo.setFilename(imgName+imgType);
++								imageInfo.setURL(imgUrl);
++								spideredUrls.add(imgUrl);
++							} else { // Image already spidered as wayPoint_'idxUrl'
++								pref.log(&quot;Already loaded image: &quot; + imgUrl);
++								oldImgName = chD.getParent().getWayPoint() + &quot;_&quot; + Convert.toString(idxUrl);
++								imageInfo.setFilename(oldImgName+imgType);
++								imageInfo.setURL(imgUrl);
++							}
++						} else {
++							pref.log(&quot;Already exising image: &quot; + imgUrl);
+ 							spideredUrls.add(imgUrl);
+-						} else { // Image already spidered as wayPoint_'idxUrl'
+-							pref.log(&quot;Already loaded image: &quot; + imgUrl);
+-							oldImgName = chD.getParent().getWayPoint() + &quot;_&quot; + Convert.toString(idxUrl);
+-							imageInfo.setFilename(oldImgName+imgType);
+ 						}
+ 						imageInfo.setTitle(exImgName.findNext());
+ 						while (imgComment.startsWith(&quot;&lt;br /&gt;&quot;)) imgComment=imgComment.substring(6);
+@@ -1293,12 +1322,21 @@
+ 						// Check whether image was already spidered for this cache
+ 						idxUrl=spideredUrls.find(imgUrl);
+ 						if (idxUrl&lt;0) { // New image
+-							imageInfo = new ImageInfo();
+ 							imgName = chD.getParent().getWayPoint() + &quot;_&quot; + Convert.toString(imgCounter);
+-							pref.log(&quot;Loading image: &quot; + imgUrl+&quot; as &quot;+imgName);
+-							spiderImage(imgUrl, imgName+imgType);
+-							imageInfo.setFilename(imgName+imgType);
+-							spideredUrls.add(imgUrl);
++							if (lastImages != null) {
++								imageInfo = lastImages.needsSpidering(imgUrl, imgName+imgType);
++							}
++							if (imageInfo == null) {
++								imageInfo = new ImageInfo();
++								pref.log(&quot;Loading image: &quot; + imgUrl+&quot; as &quot;+imgName);
++								spiderImage(imgUrl, imgName+imgType);
++								imageInfo.setFilename(imgName+imgType);
++								imageInfo.setURL(imgUrl);
++								spideredUrls.add(imgUrl);
++							} else {
++								pref.log(&quot;Already exising image: &quot; + imgUrl);
++								spideredUrls.add(imgUrl);
++							}
+ 							imageInfo.setTitle(imgName);
+ 							imgCounter++;
+ 							chD.images.add(imageInfo);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001909.html">[Cachewolf-svn] r1990 - trunk/res_noewe/webmapservices
+</A></li>
+	<LI>Next message: <A HREF="001911.html">[Cachewolf-svn] r1992 - in trunk/src/CacheWolf: . imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1910">[ date ]</a>
+              <a href="thread.html#1910">[ thread ]</a>
+              <a href="subject.html#1910">[ subject ]</a>
+              <a href="author.html#1910">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,368 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r352 - in trunk: resources src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r352%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200701071045.l07AjHp8010112%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000029.html">
+   <LINK REL="Next"  HREF="000031.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r352 - in trunk: resources src/CacheWolf</H1>
+    <B>kalli at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r352%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200701071045.l07AjHp8010112%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r352 - in trunk: resources src/CacheWolf">kalli at mail.berlios.de
+       </A><BR>
+    <I>Sun Jan  7 11:45:17 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000029.html">[Cachewolf-svn] r351 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000031.html">[Feature #2997] Filter f&#252;r addi wpts
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#30">[ date ]</a>
+              <a href="thread.html#30">[ thread ]</a>
+              <a href="subject.html#30">[ subject ]</a>
+              <a href="author.html#30">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: kalli
+Date: 2007-01-07 11:45:13 +0100 (Sun, 07 Jan 2007)
+New Revision: 352
+
+Modified:
+   trunk/resources/cachewolf.Languages.cfg
+   trunk/src/CacheWolf/CacheHolder.java
+   trunk/src/CacheWolf/TablePanel.java
+   trunk/src/CacheWolf/myTableControl.java
+   trunk/src/CacheWolf/myTableModel.java
+Log:
+Feature Request #2997: 
+- Addi wpts werden jetzt immer unter dem Hauptcache angezeigt
+- Wird der Hauptcache selektiert (Haken), werden auch die addi wpts mit selektiert
+
+
+
+Modified: trunk/resources/cachewolf.Languages.cfg
+===================================================================
+--- trunk/resources/cachewolf.Languages.cfg	2007-01-07 10:41:40 UTC (rev 351)
++++ trunk/resources/cachewolf.Languages.cfg	2007-01-07 10:45:13 UTC (rev 352)
+@@ -161,8 +161,6 @@
+ 		1014=Aktualisieren
+ 		1015=Alle w%e4hlen
+ 		1016=Alle abw%e4hlen
+-		1017=Alle add. Wpts
+-		1018=Sel. add. Wpts
+ 		1019=Zentrum
+ 		1100=Profile
+ 		1101=Profil 1
+@@ -398,8 +396,6 @@
+ 		1014=Update
+ 		1015=Select all
+ 		1016=De-select all
+-		1017=All add. wpts
+-		1018=Sel. add. Wpts
+ 		1019=Center
+ 		1100=Profiles
+ 		1101=Profile 1
+
+Modified: trunk/src/CacheWolf/CacheHolder.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolder.java	2007-01-07 10:41:40 UTC (rev 351)
++++ trunk/src/CacheWolf/CacheHolder.java	2007-01-07 10:45:13 UTC (rev 352)
+@@ -64,6 +64,8 @@
+   public boolean is_selected = false;
+   public boolean is_HTML = true;
+   public boolean is_Checked = false;
++  public Vector addiWpts = new Vector();
++  public CacheHolder mainCache;
+     
+   
+   /**
+@@ -410,7 +412,7 @@
+ 	}
+ 	
+ 	/**
+-	 * Method foch checking if to caches belongs to each other, e.g.
++	 * Method for checking if to caches belongs to each other, e.g.
+ 	 * an additional waypoint belongs to the main cache.
+ 	 * Works currently only, if the last 4 or 5 chars of the waypoint are
+ 	 * the same, this is the gc.com way. 
+@@ -425,6 +427,45 @@
+ 		return this.wayPoint.endsWith(ch.wayPoint.substring(2));
+ 	}
+ 	
++   
++   public boolean isAddiWpt(){
++	   return CacheType.isAddiWpt(this.type);
++   }
++   
++   public boolean hasAddiWpt() {
++	   if (this.addiWpts.getCount()&gt;0) return true;
++	   else return false;
++   }
++   
++   public static void buildReferences(Vector cacheDB){
++	   CacheHolder ch, mainCh;
++	   Hashtable dbIndex = new Hashtable();
++	   Integer index;
++	   // Build index for faster search and clear all references
++	   for(int i = 0; i&lt;cacheDB.size();i++){
++			ch = (CacheHolder)cacheDB.get(i);
++			ch.addiWpts.clear();
++			ch.mainCache = null;
++			dbIndex.put((String)ch.wayPoint, new Integer(i));
++	   }
++	   // Build refeneces
++	   for(int i = 0; i&lt;cacheDB.size();i++){
++			ch = (CacheHolder)cacheDB.get(i);
++			if (ch.isAddiWpt()) {
++				//search main cache
++				if (ch.wayPoint.length() == 5){
++					index = (Integer) dbIndex.get(&quot;GC&quot;+ ch.wayPoint.substring(1));
++				} 
++				else {
++					index = (Integer) dbIndex.get(&quot;GC&quot;+ ch.wayPoint.substring(2));
++				}
++				if (index != null) {
++					mainCh = (CacheHolder) cacheDB.get(index.intValue());
++					mainCh.addiWpts.add(ch);
++					ch.mainCache = mainCh;
++				}// if
++			}// if
++	   }// for
++   }
+   
+-  
+ }
+\ No newline at end of file
+
+Modified: trunk/src/CacheWolf/TablePanel.java
+===================================================================
+--- trunk/src/CacheWolf/TablePanel.java	2007-01-07 10:41:40 UTC (rev 351)
++++ trunk/src/CacheWolf/TablePanel.java	2007-01-07 10:45:13 UTC (rev 352)
+@@ -49,7 +49,7 @@
+ */		
+ 		addLast(new ScrollBarPanel(tc = new myTableControl()));
+ 		addLast(statBar,CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		Menu m = new Menu(new String[]{MyLocale.getMsg(1010,&quot;Goto&quot;),MyLocale.getMsg(1019,&quot;Center&quot;),MyLocale.getMsg(1011,&quot;Filter&quot;),MyLocale.getMsg(1012,&quot;Delete&quot;),MyLocale.getMsg(1014,&quot;Update&quot;),MyLocale.getMsg(1018,&quot;Sel. add. wpts.&quot;),&quot;-&quot;,MyLocale.getMsg(1015,&quot;Select all&quot;),MyLocale.getMsg(1016,&quot;De-select all&quot;),MyLocale.getMsg(1017,&quot;All add. wpts&quot;)},MyLocale.getMsg(1013,&quot;With selection&quot;));
++		Menu m = new Menu(new String[]{MyLocale.getMsg(1010,&quot;Goto&quot;),MyLocale.getMsg(1019,&quot;Center&quot;),&quot;-&quot;,MyLocale.getMsg(1011,&quot;Filter&quot;),MyLocale.getMsg(1012,&quot;Delete&quot;),MyLocale.getMsg(1014,&quot;Update&quot;),&quot;-&quot;,MyLocale.getMsg(1015,&quot;Select all&quot;),MyLocale.getMsg(1016,&quot;De-select all&quot;)},MyLocale.getMsg(1013,&quot;With selection&quot;));
+ 		tc.setMenu(m);
+ 		tc.profile=profile;
+ 		tc.db = cacheDB;
+@@ -94,6 +94,7 @@
+ 		updateBearingDistance(cacheDB, pref);
+ 		////Vm.debug(&quot;IS mypref loaded? &quot; + myPreferences.mylgDeg);
+ 		// tc.setTableModel(myMod); Not needed ?
++		myMod.updateRows();
+ 		tc.update(true);
+ 		statBar.updateDisplay();
+ 	}
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2007-01-07 10:41:40 UTC (rev 351)
++++ trunk/src/CacheWolf/myTableControl.java	2007-01-07 10:45:13 UTC (rev 352)
+@@ -43,31 +43,6 @@
+ 			}
+ 			tbp.refreshTable();
+ 		}
+-
+-		if (selectedItem.toString().equals(MyLocale.getMsg(1017,&quot;All add. wpts&quot;))){
+-			for(int i = 0; i &lt;	db.size(); i++){
+-				ch = (CacheHolder)db.get(i);
+-				if (CacheType.isAddiWpt(ch.type))ch.is_Checked = true;
+-				//db.set(i, ch);
+-			}
+-			tbp.refreshTable();
+-		}
+-
+-		if (selectedItem.toString().equals(MyLocale.getMsg(1018,&quot;Sel. add. wpts.&quot;))){
+-			CacheHolder ch_addi;
+-			for(int i = 0; i &lt;	db.size(); i++){
+-				ch = (CacheHolder)db.get(i);
+-				if (ch.is_Checked &amp;&amp; !CacheType.isAddiWpt(ch.type)){
+-					// search addi wpts to main cache
+-					for (int j = 0; j &lt; db.size(); j++){
+-						ch_addi = (CacheHolder)db.get(j);
+-						if (ch_addi.belongsTo(ch))ch_addi.is_Checked = true;
+-					}
+-				}
+-			}
+-			tbp.refreshTable();
+-		}
+-
+ 		
+ 		if (selectedItem.toString().equals(MyLocale.getMsg(1011,&quot;Filter&quot;))){
+ 			for(int i = 0; i &lt;	db.size(); i++){
+@@ -125,6 +100,7 @@
+ 			tbp.myGotoPanel.setDestination((ch.LatLon));
+ //this.getSelectedCell(((Menu)selectedItem).curPoint)..LatLon
+ 		}
++
+ 	}
+ 	
+ 	public void  penDoubleClicked(Point where) {
+
+Modified: trunk/src/CacheWolf/myTableModel.java
+===================================================================
+--- trunk/src/CacheWolf/myTableModel.java	2007-01-07 10:41:40 UTC (rev 351)
++++ trunk/src/CacheWolf/myTableModel.java	2007-01-07 10:45:13 UTC (rev 352)
+@@ -28,6 +28,7 @@
+ 	FontMetrics fm;
+ 	String nmCheck, nmQuest, nmD,nmT,nmWay,nmName,nmLoc,nmOwn,nmHid,nmStat,nmDist,nmBear = new String();
+ 	Image checkboxTicked,checkboxUnticked;
++	static Color RED = new Color(255,0,0);
+ 	
+ 	public myTableModel(myTableControl tc, FontMetrics fm){
+ 		super();
+@@ -91,6 +92,7 @@
+ 		bug = new mImage(&quot;bug.png&quot;);
+ 		checkboxTicked = new Image(&quot;checkboxTicked.png&quot;);
+ 		checkboxUnticked= new Image(&quot;checkboxUnticked.png&quot;);
++		updateRows();
+ 	}
+ 	
+ 	/**
+@@ -131,19 +133,36 @@
+ 	//}
+ 	
+ 	public void updateRows(){
+-		this.numRows = cacheDB.size();
+-		int counter = 0;
+-		CacheHolder ch;
+-		for(int i = 0; i&lt;cacheDB.size();i++){
+-			ch = (CacheHolder)cacheDB.get(i);
+-			if(ch.is_filtered == true) counter++;
++		Vector sortDB = new Vector();
++		Vector filteredDB = new Vector();
++		CacheHolder ch, addiWpt;
++		// sort cacheDB:
++		// - addi wpts are listet behind the main cache
++		// - filtered caches are moved to the end
++		for (int i=0; i&lt;cacheDB.size(); i++){
++			ch = (CacheHolder) cacheDB.get(i);
++			if (ch.is_filtered) {
++				filteredDB.add(ch);
++			} else {
++				if (ch.isAddiWpt()){
++					// check if main wpt is filtered
++					if (ch.mainCache.is_filtered) sortDB.add(ch);
++				} else {
++					sortDB.add(ch);
++					if (ch.hasAddiWpt()){
++						for (int j=0; j&lt;ch.addiWpts.getCount();j++){
++							addiWpt = (CacheHolder)ch.addiWpts.get(j);
++							if (!addiWpt.is_filtered) sortDB.add(addiWpt);
++						}
++					}// if hasAddiWpt
++				} // if AddiWpt
++			} // if filtered
+ 		}
+-		//Vm.debug(&quot;Counter: &quot; + Convert.toString(counter));
+-		if(counter &gt; 0){
+-			this.numRows = this.numRows - counter;
+-			cacheDB.sort(new MyComparer(&quot;filter&quot;), false);
+-		}
+-		 
++		// rebuild database
++		cacheDB.clear();
++		cacheDB.addAll(sortDB);
++		cacheDB.addAll(filteredDB);
++		this.numRows = sortDB.getCount();
+ 	}
+ 	
+ 	/**
+@@ -211,7 +230,6 @@
+ 	public Object getCellData(int row, int col){
+ 		IconAndText wpVal = new IconAndText(); //(IImage)bug, &quot;Test Me&quot;, fm);
+ 		Object rettext = new Object();
+-		int collector = 0;
+ 			if(row == -1) {
+ 				rettext = (String)colName[col];
+ 			}
+@@ -232,7 +250,7 @@
+ 								if (ch.is_Checked) rettext=checkboxTicked; 
+ 								else rettext=checkboxUnticked;
+ 							}
+-							if(colName[col].equals(nmQuest)) rettext = (IImage)cacheImages[Convert.parseInt(ch.type)];				
++							if(colName[col].equals(nmQuest)) rettext = (IImage) cacheImages[Convert.parseInt(ch.type)];
+ 							if(colName[col].equals(nmD)) rettext = (String)ch.hard;
+ 							if(colName[col].equals(nmT)) rettext = (String)ch.terrain;
+ 							if(colName[col].equals(nmWay)){
+@@ -258,7 +276,9 @@
+ 								wpVal.addColumn(rettext);
+ 								rettext = wpVal;
+ 							}
+-							if(colName[col].equals(nmLoc)) rettext = (String)ch.LatLon;
++							if(colName[col].equals(nmLoc)) {
++								rettext = (String)ch.LatLon;
++							}
+ 							if(colName[col].equals(nmOwn)) rettext = (String)ch.CacheOwner;
+ 							if(colName[col].equals(nmHid)) rettext = (String)ch.DateHidden;
+ 							if(colName[col].equals(nmStat)) rettext = (String)ch.CacheStatus;
+@@ -281,6 +301,19 @@
+ 			if (cell.y&gt;=0 &amp;&amp; cell.x==0) {
+ 				CacheHolder ch = (CacheHolder)cacheDB.get(cell.y);
+ 				ch.is_Checked= !ch.is_Checked;
++				// set the ceckbox also for addi wpts
++				if (ch.hasAddiWpt()){
++					CacheHolder addiWpt;
++					int off = 1;
++					for (int i=0;i&lt;ch.addiWpts.getCount();i++){
++						addiWpt = (CacheHolder)ch.addiWpts.get(i);
++						addiWpt.is_Checked = ch.is_Checked;
++						if (!addiWpt.is_filtered){
++							tcControl.repaintCell(cell.y + off++, 0);
++						}
++					}
++					
++				}
+ 				updateRows();
+ 				// Don't consume the event. Why ?
+ 			}
+@@ -339,9 +372,8 @@
+ 	
+ 	private int getCacheIndex(String wp){
+ 		int retval = -1;
+-		CacheHolder ch = new CacheHolder();
++		CacheHolder ch;
+ 		for(int i = 0; i&lt;cacheDB.size();i++){
+-			ch = new CacheHolder();
+ 			ch = (CacheHolder)cacheDB.get(i);
+ 			if(ch.wayPoint.equals(wp)){
+ 				return i;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000029.html">[Cachewolf-svn] r351 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000031.html">[Feature #2997] Filter f&#252;r addi wpts
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#30">[ date ]</a>
+              <a href="thread.html#30">[ thread ]</a>
+              <a href="subject.html#30">[ subject ]</a>
+              <a href="author.html#30">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

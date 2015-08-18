@@ -1,0 +1,315 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r546 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r546%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702092019.l19KJhR8025877%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000346.html">
+   <LINK REL="Next"  HREF="000348.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r546 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r546%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702092019.l19KJhR8025877%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r546 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Fri Feb  9 21:19:43 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000346.html">[Cachewolf-svn] r545 - in trunk: resources src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000348.html">[Cachewolf-svn] [Bug #10123] caches verwalten - move
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#347">[ date ]</a>
+              <a href="thread.html#347">[ thread ]</a>
+              <a href="subject.html#347">[ subject ]</a>
+              <a href="author.html#347">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-02-09 21:19:35 +0100 (Fri, 09 Feb 2007)
+New Revision: 546
+
+Modified:
+   trunk/src/CacheWolf/DetailsPanel.java
+   trunk/src/CacheWolf/MainForm.java
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/Profile.java
+   trunk/src/CacheWolf/ProfileDataForm.java
+   trunk/src/CacheWolf/myTableControl.java
+Log:
+Filter: Bugfix. Wurde bei leerem Profil nicht richtig initialisiert
+Bei Aenderungen am Profil kommt jetzt vor dem Beenden bzw. Laden eines neuen Profils eine Warnmeldung
+
+Modified: trunk/src/CacheWolf/DetailsPanel.java
+===================================================================
+--- trunk/src/CacheWolf/DetailsPanel.java	2007-02-09 20:17:21 UTC (rev 545)
++++ trunk/src/CacheWolf/DetailsPanel.java	2007-02-09 20:19:35 UTC (rev 546)
+@@ -225,6 +225,7 @@
+ 	public void onEvent(Event ev){
+ 		if (ev instanceof DataChangeEvent ) {
+ 			dirty_details = true;
++			profile.hasUnsavedChanges=true;
+ 		}
+ 		if(ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.PRESSED){
+ 			if(ev.target == btnNotes){
+
+Modified: trunk/src/CacheWolf/MainForm.java
+===================================================================
+--- trunk/src/CacheWolf/MainForm.java	2007-02-09 20:17:21 UTC (rev 545)
++++ trunk/src/CacheWolf/MainForm.java	2007-02-09 20:19:35 UTC (rev 546)
+@@ -36,6 +36,11 @@
+ 		if (pref.hasCloseButton) super.checkButtons();
+ 	} 
+ 
++	protected boolean canExit(int exitCode) {
++		mTab.saveUnsavedChanges(true);
++		return true;
++	}
++	
+ 	public void doIt(){
+ 		this.title = &quot;CacheWolf &quot; + Version.getRelease();
+ 		this.exitSystemOnClose = true;
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2007-02-09 20:17:21 UTC (rev 545)
++++ trunk/src/CacheWolf/MainMenu.java	2007-02-09 20:19:35 UTC (rev 546)
+@@ -179,6 +179,7 @@
+ 		Preferences pref=Global.getPref();
+ 		Profile profile=Global.getProfile();
+ 		Vector cacheDB=profile.cacheDB;
++		Global.mainTab.updatePendingChanges();
+ 		if (ev instanceof MenuEvent){ //&amp;&amp; ev.type == MenuEvent.PRESSED
+ 			MenuEvent mev = (MenuEvent)ev;
+ 			if(mev.selectedItem == wolflang){
+@@ -194,6 +195,7 @@
+ 				is.execute(father.getFrame(), Gui.CENTER_FRAME);
+ 			}
+ 			if(mev.selectedItem == mnuNewProfile){
++				Global.mainTab.saveUnsavedChanges(true);
+ 				NewProfileForm f=new NewProfileForm(pref.baseDir);
+ 			    int code=f.execute(getFrame(), Gui.CENTER_FRAME);
+ 				if (code==0) { 
+@@ -208,7 +210,8 @@
+ 				f.close(0);
+ 			}
+ 			if(mev.selectedItem == mnuOpenProfile){
+-				if (pref.selectProfile(profile,Preferences.PROFILE_SELECTOR_FORCED_ON,false)) {
++					Global.mainTab.saveUnsavedChanges(true);
++					if (pref.selectProfile(profile,Preferences.PROFILE_SELECTOR_FORCED_ON,false)) {
+ 					profile.cacheDB.clear();
+ 					tbp.setSelectedCache(-1);
+ 					profile.readIndex();
+@@ -480,6 +483,7 @@
+ 				tbp.resetModel();
+ 			}
+ 			if(mev.selectedItem == exit){
++				Global.mainTab.saveUnsavedChanges(true);
+ 				ewe.sys.Vm.exit(0);
+ 			}
+ 			if(mev.selectedItem == sysinfo){
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2007-02-09 20:17:21 UTC (rev 545)
++++ trunk/src/CacheWolf/MainTab.java	2007-02-09 20:19:35 UTC (rev 546)
+@@ -138,9 +138,7 @@
+ //				Vm.setSIP(0);
+ 				MyLocale.setSIPOff();
+ 			}
+-			if(detP.isDirty()) {
+-				detP.saveDirtyWaypoint();
+-			}
++			updatePendingChanges();
+ 			if(this.getSelectedItem() != 0){
+ 				if (tbP.getSelectedCache()&gt;=cacheDB.size())
+ 					ch=null;
+@@ -232,6 +230,32 @@
+ */			//TODO what to do, if there is a map at centerTo, but it is not loaded because of mapSwitchMode == dest &amp; cuurpos und daf&#252;r gibt es keine Karte 
+ 		}
+ 	}
++	
++	/** Save any changes from DetailsPanel before operating on the database */
++	public void updatePendingChanges() {
++		if(detP.isDirty()) {
++			detP.saveDirtyWaypoint();
++		}
++	}
++	
++	/** Save the index file and any pending change in DetailsPanel
++	 * 
++	 * @param askForConfirmation If true, the save can be cancelled by user
++	 */
++	public void saveUnsavedChanges(boolean askForConfirmation) {
++		boolean saveIndex=!askForConfirmation; // Definitely save it if no confirmation needed
++		updatePendingChanges(); // Updated the cacheDB with pending changes from DetailsPanel
++		if (askForConfirmation) { // Don't know whether to save, have to ask
++			if (profile.hasUnsavedChanges &amp;&amp;     // Only ask if there were changes 
++				(new MessageBox(MyLocale.getMsg(144,&quot;Warnung&quot;),MyLocale.getMsg(1207,&quot;Your profile has unsaved changes. Do you want to save?&quot;),MessageBox.DEFOKB|MessageBox.NOB)).execute()==MessageBox.IDOK) {
++				saveIndex=true; 
++			}
++		}
++		if (saveIndex) profile.saveIndex(Global.getPref(),false);
++	}
++
++
++	
+ }
+ 
+ 
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2007-02-09 20:17:21 UTC (rev 545)
++++ trunk/src/CacheWolf/Profile.java	2007-02-09 20:19:35 UTC (rev 546)
+@@ -11,6 +11,7 @@
+ import ewe.sys.LocalResource;
+ import ewe.sys.Locale;
+ import ewe.sys.Vm;
++import ewe.ui.*;
+ import ewe.ui.ProgressBarForm;
+ import ewe.util.Hashtable;
+ import ewe.util.Vector;
+@@ -51,12 +52,16 @@
+ 	public String filterSize = new String(FILTERSIZE);
+ 	//filter settings for archived ... owner (section) in filterscreen
+ 	public String filterVar = new String(FILTERVAR);
+-	public String filterDist=new String(&quot;&quot;);
+-	public String filterDiff=new String(&quot;&quot;);
+-	public String filterTerr=new String(&quot;&quot;);
++	public String filterDist=new String(&quot;L&quot;);
++	public String filterDiff=new String(&quot;L&quot;);
++	public String filterTerr=new String(&quot;L&quot;);
+ 
+ 	public boolean selectionChanged = true; // (&quot;H&#228;ckchen&quot;) used by movingMap to get to knao if it should update the caches in the map 
+-
++	/** True if the profile has been modified and not saved
++	 * The following modifications set this flag: New profile centre, Change of waypoint data 
++	 */
++	public boolean hasUnsavedChanges = false;
++	
+ 	//TODO Add other settings, such as max. number of logs to spider
+ 	//TODO Add settings for the preferred mapper to allow for maps other than expedia and other resolutions
+ 
+@@ -74,6 +79,7 @@
+ 		dataDir=&quot;&quot;;  
+ 		last_sync_opencaching = &quot;&quot;;
+ 		distOC = &quot;&quot;;
++		hasUnsavedChanges=false;
+ 	}
+ 
+ 
+@@ -150,10 +156,9 @@
+ 			detfile.close();
+ 			if(showprogress) pbf.exit(0);
+ 		}
++		hasUnsavedChanges=false;
+ 	}
+ 
+-
+-
+ 	/**
+ 	 *	Method to read the index.xml file that holds the total information
+ 	 *	on available caches in the database. The database in nothing else
+@@ -255,6 +260,7 @@
+ 			e.printStackTrace();
+ 		}
+ 		normalizeFilters();
++		hasUnsavedChanges=false;
+ 	}
+ 
+ 	public int getCacheIndex(String wp){
+@@ -370,8 +376,6 @@
+ 	public void buildReferences(){
+ 		CacheHolder ch, mainCh;
+ 		Hashtable dbIndex = new Hashtable((int)(cacheDB.size()/0.75f + 1), 0.75f); // initialize so that von rehashing is neccessary
+-		Locale l = Vm.getLocale();
+-		LocalResource lr = l.getLocalResource(&quot;cachewolf.Languages&quot;,true);
+ 
+ 		Integer index;
+ 		// Build index for faster search and clear all references
+@@ -404,7 +408,7 @@
+ 		for(int i =  0; i &lt; max ;i++){
+ 			ch = (CacheHolder)cacheDB.get(i);
+ 			if (ch.hasAddiWpt() &amp;&amp; (ch.addiWpts.size()&gt; 1)){
+-				ch.addiWpts.sort(new MyComparer((String)lr.get(1002,&quot;Waypoint&quot;)), false);
++				ch.addiWpts.sort(new MyComparer(MyLocale.getMsg(1002,&quot;Waypoint&quot;)), false);
+ 			}
+ 		}
+ 	
+
+Modified: trunk/src/CacheWolf/ProfileDataForm.java
+===================================================================
+--- trunk/src/CacheWolf/ProfileDataForm.java	2007-02-09 20:17:21 UTC (rev 545)
++++ trunk/src/CacheWolf/ProfileDataForm.java	2007-02-09 20:19:35 UTC (rev 546)
+@@ -75,11 +75,13 @@
+ 				if (cs.execute()== CoordsScreen.IDOK){
+ 					profile.centre.set(cs.getCoords());
+ 					btnProfileCentre.setText(profile.centre.toString());
++					profile.hasUnsavedChanges=true;
+ 				}
+ 			}
+ 			if (ev.target == btnCur2Prof){
+ 				profile.centre.set(pref.curCentrePt);
+ 				btnProfileCentre.setText(profile.centre.toString());
++				profile.hasUnsavedChanges=true;
+ 			}
+ 			if (ev.target == btnProf2Cur){
+ 				pref.curCentrePt.set(profile.centre);
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2007-02-09 20:17:21 UTC (rev 545)
++++ trunk/src/CacheWolf/myTableControl.java	2007-02-09 20:19:35 UTC (rev 546)
+@@ -92,6 +92,7 @@
+ 						i++;
+ 					}
+ 				}
++			profile.hasUnsavedChanges=true;	
+ 			tbp.refreshTable();
+ 		}
+ 		
+@@ -122,6 +123,7 @@
+                             }
+                     }
+             }
++			profile.hasUnsavedChanges=true;	
+             tbp.refreshTable();
+             Vm.showWait(false);
+ 		}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000346.html">[Cachewolf-svn] r545 - in trunk: resources src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000348.html">[Cachewolf-svn] [Bug #10123] caches verwalten - move
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#347">[ date ]</a>
+              <a href="thread.html#347">[ thread ]</a>
+              <a href="subject.html#347">[ subject ]</a>
+              <a href="author.html#347">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

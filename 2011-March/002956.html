@@ -1,0 +1,308 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2965 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2011-March/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2965%20-%20trunk/src/CacheWolf&In-Reply-To=%3C20110329083106.C2E45480AA1%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002957.html">
+   <LINK REL="Next"  HREF="002958.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2965 - trunk/src/CacheWolf</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2965%20-%20trunk/src/CacheWolf&In-Reply-To=%3C20110329083106.C2E45480AA1%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2965 - trunk/src/CacheWolf">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Tue Mar 29 10:31:06 CEST 2011</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002957.html">[Cachewolf-svn] r2966 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="002958.html">[Cachewolf-svn] r2967 - trunk/res_noewe/webmapservices
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2956">[ date ]</a>
+              <a href="thread.html#2956">[ thread ]</a>
+              <a href="subject.html#2956">[ subject ]</a>
+              <a href="author.html#2956">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2011-03-29 10:31:06 +0200 (Tue, 29 Mar 2011)
+New Revision: 2965
+
+Modified:
+   trunk/src/CacheWolf/GeoCodeGui.java
+   trunk/src/CacheWolf/GeocoderOsm.java
+Log:
+make coordinate search work again (with nominatim). see <A HREF="http://www.geoclub.de/viewtopic.php?f=40&amp;t=53817&amp;sid=0d4534a9ff10c743aee19e825812cb80">http://www.geoclub.de/viewtopic.php?f=40&amp;t=53817&amp;sid=0d4534a9ff10c743aee19e825812cb80</A>
+
+Modified: trunk/src/CacheWolf/GeoCodeGui.java
+===================================================================
+--- trunk/src/CacheWolf/GeoCodeGui.java	2011-03-26 12:24:26 UTC (rev 2964)
++++ trunk/src/CacheWolf/GeoCodeGui.java	2011-03-29 08:31:06 UTC (rev 2965)
+@@ -25,10 +25,7 @@
+     */
+ package CacheWolf;
+ 
+-import ewe.io.IOException;
+-import ewe.sys.Handle;
+-import ewe.sys.HandleStoppedException;
+-import ewe.sys.mThread;
++import ewe.sys.Vm;
+ import ewe.ui.CellConstants;
+ import ewe.ui.CellPanel;
+ import ewe.ui.ControlEvent;
+@@ -40,8 +37,8 @@
+ import ewe.ui.mButton;
+ import ewe.ui.mInput;
+ import ewe.ui.mLabel;
++import ewe.ui.mList;
+ import ewe.util.Vector;
+-import ewesoft.xml.sax.SAXException;
+ 
+ /**
+  * Class for entering an address and convert it to lat/lon
+@@ -55,12 +52,12 @@
+ 	CWPoint coordInp = new CWPoint();
+ 	CellPanel topLinePanel = new CellPanel();
+ 	CellPanel mainPanel = new CellPanel();
+-	HtmlDisplay foundTxt;
++	// HtmlDisplay foundTxt;
++	mList choice;
+ 	int exitKeys[]={75009};
+ 
+ 	Vector geoCodeAnsw;
+ 	String searchText;
+-	Handle[] fetchHandle = new Handle[1];
+ 
+ 	public GeoCodeGui()
+ 	{
+@@ -76,10 +73,9 @@
+ 		this.addLast(topLinePanel,CellConstants.STRETCH, CellConstants.FILL | CellConstants.WEST);
+ 
+ 		// Description of found sites
+-		foundTxt     = new HtmlDisplay();
+-		foundTxt.setPreferredSize(200, 200);
+-		ScrollBarPanel sbp = new MyScrollBarPanel(foundTxt, 0);
+-		sbp.setClientConstraints(ScrollBarPanel.HCONTRACT|ScrollBarPanel.HCONTRACT);
++		choice=new mList(8,50,false);
++		ScrollBarPanel sbp = new MyScrollBarPanel(choice, 0);
++		sbp.setOptions(MyScrollBarPanel.NeverShowVerticalScrollers);
+ 		mainPanel.addLast(sbp, CellConstants.STRETCH, CellConstants.FILL | CellConstants.WEST);
+ 
+ 		// Buttons for cancel and apply
+@@ -95,60 +91,29 @@
+ 
+ 	public void onEvent(Event ev){
+ 
+-		// Ensure that the Enter key moves to the appropriate field
+-		// for Checkboxes and Choice controls this is done via the exitKeys
+-		// For input fields we use the wantReturn field
+ 		if(ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.PRESSED){
+ 			if (ev.target == searchBtn ){
+-				foundTxt.setHtml(MyLocale.getMsg(7306, &quot;searching...&quot;));
+-				// only insert &quot;,&quot; if city AND street is set
+-				searchText = streetInp.text.trim();
+-				if (searchText.length() &gt; 0) {
+-					if (cityInp.text.trim().length() &gt; 0) searchText = searchText + &quot;,&quot;+cityInp.text;
+-				} else searchText = cityInp.text;
+-
+-				mThread thrdfetch = 
+-					new mThread() {
+-					public void run() {
+-						try {
+-							fetchHandle[0] = null;
+-							geoCodeAnsw = GeocoderOsm.geocode(searchText, fetchHandle);
+-						} catch (IOException e) {
+-							geoCodeAnsw = new Vector();
+-							geoCodeAnsw.add(new GeocodeAnswer(new CWPoint(), &quot;IOExecption&quot;));
+-						} catch (SAXException e) {
+-							geoCodeAnsw = new Vector();
+-							geoCodeAnsw.add(new GeocodeAnswer(new CWPoint(), &quot;SAXException&quot;));
+-						} catch (HandleStoppedException ie) {
+-							geoCodeAnsw = new Vector();
+-							if (fetchHandle[0].stopReason == 4321)
+-								geoCodeAnsw.add(new GeocodeAnswer(new CWPoint(), MyLocale.getMsg(7307, &quot;Canceled by user&quot;)));
+-							else geoCodeAnsw.add(new GeocodeAnswer(new CWPoint(), MyLocale.getMsg(7308, &quot;Could not connect&quot;)));
+-						} catch (InterruptedException ie) {
+-							geoCodeAnsw = new Vector();
+-							if (fetchHandle[0].stopReason == 4321)
+-								geoCodeAnsw.add(new GeocodeAnswer(new CWPoint(), MyLocale.getMsg(7307, &quot;Canceled by user&quot;)));
+-							else geoCodeAnsw.add(new GeocodeAnswer(new CWPoint(), MyLocale.getMsg(7308, &quot;Could not connect&quot;)));
+-
+-						}
+-						// foundTxt.startHtml();
+-						if (geoCodeAnsw.size() == 0) foundTxt.setHtml(&quot;nothing found&quot;);
+-						else {
+-							GeocodeAnswer ga = (GeocodeAnswer)geoCodeAnsw.get(0);
+-							foundTxt.setHtml(ga.where.toString() + &quot;&lt;br&gt;&quot; + ga.foundname);
+-						}
+-						fetchHandle[0] = null;
+-					}
+-				};
+-				thrdfetch.start();
++		        Vm.showWait(true);
++				try {
++					geoCodeAnsw = GeocoderOsm.geocode(cityInp.text.trim(), streetInp.text.trim());
++				} catch (Exception e) {
++					geoCodeAnsw = new Vector();
++					geoCodeAnsw.add(new GeocodeAnswer(new CWPoint(), e.getMessage()));
++				}
++		        Vm.showWait(false);
++				if (geoCodeAnsw.size() == 0) {
++					geoCodeAnsw = new Vector();
++					geoCodeAnsw.add(new GeocodeAnswer(new CWPoint(), &quot;nothing found&quot;));
++				}
++				choice.items.clear();
++				for (int i = 0; i &lt; geoCodeAnsw.size(); i++) {
++					GeocodeAnswer ga = (GeocodeAnswer)geoCodeAnsw.get(i);
++					choice.addItem(ga.where.toString() + &quot; | &quot; + ga.foundname);
++				}
++				choice.updateItems();
+ 			}
+ 
+ 			if (ev.target == searchCancelBtn){
+-				if (fetchHandle != null &amp;&amp; fetchHandle[0] != null)
+-				{
+-					fetchHandle[0].stop(4321);
+-					fetchHandle[0].set(Handle.Stopped);
+-				}
+ 			}
+ 
+ 			if (ev.target == btnCancel){
+@@ -156,8 +121,10 @@
+ 			}
+ 
+ 			if (ev.target == btnOk){
+-				if (geoCodeAnsw != null &amp;&amp; geoCodeAnsw.size() &gt; 0)
+-				coordInp = ((GeocodeAnswer)geoCodeAnsw.get(0)).where;
++				if (geoCodeAnsw != null &amp;&amp; geoCodeAnsw.size() &gt; 0) {
++					int i = choice.selectedIndex;
++					coordInp = ((GeocodeAnswer)geoCodeAnsw.get(i)).where;					
++				}
+ 				else coordInp.makeInvalid();
+ 				this.close(IDOK);
+ 			}
+
+Modified: trunk/src/CacheWolf/GeocoderOsm.java
+===================================================================
+--- trunk/src/CacheWolf/GeocoderOsm.java	2011-03-26 12:24:26 UTC (rev 2964)
++++ trunk/src/CacheWolf/GeocoderOsm.java	2011-03-29 08:31:06 UTC (rev 2965)
+@@ -25,10 +25,14 @@
+     */
+ package CacheWolf;
+ 
++import CacheWolf.utils.FileBugfix;
+ import ewe.io.ByteArrayInputStream;
++import ewe.io.File;
++import ewe.io.FileInputStream;
+ import ewe.io.IO;
+ import ewe.io.IOException;
+ import ewe.io.InputStreamReader;
++import ewe.io.StringStream;
+ import ewe.sys.Handle;
+ import ewe.sys.HandleStoppedException;
+ import ewe.util.ByteArray;
+@@ -39,35 +43,46 @@
+ 
+ public class GeocoderOsm {
+ 
+-	private static final String geocoderUrl = &quot;<A HREF="http://gazetteer.openstreetmap.org/namefinder/search.xml?max=1&amp;find=">http://gazetteer.openstreetmap.org/namefinder/search.xml?max=1&amp;find=</A>&quot;;  
++	//private static final String geocoderUrl = &quot;<A HREF="http://gazetteer.openstreetmap.org/namefinder/search.xml?max=1&amp;find=">http://gazetteer.openstreetmap.org/namefinder/search.xml?max=1&amp;find=</A>&quot;;
++	private static final String geocoderUrl = &quot;<A HREF="http://nominatim.openstreetmap.org/search?">http://nominatim.openstreetmap.org/search?</A>&quot;; //q=135+pilkington+avenue,+birmingham&amp;format=xml&amp;polygon=1&amp;addressdetails=1
+ 
+-	public static Vector geocode(String address, Handle[] h) 
+-	throws SAXException, IOException, HandleStoppedException, InterruptedException {
+-		ByteArray answ = UrlFetcher.fetchByteArray((geocoderUrl+UrlFetcher.toUtf8Url(address)), h);
++	public static Vector geocode(String city, String street) throws Exception 
++	{
++		String searchFor;
++		if (street.equals(&quot;&quot;)) {
++			searchFor=UrlFetcher.toUtf8Url(city);
++		}
++		else {
++			searchFor=UrlFetcher.toUtf8Url(street) + &quot;+&quot; + UrlFetcher.toUtf8Url(city);
++		}
++		String answer = UrlFetcher.fetch(geocoderUrl + &quot;q=&quot; + searchFor + &quot;&amp;format=xml&quot;);
++		answer=STRreplace.replace(answer,&quot;\'&quot;,&quot;\' &quot;);
++		answer=STRreplace.replace(answer,&quot;  &quot;,&quot; &quot;);
+ 		XMLDecoder xmldec = new XMLDecoder();
+-		xmldec.parse(new InputStreamReader(new ByteArrayInputStream(answ), IO.JAVA_UTF8_CODEC));
+ 		Vector erg = new Vector();
+-		if ( &quot;searchresults&quot;.equalsIgnoreCase((String)xmldec.document.tag) ) {
+-			XMLElement xe, xe2;
+-			String desc, lat, lon;
+-			desc = null;
+-			CWPoint where = new CWPoint();
+-			if (xmldec.document != null &amp;&amp; xmldec.document.subElements != null) {
+-				for (int i=0;  i &lt; xmldec.document.subElements.size(); i++) {
+-					xe = (XMLElement) xmldec.document.subElements.elementAt(i);
+-					if (xe.tag.equalsIgnoreCase(&quot;named&quot;)) {
+-						lat = (String) xe.attributes.getPropertyValues(&quot;lat&quot;).get(0);
+-						lon = (String) xe.attributes.getPropertyValues(&quot;lon&quot;).get(0);
+-						where.set(Common.parseDouble(lat), Common.parseDouble(lon));
+-						for (int j = 0; j &lt; xe.subElements.size(); j++) {
+-							xe2 = (XMLElement) xe.subElements.elementAt(j);
+-							if ( xe2.tag.equalsIgnoreCase(&quot;description&quot;)) { desc = xe2.text; break; }  
++		try {
++			xmldec.parse(new InputStreamReader(new StringStream(answer)));
++			if ( &quot;searchresults&quot;.equalsIgnoreCase((String)xmldec.document.tag) ) {
++				XMLElement xe;
++				String desc, lat, lon;
++				desc = null;
++				CWPoint where = new CWPoint();
++				if (xmldec.document != null &amp;&amp; xmldec.document.subElements != null) {
++					for (int i=0;  i &lt; xmldec.document.subElements.size(); i++) {
++						xe = (XMLElement) xmldec.document.subElements.elementAt(i);
++						if (xe.tag.equalsIgnoreCase(&quot;place&quot;)) {
++							lat = (String) xe.attributes.getPropertyValues(&quot;lat&quot;).get(0);
++							lon = (String) xe.attributes.getPropertyValues(&quot;lon&quot;).get(0);
++							where.set(Common.parseDouble(lat), Common.parseDouble(lon));
++							desc = (String) xe.attributes.getPropertyValues(&quot;display_name&quot;).get(0);
++							erg.add(new GeocodeAnswer(where, desc));
+ 						}
+-						erg.add(new GeocodeAnswer(where, desc));
+ 					}
+ 				}
+ 			}
+-		}
++		} catch (Exception e) {
++			throw new Exception(e.getMessage());
++		}	
+ 		return erg;
+ 	}
+ 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002957.html">[Cachewolf-svn] r2966 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="002958.html">[Cachewolf-svn] r2967 - trunk/res_noewe/webmapservices
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2956">[ date ]</a>
+              <a href="thread.html#2956">[ thread ]</a>
+              <a href="subject.html#2956">[ subject ]</a>
+              <a href="author.html#2956">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

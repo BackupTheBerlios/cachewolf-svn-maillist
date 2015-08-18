@@ -1,0 +1,185 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r756 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-June/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r756%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200706182135.l5ILZrhU008731%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000639.html">
+   <LINK REL="Next"  HREF="000641.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r756 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r756%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200706182135.l5ILZrhU008731%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r756 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Mon Jun 18 23:35:53 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000639.html">[Cachewolf-svn] [Feature #3495] Einzelne OC-Caches syncen
+</A></li>
+        <LI>Next message: <A HREF="000641.html">[Cachewolf-svn] r757 - trunk/resources
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#640">[ date ]</a>
+              <a href="thread.html#640">[ thread ]</a>
+              <a href="subject.html#640">[ subject ]</a>
+              <a href="author.html#640">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-06-18 23:35:45 +0200 (Mon, 18 Jun 2007)
+New Revision: 756
+
+Modified:
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/SolverPanel.java
+Log:
+Maintab: Anordnung der Tabs geaendert: Solver kommt jetzt gleich nach den cache-spezifischen
+Panels wie Details,Beschreibung, Bilder, Hints. Anschliessend kommen die eher allgemeinen Panels
+wie Calc, Goto, Radar. Ausserdem Bugfix speichern von Details.
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2007-06-17 14:54:08 UTC (rev 755)
++++ trunk/src/CacheWolf/MainTab.java	2007-06-18 21:35:45 UTC (rev 756)
+@@ -59,6 +59,9 @@
+ 		c = this.addCard(hintLP, MyLocale.getMsg(1204,&quot;Hints &amp; Logs&quot;), null);
+ 		c.iconize(new Image(&quot;more.gif&quot;),true);
+ 
++		c = this.addCard(solverP = new SolverPanel(pref, profile), MyLocale.getMsg(1205,&quot;Solver&quot;), null);
++		c.iconize(new Image(&quot;solver.gif&quot;),true);
++
+ 		c = this.addCard(calcP, MyLocale.getMsg(1206,&quot;Calc&quot;), null);
+ 		c.iconize(new Image(&quot;ewe/HandHeld.bmp&quot;),true);
+ 
+@@ -67,9 +70,6 @@
+ 		c.iconize(new Image(&quot;goto.gif&quot;),true);
+ 		nav.setGotoPanel(gotoP);
+ 
+-		c = this.addCard(solverP = new SolverPanel(pref, profile), MyLocale.getMsg(1205,&quot;Solver&quot;), null);
+-		c.iconize(new Image(&quot;solver.gif&quot;),true);
+-
+ 		c = this.addCard(radarP, &quot;Radar&quot;, null);
+ 		radarP.setMainTab(this);
+ 		c.iconize(new Image(&quot;radar.gif&quot;),true);
+@@ -157,12 +157,15 @@
+ 				chNew = (CacheHolder)cacheDB.get(tbP.getSelectedCache());
+ 				lastselected=chNew.wayPoint;  // Used in Parser.Skeleton
+ 			}
+-			// Is it the same as the last one?
+-			if (chNew!=ch) { // new object not same reference as old
+-				updatePendingChanges(); // Save dirty data
+-	            ch=chNew;		
+-	            chD=null;
++			// Are we back in Listview
++			if(this.getSelectedItem() == 0) {
++				updatePendingChanges(); // Save dirty data from Details/Solver
++				// Is it the same as the last one?
+ 			}
++		    if (chNew!=ch) { // new object not same reference as old
++	            chD=null; // Throw away the details, not longer valid
++			}
++            ch=chNew;		
+ 			// Only load the details if we leave the list view and the details
+ 			// have not already been loaded
+ 			if(this.getSelectedItem() != 0 &amp;&amp; chD==null){// any panel other than list view without detail
+@@ -217,18 +220,8 @@
+ 					hintLP.setText(chD);
+ 				}
+ 				break;
+-			case 5:  // CalcPanel
+-				if (chD!=null) {
+-					MyLocale.setSIPButton();
+-					calcP.setFields(chD);
+-				}
+-				break;
+-
+-			case 6: // GotoPanel
++			case 5:  // Solver Panel
+ 				MyLocale.setSIPButton();
+-				break;
+-			case 7:  // Solver Panel
+-				MyLocale.setSIPButton();
+ 				if (chD!=null) {
+ 					if (chD.isAddiWpt()) { 
+ 						chMain=new CacheHolderDetail(chD.mainCache);
+@@ -242,6 +235,16 @@
+ 					}
+ 				}
+ 				break;
++			case 6:  // CalcPanel
++				if (chD!=null) {
++					MyLocale.setSIPButton();
++					calcP.setFields(chD);
++				}
++				break;
++
++			case 7: // GotoPanel
++				MyLocale.setSIPButton();
++				break;
+ 			case 8:  // Cache Radar Panel
+ 				MyLocale.setSIPOff();
+ 				radarP.setParam(pref, cacheDB, chD==null?&quot;&quot;:chD.wayPoint);
+@@ -303,11 +306,11 @@
+ 			if (chMain==null) {
+ 				chD.Solver=solverP.getInstructions();
+ 				chD.saveCacheDetails(Global.getProfile().dataDir);//Vm.debug(&quot;mainT:SaveCache &quot;+chD.wayPoint+&quot;/S:&quot;+chD.Solver);
+-				solverP.setInstructions(&quot;&quot;);
++				solverP.clearDirty();
+ 			} else {
+ 				chMain.Solver=solverP.getInstructions();
+ 				chMain.saveCacheDetails(Global.getProfile().dataDir);//Vm.debug(&quot;mainT:SaveCache &quot;+chMain.wayPoint+&quot;/S:&quot;+chMain.Solver);
+-				solverP.setInstructions(&quot;&quot;);
++				solverP.clearDirty();
+ 				chMain=null;
+ 			}
+ 		}
+
+Modified: trunk/src/CacheWolf/SolverPanel.java
+===================================================================
+--- trunk/src/CacheWolf/SolverPanel.java	2007-06-17 14:54:08 UTC (rev 755)
++++ trunk/src/CacheWolf/SolverPanel.java	2007-06-18 21:35:45 UTC (rev 756)
+@@ -31,6 +31,9 @@
+ 	public boolean isDirty() {
+ 		return dirty;
+ 	}
++	public void clearDirty() {
++		dirty=false;
++	}
+ 	
+ 	public String getInstructions() {
+ 		return mText.getText();
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000639.html">[Cachewolf-svn] [Feature #3495] Einzelne OC-Caches syncen
+</A></li>
+	<LI>Next message: <A HREF="000641.html">[Cachewolf-svn] r757 - trunk/resources
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#640">[ date ]</a>
+              <a href="thread.html#640">[ thread ]</a>
+              <a href="subject.html#640">[ subject ]</a>
+              <a href="author.html#640">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,261 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1338 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-April/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1338%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200804071938.m37JcAj6010656%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001231.html">
+   <LINK REL="Next"  HREF="001233.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1338 - trunk/src/CacheWolf</H1>
+    <B>engywuck at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1338%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200804071938.m37JcAj6010656%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1338 - trunk/src/CacheWolf">engywuck at mail.berlios.de
+       </A><BR>
+    <I>Mon Apr  7 21:38:10 CEST 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001231.html">[Cachewolf-svn] r1337 - trunk/src/CacheWolf/navi
+</A></li>
+        <LI>Next message: <A HREF="001233.html">[Cachewolf-svn] r1339 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1232">[ date ]</a>
+              <a href="thread.html#1232">[ thread ]</a>
+              <a href="subject.html#1232">[ subject ]</a>
+              <a href="author.html#1232">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: engywuck
+Date: 2008-04-07 21:38:06 +0200 (Mon, 07 Apr 2008)
+New Revision: 1338
+
+Added:
+   trunk/src/CacheWolf/MyEditor.java
+Modified:
+   trunk/src/CacheWolf/GPSPortOptions.java
+   trunk/src/CacheWolf/PreferencesScreen.java
+Log:
+GPSPortOptions: Ok/Cancel-Buttons now take the whole place at the bottom of the form to let them be accessible when the keyboard icon is active on PDAs. (<A HREF="http://www.geoclub.de/viewtopic.php?f=40&amp;t=23661">http://www.geoclub.de/viewtopic.php?f=40&amp;t=23661</A>)
+
+Modified: trunk/src/CacheWolf/GPSPortOptions.java
+===================================================================
+--- trunk/src/CacheWolf/GPSPortOptions.java	2008-04-07 18:50:35 UTC (rev 1337)
++++ trunk/src/CacheWolf/GPSPortOptions.java	2008-04-07 19:38:06 UTC (rev 1338)
+@@ -30,6 +30,7 @@
+ import ewe.io.*;
+ import ewe.ui.formatted.TextDisplay;
+ import ewe.reflect.FieldTransfer;
++import ewe.reflect.Reflect;
+ import ewe.sys.*;
+ import ewe.util.*;
+ 
+@@ -88,9 +89,30 @@
+ 	boolean gpsRunning = false;
+ 
+ 	
+-	public Editor getEditor(int whichEditor){
+-		Editor ed;
+-		ed = super.getEditor(0);
++	public Editor getEditor(){
++		MyEditor ed = new MyEditor();
++		// The following lines are mainly copied from SerialPortOptions.
++		// Reason: We want to use MyEditor instead of the default Editor,
++		//         because the latter places the ok/cancel buttons centered.
++		// Because this is from the general SerialPortOptions class, maybe not all of the code
++		// must be necessary.
++		ed.objectClass = Reflect.getForObject(this);
++		ed.sampleObject = this;
++		ed.setObject(this);
++		ed.title = &quot;Serial Port Options&quot;;
++		InputStack is = new InputStack();
++		ed.addLast(is).setCell(CellConstants.HSTRETCH);
++		CellPanel cp = new CellPanel();
++		ed.addField(cp.addNext(new mComboBox()).setCell(CellConstants.HSTRETCH),&quot;portName&quot;);
++		ed.addField(cp.addLast(new mButton(&quot;Update Ports$u&quot;)).setCell(CellConstants.DONTSTRETCH),&quot;update&quot;);
++		is.add(cp,&quot;Port:$p&quot;);
++		mComboBox cb = new mComboBox();
++		is.add(ed.addField(cb,&quot;baudRate&quot;),&quot;Baud:$b&quot;);
++		cb.choice.addItems(ewe.util.mString.split(&quot;110|300|1200|2400|4800|9600|19200|38400|57600|115200&quot;));
++		//
++		// End of copy from SerialPortOptions.
++		//
++		ed.buttonConstraints = CellConstants.HFILL;
+ 		ed.addField(ed.addNext(new mButton(&quot;Scan$u&quot;)).setCell(CellConstants.DONTSTRETCH),&quot;scan&quot;);
+ 		btnTest = new mButton(&quot;Test$u&quot;);
+ 		ed.addField(ed.addLast(btnTest.setCell(CellConstants.DONTSTRETCH)),&quot;test&quot;);
+@@ -116,7 +138,6 @@
+ 		inputBoxLogTimer.setText(&quot;10&quot;);
+ 		ed.addField(ed.addLast(inputBoxLogTimer,0 , (CellConstants.WEST | CellConstants.HFILL)), &quot;GPSLogTimer&quot;);
+ 
+-		
+ 		gpsRunning = false;
+ 		return ed;
+ 	}
+@@ -216,4 +237,4 @@
+ 		gpsPort.close();
+ 		return false;
+ 	}
+-}
++}
+\ No newline at end of file
+
+Added: trunk/src/CacheWolf/MyEditor.java
+===================================================================
+--- trunk/src/CacheWolf/MyEditor.java	2008-04-07 18:50:35 UTC (rev 1337)
++++ trunk/src/CacheWolf/MyEditor.java	2008-04-07 19:38:06 UTC (rev 1338)
+@@ -0,0 +1,65 @@
++package CacheWolf;
++
++import ewe.fx.Color;
++import ewe.fx.Insets;
++import ewe.ui.*;
++
++/**
++ * Descendant from ewe.ui.Editor to allow more flexibility when needed
++ * @author engywuck
++ */
++public class MyEditor extends Editor {
++
++	// Constraint used to align buttons of MyEditor
++	public int buttonConstraints = CellConstants.CENTER;
++
++	/** 
++	 * Mainly overwritten of ewe.ui.Editor, except for the placement constraints for
++	 * the buttons which allow for variable buttonConstraints.
++	 */
++	protected void checkButtons() {
++		if (buttons != null) {
++			if (buttons.size() != 0) {
++				if (Gui.isSmartPhone &amp;&amp; getSoftKeyBarFor(null) == null) {
++					buttonsToSoftKeyBar(buttons, (no != null &amp;&amp; cancel != null) ? &quot;No/Cancel&quot;
++							: &quot;Actions&quot;, BUTTONS_TO_SOFT_KEY_FIRST_BUTTON_SEPARATE);
++				} else {
++					CellPanel p = new CellPanel();
++					p.defaultTags.set(INSETS, new Insets(0, 1, 0, 1));
++					p.modify(AlwaysEnabled | NotAnEditor, 0); // Just in case a dialog pops up
++																// with global disabling.
++					for (int i = 0; i &lt; buttons.size(); i++) {
++						p.addNext((Control) buttons.get(i));
++						if ((buttonsPerRow &gt; 0) &amp;&amp; (((i + 1) % buttonsPerRow) == 0))
++							p.endRow();
++					}
++					p.endRow();
++					CellPanel p2 = buttonsPanel = new CellPanel();
++					p.defaultTags.set(INSETS, new Insets(2, 2, 2, 2));
++					//
++					// Here is difference from ewe.ui.Editor: CENTER -&gt; buttonConstraints
++					//
++					p2.addLast(p).setControl(buttonConstraints);// p2.borderStyle =
++																// Graphics.EDGE_SUNKEN;
++				}
++			}
++		}
++		if (!hasExitButton()) {
++			if (Gui.isSmartPhone) {
++				if (getSoftKeyBarFor(null) == null) {
++					SoftKeyBar sk = makeSoftKeys();
++					sk.setKey(1, &quot;Close|&quot; + EXIT_IDCANCEL, close, null);
++				}
++			} else {
++				titleOK = new mButton(close);// getButton(&quot;OK&quot;);
++				titleOK.backGround = Color.DarkBlue;
++				((mButton) titleOK).insideColor = getBackground();
++			}
++		}
++		if (titleOK != null)
++			titleOK.modify(AlwaysEnabled | NotAnEditor, 0);
++		if (titleCancel != null)
++			titleCancel.modify(AlwaysEnabled | NotAnEditor, 0);
++	}
++
++}
+
+Modified: trunk/src/CacheWolf/PreferencesScreen.java
+===================================================================
+--- trunk/src/CacheWolf/PreferencesScreen.java	2008-04-07 18:50:35 UTC (rev 1337)
++++ trunk/src/CacheWolf/PreferencesScreen.java	2008-04-07 19:38:06 UTC (rev 1338)
+@@ -306,35 +306,25 @@
+ 				if(fc.execute() != FormBase.IDCANCEL)	DataDir.setText(fc.getChosen()+&quot;/&quot;);
+ 			}
+ 			if (ev.target == gpsB){
+-				GPSPortOptions spo = new GPSPortOptions();
+-				spo.portName = pref.mySPO.portName;
+-				spo.baudRate = pref.mySPO.baudRate;
+-				Editor s = spo.getEditor(SerialPortOptions.ADVANCED_EDITOR);
+-				spo.forwardGpsChkB.setState(pref.forwardGPS);
+-				spo.inputBoxForwardHost.setText(pref.forwardGpsHost);
+-				spo.logGpsChkB.setState(pref.logGPS);
+-				spo.inputBoxLogTimer.setText(pref.logGPSTimer);
++				GPSPortOptions gpo = new GPSPortOptions();
++				gpo.portName = pref.mySPO.portName;
++				gpo.baudRate = pref.mySPO.baudRate;
++				Editor s = gpo.getEditor();
++				gpo.forwardGpsChkB.setState(pref.forwardGPS);
++				gpo.inputBoxForwardHost.setText(pref.forwardGpsHost);
++				gpo.logGpsChkB.setState(pref.logGPS);
++				gpo.inputBoxLogTimer.setText(pref.logGPSTimer);
+ 				Gui.setOKCancel(s);
+ 				if (s.execute()== FormBase.IDOK) {
+-					pref.mySPO.portName = spo.portName; 
+-					pref.mySPO.baudRate = spo.baudRate;
+-					pref.forwardGPS = spo.forwardGpsChkB.getState();
+-					pref.forwardGpsHost = spo.inputBoxForwardHost.getText();
+-					pref.logGPS = spo.logGpsChkB.getState();
+-					pref.logGPSTimer = spo.inputBoxLogTimer.getText();
++					pref.mySPO.portName = gpo.portName; 
++					pref.mySPO.baudRate = gpo.baudRate;
++					pref.forwardGPS = gpo.forwardGpsChkB.getState();
++					pref.forwardGpsHost = gpo.inputBoxForwardHost.getText();
++					pref.logGPS = gpo.logGpsChkB.getState();
++					pref.logGPSTimer = gpo.inputBoxLogTimer.getText();
+ 					inpGPS.setText(pref.mySPO.portName+&quot;/&quot;+pref.mySPO.baudRate);
+ 				}
+ 			}
+-			// change destination waypoint
+-			/*if (ev.target == btnCentre){
+-				CoordsScreen cs = new CoordsScreen();
+-				cs.setFields(pref.curCentrePt, CWPoint.CW);
+-				if (cs.execute()== CoordsScreen.IDOK){
+-					pref.curCentrePt.set(cs.getCoords());
+-					btnCentre.setText(pref.curCentrePt.toString(CWPoint.CW));
+-				}
+-			}
+-			*/
+ 		}
+ 		super.onEvent(ev);
+ 	}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001231.html">[Cachewolf-svn] r1337 - trunk/src/CacheWolf/navi
+</A></li>
+	<LI>Next message: <A HREF="001233.html">[Cachewolf-svn] r1339 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1232">[ date ]</a>
+              <a href="thread.html#1232">[ thread ]</a>
+              <a href="subject.html#1232">[ subject ]</a>
+              <a href="author.html#1232">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

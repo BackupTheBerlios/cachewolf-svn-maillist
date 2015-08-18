@@ -1,0 +1,251 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r389 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r389%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701141024.l0EAOn9k032446%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000116.html">
+   <LINK REL="Next"  HREF="000119.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r389 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r389%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701141024.l0EAOn9k032446%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r389 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sun Jan 14 11:24:49 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000116.html">[Cachewolf-svn] r388 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000119.html">[Cachewolf-svn] r390 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#118">[ date ]</a>
+              <a href="thread.html#118">[ thread ]</a>
+              <a href="subject.html#118">[ subject ]</a>
+              <a href="author.html#118">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-01-14 11:24:43 +0100 (Sun, 14 Jan 2007)
+New Revision: 389
+
+Modified:
+   trunk/src/CacheWolf/Parser.java
+   trunk/src/CacheWolf/Tokenizer.java
+Log:
+Solver: Neue Funktionen
+(instr,replace,count)
+
+Modified: trunk/src/CacheWolf/Parser.java
+===================================================================
+--- trunk/src/CacheWolf/Parser.java	2007-01-14 05:09:23 UTC (rev 388)
++++ trunk/src/CacheWolf/Parser.java	2007-01-14 10:24:43 UTC (rev 389)
+@@ -58,7 +58,7 @@
+ *   - Global variables (starting with $) are remembered across multiple calls to parser
+ *   - Global variables are initialised with &quot;&quot;, local variables result in error if used before setting value
+ *   - IF statement added
+-*   - Many new functions (encode,format,goto,len,mid,substring,ucase,lcase,val,sval,reverse,project)
++*   - Many new functions (encode,format,goto,len,mid,count, substring,ucase,lcase,val,sval,replace, reverse,project)
+ *   - less typing
+ *   	- Function aliases
+ *   	- Function names can be flexibly abbreviated, i.e. instead of crosstotal write cr or cross or crosst ...
+@@ -76,9 +76,10 @@
+ public class Parser{
+ 
+ 	private class fnType { 
+-		public String funcName;
+-		public String alias;
+-		public int nargs;  // bitmap for number of args, i.e. 14 = 1 or 2 or 3 args; 5 = 0 or 2 args
++		public String funcName; 	 // the function name in the user input
++		public String alias;         // the funcName is mapped to this alias
++		public int nargs;            // bitmap for number of args, i.e. 14 = 1 or 2 or 3 args; 5 = 0 or 2 args
++									 // i.e. 1&lt;&lt;nargs ORed together
+ 		fnType(String funcName, String alias, int nargs) {
+ 			this.funcName=funcName; this.alias=alias; this.nargs=nargs;
+ 		}
+@@ -91,6 +92,7 @@
+     	new fnType(&quot;asin&quot;,&quot;asin&quot;,2),
+     	new fnType(&quot;atan&quot;,&quot;atan&quot;,2),
+     	new fnType(&quot;cos&quot;,&quot;cos&quot;,2),
++    	new fnType(&quot;count&quot;,&quot;count&quot;,4),
+     	new fnType(&quot;crosstotal&quot;,&quot;ct&quot;,2),
+     	new fnType(&quot;ct&quot;,&quot;ct&quot;,2),
+     	new fnType(&quot;encode&quot;,&quot;encode&quot;,8),
+@@ -98,13 +100,14 @@
+     	new fnType(&quot;goto&quot;,&quot;goto&quot;,6),
+     	new fnType(&quot;ic&quot;,&quot;ic&quot;,3),
+     	new fnType(&quot;ignorecase&quot;,&quot;ic&quot;,3),
++    	new fnType(&quot;instr&quot;,&quot;instr&quot;,12),
+     	new fnType(&quot;lcase&quot;,&quot;lc&quot;,2),
+-    	new fnType(&quot;len&quot;,&quot;len&quot;,2),
+     	new fnType(&quot;length&quot;,&quot;len&quot;,2),
+     	new fnType(&quot;mid&quot;,&quot;mid&quot;,12),
+     	new fnType(&quot;project&quot;,&quot;project&quot;,8),
+     	new fnType(&quot;quersumme&quot;,&quot;ct&quot;,2),
+ //    	new fnType(&quot;requiresemicolon&quot;,&quot;rs&quot;,3),
++    	new fnType(&quot;replace&quot;,&quot;replace&quot;,8),
+     	new fnType(&quot;reverse&quot;,&quot;reverse&quot;,2),
+     	new fnType(&quot;rot13&quot;,&quot;rot13&quot;,2),
+ //    	new fnType(&quot;rs&quot;,&quot;rs&quot;,3),
+@@ -213,8 +216,7 @@
+ 	private String popCalcStackAsString() {
+ 		String s;
+ 		if (calcStack.get(calcStack.size()-1) instanceof Double) {
+-			s = ((java.lang.Double)calcStack.get(calcStack.size()-1)).toString();
+-			if (Global.getPref().digSeparator==&quot;,&quot;) s.replace(',','.'); // always show numbers with decimal point
++			s = ((java.lang.Double)calcStack.get(calcStack.size()-1)).toString().replace(',','.'); // always show numbers with decimal point;
+ 			if (s.endsWith(&quot;.0&quot;)) s=s.substring(0,s.length()-2);
+ 		} else
+ 			s = (String)calcStack.get(calcStack.size()-1);
+@@ -276,6 +278,30 @@
+ //  FUNCTIONS
+ ///////////////////////////////////////////
+     
++    private int funcCountChar(String s, char c) {
++    	int count=0;
++    	for (int i=0; i&lt;s.length(); i++)
++    		if (s.charAt(i)==c) count++;
++    	return count;
++    }
++    
++    /** count(string1,string2) 
++     * */
++    private void funcCount()throws Exception {
++       	String s2=popCalcStackAsString();
++    	String s1=popCalcStackAsString();
++    	if (s2.length()==0) err(&quot;Cannot count empty string&quot;);
++    	if (s2.length()==1) {
++    		calcStack.add(new Double(funcCountChar(s1,s2.charAt(0))));
++    	} else {
++    		String res=&quot;&quot;;
++    		for(int i=0; i&lt;s2.length(); i++) {
++    			res+=s2.charAt(i)+&quot;=&quot;+funcCountChar(s1,s2.charAt(i))+&quot; &quot;;
++    		}
++    		calcStack.add(res);
++    	}
++    }
++    
+     private double funcCrossTotal(double a) {
+ 		// Cross total = Quersumme berechnen
+ 		String aString = Convert.toString(a); // 
+@@ -356,6 +382,24 @@
+     	}
+     }
+     
++    /** VB instr function 
++     * instr([start],string1,string2)
++     * */
++    private int funcInstr(int nargs) throws Exception {
++    	String s2=popCalcStackAsString();
++    	String s1=popCalcStackAsString();
++    	int start=1;
++    	if (nargs==3) start=(int) popCalcStackAsNumber(1);
++    	if (start&gt;s1.length()) err(&quot;instr: Start position not in string&quot;);
++    	if(s2.equals(&quot;&quot;)) {
++    		if (s1.equals(&quot;&quot;)) 
++    			return 0;
++    		else
++    			return 1;
++    	}
++    	return s1.indexOf(s2,start-1)+1;
++    }
++
+     private String funcMid(int nargs) throws Exception {
+     	if (nargs==2) {
+         	double start=popCalcStackAsNumber(0);
+@@ -386,6 +430,14 @@
+     	return cwPt.project(degrees,distance/1000.0).toString();
+     }
+ 
++    private String funcReplace() throws Exception {
++    	String replaceWith=popCalcStackAsString();
++    	String whatToReplace=popCalcStackAsString();
++    	String s=popCalcStackAsString();
++        if (whatToReplace.equals(&quot;&quot;) || replaceWith.equals(&quot;&quot;)) return s;
++        return STRreplace.replace(s,whatToReplace,replaceWith);
++    }
++    
+     private String funcReverse(String s) {
+     	String res=&quot;&quot;;
+     	for (int i=s.length()-1; i&gt;=0; i--) res+=s.charAt(i);
+@@ -664,15 +716,18 @@
+ 	    else if (funcDef.alias.equals(&quot;acos&quot;)) calcStack.add(new java.lang.Double(java.lang.Math.acos(popCalcStackAsNumber(0))));
+ 	    else if (funcDef.alias.equals(&quot;atan&quot;)) calcStack.add(new java.lang.Double(java.lang.Math.atan(popCalcStackAsNumber(0))));
+ 	    else if (funcDef.alias.equals(&quot;cos&quot;)) calcStack.add(new java.lang.Double(java.lang.Math.cos(popCalcStackAsNumber(0))));
++	    else if (funcDef.alias.equals(&quot;count&quot;)) funcCount();
+ 	    else if (funcDef.alias.equals(&quot;ct&quot;)) calcStack.add(new java.lang.Double(funcCrossTotal(popCalcStackAsNumber(0))));
+ 	    else if (funcDef.alias.equals(&quot;encode&quot;)) calcStack.add(funcEncode());
+ 	    else if (funcDef.alias.equals(&quot;format&quot;)) calcStack.add(funcFormat(nargs));
+ 	    else if (funcDef.alias.equals(&quot;goto&quot;)) funcGoto(nargs);
+ 	    else if (funcDef.alias.equals(&quot;ic&quot;)) funcIgnoreVariableCase(nargs);
++	    else if (funcDef.alias.equals(&quot;instr&quot;)) calcStack.add(new Double(funcInstr(nargs)));
+ 	    else if (funcDef.alias.equals(&quot;lc&quot;)) calcStack.add(popCalcStackAsString().toLowerCase());
+ 	    else if (funcDef.alias.equals(&quot;len&quot;)) calcStack.add(new Double(popCalcStackAsString().length()));
+ 	    else if (funcDef.alias.equals(&quot;mid&quot;)) calcStack.add(funcMid(nargs));
+ 	    else if (funcDef.alias.equals(&quot;project&quot;)) calcStack.add(funcProject());     
++	    else if (funcDef.alias.equals(&quot;replace&quot;)) calcStack.add(funcReplace());
+ 	    else if (funcDef.alias.equals(&quot;reverse&quot;)) calcStack.add(funcReverse(popCalcStackAsString()));
+ 	    else if (funcDef.alias.equals(&quot;rot13&quot;)) calcStack.add(Common.rot13(popCalcStackAsString()));
+ //	    else if (funcDef.alias.equals(&quot;rs&quot;)) funcRequireSemicolon(nargs);
+
+Modified: trunk/src/CacheWolf/Tokenizer.java
+===================================================================
+--- trunk/src/CacheWolf/Tokenizer.java	2007-01-14 05:09:23 UTC (rev 388)
++++ trunk/src/CacheWolf/Tokenizer.java	2007-01-14 10:24:43 UTC (rev 389)
+@@ -98,7 +98,7 @@
+ 		String s=currentStream.toUpperCase();
+ 		if (s.equals(&quot;STOP&quot;) || s.equals(&quot;ST&quot;))
+ 			emitToken(TokenObj.TT_STOP);
+-		if (s.equals(&quot;IF&quot;))
++		else if (s.equals(&quot;IF&quot;))
+ 			emitToken(TokenObj.TT_IF);
+ 		else if (s.equals(&quot;THEN&quot;))
+ 			emitToken(TokenObj.TT_THEN);
+@@ -130,7 +130,11 @@
+ 		currentStream=&quot;&quot;;
+ 		do {
+ 			while(getChar() &amp;&amp; look != '\&quot;'){
+-				currentStream += look;
++				if (look=='\\') {
++					if (!getChar()) break;
++					if (look=='n') currentStream += &quot;\n&quot;;
++					else currentStream += look;
++				} else currentStream += look;
+ 				// Need to count newlines inside a string spanning multiple lines so that we don't loose track
+ 				if (look=='\n') {
+ 					currentLine++;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000116.html">[Cachewolf-svn] r388 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000119.html">[Cachewolf-svn] r390 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#118">[ date ]</a>
+              <a href="thread.html#118">[ thread ]</a>
+              <a href="subject.html#118">[ subject ]</a>
+              <a href="author.html#118">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

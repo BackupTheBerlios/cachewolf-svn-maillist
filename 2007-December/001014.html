@@ -1,0 +1,170 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1121 - in trunk: res_noewe src/exp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-December/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1121%20-%20in%20trunk%3A%20res_noewe%20src/exp&In-Reply-To=%3C200712021134.lB2BYkZ5014614%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001013.html">
+   <LINK REL="Next"  HREF="001015.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1121 - in trunk: res_noewe src/exp</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1121%20-%20in%20trunk%3A%20res_noewe%20src/exp&In-Reply-To=%3C200712021134.lB2BYkZ5014614%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1121 - in trunk: res_noewe src/exp">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sun Dec  2 12:34:46 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001013.html">[Cachewolf-svn] r1120 - in trunk: res_noewe src/CacheWolf src/exp
+</A></li>
+        <LI>Next message: <A HREF="001015.html">[Cachewolf-svn] r1122 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1014">[ date ]</a>
+              <a href="thread.html#1014">[ thread ]</a>
+              <a href="subject.html#1014">[ subject ]</a>
+              <a href="author.html#1014">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-12-02 12:34:38 +0100 (Sun, 02 Dec 2007)
+New Revision: 1121
+
+Modified:
+   trunk/res_noewe/page.tpl
+   trunk/src/exp/HTMLExporter.java
+Log:
+HTMLExporter: The logtype icons which appear in the exported caches are now copied to the export directory.
+
+Modified: trunk/res_noewe/page.tpl
+===================================================================
+--- trunk/res_noewe/page.tpl	2007-12-01 13:03:33 UTC (rev 1120)
++++ trunk/res_noewe/page.tpl	2007-12-02 11:34:38 UTC (rev 1121)
+@@ -32,6 +32,10 @@
+ &lt;/td&gt;&lt;/tr&gt;
+ &lt;tr style = &quot;font-family:sans-serif;font-size:12;&quot;&gt;&lt;td&gt;
+ Pictures:&lt;br&gt;
++Cache:&lt;br&gt;
++&lt;tmpl_loop cacheImg&gt;
++&lt;a href = &quot;&lt;tmpl_var FILE&gt;&quot;&gt;&lt;tmpl_var TEXT&gt;&lt;/a&gt;&lt;br&gt;
++&lt;/tmpl_loop&gt;
+ User:&lt;br&gt;
+ &lt;tmpl_loop userImg&gt;
+ &lt;a href = &quot;&lt;tmpl_var FILE&gt;&quot;&gt;&lt;tmpl_var TEXT&gt;&lt;/a&gt;&lt;br&gt;
+
+Modified: trunk/src/exp/HTMLExporter.java
+===================================================================
+--- trunk/src/exp/HTMLExporter.java	2007-12-01 13:03:33 UTC (rev 1120)
++++ trunk/src/exp/HTMLExporter.java	2007-12-02 11:34:38 UTC (rev 1121)
+@@ -58,7 +58,8 @@
+ 			Vector logImg = new Vector();
+ 			Vector mapImg = new Vector();
+ 			Vector usrImg = new Vector();
+-			
++			Vector logIcons = new Vector(15);
++			String icon;
+ 
+ 			Hashtable varParams;
+ 			Hashtable imgParams;
+@@ -121,20 +122,37 @@
+ 						}
+ 						page_tpl.setParam(&quot;HINTS&quot;, holder.Hints);
+ 						page_tpl.setParam(&quot;DECRYPTEDHINTS&quot;, Common.rot13(holder.Hints));
+-						dummy = new String();
++						StringBuffer sb=new StringBuffer(2000);
+ 						for(int j = 0; j&lt;holder.CacheLogs.size(); j++){
+-							dummy = dummy + STRreplace.replace(holder.CacheLogs.getLog(j).toHtml(),&quot;<A HREF="http://www.geocaching.com/images/icons/">http://www.geocaching.com/images/icons/</A>&quot;,null)+&quot;&lt;br&gt;&quot;;
++							sb.append(STRreplace.replace(holder.CacheLogs.getLog(j).toHtml(),&quot;<A HREF="http://www.geocaching.com/images/icons/">http://www.geocaching.com/images/icons/</A>&quot;,null));
++							sb.append(&quot;&lt;br&gt;&quot;);
++							icon=holder.CacheLogs.getLog(j).getIcon();
++							if (logIcons.find(icon)&lt;0) logIcons.add(icon); // Add the icon to list of icons to copy to dest directory
+ 						}
+-						page_tpl.setParam(&quot;LOGS&quot;, dummy);
+-						page_tpl.setParam(&quot;NOTES&quot;, STRreplace.replace(holder.CacheNotes, &quot;\n&quot;,&quot;&lt;br&gt;&quot;));
++						page_tpl.setParam(&quot;LOGS&quot;, sb.toString());
++						page_tpl.setParam(&quot;NOTES&quot;, STRreplace.replace(holder.CacheNotes, &quot;\n&quot;,&quot;&lt;br&gt;&quot;)); 
++						// Cache Images
++						cacheImg.clear();
++						for(int j = 0; j&lt;holder.Images.size(); j++){
++							imgParams = new Hashtable();
++							String imgFile = new String((String)holder.Images.get(j));
++							imgParams.put(&quot;FILE&quot;, imgFile);
++							if (j &lt; holder.ImagesText.size())
++								imgParams.put(&quot;TEXT&quot;,(String)holder.ImagesText.get(j));
++							else
++								imgParams.put(&quot;TEXT&quot;,imgFile);
++							DataMover.copy(profile.dataDir + imgFile,targetDir + imgFile);
++							cacheImg.add(imgParams);
++						}
++						page_tpl.setParam(&quot;cacheImg&quot;, cacheImg);
+ 						// Log images
+ 						logImg.clear();
+ 						for(int j = 0; j&lt;holder.LogImages.size(); j++){
+ 							logImgParams = new Hashtable();
+-							String logImgFile = new String((String)holder.LogImages.get(j));
++							String logImgFile = (String) holder.LogImages.get(j);
+ 							logImgParams.put(&quot;FILE&quot;, logImgFile);
+ 							if (j &lt; holder.LogImagesText.size())
+-								logImgParams.put(&quot;TEXT&quot;,(String)holder.LogImagesText.get(j));
++								logImgParams.put(&quot;TEXT&quot;,holder.LogImagesText.get(j));
+ 							else
+ 								logImgParams.put(&quot;TEXT&quot;,logImgFile);
+ 							DataMover.copy(profile.dataDir + logImgFile,targetDir + logImgFile);
+@@ -187,6 +205,13 @@
+ 					}
+ 				}//if is black, filtered
+ 			}
++			// Copy the log-icons to the destination directory
++			for (int j=0; j&lt;logIcons.size(); j++) {
++				icon=(String) logIcons.elementAt(j);
++				DataMover.copy(File.getProgramDirectory() + &quot;/&quot;+icon,targetDir + icon);
++				
++			}
++			DataMover.copy(File.getProgramDirectory() + &quot;/recommendedlog.gif&quot;,targetDir + &quot;recommendedlog.gif&quot;);
+ 			try{
+ 				Template tpl = new Template(template_init_index);
+ 				tpl.setParam(&quot;cache_index&quot;, cache_index);
+@@ -235,7 +260,8 @@
+ 				// If we have an image which we stored when spidering, we can display it
+ 				if(!imgType.startsWith(&quot;.com&quot;) &amp;&amp; !imgType.startsWith(&quot;.php&quot;) &amp;&amp; !imgType.startsWith(&quot;.exe&quot;)){
+ 					s.append(&quot;&lt;img src=\&quot;&quot;+chD.Images.get(imageNo)+&quot;\&quot;&gt;&quot;);
+-					DataMover.copy(profile.dataDir + chD.Images.get(imageNo),targetDir + chD.Images.get(imageNo));
++					// The actual immages are copied elswhere
++					//DataMover.copy(profile.dataDir + chD.Images.get(imageNo),targetDir + chD.Images.get(imageNo));
+ 					imageNo++;
+ 				}
+ 			}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001013.html">[Cachewolf-svn] r1120 - in trunk: res_noewe src/CacheWolf src/exp
+</A></li>
+	<LI>Next message: <A HREF="001015.html">[Cachewolf-svn] r1122 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1014">[ date ]</a>
+              <a href="thread.html#1014">[ thread ]</a>
+              <a href="subject.html#1014">[ subject ]</a>
+              <a href="author.html#1014">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

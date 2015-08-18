@@ -1,0 +1,230 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2554 - in trunk/src/CacheWolf: . navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-April/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2554%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C201004281924.o3SJODv9030268%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002480.html">
+   <LINK REL="Next"  HREF="002482.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2554 - in trunk/src/CacheWolf: . navi</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2554%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C201004281924.o3SJODv9030268%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2554 - in trunk/src/CacheWolf: . navi">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Wed Apr 28 21:24:13 CEST 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002480.html">[Cachewolf-svn] r2553 - trunk/res_noewe/mmcDesktop
+</A></li>
+        <LI>Next message: <A HREF="002482.html">[Cachewolf-svn] r2555 - in trunk/src/CacheWolf: . navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2481">[ date ]</a>
+              <a href="thread.html#2481">[ thread ]</a>
+              <a href="subject.html#2481">[ subject ]</a>
+              <a href="author.html#2481">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2010-04-28 21:24:09 +0200 (Wed, 28 Apr 2010)
+New Revision: 2554
+
+Modified:
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/navi/GotoPanel.java
+   trunk/src/CacheWolf/navi/MovingMap.java
+   trunk/src/CacheWolf/navi/Navigate.java
+Log:
+1) reverting changes in goto panel.
+2) no sorting of distance from gpspos if gps is off
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2010-04-25 17:17:57 UTC (rev 2553)
++++ trunk/src/CacheWolf/MainTab.java	2010-04-28 19:24:09 UTC (rev 2554)
+@@ -411,16 +411,14 @@
+ 
+ 	private void  updateCurCentrePtFromGPS() {
+ 		if (pref.setCurrentCentreFromGPSPosition){
+-			boolean gpsPosIsValid=nav.gpsPos.isValid();
+-			if (gpsPosIsValid) {
+-				double latWhereAmI, lonWhereAmI, latCurCentr, lonCurCentr;
+-				latWhereAmI = nav.gpsPos.latDec;
+-				lonWhereAmI = nav.gpsPos.lonDec;
+-				latCurCentr = pref.getCurCentrePt().latDec;
+-				lonCurCentr = pref.getCurCentrePt().lonDec;
+-				if (latWhereAmI != latCurCentr ||
+-					lonWhereAmI != lonCurCentr ) {
+-					pref.setCurCentrePt(nav.gpsPos);
++			if (nav.gpsRunning) {
++				CWPoint whereAmI = nav.gpsPos;
++				if (whereAmI.isValid()) {
++					CWPoint curCentr = pref.getCurCentrePt();
++					if (whereAmI.latDec != curCentr.latDec ||
++						whereAmI.lonDec != curCentr.lonDec ) {
++						pref.setCurCentrePt(whereAmI);
++					}
+ 				}
+ 			}
+ 		}
+
+Modified: trunk/src/CacheWolf/navi/GotoPanel.java
+===================================================================
+--- trunk/src/CacheWolf/navi/GotoPanel.java	2010-04-25 17:17:57 UTC (rev 2553)
++++ trunk/src/CacheWolf/navi/GotoPanel.java	2010-04-28 19:24:09 UTC (rev 2554)
+@@ -310,7 +310,7 @@
+ 			}
+ 		}
+ 		if (centerTo != null &amp;&amp; centerTo.isValid())
+-			mainT.SwitchToMovingMap(centerTo, true);
++			mainT.SwitchToMovingMap(centerTo, false);
+ 		else
+ 			(new MessageBox(MyLocale.getMsg(321, &quot;Error&quot;), MyLocale.getMsg(1513, &quot;Cannot start moving map without valid coordinates. Please enter coordinates as destination, as center, in selected cache or start GPS&quot;), FormBase.OKB)).execute();
+ 	}
+
+Modified: trunk/src/CacheWolf/navi/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MovingMap.java	2010-04-25 17:17:57 UTC (rev 2553)
++++ trunk/src/CacheWolf/navi/MovingMap.java	2010-04-28 19:24:09 UTC (rev 2554)
+@@ -1367,7 +1367,8 @@
+ 
+ 	public void updateGps(int fix) {
+ 		if (!running || ignoreGps) return;
+-		// runMovingMap neccessary in case of multi-threaded Java-VM: ticked could be called during load of mmp
++		// runMovingMap neccessary in case of multi-threaded Java-VM: 
++		// ticked could be called during load of mmp
+ 		if ((fix &gt; 0) &amp;&amp; (myNavigation.gpsPos.getSats()&gt;= 0)) { // TODO is getSats really necessary?
+ 			directionArrows.setDirections((float)myNavigation.gpsPos.getBearing(myNavigation.destination),
+ 					(float)myNavigation.skyOrientationDir.lonDec, (float)myNavigation.gpsPos.getBear());
+@@ -1611,7 +1612,7 @@
+ 		lastCompareY = Integer.MAX_VALUE;
+ 		autoSelectMap = true;
+ 		forceMapLoad = true;
+-		showMap();
++		// showMap(); why this?
+ 		if (myNavigation.gpsPos.Fix &lt;=0) updatePosition(posCircle.where);
+ 		else updateGps(myNavigation.gpsPos.getFix());
+ 	}
+@@ -2039,7 +2040,8 @@
+ 			return true;
+ 		}
+ 		if (MOVE_TO_GPS.equals(actionCommand)) {
+-			mmp.snapToGps();
++			myNavigation.startGps(pref.logGPS, Convert.toInt(pref.logGPSTimer));
++			SnapToGps();
+ 			return true;
+ 		}
+ 		
+@@ -2274,11 +2276,6 @@
+ 		mm.getControlsLayer().imageClicked(which);
+ 	}
+ 
+-	public void snapToGps() {
+-		mm.myNavigation.startGps(mm.pref.logGPS, Convert.toInt(mm.pref.logGPSTimer));
+-		mm.SnapToGps();
+-	}
+-
+ 	public void penHeld(Point p){
+ 		ignoreNextDrag=true;
+ 		if (!mm.zoomingMode) {
+
+Modified: trunk/src/CacheWolf/navi/Navigate.java
+===================================================================
+--- trunk/src/CacheWolf/navi/Navigate.java	2010-04-25 17:17:57 UTC (rev 2553)
++++ trunk/src/CacheWolf/navi/Navigate.java	2010-04-28 19:24:09 UTC (rev 2554)
+@@ -53,14 +53,11 @@
+ 	}
+ 
+ 	public void startGps(boolean loggingOn, int loggingIntervall) {
+-		setRawLogging(loggingOn, loggingIntervall);
++		lograw = loggingOn;
++		logIntervall = loggingIntervall; // TODO switch on and off during serthread running
+ 		if(Global.getPref().useGPSD){
+ 			try {
+ 				gpsdThread = new GpsdThread(gpsPos);
+-				if (gpsPos.latDec == 0 &amp;&amp; gpsPos.lonDec == 0) { // TODO use isValid() // TODO raus damit?
+-					gpsPos.latDec = destination.latDec; // setze Zielpunkt als Ausgangspunkt
+-					gpsPos.lonDec = destination.lonDec;
+-				}
+ 				gpsdThread.start();
+ 				startDisplayTimer();
+ 				gpsRunning = true;
+@@ -85,10 +82,6 @@
+ 							+ pref.forwardGpsHost+&quot;\n&quot; + serThread.lastError
+ 							+ MyLocale.getMsg(4402, &quot;\nstop and start GPS to retry&quot;), FormBase.OKB)).exec();
+ 				}
+-				if (gpsPos.latDec == 0 &amp;&amp; gpsPos.lonDec == 0) { // TODO use isValid() // TODO raus damit?
+-					gpsPos.latDec = destination.latDec; // setze Zielpunkt als Ausgangspunkt
+-					gpsPos.lonDec = destination.lonDec;
+-				}
+ 				serThread.start();
+ 				startDisplayTimer();
+ 				gpsRunning = true;
+@@ -110,11 +103,6 @@
+ 			}
+ 		}
+ 	}
+-
+-	public void setRawLogging(boolean on, int intervall) {
+-		lograw = on;
+-		logIntervall = intervall; // TODO switch on and off during serthread running
+-	}
+ 	public void startDisplayTimer() {
+ 		tickerThread = new UpdateThread(this, 1000);
+ 		tickerThread.start();
+@@ -125,10 +113,8 @@
+ 	}
+ 
+ 	public void stopGps() {
+-		if(serThread!=null)
+-			serThread.stop();
+-		if(gpsdThread!=null)
+-			gpsdThread.stop();
++		if(serThread!=null)	serThread.stop();
++		if(gpsdThread!=null) gpsdThread.stop();
+ 		stopDisplayTimer();
+ 		gpsPos.stopLog();
+ 		gpsRunning = false;
+@@ -171,7 +157,6 @@
+ 	public void ticked() {
+ 		int fix = gpsPos.getFix();
+ 		if (fix &gt; 0 &amp;&amp; (gpsPos.getSats()&gt;= 0)) {
+-			//gpsPosition.printAll();
+ 			//Vm.debug(&quot;currTrack.add: before&quot;);
+ 			if (curTrack == null) curTrack = new Track(trackColor);
+ 			try {
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002480.html">[Cachewolf-svn] r2553 - trunk/res_noewe/mmcDesktop
+</A></li>
+	<LI>Next message: <A HREF="002482.html">[Cachewolf-svn] r2555 - in trunk/src/CacheWolf: . navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2481">[ date ]</a>
+              <a href="thread.html#2481">[ thread ]</a>
+              <a href="subject.html#2481">[ subject ]</a>
+              <a href="author.html#2481">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

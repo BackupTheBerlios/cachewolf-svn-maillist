@@ -1,0 +1,213 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1429 - in trunk/src: CacheWolf utils
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-May/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1429%20-%20in%20trunk/src%3A%20CacheWolf%20utils&In-Reply-To=%3C200805011318.m41DIpbf004723%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   
+   <LINK REL="Next"  HREF="001324.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1429 - in trunk/src: CacheWolf utils</H1>
+    <B>mirabilos at BerliOS</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1429%20-%20in%20trunk/src%3A%20CacheWolf%20utils&In-Reply-To=%3C200805011318.m41DIpbf004723%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1429 - in trunk/src: CacheWolf utils">mirabilos at mail.berlios.de
+       </A><BR>
+    <I>Thu May  1 15:18:51 CEST 2008</I>
+    <P><UL>
+        
+        <LI>Next message: <A HREF="001324.html">[Cachewolf-svn] r1430 - trunk/docs/CacheWolf Doku
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1323">[ date ]</a>
+              <a href="thread.html#1323">[ thread ]</a>
+              <a href="subject.html#1323">[ subject ]</a>
+              <a href="author.html#1323">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mirabilos
+Date: 2008-05-01 15:18:50 +0200 (Thu, 01 May 2008)
+New Revision: 1429
+
+Modified:
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/ShowCacheInBrowser.java
+   trunk/src/CacheWolf/TravelbugJourneyScreen.java
+   trunk/src/CacheWolf/myTableControl.java
+   trunk/src/utils/CWWrapper.java
+Log:
+Make executing external programmes work, after reading through
+the Ewe VM (and ewe.jar) respective source codes:
+&#8226; fix CWWrapper.exec &#8211; always takes two arguments, and always
+  uses a well-defined variant of Vm.exec now instead of trying
+  to work around the code
+&#8226; change all calls *EXCEPT* for the gpsbabel.exe call to use
+  CWWrapper.exec instead of Vm.exec, because CWWrapper.exec
+  can take *only* the command name and *one* argument, whereas
+  gpsbabel.exe is called with more than one argument
+  &#8658; gpsbabel.exe WILL ONLY WORK in ewe.jar (JavaEwe) on Win32!
+  &#8227; not on GNU/Linux or Unix, nor on the PDAs with Ewe
+  &#8227; this is, actually, a shortcoming of the Ewe VM
+  &#8227; maybe I&#8217;ll fix this in MirEwe some time
+&#8226; document some of these facts in the source code
+  &#8227; CWWrapper.exec(prog, arg); &#8592; prog and arg MUST NOT be quoted
+
+tested on Ewe/MirBSD by myself
+tested on Jar/Windows by pfeffer
+
+he also tried to test Win32 and WCE2003, but somehow fubar&#8217;d
+his prefs.xml, but we hope/think it&#8217;ll work there as well, as
+these use Ewe internally
+
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2008-04-30 20:21:49 UTC (rev 1428)
++++ trunk/src/CacheWolf/MainMenu.java	2008-05-01 13:18:50 UTC (rev 1429)
+@@ -367,6 +367,7 @@
+ 				ProgressBarForm.display(MyLocale.getMsg(950,&quot;Transfer&quot;),MyLocale.getMsg(951,&quot;Sending to GPS&quot;), null);
+ 				try{
+ 					pref.log(&quot;gpsbabel.exe &quot;+pref.garminGPSBabelOptions+&quot; -i geo -f \&quot;&quot;+ tmpFileName +&quot;\&quot; -o garmin -F &quot; + pref.garminConn +&quot;:&quot;);
++					// this will *only* work with ewe.jar at the moment
+ 					ewe.sys.Process p = Vm.exec(&quot;gpsbabel.exe &quot;+pref.garminGPSBabelOptions+&quot; -i geo -f \&quot;&quot;+ tmpFileName +&quot;\&quot; -o garmin -F &quot; + pref.garminConn +&quot;:&quot;);
+ 					p.waitFor();
+ 				}catch(IOException ioex){
+
+Modified: trunk/src/CacheWolf/ShowCacheInBrowser.java
+===================================================================
+--- trunk/src/CacheWolf/ShowCacheInBrowser.java	2008-04-30 20:21:49 UTC (rev 1428)
++++ trunk/src/CacheWolf/ShowCacheInBrowser.java	2008-05-01 13:18:50 UTC (rev 1429)
+@@ -211,7 +211,7 @@
+ 			//detfile.print(tpl.output());
+ 			detfile.close();
+ 			try {
+-				CWWrapper.exec(Global.getPref().browser, &quot;\&quot;<A HREF="file://">file://</A>&quot;+saveTo+&quot;\&quot;&quot;); // maybe this works on some PDAs?
++				CWWrapper.exec(Global.getPref().browser, &quot;<A HREF="file://">file://</A>&quot;+saveTo); // maybe this works on some PDAs?
+ 			} catch (IOException ex) {
+ 				(new MessageBox(MyLocale.getMsg(321,&quot;Error&quot;),
+ 						MyLocale.getMsg(1034,&quot;Cannot start browser!&quot;) + &quot;\n&quot; + ex.toString() + &quot;\n&quot; +
+
+Modified: trunk/src/CacheWolf/TravelbugJourneyScreen.java
+===================================================================
+--- trunk/src/CacheWolf/TravelbugJourneyScreen.java	2008-04-30 20:21:49 UTC (rev 1428)
++++ trunk/src/CacheWolf/TravelbugJourneyScreen.java	2008-05-01 13:18:50 UTC (rev 1429)
+@@ -11,6 +11,7 @@
+  * @author salzkammergut
+  */
+ 
++import utils.CWWrapper;
+ import ewe.sys.Convert;
+ import ewe.sys.Time;
+ import ewe.sys.Vm;
+@@ -572,12 +573,12 @@
+ 				try {
+ 					String s;
+ 					if (tbj.getTb().getGuid().length()&gt;10)
+-						s = &quot;\&quot;&quot;+Global.getPref().browser+&quot;\&quot; \&quot;<A HREF="http://www.geocaching.com/track/details.aspx?guid=">http://www.geocaching.com/track/details.aspx?guid=</A>&quot;+tbj.getTb().getGuid()+&quot;\&quot;&quot;;
++						s = &quot;<A HREF="http://www.geocaching.com/track/details.aspx?guid=">http://www.geocaching.com/track/details.aspx?guid=</A>&quot;+tbj.getTb().getGuid();
+ 					else
+-						s = &quot;\&quot;&quot;+Global.getPref().browser+&quot;\&quot; \&quot;<A HREF="http://www.geocaching.com/track/details.aspx?id=">http://www.geocaching.com/track/details.aspx?id=</A>&quot;+tbj.getTb().getGuid()+&quot;\&quot;&quot;;
+-									
+-					Vm.exec(s);
+-					Global.getPref().log(&quot;Executing: &quot;+s); 
++						s = &quot;<A HREF="http://www.geocaching.com/track/details.aspx?id=">http://www.geocaching.com/track/details.aspx?id=</A>&quot;+tbj.getTb().getGuid();
++
++					CWWrapper.exec(Global.getPref().browser, s);
++					Global.getPref().log(&quot;Executing: \&quot;&quot;+Global.getPref().browser+&quot;\&quot; \&quot;&quot;+s+&quot;\&quot;&quot;);
+ 				} catch (Exception ioex) {
+ 				}
+ 			}
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2008-04-30 20:21:49 UTC (rev 1428)
++++ trunk/src/CacheWolf/myTableControl.java	2008-05-01 13:18:50 UTC (rev 1429)
+@@ -231,7 +231,6 @@
+ 				CacheHolderDetail chD=ch.getCacheDetails(false, true);
+ 				try {
+ 					if (chD != null) {
+-						//String cmd = &quot;\&quot;&quot;+pref.browser+ &quot;\&quot; \&quot;&quot; + chD.URL+&quot;\&quot;&quot;;
+ 						CWWrapper.exec(pref.browser, chD.URL); // maybe this works on some PDAs?
+ 					}
+ 				} catch (IOException ex) {
+
+Modified: trunk/src/utils/CWWrapper.java
+===================================================================
+--- trunk/src/utils/CWWrapper.java	2008-04-30 20:21:49 UTC (rev 1428)
++++ trunk/src/utils/CWWrapper.java	2008-05-01 13:18:50 UTC (rev 1429)
+@@ -6,10 +6,11 @@
+  * in EWE Version 1.49
+  * It identifies the plattform and uses a different call
+  * to Vm.exec() depending on the plattform.
+- * It uses depreciated classes, which is OK for now.
++ * Bugs identified:
++ * ewe.jar: cmd needs quoting, args are whitespace-split
++ * Ewe VM:  cmd must not be quoted, args can be only one
+  */
+ public class CWWrapper {
+-	
+ 	/**
+ 	 * It doesn't work at all on Loox N520 with WM 5 :-(
+ 	 * @param cmd
+@@ -17,21 +18,11 @@
+ 	 * @throws ewe.io.IOException
+ 	 */
+ 	public static void exec(String cmd, String args) throws ewe.io.IOException{
+-		String plattform = Vm.getPlatform();
+-		if(plattform.equals(&quot;WinCE&quot;)){
+-			Vm.exec(cmd, args, 0, false);
++		if (Vm.getPlatform().equals(&quot;Java&quot;)) {
++			/* we need extra quotes here, see ewe/sys/Vm.java */
++			cmd = &quot;\&quot;&quot; + cmd + &quot;\&quot;&quot;;
++			args = &quot;\&quot;&quot; + args + &quot;\&quot;&quot;;
+ 		}
+-		if(plattform.equals(&quot;Win32&quot;)){
+-			Vm.exec(cmd, args, 0, false);
+-		}
+-		if(plattform.equals(&quot;Unix&quot;)){
+-			String[] strarr = new String[1];
+-			strarr[0] = &quot;\&quot;&quot; + cmd + &quot;\&quot; &quot;+args;
+-			String[] dummy = new String[1];
+-			Vm.exec(strarr, dummy);
+-		}
+-		if(plattform.equals(&quot;Java&quot;)){
+-			Vm.exec(&quot;\&quot;&quot; + cmd + &quot;\&quot; &quot;+args, null);
+-		}
++		Vm.exec(cmd, args, 0, false);
+ 	}
+-}
+\ No newline at end of file
++}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	
+	<LI>Next message: <A HREF="001324.html">[Cachewolf-svn] r1430 - trunk/docs/CacheWolf Doku
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1323">[ date ]</a>
+              <a href="thread.html#1323">[ thread ]</a>
+              <a href="subject.html#1323">[ subject ]</a>
+              <a href="author.html#1323">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

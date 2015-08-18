@@ -1,0 +1,135 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1506 - trunk/src/exp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-June/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1506%20-%20trunk/src/exp&In-Reply-To=%3C200806072029.m57KTkvS020141%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001399.html">
+   <LINK REL="Next"  HREF="001401.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1506 - trunk/src/exp</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1506%20-%20trunk/src/exp&In-Reply-To=%3C200806072029.m57KTkvS020141%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1506 - trunk/src/exp">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sat Jun  7 22:29:46 CEST 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001399.html">[Cachewolf-svn] r1505 - in trunk: res_noewe/languages	resources/attributes resources/attributes-big src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001401.html">[Cachewolf-svn] r1507 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1400">[ date ]</a>
+              <a href="thread.html#1400">[ thread ]</a>
+              <a href="subject.html#1400">[ subject ]</a>
+              <a href="author.html#1400">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2008-06-07 22:29:45 +0200 (Sat, 07 Jun 2008)
+New Revision: 1506
+
+Modified:
+   trunk/src/exp/TPLExporter.java
+Log:
+Updated TPLExporter to include hints and handle badchars in hints and notes
+(see <A HREF="http://www.geoclub.de/viewtopic.php?f=40&amp;t=25041">http://www.geoclub.de/viewtopic.php?f=40&amp;t=25041</A>)
+
+Modified: trunk/src/exp/TPLExporter.java
+===================================================================
+--- trunk/src/exp/TPLExporter.java	2008-06-07 20:04:01 UTC (rev 1505)
++++ trunk/src/exp/TPLExporter.java	2008-06-07 20:29:45 UTC (rev 1506)
+@@ -32,6 +32,7 @@
+ import CacheWolf.Global;
+ import CacheWolf.Preferences;
+ import CacheWolf.Profile;
++import CacheWolf.Common;
+ import HTML.Template;
+ import ewe.filechooser.FileChooser;
+ import ewe.filechooser.FileChooserBase;
+@@ -131,7 +132,8 @@
+ 	Profile profile;
+ 	String tplFile;
+ 	String expName;
+-
++	Regex rex=null;
++	
+ 	public TPLExporter(Preferences p, Profile prof, String tpl){
+ 		pref = p;
+ 		profile=prof;
+@@ -194,19 +196,13 @@
+ 					}
+ 					try {
+ 						Regex dec = new Regex(&quot;[,.]&quot;,myFilter.decSep);
++						if (myFilter.badChars != null) rex = new Regex(&quot;[&quot;+myFilter.badChars+&quot;]&quot;,&quot;&quot;);
+ 						varParams = new Hashtable();
+ 						varParams.put(&quot;TYPE&quot;, CacheType.transType(holder.type));
+ 						varParams.put(&quot;SHORTTYPE&quot;, CacheType.transType(holder.type).substring(0,1));
+ 						varParams.put(&quot;SIZE&quot;, holder.CacheSize);
+ 						varParams.put(&quot;SHORTSIZE&quot;, holder.CacheSize.substring(0,1));
+ 						varParams.put(&quot;WAYPOINT&quot;, holder.wayPoint);
+-						if (myFilter.badChars != null) {
+-							Regex rex = new Regex(&quot;[&quot;+myFilter.badChars+&quot;]&quot;,&quot;&quot;);
+-							varParams.put(&quot;NAME&quot;, rex.replaceAll(holder.CacheName));
+-						}
+-						else {
+-							varParams.put(&quot;NAME&quot;, holder.CacheName);
+-						}
+ 						varParams.put(&quot;OWNER&quot;, holder.CacheOwner);
+ 						varParams.put(&quot;DIFFICULTY&quot;, dec.replaceAll(holder.hard));
+ 						varParams.put(&quot;TERRAIN&quot;, dec.replaceAll(holder.terrain));
+@@ -220,8 +216,18 @@
+ 						varParams.put(&quot;STATUS_TIME&quot;, holder.GetStatusTime());
+ 						varParams.put(&quot;DATE&quot;, holder.DateHidden);
+ 						varParams.put(&quot;URL&quot;, holder.URL);
+-						varParams.put(&quot;NOTES&quot;, holder.CacheNotes);
+ 						varParams.put(&quot;DESCRIPTION&quot;, holder.LongDescription);
++						if (myFilter.badChars != null) {
++							varParams.put(&quot;NAME&quot;, rex.replaceAll(holder.CacheName));
++							varParams.put(&quot;NOTES&quot;, rex.replaceAll(holder.CacheNotes));
++							varParams.put(&quot;HINTS&quot;, rex.replaceAll(holder.Hints));
++							varParams.put(&quot;DECRYPTEDHINTS&quot;, rex.replaceAll(Common.rot13(holder.Hints)));
++						} else {
++							varParams.put(&quot;NAME&quot;, holder.CacheName);
++							varParams.put(&quot;NOTES&quot;, holder.CacheNotes);
++							varParams.put(&quot;HINTS&quot;, holder.Hints);
++							varParams.put(&quot;DECRYPTEDHINTS&quot;, Common.rot13(holder.Hints));
++						}
+ 						cache_index.add(varParams);
+ 					}catch(Exception e){
+ 						Vm.debug(&quot;Problem getting Parameter, Cache: &quot; + holder.wayPoint);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001399.html">[Cachewolf-svn] r1505 - in trunk: res_noewe/languages	resources/attributes resources/attributes-big src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001401.html">[Cachewolf-svn] r1507 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1400">[ date ]</a>
+              <a href="thread.html#1400">[ thread ]</a>
+              <a href="subject.html#1400">[ subject ]</a>
+              <a href="author.html#1400">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

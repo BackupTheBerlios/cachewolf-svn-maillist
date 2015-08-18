@@ -1,0 +1,189 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1359 - in trunk/src/CacheWolf: . navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-April/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1359%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C200804120716.m3C7Gh9K013615%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001252.html">
+   <LINK REL="Next"  HREF="001254.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1359 - in trunk/src/CacheWolf: . navi</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1359%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C200804120716.m3C7Gh9K013615%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1359 - in trunk/src/CacheWolf: . navi">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Sat Apr 12 09:16:43 CEST 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001252.html">[Cachewolf-svn] r1358 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001254.html">[Cachewolf-svn] r1360 - in trunk: res_noewe/languages	res_noewe/webmapservices src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1253">[ date ]</a>
+              <a href="thread.html#1253">[ thread ]</a>
+              <a href="subject.html#1253">[ subject ]</a>
+              <a href="author.html#1253">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2008-04-12 09:16:41 +0200 (Sat, 12 Apr 2008)
+New Revision: 1359
+
+Modified:
+   trunk/src/CacheWolf/DescriptionPanel.java
+   trunk/src/CacheWolf/TablePanel.java
+   trunk/src/CacheWolf/myTableControl.java
+   trunk/src/CacheWolf/navi/MapLoaderGui.java
+   trunk/src/CacheWolf/navi/MapsList.java
+Log:
+New Profile: Bug fixed: ArrayIndexOutOfBoundException avoided
+ListPanel: user hindered to unselect (ungrey) the selected cache in order to avoid internal inconsistencies
+DescriptenPanel: Bug fixed: if no cache in list, NullPointerException avoided
+MapLoaderGui: accept &quot;,&quot; and &quot;.&quot; as decimal seperator
+
+Modified: trunk/src/CacheWolf/DescriptionPanel.java
+===================================================================
+--- trunk/src/CacheWolf/DescriptionPanel.java	2008-04-11 15:54:27 UTC (rev 1358)
++++ trunk/src/CacheWolf/DescriptionPanel.java	2008-04-12 07:16:41 UTC (rev 1359)
+@@ -36,12 +36,16 @@
+ 	*/
+ 	//String description = null;
+ 	public void setText(CacheHolderDetail cache){
+-		boolean isHtml=cache.is_HTML;
++		boolean isHtml;
+ 		//if (currCache == cache) return;
+ 		int scrollto = 0;
+-		if (cache.hasSameMainCache(currCache)) scrollto = disp.getTopLine();
+-		if (cache == null) desc = &quot;&quot;;
++		if (cache == null) {
++			desc = &quot;&quot;;
++			isHtml = false;
++		}
+ 		else {
++			if (cache.hasSameMainCache(currCache)) scrollto = disp.getTopLine();
++			isHtml=cache.is_HTML;
+ 			if (cache.isAddiWpt()) {
+ 				CacheHolderDetail mainCache=cache.mainCache.getCacheDetails(true);
+ 				isHtml=mainCache.is_HTML;
+
+Modified: trunk/src/CacheWolf/TablePanel.java
+===================================================================
+--- trunk/src/CacheWolf/TablePanel.java	2008-04-11 15:54:27 UTC (rev 1358)
++++ trunk/src/CacheWolf/TablePanel.java	2008-04-12 07:16:41 UTC (rev 1359)
+@@ -95,7 +95,8 @@
+ 	//TODO Add a sort here to restore the sort after a filter
+ 	public void refreshTable(){
+ 		String wayPoint;
+-		if (getSelectedCache() &gt;= 0) wayPoint = ((CacheHolder)cacheDB.get(getSelectedCache())).wayPoint;
++		if (getSelectedCache() &gt;= 0)
++			wayPoint = ((CacheHolder)cacheDB.get(getSelectedCache())).wayPoint;
+ 		else wayPoint = null;
+ 		myMod.updateRows();
+ 
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2008-04-11 15:54:27 UTC (rev 1358)
++++ trunk/src/CacheWolf/myTableControl.java	2008-04-12 07:16:41 UTC (rev 1359)
+@@ -309,7 +309,19 @@
+ 			}
+ 		}
+ 	 }
+-	 
++
++	 /**
++	  * this is only necessary to hinder the user to unselect
++	  */
++	 public void penReleased(Point p,boolean isDouble)
++	 {
++		 Point p2 = cellAtPoint(p.x,p.y,null);
++		 super.penReleased(p, isDouble);
++		 Rect sel = getSelection(null); 
++		 if ((sel.height == 0 || sel.height == 0) &amp;&amp; p2 != null) cursorTo(p2.y,p2.x, true); // if the selection is gone -&gt; reselect it 
++			 
++	 }
++
+ 	 class myProgressBarForm extends ProgressBarForm {
+ 
+ 		 boolean isClosed=false;
+@@ -320,6 +332,8 @@
+ 		 }
+ 		 
+ 	 }
++	 
++	 
+ 
+ 	public Menu getMenuSmall() {
+ 		return mSmall;
+
+Modified: trunk/src/CacheWolf/navi/MapLoaderGui.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MapLoaderGui.java	2008-04-11 15:54:27 UTC (rev 1358)
++++ trunk/src/CacheWolf/navi/MapLoaderGui.java	2008-04-12 07:16:41 UTC (rev 1359)
+@@ -6,6 +6,7 @@
+ import CacheWolf.Global;
+ import CacheWolf.InfoBox;
+ import CacheWolf.MyLocale;
++import CacheWolf.NewProfileWizard;
+ import CacheWolf.Preferences;
+ import ewe.io.FileBase;
+ import ewe.sys.Convert;
+@@ -277,8 +278,8 @@
+ 					if (forSelectedChkBox.getSelectedItem().toString().equalsIgnoreCase(MyLocale.getMsg(1804, &quot;all&quot;))) onlySelected = false;
+ 					else onlySelected = true;
+ 					overviewmap = overviewChkBox.getState();
+-					radius = Convert.toFloat(distanceInput.getText());
+-					scale = Convert.toFloat(scaleInput.getText());
++					radius = (float)CacheWolf.Common.parseDouble(distanceInput.getText());
++					scale = (float)CacheWolf.Common.parseDouble(scaleInput.getText());
+ 					overlapping = Convert.toInt(overlappingInput.getText());
+ 					if (!forCachesChkBox.getState()) {
+ 						if (radius &lt;= 0) { 
+
+Modified: trunk/src/CacheWolf/navi/MapsList.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MapsList.java	2008-04-11 15:54:27 UTC (rev 1358)
++++ trunk/src/CacheWolf/navi/MapsList.java	2008-04-12 07:16:41 UTC (rev 1359)
+@@ -493,6 +493,7 @@
+ 	public static void loadingFinished() {
+ 		if (renameProgressInfoB != null) renameProgressInfoB.close(0);
+ 		renameProgressInfoB = null;
++		rename = 0;
+ 	}
+ 	
+ 	/*
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001252.html">[Cachewolf-svn] r1358 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001254.html">[Cachewolf-svn] r1360 - in trunk: res_noewe/languages	res_noewe/webmapservices src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1253">[ date ]</a>
+              <a href="thread.html#1253">[ thread ]</a>
+              <a href="subject.html#1253">[ subject ]</a>
+              <a href="author.html#1253">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

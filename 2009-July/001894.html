@@ -1,0 +1,223 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1975 - trunk/src/exp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-July/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1975%20-%20trunk/src/exp&In-Reply-To=%3C200907012204.n61M4Zpu028017%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001893.html">
+   <LINK REL="Next"  HREF="001895.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1975 - trunk/src/exp</H1>
+    <B>greiol at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1975%20-%20trunk/src/exp&In-Reply-To=%3C200907012204.n61M4Zpu028017%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1975 - trunk/src/exp">greiol at mail.berlios.de
+       </A><BR>
+    <I>Thu Jul  2 00:04:35 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001893.html">[Cachewolf-svn] r1974 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001895.html">[Cachewolf-svn] r1976 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1894">[ date ]</a>
+              <a href="thread.html#1894">[ thread ]</a>
+              <a href="subject.html#1894">[ subject ]</a>
+              <a href="author.html#1894">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: greiol
+Date: 2009-07-02 00:04:32 +0200 (Thu, 02 Jul 2009)
+New Revision: 1975
+
+Modified:
+   trunk/src/exp/GarminMap.java
+   trunk/src/exp/OziExporter.java
+Log:
+remove , from cache names in ozi export
+add color support via garminmap for ozi export
+
+Modified: trunk/src/exp/GarminMap.java
+===================================================================
+--- trunk/src/exp/GarminMap.java	2009-07-01 19:01:24 UTC (rev 1974)
++++ trunk/src/exp/GarminMap.java	2009-07-01 22:04:32 UTC (rev 1975)
+@@ -38,7 +38,7 @@
+ 		if (name.equals(&quot;icon&quot;)) {
+ 			symbols.add(new IconMap(atts.getValue(&quot;type&quot;),atts.getValue(&quot;name&quot;),atts.getValue(&quot;found&quot;),
+ 					atts.getValue(&quot;size&quot;),atts.getValue(&quot;terrain&quot;),atts.getValue(&quot;difficulty&quot;),
+-					atts.getValue(&quot;status&quot;),atts.getValue(&quot;poiid&quot;)));
++					atts.getValue(&quot;status&quot;),atts.getValue(&quot;poiid&quot;),atts.getValue(&quot;ozicolor&quot;)));
+ 		}
+ 	}
+ 
+@@ -82,6 +82,24 @@
+ 		}
+ 		return null;
+ 	}
++	
++	public String ozicolor(CacheHolder ch) {
++		int mapSize=symbols.size();
++		// Try each icon in turn
++		for (int i=0; i&lt;mapSize; i++) {
++			IconMap icon=(IconMap) symbols.get(i);
++			boolean match=true;
++			// If a certain attribute is not null it must match the current caches values
++			match=match &amp;&amp; ((icon.type==null) || ch.getType()==0 || icon.type.equals(String.valueOf(ch.getType())));
++			match=match &amp;&amp; ((icon.size==null) || ch.getCacheSize()==0 || icon.size.equalsIgnoreCase(CacheSize.getExportShortId(ch.getCacheSize())));
++			match=match &amp;&amp; ((icon.terrain==null) || ch.getTerrain()==0 || icon.terrain.equals(CacheTerrDiff.shortDT(ch.getTerrain())));
++			match=match &amp;&amp; ((icon.difficulty==null) ||  ch.getHard()==0 || icon.difficulty.equals(CacheTerrDiff.shortDT(ch.getHard())));
++			match=match &amp;&amp; ((icon.status==null) ||  ch.getCacheStatus().startsWith(icon.status));
++			match=match &amp;&amp; ((icon.found==null) || ch.is_found());
++			if (match) return icon.ozicolor;
++		}
++		return null;
++	}
+ 
+ 	private class IconMap {
+ 		public String type;
+@@ -92,8 +110,9 @@
+ 		public String found;
+ 		public String status;
+ 		public String poiId;
++		public String ozicolor;
+ 
+-		IconMap(String type, String name, String found, String size, String terrain, String difficulty, String status, String poiId) {
++		IconMap(String type, String name, String found, String size, String terrain, String difficulty, String status, String poiId, String ozicolor) {
+ 			this.type=type;
+ 			this.name=name;
+ 			this.found=found;
+@@ -102,6 +121,7 @@
+ 			this.difficulty=difficulty;
+ 			this.status=status;
+ 			this.poiId = poiId;
++			this.ozicolor = ozicolor;
+ 		}
+ 	}
+ 
+
+Modified: trunk/src/exp/OziExporter.java
+===================================================================
+--- trunk/src/exp/OziExporter.java	2009-07-01 19:01:24 UTC (rev 1974)
++++ trunk/src/exp/OziExporter.java	2009-07-01 22:04:32 UTC (rev 1975)
+@@ -1,4 +1,6 @@
+ package exp;
++import ewe.io.File;
++import ewe.io.FileBase;
+ import CacheWolf.*;
+ 
+ /**
+@@ -6,10 +8,18 @@
+ */
+ public class OziExporter extends Exporter{
+ 	
++	GarminMap poiMapper;
++	
+ 	public OziExporter(Preferences p, Profile prof){
+ 		super();
+ 		this.setHowManyParams(LAT_LON);
+ 		this.setMask(&quot;*.wpt&quot;);
++		if ((new File(FileBase.getProgramDirectory()+&quot;/garminmap.xml&quot;)).exists()) {
++			poiMapper=new GarminMap();
++			poiMapper.readGarminMap();
++		} else {
++			poiMapper = null;
++		}
+ 	}
+ 	
+ 	public String header () {
+@@ -31,7 +41,18 @@
+ 		// usually start at 1 and increment. Can be set to -1 (minus 1) and the number will be auto generated.
+ 		strBuf.append(&quot;-1,&quot;);
+ 		// Field 2 : Name - the waypoint name, use the correct length name to suit the GPS type.
+-		strBuf.append(ch.getWayPoint() + &quot;,&quot;);
++		if (ch.getType() == CacheType.CW_TYPE_CUSTOM || ch.isAddiWpt()) {
++			strBuf.append(ch.getWayPoint() + &quot;,&quot;);
++		} else {
++			strBuf.append(ch.getWayPoint()
++			.concat(&quot; &quot;)
++			.concat(CacheType.getExportShortId(ch.getType()))
++			.concat(String.valueOf(ch.getHard()))
++			.concat(String.valueOf(ch.getTerrain()))
++			.concat(CacheSize.getExportShortId(ch.getCacheSize()))
++			.concat(&quot;,&quot;)
++			);
++		}
+ 		// Field 3 : Latitude - decimal degrees.
+ 		strBuf.append(lat+&quot;,&quot;);
+ 		// Field 4 : Longitude - decimal degrees.
+@@ -43,13 +64,19 @@
+ 		// Field 7 : Status - always set to 1
+ 		strBuf.append(&quot;1,&quot;);
+ 		// Field 8 : Map Display Format
+-		strBuf.append(&quot;0,&quot;);
++		strBuf.append(&quot;3,&quot;);
+ 		// Field 9 : Foreground Color (RGB value)
+ 		strBuf.append(&quot;0,&quot;);
+ 		// Field 10 : Background Color (RGB value)
+-		strBuf.append(&quot;16777215,&quot;);
++		String color=&quot;16777215&quot;;
++		if (poiMapper != null) {
++			String tmpcolor = poiMapper.ozicolor(ch);
++			if (tmpcolor != null)
++				color = tmpcolor;
++		}
++		strBuf.append(color+&quot;,&quot;);
+ 		// Field 11 : Description (max 40), no commas
+-		tmpName = simplifyString(ch.getCacheName());
++		tmpName = simplifyString(ch.getCacheName()).replace(',', ' ');
+ 		if (tmpName.length() &lt;= 40){
+ 			strBuf.append(tmpName + &quot;,&quot;);
+ 		}
+@@ -65,15 +92,15 @@
+ 		// Field 15 : Altitude - in feet (-777 if not valid)
+ 		strBuf.append(&quot;-777,&quot;);
+ 		// Field 16 : Font Size - in points
+-		strBuf.append(&quot;8,&quot;);
++		strBuf.append(&quot;7,&quot;);
+ 		// Field 17 : Font Style - 0 is normal, 1 is bold.
+-		strBuf.append(&quot;1,&quot;);
++		strBuf.append(&quot;0,&quot;);
+ 		// Field 18 : Symbol Size - 17 is normal size
+ 		strBuf.append(&quot;17,&quot;);
+ 		// Field 19 : Proximity Symbol Position
+ 		strBuf.append(&quot;0,&quot;);
+ 		// Field 20 : Proximity Time
+-		strBuf.append(&quot;  10.0,&quot;);
++		strBuf.append(&quot;10.0,&quot;);
+ 	    // Field 21 : Proximity or Route or Both
+ 		strBuf.append(&quot;2,&quot;);
+ 		// Field 22 : File Attachment Name
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001893.html">[Cachewolf-svn] r1974 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001895.html">[Cachewolf-svn] r1976 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1894">[ date ]</a>
+              <a href="thread.html#1894">[ thread ]</a>
+              <a href="subject.html#1894">[ subject ]</a>
+              <a href="author.html#1894">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

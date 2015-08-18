@@ -1,0 +1,118 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r3097 - trunk/src/CacheWolf/imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2011-September/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r3097%20-%20trunk/src/CacheWolf/imp&In-Reply-To=%3C20110918094957.8223B4813C7%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003090.html">
+   <LINK REL="Next"  HREF="003089.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r3097 - trunk/src/CacheWolf/imp</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r3097%20-%20trunk/src/CacheWolf/imp&In-Reply-To=%3C20110918094957.8223B4813C7%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r3097 - trunk/src/CacheWolf/imp">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Sun Sep 18 11:49:57 CEST 2011</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003090.html">[Cachewolf-svn] r3099 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="003089.html">[Cachewolf-svn] r3098 - trunk
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3088">[ date ]</a>
+              <a href="thread.html#3088">[ thread ]</a>
+              <a href="subject.html#3088">[ subject ]</a>
+              <a href="author.html#3088">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2011-09-18 11:49:57 +0200 (Sun, 18 Sep 2011)
+New Revision: 3097
+
+Modified:
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+1. handling of getting no sessionId
+2. using the limit of 100 logs in jsonobject per http/get&quot; C:/Dateien_Entwicklung/Java_Projekte/EasyCW/CacheWolf/src/CacheWolf/imp/SpiderGC.java
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2011-09-17 18:38:04 UTC (rev 3096)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2011-09-18 09:49:57 UTC (rev 3097)
+@@ -1244,7 +1244,8 @@
+ 		if (loginPage.indexOf(loginSuccess) &gt; 0) {
+ 			pref.log(&quot;Login successful: &quot; + pref.myAlias);
+ 			// **3 now we are logged in and get the userId and sessionId
+-			getSessionIdAndSetCookie(&quot;&quot;);
++			if (!getSessionIdAndSetCookie(&quot;&quot;))
++				return 2;
+ 		} else {
+ 			pref.log(&quot;[login]: Wrong Account or Password? &quot; + pref.myAlias, null);
+ 			return 2;
+@@ -1315,7 +1316,8 @@
+ 			return false;
+ 		}
+ 
+-		getSessionIdAndSetCookie(pref.userID);
++		if (!getSessionIdAndSetCookie(pref.userID))
++			return false;
+ 
+ 		try {
+ 			page = UrlFetcher.fetch(url);
+@@ -2678,17 +2680,17 @@
+ 		int nLogs = 0;
+ 		boolean foundown = false;
+ 		boolean fertig = false;
++		int num = 100;
+ 		do {
+ 			idx++;
+-			String url=&quot;<A HREF="http://www.geocaching.com/seek/geocache.logbook?tkn=">http://www.geocaching.com/seek/geocache.logbook?tkn=</A>&quot;+userToken+&quot;&amp;idx=&quot;+idx+&quot;&amp;num=10&amp;decrypt=false&quot;;
++			String url=&quot;<A HREF="http://www.geocaching.com/seek/geocache.logbook?tkn=">http://www.geocaching.com/seek/geocache.logbook?tkn=</A>&quot;+userToken+&quot;&amp;idx=&quot;+idx+&quot;&amp;num=&quot;+num+&quot;&amp;decrypt=false&quot;;
+ 			UrlFetcher.setRequestorProperty(&quot;Content-Type&quot;, &quot;application/json; charset=UTF-8&quot;);
+-			String page=UrlFetcher.fetch(url);
+-			final JSONObject resp = new JSONObject(page);
++			final JSONObject resp = new JSONObject(UrlFetcher.fetch(url));
+ 			if (!resp.getString(&quot;status&quot;).equals(&quot;success&quot;)) {
+ 				pref.log(&quot;status is &quot; + resp.getString(&quot;status&quot;));
+ 			}
+ 			final JSONArray data = resp.getJSONArray(&quot;data&quot;);
+-			fertig = data.length() &lt; 10;
++			fertig = data.length() &lt; num;
+ 			for (int index = 0; index &lt; data.length(); index++) {
+ 				nLogs++;
+ 				final JSONObject entry = data.getJSONObject(index);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003090.html">[Cachewolf-svn] r3099 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="003089.html">[Cachewolf-svn] r3098 - trunk
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3088">[ date ]</a>
+              <a href="thread.html#3088">[ thread ]</a>
+              <a href="subject.html#3088">[ subject ]</a>
+              <a href="author.html#3088">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

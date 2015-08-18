@@ -1,0 +1,160 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2334 - trunk/src/CacheWolf/navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-November/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2334%20-%20trunk/src/CacheWolf/navi&In-Reply-To=%3C200911171141.nAHBfmhh009386%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002257.html">
+   <LINK REL="Next"  HREF="002259.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2334 - trunk/src/CacheWolf/navi</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2334%20-%20trunk/src/CacheWolf/navi&In-Reply-To=%3C200911171141.nAHBfmhh009386%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2334 - trunk/src/CacheWolf/navi">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Tue Nov 17 12:41:48 CET 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002257.html">[Cachewolf-svn] r2333 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="002259.html">[Cachewolf-svn] r2335 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2258">[ date ]</a>
+              <a href="thread.html#2258">[ thread ]</a>
+              <a href="subject.html#2258">[ subject ]</a>
+              <a href="author.html#2258">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2009-11-17 12:41:46 +0100 (Tue, 17 Nov 2009)
+New Revision: 2334
+
+Modified:
+   trunk/src/CacheWolf/navi/MovingMap.java
+Log:
+1)handling target without waypoint 2)in some cases cachesymbols were not shown
+
+Modified: trunk/src/CacheWolf/navi/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MovingMap.java	2009-11-17 09:50:50 UTC (rev 2333)
++++ trunk/src/CacheWolf/navi/MovingMap.java	2009-11-17 11:41:46 UTC (rev 2334)
+@@ -184,7 +184,7 @@
+ 		mmp.addImage(buttonImageLens);
+ 		//Zoom1to1
+ 		buttonImageZoom1to1.properties = mImage.AlwaysOnTop;
+-		mmp.addImage(buttonImageZoom1to1);		
++		mmp.addImage(buttonImageZoom1to1);
+ 		//target distance
+ 		int fontSize = ( 3 * pref.fontSize ) / 2;
+ 		Font imageFont = new Font(&quot;Helvetica&quot;, Font.PLAIN, fontSize );
+@@ -206,7 +206,7 @@
+ 		setGpsStatus(noGPS);
+ 		posCircle.properties = mImage.AlwaysOnTop;
+ 		mmp.addImage(posCircle);
+-		
++
+ 		mmp.startDragResolution = 5;
+ 		mapsloaded = false;
+ 		scaleWanted = 1;
+@@ -788,7 +788,7 @@
+ 			dontUpdatePos = false;
+ 			updatePosition(posCircle.where);
+ 		}
+-		updateSymbolPositions();
++		else updateSymbolPositions(); // will also be done in updatePosition
+ 		updateOverlayPos();
+ 	}
+ 
+@@ -839,6 +839,7 @@
+ 		Point pOnScreen;
+ 		MapSymbol symb;
+ 		int w, h;
++		showCachesOnMap();
+ 		for (int i=symbols.size()-1; i&gt;=0; i--) {
+ 			symb = (MapSymbol)symbols.get(i);
+ 			pOnScreen = getXYonScreen(symb.where);
+@@ -1023,7 +1024,6 @@
+ 					setBestMap(where, screenNotCompletlyCovered);
+ 					forceMapLoad = false;
+ 				}
+-				showCachesOnMap();
+ 				if (isFillWhiteArea()) { fillWhiteArea(screenNotCompletlyCovered); }
+ 				lastCompareX = mapPos.x;
+ 				lastCompareY = mapPos.y;
+@@ -1101,19 +1101,21 @@
+ 			if (gotoPos.mapObject instanceof CacheHolder) {
+ 				gotoPosCH = (CacheHolder) gotoPos.mapObject;
+ 			}
+-			if (screenArea.isInBound(gotoPosCH.pos)) {
+-				if (!getShowCachesOnMap() &amp;&amp; (gotoPosCH != null)) {
+-					addSymbolIfNecessary(gotoPosCH.cacheName, gotoPosCH, GuiImageBroker.getTypeImage(gotoPosCH.getType(),true), gotoPosCH.pos);
++			if (gotoPosCH != null) {
++				if (screenArea.isInBound(gotoPosCH.pos)) {
++					if (!getShowCachesOnMap()) {
++						addSymbolIfNecessary(gotoPosCH.cacheName, gotoPosCH, GuiImageBroker.getTypeImage(gotoPosCH.getType(),true), gotoPosCH.pos);
++					}
++					addSymbolOnTop(&quot;goto&quot;, gotoPosCH, &quot;goto_map.png&quot;, gotoPos.where);
+ 				}
+-				addSymbolOnTop(&quot;goto&quot;, gotoPosCH, &quot;goto_map.png&quot;, gotoPos.where);
+-			}		
++			}
+ 		}
+ 		// show Selected
+ 		if (markedCache != null) {
+ 			if (screenArea.isInBound(markedCache.pos)) {
+ 				addSymbolIfNecessary(markedCache.cacheName, markedCache, GuiImageBroker.getTypeImage(markedCache.getType(),true), markedCache.pos);
+ 				addSymbolOnTop(&quot;selectedCache&quot;, markedCache, MARK_CACHE_IMAGE, markedCache.pos);
+-			}			
++			}
+ 		}
+ 	}
+ 
+@@ -1925,10 +1927,10 @@
+ 		if(ev instanceof FormEvent &amp;&amp; (ev.type == FormEvent.CLOSED )){
+ 			running = false;
+ 		}
+-		if( ev instanceof KeyEvent &amp;&amp; 
+-			ev.target == this &amp;&amp; 
++		if( ev instanceof KeyEvent &amp;&amp;
++			ev.target == this &amp;&amp;
+ 			( (((KeyEvent)ev).key == IKeys.ESCAPE) ||
+-			  (((KeyEvent)ev).key == IKeys.ENTER) || 
++			  (((KeyEvent)ev).key == IKeys.ENTER) ||
+ 			  (((KeyEvent)ev).key == IKeys.ACTION) ) ) {
+ 			this.close(0);
+ 			ev.consumed = true;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002257.html">[Cachewolf-svn] r2333 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="002259.html">[Cachewolf-svn] r2335 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2258">[ date ]</a>
+              <a href="thread.html#2258">[ thread ]</a>
+              <a href="subject.html#2258">[ subject ]</a>
+              <a href="author.html#2258">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

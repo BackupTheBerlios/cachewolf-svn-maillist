@@ -1,0 +1,274 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r577 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r577%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702131914.l1DJEVsf018765%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000387.html">
+   <LINK REL="Next"  HREF="000389.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r577 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r577%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702131914.l1DJEVsf018765%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r577 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Tue Feb 13 20:14:31 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000387.html">[Cachewolf-svn] r576 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000389.html">[Cachewolf-svn] r578 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#388">[ date ]</a>
+              <a href="thread.html#388">[ thread ]</a>
+              <a href="subject.html#388">[ subject ]</a>
+              <a href="author.html#388">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-02-13 20:14:23 +0100 (Tue, 13 Feb 2007)
+New Revision: 577
+
+Modified:
+   trunk/src/CacheWolf/HintLogPanel.java
+   trunk/src/CacheWolf/myTableControl.java
+Log:
+Liste: Pos1, Ende, Bild-hoch und -runtertasten funktionieren
+Logs: beim Anzeigen der n?\195?\164schten /vorherigen Logs wird immer an den Anfang gescrollt
+
+Modified: trunk/src/CacheWolf/HintLogPanel.java
+===================================================================
+--- trunk/src/CacheWolf/HintLogPanel.java	2007-02-13 17:57:21 UTC (rev 576)
++++ trunk/src/CacheWolf/HintLogPanel.java	2007-02-13 19:14:23 UTC (rev 577)
+@@ -109,6 +109,7 @@
+ 		htmlImagDisp.addImage(htmlTxtImage);
+ 		Rect r = new Rect(new Dimension (width, h));
+ 		htmlImagDisp.virtualSize = r;
++		htmlImagDisp.origin = new Point();
+ 		htmlImagDisp.checkScrolls();
+ 
+ 		htmlImagDisp.repaintNow();
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2007-02-13 17:57:21 UTC (rev 576)
++++ trunk/src/CacheWolf/myTableControl.java	2007-02-13 19:14:23 UTC (rev 577)
+@@ -7,15 +7,15 @@
+ import ewe.util.*;
+ 
+ /**
+-*	Implements the user interaction of the list view. Works together with myTableModel and TablePanel
+-*/
++ *	Implements the user interaction of the list view. Works together with myTableModel and TablePanel
++ */
+ public class myTableControl extends TableControl{
+ 
+ 	public Preferences pref;
+ 	public Profile profile;
+ 	public Vector cacheDB;
+ 	public TablePanel tbp;
+-	
++
+ 	myTableControl(TablePanel tablePanel) {
+ 		Menu m = new Menu(new String[]{
+ 				MyLocale.getMsg(1021,&quot;Open description&quot;),
+@@ -36,16 +36,16 @@
+ 		pref = Global.getPref();
+ 		tbp =tablePanel;
+ 	}
+-	
++
+ 	public void penRightReleased(Point p){
+ 		if (cacheDB.size()&gt;0) // No context menu when DB is empty
+-		   menuState.doShowMenu(p,true,null); // direct call (not through doMenu) is neccesary because it will exclude the whole table
++			menuState.doShowMenu(p,true,null); // direct call (not through doMenu) is neccesary because it will exclude the whole table
+ 	}
+ 	public void penHeld(Point p){
+ 		if (cacheDB.size()&gt;0) // No context menu when DB is empty
+-		   menuState.doShowMenu(p,true,null); 
++			menuState.doShowMenu(p,true,null); 
+ 	}
+-	
++
+ 	public void onKeyEvent(KeyEvent ev) {
+ 		if (ev.type == KeyEvent.KEY_PRESS &amp;&amp; ev.target == this){
+ 			if ( (ev.modifiers &amp; IKeys.CONTROL) &gt; 0 &amp;&amp; ev.key == 1){ // &lt;ctrl-a&gt; gives 1, &lt;ctrl-b&gt; == 2
+@@ -53,27 +53,31 @@
+ 				setSelectForAll(true);
+ 				ev.consumed = true;
+ 			}
++			if (ev.key == IKeys.HOME) cursorTo(0,cursor.x+listMode,true);
++			if (ev.key == IKeys.END) cursorTo(model.numRows-1,cursor.x+listMode,true);
++			if (ev.key == IKeys.PAGE_DOWN)cursorTo(java.lang.Math.min(cursor.y+ getOnScreen(null).height, model.numRows),cursor.x+listMode,true);
++			if (ev.key == IKeys.PAGE_UP) cursorTo(java.lang.Math.max(cursor.y-getOnScreen(null).height, 0),cursor.x+listMode,true);
+ 		}
+ 		super.onKeyEvent(ev);
+ 	}
+-		
++
+ 	/** Set all caches either as selected or as deselected, depending on argument */
+ 	private void setSelectForAll(boolean selectStatus) {
+ 		Global.getProfile().setSelectForAll(selectStatus);
+ 		tbp.refreshTable();
+ 	}
+-	
++
+ 	public void popupMenuEvent(Object selectedItem){
+ 		CacheHolder ch;
+-		
++
+ 		if (selectedItem.toString().equals(MyLocale.getMsg(1015,&quot;Select all&quot;))){
+ 			setSelectForAll(true);
+ 		}
+-		
++
+ 		if (selectedItem.toString().equals(MyLocale.getMsg(1016,&quot;De-select all&quot;))){
+ 			setSelectForAll(false);
+ 		}
+-		
++
+ 		if (selectedItem.toString().equals(MyLocale.getMsg(1011,&quot;Filter&quot;))){
+ 			for(int i = cacheDB.size()-1; i &gt;=0; i--){
+ 				ch = (CacheHolder)cacheDB.get(i);
+@@ -85,48 +89,48 @@
+ 		}
+ 		if (selectedItem.toString().equals(MyLocale.getMsg(1012,&quot;Delete&quot;))){
+ 			if ((new MessageBox(MyLocale.getMsg(144,&quot;Warnung&quot;),MyLocale.getMsg(1022, &quot;Delete all caches that have a tick?&quot;), MessageBox.YESB | MessageBox.NOB)).execute() != Form.IDYES) return;
+-				DataMover dm=new DataMover();
+-				for(int i = cacheDB.size()-1; i &gt;=0; i--){
+-					ch = (CacheHolder)cacheDB.get(i);
+-					if(ch.is_Checked == true) {
+-						dm.deleteCacheFiles(ch.wayPoint,profile.dataDir);
+-						cacheDB.remove(ch);
+-					}
++			DataMover dm=new DataMover();
++			for(int i = cacheDB.size()-1; i &gt;=0; i--){
++				ch = (CacheHolder)cacheDB.get(i);
++				if(ch.is_Checked == true) {
++					dm.deleteCacheFiles(ch.wayPoint,profile.dataDir);
++					cacheDB.remove(ch);
+ 				}
++			}
+ 			profile.saveIndex(pref,true);	
+ 			tbp.refreshTable();
+ 		}
+-		
++
+ 		if (selectedItem.toString().equals(MyLocale.getMsg(1014,&quot;Update&quot;))){
+-            SpiderGC spider = new SpiderGC(pref, profile);
+-            Vm.showWait(true);
+-            spider.login();
+-            boolean alreadySaid = false;
+-            boolean alreadySaid2 = false;
+-            for(int i = 0; i &lt;	cacheDB.size(); i++){
+-                    ch = (CacheHolder)cacheDB.get(i);
+-                    if(ch.is_Checked == true) {
+-                            if ( (ch.wayPoint.length() &gt; 1 &amp;&amp; ch.wayPoint.substring(0,2).equalsIgnoreCase(&quot;GC&quot;)))
+-//Notiz: Wenn es ein addi Wpt ist, sollte eigentlich der Maincache gespidert werden
+-//Alter code pr&#252;ft aber nur ob ein Maincache von GC existiert und versucht dann den addi direkt zu spidern, was nicht funktioniert
+-//TODO: Diese Meldungen vor dem Einloggen darstellen						
+-		{
+-                                    spider.spiderSingle(i);
+-                            } else if (ch.isAddiWpt() &amp;&amp; !ch.mainCache.is_Checked) { // Is the father ticked?
+-                            		if (!alreadySaid2) {
+-                                            alreadySaid2=true;
+-                                            (new MessageBox(&quot;Information&quot;,&quot;Hilfswegpunkte k&#246;nnnen nicht direkt gespidert werden\nBitte zus&#228;tzlich den Vater anhaken&quot;, MessageBox.OKB)).exec();
+-                                    }
+-                            } else if (ch.mainCache != null &amp;&amp;	ch.mainCache.wayPoint.length() &gt; 1 	&amp;&amp; !ch.mainCache.wayPoint.substring(0,2).equalsIgnoreCase(&quot;GC&quot;) &amp;&amp; 
+-                                               !alreadySaid) {
+-                                    alreadySaid = true;
+-                                    (new MessageBox(&quot;Information&quot;,ch.wayPoint+&quot;&gt;&quot;+ch.mainCache.wayPoint+&quot;: Diese Funktion steht gegenw&#228;rtig nur f&#252;r Geocaching.com zur Verf&#252;gung&quot;, MessageBox.OKB)).exec();
+-                            }
+-                    }
+-            }
++			SpiderGC spider = new SpiderGC(pref, profile);
++			Vm.showWait(true);
++			spider.login();
++			boolean alreadySaid = false;
++			boolean alreadySaid2 = false;
++			for(int i = 0; i &lt;	cacheDB.size(); i++){
++				ch = (CacheHolder)cacheDB.get(i);
++				if(ch.is_Checked == true) {
++					if ( (ch.wayPoint.length() &gt; 1 &amp;&amp; ch.wayPoint.substring(0,2).equalsIgnoreCase(&quot;GC&quot;)))
++//						Notiz: Wenn es ein addi Wpt ist, sollte eigentlich der Maincache gespidert werden
++//						Alter code pr&#252;ft aber nur ob ein Maincache von GC existiert und versucht dann den addi direkt zu spidern, was nicht funktioniert
++//						TODO: Diese Meldungen vor dem Einloggen darstellen						
++					{
++						spider.spiderSingle(i);
++					} else if (ch.isAddiWpt() &amp;&amp; !ch.mainCache.is_Checked) { // Is the father ticked?
++						if (!alreadySaid2) {
++							alreadySaid2=true;
++							(new MessageBox(&quot;Information&quot;,&quot;Hilfswegpunkte k&#246;nnnen nicht direkt gespidert werden\nBitte zus&#228;tzlich den Vater anhaken&quot;, MessageBox.OKB)).exec();
++						}
++					} else if (ch.mainCache != null &amp;&amp;	ch.mainCache.wayPoint.length() &gt; 1 	&amp;&amp; !ch.mainCache.wayPoint.substring(0,2).equalsIgnoreCase(&quot;GC&quot;) &amp;&amp; 
++							!alreadySaid) {
++						alreadySaid = true;
++						(new MessageBox(&quot;Information&quot;,ch.wayPoint+&quot;&gt;&quot;+ch.mainCache.wayPoint+&quot;: Diese Funktion steht gegenw&#228;rtig nur f&#252;r Geocaching.com zur Verf&#252;gung&quot;, MessageBox.OKB)).exec();
++					}
++				}
++			}
+ 			profile.hasUnsavedChanges=true;	
+-            tbp.refreshTable();
+-            Vm.showWait(false);
++			tbp.refreshTable();
++			Vm.showWait(false);
+ 		}
+ 		if (selectedItem.toString().equals(MyLocale.getMsg(1019,&quot;Center&quot;))){
+ 			CacheHolder thisCache = (CacheHolder)cacheDB.get(tbp.getSelectedCache());
+@@ -140,7 +144,7 @@
+ 				tbp.refreshTable();
+ 			}
+ 		}
+-		
++
+ 		if (selectedItem.toString().equals(MyLocale.getMsg(1010,&quot;Goto&quot;))){
+ 			ch = (CacheHolder)cacheDB.get(tbp.getSelectedCache());
+ 			Global.mainTab.gotoPoint(ch.LatLon);
+@@ -162,10 +166,10 @@
+ 		}
+ 
+ 	}
+-	
++
+ 	public void penDoubleClicked(Point where) {
+ 		Global.mainTab.select(Global.mainTab.descP);
+ 	}
+ 
+-	
++
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000387.html">[Cachewolf-svn] r576 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000389.html">[Cachewolf-svn] r578 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#388">[ date ]</a>
+              <a href="thread.html#388">[ thread ]</a>
+              <a href="subject.html#388">[ subject ]</a>
+              <a href="author.html#388">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

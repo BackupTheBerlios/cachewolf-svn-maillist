@@ -1,0 +1,263 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1961 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-June/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1961%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200906280955.n5S9tVFi011568%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001879.html">
+   <LINK REL="Next"  HREF="001881.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1961 - trunk/src/CacheWolf</H1>
+    <B>jennergruhle at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1961%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200906280955.n5S9tVFi011568%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1961 - trunk/src/CacheWolf">jennergruhle at mail.berlios.de
+       </A><BR>
+    <I>Sun Jun 28 11:55:31 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001879.html">[Cachewolf-svn] r1960 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001881.html">[Cachewolf-svn] r1962 - trunk/src/exp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1880">[ date ]</a>
+              <a href="thread.html#1880">[ thread ]</a>
+              <a href="subject.html#1880">[ subject ]</a>
+              <a href="author.html#1880">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: jennergruhle
+Date: 2009-06-28 11:55:29 +0200 (Sun, 28 Jun 2009)
+New Revision: 1961
+
+Modified:
+   trunk/src/CacheWolf/GPSPortOptions.java
+Log:
+Added GPSD usage options
+
+Modified: trunk/src/CacheWolf/GPSPortOptions.java
+===================================================================
+--- trunk/src/CacheWolf/GPSPortOptions.java	2009-06-28 09:54:49 UTC (rev 1960)
++++ trunk/src/CacheWolf/GPSPortOptions.java	2009-06-28 09:55:29 UTC (rev 1961)
+@@ -29,6 +29,7 @@
+ import ewe.ui.*;
+ import ewe.io.*;
+ import ewe.ui.formatted.TextDisplay;
++import ewe.net.Socket;
+ import ewe.reflect.FieldTransfer;
+ import ewe.reflect.Reflect;
+ import ewe.sys.*;
+@@ -94,16 +95,95 @@
+ 	}
+ }
+ 
++class GpsdThread extends mThread{
++	Socket gpsdSocket;
++	boolean run;
++	TextDisplay out;
++	Socket tcpConn;
++	String lastError = new String();
++	public String lastgot;
++	
++	public GpsdThread(TextDisplay td) throws IOException {
++		try{
++			gpsdSocket = new Socket(Global.getPref().gpsdHost, Global.getPref().gpsdPort);
++		} catch (IOException e) {
++			throw new IOException(Global.getPref().gpsdHost);
++		} // catch (UnsatisfiedLinkError e) {} // TODO in original java-vm 
++		out = td;
++		lastgot = null;
++	}
++	
++	public void run() {
++		String gpsResult;
++		run = true;
++		while (run){
++			try {
++				sleep(900);
++			} catch (InterruptedException e) {
++				Global.getPref().log(&quot;Ignored Exception&quot;, e, true);
++			}
++			if (gpsdSocket != null)	{
++				gpsResult = getGpsdData(&quot;ADPQTV\r\n&quot;);
++				if (gpsResult!=null) {
++					lastgot = gpsResult;
++					if (out != null) out.appendText(gpsResult,true);
++				}
++			}
++		} // while
++	}
++
++	private String getGpsdData(String command) {
++		byte[] rcvBuff = new byte[1024*10]; // when some action takes a long time (eg. loading or zooming a map), a lot of data can be in the buffer, read that at once
++		int rcvLength = 0;
++		try {
++			gpsdSocket.write(command.getBytes());
++		} catch (IOException e) {
++			Global.getPref().log(&quot;Socket exception&quot;, e, true);
++		}
++		try {
++			sleep(100);
++		} catch (InterruptedException e) {
++			Global.getPref().log(&quot;Ignored exception&quot;, e, true);
++		}
++		try {
++			rcvLength = gpsdSocket.read(rcvBuff);
++		} catch (IOException e) {
++			Global.getPref().log(&quot;Socket exception&quot;, e, true);
++		}
++		String str = null;
++		if (rcvLength &gt; 0)	{
++			str = mString.fromAscii(rcvBuff, 0, rcvLength); 
++		}
++		return str;
++	}
++
++	public String nonBlockingRead() {
++		String ret = new String(lastgot); //mString.fromAscii(gpsBuff,0,gpsLen);
++		lastgot = null;
++		return ret;
++
++	}
++
++	public void stop() {
++		run = false;
++		if (gpsdSocket != null) gpsdSocket.close();
++	}
++}
++
+ public class GPSPortOptions extends SerialPortOptions {
+ 	TextDisplay txtOutput;
+ 	mButton btnTest, btnUpdatePortList, btnScan;
+ 	public mInput inputBoxForwardHost;
+ 	mLabel  labelForwardHost;
+ 	public mCheckBox forwardGpsChkB;
++	public mInput inputBoxGpsdHost;
++	mLabel  labelGpsdHost;
++	public mCheckBox gpsdChkB;
+ 	public mInput inputBoxLogTimer;
+ 	mLabel  labelLogTimer;
+ 	public mCheckBox logGpsChkB;
+ 	mySerialThread serThread;
++	GpsdThread gpsdThread = null;
+ 	boolean gpsRunning = false;
+ 	MyEditor ed = new MyEditor();
+ 
+@@ -141,6 +221,7 @@
+ 		ScrollBarPanel sbp = new MyScrollBarPanel(txtOutput);
+ 		sbp.setOptions(ScrollablePanel.AlwaysShowVerticalScrollers | ScrollablePanel.AlwaysShowHorizontalScrollers);
+ 		ed.addField(ed.addLast(sbp),&quot;out&quot;);
++		
+ 		forwardGpsChkB = new mCheckBox(&quot;&quot;);
+ 		ed.addField(ed.addNext(forwardGpsChkB, CellConstants.DONTSTRETCH, (CellConstants.EAST | CellConstants.DONTFILL)), &quot;forwardGpsChkB&quot;);
+ 		labelForwardHost = new mLabel(MyLocale.getMsg(7105, &quot;Forward GPS data to host&quot;));
+@@ -149,6 +230,16 @@
+ 		inputBoxForwardHost.setPromptControl(labelForwardHost);
+ 		inputBoxForwardHost.setToolTip(MyLocale.getMsg(7106, &quot;All data from GPS will be sent to TCP-port 23\n and can be redirected there to a serial port\n by HW Virtual Serial Port&quot;));
+ 		ed.addField(ed.addLast(inputBoxForwardHost,0 , (CellConstants.WEST | CellConstants.HFILL)), &quot;tcpForwardHost&quot;);
++
++		gpsdChkB = new mCheckBox(&quot;&quot;);
++		ed.addField(ed.addNext(gpsdChkB, CellConstants.DONTSTRETCH, (CellConstants.EAST | CellConstants.DONTFILL)), &quot;gpsdChkB&quot;);
++		labelGpsdHost = new mLabel(MyLocale.getMsg(7121, &quot;Receive GPS from gpsd host&quot;));
++		ed.addField(ed.addNext(labelGpsdHost, CellConstants.DONTSTRETCH, (CellConstants.WEST | CellConstants.DONTFILL)), &quot;labelGpsd&quot;);
++		inputBoxGpsdHost = new mInput(&quot;GpsdHost&quot;);
++		inputBoxGpsdHost.setPromptControl(labelGpsdHost);
++		inputBoxGpsdHost.setToolTip(MyLocale.getMsg(7122, &quot;GPS data will be received from a gpsd server, not from a serial port&quot;));
++		ed.addField(ed.addLast(inputBoxGpsdHost,0 , (CellConstants.WEST | CellConstants.HFILL)), &quot;GpsdHost&quot;);
++
+ 		logGpsChkB = new mCheckBox(&quot;&quot;);
+ 		ed.addField(ed.addNext(logGpsChkB, CellConstants.DONTSTRETCH, (CellConstants.EAST | CellConstants.DONTFILL)), &quot;logGpsChkB&quot;);
+ 		labelLogTimer = new mLabel(MyLocale.getMsg(7107, &quot;Interval in sec for logging&quot;));
+@@ -215,23 +306,44 @@
+ 		if (field.equals(&quot;test&quot;)){
+ 			if (!gpsRunning){
+ 				ed_.fromControls();
+-				txtOutput.setText(MyLocale.getMsg(7117, &quot;Displaying data from serial port directly:\n&quot;));
+-				try {
+-					btnScan.set(ControlConstants.Disabled, true);
+-					btnScan.repaintNow();
+-					this.portName = Common.fixSerialPortName(portName);
+-					serThread = new mySerialThread(this, txtOutput);
+-					serThread.start();
+-					btnTest.setText(Gui.getTextFrom(MyLocale.getMsg(7118, &quot;Stop&quot;)));
+-					gpsRunning = true;
+-				} catch (IOException e) {
+-					btnScan.set(ControlConstants.Disabled, false);
+-					btnScan.repaintNow();
+-					txtOutput.appendText(MyLocale.getMsg(7108, &quot;Failed to open serial port: &quot;) + this.portName + &quot;, IOException: &quot; + e.getMessage() + &quot;\n&quot;, true);
++				if(Global.getPref().useGPSD){
++					txtOutput.setText(MyLocale.getMsg(99999, &quot;Displaying data from gpsd directly:\n&quot;));
++					try {
++						btnScan.set(ControlConstants.Disabled, true);
++						btnScan.repaintNow();
++						gpsdThread = new GpsdThread(txtOutput);
++						gpsdThread.start();
++						btnTest.setText(Gui.getTextFrom(MyLocale.getMsg(7118, &quot;Stop&quot;)));
++						gpsRunning = true;
++					} catch (IOException e) {
++						(new MessageBox(MyLocale.getMsg(4403, &quot;Error&quot;), 
++							MyLocale.getMsg(99999, &quot;Could not connect to GPSD.&quot;) 
++							+ e.getMessage()
++							+ MyLocale.getMsg(99999, &quot;\npossible reasons:\nGPSD is not running or GPSD host is not reachable&quot;), 
++							FormBase.OKB)).execute(); 
++					}
++				}else{
++					txtOutput.setText(MyLocale.getMsg(7117, &quot;Displaying data from serial port directly:\n&quot;));
++					try {
++						btnScan.set(ControlConstants.Disabled, true);
++						btnScan.repaintNow();
++						this.portName = Common.fixSerialPortName(portName);
++						serThread = new mySerialThread(this, txtOutput);
++						serThread.start();
++						btnTest.setText(Gui.getTextFrom(MyLocale.getMsg(7118, &quot;Stop&quot;)));
++						gpsRunning = true;
++					} catch (IOException e) {
++						btnScan.set(ControlConstants.Disabled, false);
++						btnScan.repaintNow();
++						txtOutput.appendText(MyLocale.getMsg(7108, &quot;Failed to open serial port: &quot;) + this.portName + &quot;, IOException: &quot; + e.getMessage() + &quot;\n&quot;, true);
++					}
+ 				}
+ 			}
+ 			else {
+-				serThread.stop();
++				if(serThread!=null)
++					serThread.stop();
++				if(gpsdThread!=null)
++					gpsdThread.stop();
+ 				btnTest.setText(Gui.getTextFrom(MyLocale.getMsg(7104,&quot;Test$t&quot;)));
+ 				gpsRunning = false;
+ 				btnScan.set(ControlConstants.Disabled, false);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001879.html">[Cachewolf-svn] r1960 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001881.html">[Cachewolf-svn] r1962 - trunk/src/exp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1880">[ date ]</a>
+              <a href="thread.html#1880">[ thread ]</a>
+              <a href="subject.html#1880">[ subject ]</a>
+              <a href="author.html#1880">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

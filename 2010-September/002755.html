@@ -1,0 +1,144 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2767 - in trunk/src/CacheWolf: . imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-September/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2767%20-%20in%20trunk/src/CacheWolf%3A%20.%20imp&In-Reply-To=%3C20100902131845.A70A94801A1%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   
+   <LINK REL="Next"  HREF="002754.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2767 - in trunk/src/CacheWolf: . imp</H1>
+    <B>mik77 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2767%20-%20in%20trunk/src/CacheWolf%3A%20.%20imp&In-Reply-To=%3C20100902131845.A70A94801A1%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2767 - in trunk/src/CacheWolf: . imp">mik77 at mail.berlios.de
+       </A><BR>
+    <I>Thu Sep  2 03:18:45 CEST 2010</I>
+    <P><UL>
+        
+        <LI>Next message: <A HREF="002754.html">[Cachewolf-svn] r2766 - trunk/src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2755">[ date ]</a>
+              <a href="thread.html#2755">[ thread ]</a>
+              <a href="subject.html#2755">[ subject ]</a>
+              <a href="author.html#2755">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mik77
+Date: 2010-09-02 15:18:45 +0200 (Thu, 02 Sep 2010)
+New Revision: 2767
+
+Modified:
+   trunk/src/CacheWolf/MyComparer.java
+   trunk/src/CacheWolf/imp/GCVoteImporter.java
+   trunk/src/CacheWolf/myTableModel.java
+Log:
+save and show number of votes from GcVote
+
+Modified: trunk/src/CacheWolf/MyComparer.java
+===================================================================
+--- trunk/src/CacheWolf/MyComparer.java	2010-09-02 09:10:04 UTC (rev 2766)
++++ trunk/src/CacheWolf/MyComparer.java	2010-09-02 13:18:45 UTC (rev 2767)
+@@ -92,7 +92,18 @@
+ 		} else if (colToCompare==13) {
+ 			for (int i=0; i&lt;visibleSize; i++) {
+ 				CacheHolder ch=cacheDB.get(i);
+-				ch.sort=MyLocale.formatLong(ch.getNumRecommended(),&quot;00000&quot;);
++				if ( ch.isOC() ) {
++  				ch.sort=MyLocale.formatLong(ch.getNumRecommended(),&quot;00000&quot;);
++        } else {
++				  int gcVote = ch.getNumRecommended();
++				  if ( gcVote &lt; 100 ) {
++				    ch.sort=MyLocale.formatLong(gcVote,&quot;00&quot;) + &quot;00000000&quot;;
++          } else {
++            int votes = gcVote / 100;
++            gcVote = gcVote - 100 * votes;
++            ch.sort = MyLocale.formatLong(gcVote,&quot;00&quot;) + MyLocale.formatLong(votes,&quot;00000000&quot;);
++          }
++        }
+ 			}			
+ 		} else if (colToCompare==14) {
+ 			for (int i=0; i&lt;visibleSize; i++) {
+
+Modified: trunk/src/CacheWolf/imp/GCVoteImporter.java
+===================================================================
+--- trunk/src/CacheWolf/imp/GCVoteImporter.java	2010-09-02 09:10:04 UTC (rev 2766)
++++ trunk/src/CacheWolf/imp/GCVoteImporter.java	2010-09-02 13:18:45 UTC (rev 2767)
+@@ -113,14 +113,15 @@
+ 	public void startElement(String name, AttributeList atts){
+ 		String waypoint;
+ 		double voteAvg;
++		int voteCnt;
+ 		if(name.equals(&quot;vote&quot;)) {
+ 			waypoint = atts.getValue(&quot;waypoint&quot;);
+ 			voteAvg = Common.parseDouble(atts.getValue(&quot;voteAvg&quot;)) * 10.0;
+-			// voteCnt = atts.getValue(&quot;voteCnt&quot;);
+-			if (pref.debug) pref.log(&quot;[GCVote]:WQaypoint = &quot; + waypoint + &quot;-&quot; + voteAvg);
++			voteCnt = Common.parseInt(atts.getValue(&quot;voteCnt&quot;));
++			if (pref.debug) pref.log(&quot;[GCVote]:Waypoint = &quot; + waypoint + &quot; - &quot; + voteAvg + &quot;(&quot; + voteCnt + &quot; votes)&quot; );
+ 
+ 			CacheHolder cb = cacheDB.get(waypoint);
+-			cb.setNumRecommended((int)(voteAvg + 0.5));
++			cb.setNumRecommended( 100*voteCnt + (int)(voteAvg + 0.5));
+ 		}
+ 	}
+ 
+
+Modified: trunk/src/CacheWolf/myTableModel.java
+===================================================================
+--- trunk/src/CacheWolf/myTableModel.java	2010-09-02 09:10:04 UTC (rev 2766)
++++ trunk/src/CacheWolf/myTableModel.java	2010-09-02 13:18:45 UTC (rev 2767)
+@@ -453,7 +453,18 @@
+ 				case 13: // OC number of recommendations
+ 					if (!ch.isCacheWpt())
+ 						return null;
+-					return Convert.formatInt(ch.getNumRecommended());
++					if ( ch.isOC() ) {
++					  return Convert.formatInt(ch.getNumRecommended());
++					} else {
++					  int gcVote = ch.getNumRecommended();
++					  if ( gcVote &lt; 100 ) {
++					    return MyLocale.formatDouble((double)gcVote/10.0, &quot;0.0&quot;); 
++					  } else {
++					    int votes = gcVote / 100;
++					    gcVote = gcVote - 100 * votes;
++					    return MyLocale.formatDouble((double)gcVote/10.0, &quot;0.0&quot;) + &quot; (&quot; + Convert.formatInt(votes) + &quot;)&quot;;
++            } 
++          }
+ 				case 14: // OC rating
+ 					if (ch.isOC())
+ 						return Convert.formatInt(ch.recommendationScore);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	
+	<LI>Next message: <A HREF="002754.html">[Cachewolf-svn] r2766 - trunk/src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2755">[ date ]</a>
+              <a href="thread.html#2755">[ thread ]</a>
+              <a href="subject.html#2755">[ subject ]</a>
+              <a href="author.html#2755">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

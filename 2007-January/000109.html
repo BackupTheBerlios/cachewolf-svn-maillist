@@ -1,0 +1,585 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r382 - in trunk: resources src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r382%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200701131327.l0DDRWd9008376%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000108.html">
+   <LINK REL="Next"  HREF="000110.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r382 - in trunk: resources src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r382%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200701131327.l0DDRWd9008376%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r382 - in trunk: resources src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Sat Jan 13 14:27:32 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000108.html">[Cachewolf-svn] [Feature #3046] MovingMap: Zommen
+</A></li>
+        <LI>Next message: <A HREF="000110.html">[Cachewolf-svn] [Feature #3046] MovingMap: Zommen
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#109">[ date ]</a>
+              <a href="thread.html#109">[ thread ]</a>
+              <a href="subject.html#109">[ subject ]</a>
+              <a href="author.html#109">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-01-13 14:27:26 +0100 (Sat, 13 Jan 2007)
+New Revision: 382
+
+Added:
+   trunk/resources/lupe.png
+Modified:
+   trunk/src/CacheWolf/MapInfoObject.java
+   trunk/src/CacheWolf/MovingMap.java
+Log:
+funktioniert, allerdings sind noch kleinere Verbesserungen vorgesehen (Platzierung, Gr?\195?\182?\195?\159e der vergr?\195?\182?\195?\159erten Karte)[ Feature Request #3046 ] MovingMap: Zommen
+
+
+Added: trunk/resources/lupe.png
+===================================================================
+(Binary files differ)
+
+
+Property changes on: trunk/resources/lupe.png
+___________________________________________________________________
+Name: svn:mime-type
+   + application/octet-stream
+
+Modified: trunk/src/CacheWolf/MapInfoObject.java
+===================================================================
+--- trunk/src/CacheWolf/MapInfoObject.java	2007-01-12 14:53:46 UTC (rev 381)
++++ trunk/src/CacheWolf/MapInfoObject.java	2007-01-13 13:27:26 UTC (rev 382)
+@@ -8,8 +8,6 @@
+ import ewe.io.IOException;
+ import ewe.io.PrintWriter;
+ import ewe.sys.*;
+-import ewe.ui.MessageBox;
+-import ewe.ui.SplittablePanel;
+ 
+ /**
+  * @author r
+@@ -31,26 +29,29 @@
+ 	public double transLatX, transLatY, transLonX, transLonY; // this are needed for the inervers calculation from lat/lon to x/y
+ 	public CWPoint center = new CWPoint();
+ 	public float sizeKm = 0; // diagonale
++	public float zoomFactor = 1;
++	public Point shift = new Point (0,0);
++	public CWPoint OrigUpperLeft; // this is only valid after zooming 
+ 	public float rotationRad; // contains the rotation of the map == north direction in rad
+ 	public String fileNameWFL = new String();
+ 	public String fileName = new String();
+ 	public String mapName = new String();
+ 	//private Character digSep = new Character(' ');
+ 	private String digSep = new String();
+-/*
+- * loads an .wfl file
+- * throws FileNotFoundException and IOException (data out of range)
+- * @maps Path to .wfl file
+- * @thisMap filename of .wfl file without &quot;.wfl&quot;
+- * @DigSep &quot;.&quot; or &quot;,&quot;
+- */	
+-	
++	/*
++	 * loads an .wfl file
++	 * throws FileNotFoundException and IOException (data out of range)
++	 * @maps Path to .wfl file
++	 * @thisMap filename of .wfl file without &quot;.wfl&quot;
++	 * @DigSep &quot;.&quot; or &quot;,&quot;
++	 */	
++
+ 	public MapInfoObject() {
+ 		digSep = MyLocale.getDigSeparator();
+ 		//double testA = Convert.toDouble(&quot;1,50&quot;) + Convert.toDouble(&quot;3,00&quot;);
+ 		//if(testA == 4.5) digSep = &quot;,&quot;; else digSep = &quot;.&quot;;
+ 	}
+-	
++
+ 	/*
+ 	 * constructes an MapInfoObject without an associated map
+ 	 * but with 1 Pixel = scale meters
+@@ -70,7 +71,7 @@
+ 		lowlon = 1; //right
+ 		doCalculations();
+ 	}
+-	
++
+ 	/**
+ 	 * Method to load a .wfl-file
+ 	 * @throws IOException when there was a problem reading .wfl-file
+@@ -109,6 +110,7 @@
+ 		} catch (NullPointerException e) { // in.readline liefert null zur&#252;ck, wenn keine Daten mehr vorhanden sind
+ 			throw (new IOException(&quot;not enough lines in file &quot;+mapsPath + thisMap + &quot;.wfl&quot;));
+ 		}
++		OrigUpperLeft = new CWPoint(affine[4], affine[5]);
+ 		doCalculations();
+ 	}
+ 
+@@ -116,35 +118,35 @@
+ 	 * calculates center, diagonal size of the map and inverse to affine transformation
+ 	 * @throws ArithmeticException when affine data is not correct, e.g. it is not possible to inverse affine-transformation
+ 	 */
+-	
++
+ 	private void doCalculations() throws ArithmeticException {
+-	center.set((lowlat + affine[4])/2,(lowlon + affine[5])/2);
+-	sizeKm = java.lang.Math.abs((float)center.getDistance(lowlat, lowlon)) *2;
+-	
+-	//calculate reverse affine
+-	double nenner=(-affine[1]*affine[2]+affine[0]*affine[3]);
+-	transLatX = affine[3]/nenner; // nenner == 0 cannot happen as long als affine is correct
+-	transLonX = -affine[2]/nenner;
+-	transLatY = -affine[1]/nenner;
+-	transLonY = affine[0]/nenner;
+-	
+-	// calculate north direction
+-	float scaleX = 1/(float)java.lang.Math.sqrt(java.lang.Math.pow(transLonX,2)+java.lang.Math.pow(transLonY,2));
+- //	float scaleY = 1/(float)java.lang.Math.sqrt(java.lang.Math.pow(transLatX,2)+java.lang.Math.pow(transLatY,2));
+-	float rotationX2x=(float)transLonX*scaleX;
+-	float rotationX2y=(float)transLonY*scaleX;
+-	//rotationY2y=-(float)transLatY*scaleY; // lat -&gt; y = -, y -&gt; y = +
+-	//rotationY2x=-(float)transLatX*scaleY; // uncomment an make it a field of MapInfoObject if you need translation from x to x rotated
+-	rotationRad = (float)java.lang.Math.atan(rotationX2y);
+-	if (rotationX2x &lt; 0) rotationRad = (float)java.lang.Math.PI - rotationRad; 
+-}
+-	
+-	
++		center.set((lowlat + affine[4])/2,(lowlon + affine[5])/2);
++		sizeKm = java.lang.Math.abs((float)center.getDistance(lowlat, lowlon)) *2;
++
++		//calculate reverse affine
++		double nenner=(-affine[1]*affine[2]+affine[0]*affine[3]);
++		transLatX = affine[3]/nenner; // nenner == 0 cannot happen as long als affine is correct
++		transLonX = -affine[2]/nenner;
++		transLatY = -affine[1]/nenner;
++		transLonY = affine[0]/nenner;
++
++		// calculate north direction
++		float scaleX = 1/(float)java.lang.Math.sqrt(java.lang.Math.pow(transLonX,2)+java.lang.Math.pow(transLonY,2));
++		//	float scaleY = 1/(float)java.lang.Math.sqrt(java.lang.Math.pow(transLatX,2)+java.lang.Math.pow(transLatY,2));
++		float rotationX2x=(float)transLonX*scaleX;
++		float rotationX2y=(float)transLonY*scaleX;
++		//rotationY2y=-(float)transLatY*scaleY; // lat -&gt; y = -, y -&gt; y = +
++		//rotationY2x=-(float)transLatX*scaleY; // uncomment an make it a field of MapInfoObject if you need translation from x to x rotated
++		rotationRad = (float)java.lang.Math.atan(rotationX2y);
++		if (rotationX2x &lt; 0) rotationRad = (float)java.lang.Math.PI - rotationRad; 
++	}
++
++
+ 	/**
+-	*	Method to save a world file (.wfl)
+-	* @throws IOException when there was a problem writing .wfl-file
+-	* @throws IllegalArgumentException when affine[x] for all x == 0 (&quot;map not calibrated&quot;).
+-	*/
++	 *	Method to save a world file (.wfl)
++	 * @throws IOException when there was a problem writing .wfl-file
++	 * @throws IllegalArgumentException when affine[x] for all x == 0 (&quot;map not calibrated&quot;).
++	 */
+ 	public void saveWFL(String mapsPath, String mapFileName) throws IOException, IllegalArgumentException {
+ 		if (affine[0]==0 &amp;&amp; affine[1]==0 &amp;&amp; affine[2]==0 &amp;&amp; affine[3]==0 &amp;&amp; 
+ 				affine[4]==0 &amp;&amp; affine[5]==0 ) throw (new IllegalArgumentException(&quot;map not calibrated&quot;));
+@@ -175,11 +177,39 @@
+ 		Vm.debug(&quot;Left: &quot; + affine[5]);
+ 		Vm.debug(&quot;Right: &quot; + lowlon);
+ 		Vm.debug(&quot;Test: &quot; + pos.lonDec);
+-		*/
++		 */
+ 		if(affine[4] &gt;= pos.latDec &amp;&amp; pos.latDec &gt;= lowlat &amp;&amp; affine[5] &lt;= pos.lonDec &amp;&amp; pos.lonDec &lt;= lowlon) isInBound = true;
+ 		return isInBound;
+ 	}
+-	
++
++	/**
++	 * zoom in / out
++	 * @param zf zf &gt; 1 == zoom in, zoom is relative to last zoom
++	 * @param diffX shift of map in pixels (if the map was cropped while zooming) in the not zoomed image
++	 * @param diffY
++	 */
++	public void zoom(float zf, int diffX, int diffY) {
++
++		// restore original values to calculate corret shift (upperleft)
++		affine[4] = OrigUpperLeft.latDec;
++		affine[5] = OrigUpperLeft.lonDec;
++		affine[0] = affine[0] * zoomFactor; 
++		affine[1] = affine[1] * zoomFactor; 
++		affine[2] = affine[2] * zoomFactor;
++		affine[3] = affine[3] * zoomFactor;
++		CWPoint upperleft = calcLatLon(diffX, diffY);
++		affine[4] = upperleft.latDec;
++		affine[5] = upperleft.lonDec;
++		affine[0] = affine[0] / zf / zoomFactor; 
++		affine[1] = affine[1] / zf / zoomFactor; 
++		affine[2] = affine[2] / zf / zoomFactor; 
++		affine[3] = affine[3] / zf / zoomFactor; 
++		zoomFactor = zf * zoomFactor ;
++		shift.x = diffX;
++		shift.y = diffY;
++		doCalculations(); // TODO lowlat neu berechnen?
++	}
++
+ 	public boolean inBound(CWGPSPoint pos){
+ 		boolean isInBound = false;
+ 		/*
+@@ -190,7 +220,7 @@
+ 		Vm.debug(&quot;Left: &quot; + affine[5]);
+ 		Vm.debug(&quot;Right: &quot; + lowlon); // lowlon should be left?!
+ 		Vm.debug(&quot;Test: &quot; + pos.lonDec);
+-		*/
++		 */
+ 		if(affine[4] &gt;= pos.latDec &amp;&amp; pos.latDec &gt;= lowlat &amp;&amp; affine[5] &lt;= pos.lonDec &amp;&amp; pos.lonDec &lt;= lowlon) isInBound = true;
+ 		return isInBound;
+ 	}
+@@ -200,12 +230,12 @@
+ 		return isInBound;
+ 	}
+ 	/**
+-	* Method to calculate bitmap x,y of the current map using
+-	* lat and lon target coordinates. There ist no garanty that
+-	* the returned coordinates are inside of the map. They can be negative.
+-	* @param lat
+-	* @param lon
+-	*/
++	 * Method to calculate bitmap x,y of the current map using
++	 * lat and lon target coordinates. There ist no garanty that
++	 * the returned coordinates are inside of the map. They can be negative.
++	 * @param lat
++	 * @param lon
++	 */
+ 	public Point calcMapXY(double lat, double lon){
+ 		Point coords = new Point();
+ 		double b[] = new double[2];
+@@ -218,11 +248,18 @@
+ 		//Vm.debug(&quot;mapX=mapx2: &quot;+mapx+&quot;=&quot;+mapx2+&quot;; mapy=mapy2: &quot;+mapy+&quot;=&quot;+mapy2);
+ 		return coords;
+ 	}
++
++	/**
++	 * gives back lat/lon from x, y in map
++	 * @param x
++	 * @param y
++	 * @return
++	 */
+ 	public CWPoint calcLatLon(int x, int y) {
+-		 CWPoint ll = new CWPoint();
+-		 ll.latDec = (double)x * affine[0] + (double)y * affine[2] + affine[4];
+-		 ll.lonDec = (double)x * affine[1] + (double)y * affine[3] + affine[5];
+-		 return ll;
++		CWPoint ll = new CWPoint();
++		ll.latDec = (double)x * affine[0] + (double)y * affine[2] + affine[4];
++		ll.lonDec = (double)x * affine[1] + (double)y * affine[3] + affine[5];
++		return ll;
+ 	}
+ 	public CWPoint calcLatLon(Point p) {
+ 		return calcLatLon(p.x, p.y);
+
+Modified: trunk/src/CacheWolf/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/MovingMap.java	2007-01-12 14:53:46 UTC (rev 381)
++++ trunk/src/CacheWolf/MovingMap.java	2007-01-13 13:27:26 UTC (rev 382)
+@@ -31,13 +31,15 @@
+ 	TrackOverlay[] TrackOverlays;
+ 	Vector tracks;
+ 	MapInfoObject currentMap;
++	AniImage mapImage1to1;
+ 	ArrowsOnMap directionArrows = new ArrowsOnMap();
+ 	AniImage statusImageHaveSignal = new AniImage(&quot;position_green.png&quot;);
+ 	AniImage statusImageNoSignal = new AniImage(&quot;position_yellow.png&quot;);
+ 	AniImage statusImageNoGps = new AniImage(&quot;position_red.png&quot;);
+ 
+ 	AniImage ButtonImageChooseMap = new AniImage(&quot;choose_map.gif&quot;); 
+-	AniImage ButtonImageGpsOn = new AniImage(&quot;snap2gps.gif&quot;); 
++	AniImage ButtonImageGpsOn = new AniImage(&quot;snap2gps.gif&quot;);
++	AniImage ButtonImageLens = new AniImage(&quot;lupe.png&quot;);
+ 	/*AniImage arrowUp = new AniImage(&quot;arrow_up.png&quot;);
+ 	AniImage arrowDown = new AniImage(&quot;arrow_down.png&quot;);
+ 	AniImage arrowLeft = new AniImage(&quot;arrow_left.png&quot;);
+@@ -53,6 +55,7 @@
+ 	CWPoint lastUpatePosition = new CWPoint();
+ 	boolean mapHidden = false;
+ 	boolean noMapsAvailable;
++	boolean zoomingMode = false;
+ 
+ 	public MovingMap(Preferences pref, GotoPanel gP, Vector cacheDB){
+ 		this.cacheDB = cacheDB;
+@@ -73,6 +76,9 @@
+ 		directionArrows.properties = AniImage.AlwaysOnTop;
+ 		directionArrows.setLocation(Global.getPref().myAppWidth/2-directionArrows.getWidth()/2, 10);
+ 		mmp.addImage(directionArrows);
++		ButtonImageLens.setLocation(Global.getPref().myAppWidth - ButtonImageLens.getWidth()-10, Global.getPref().myAppHeight/2 - ButtonImageLens.getHeight()/2 );
++		ButtonImageLens.properties = AniImage.AlwaysOnTop;
++		mmp.addImage(ButtonImageLens);
+ 		/*		arrowUp.setLocation(pref.myAppWidth/2, 10);
+ 		arrowDown.setLocation(pref.myAppWidth/2, pref.myAppHeight-20);
+ 		arrowLeft.setLocation(10, pref.myAppHeight/2+7);
+@@ -421,7 +427,12 @@
+ 			//		Vm.debug(&quot;getXYinMap, posCiLat: &quot;+posCircleLat+&quot;poscLOn: &quot;+ posCircleLon+&quot;gotoLat: &quot;+ lat + &quot;gotoLon: &quot;+ lon+&quot; mapPosX: &quot;+mapPos.x+&quot;mapposY&quot;+mapPos.y);
+ 			return new Point(coords.x + mapPos.x, coords.y + mapPos.y);
+ 		}
+-
++		
++		public CWPoint ScreenXY2LatLon (int x, int y){
++			Point mapPos = getMapXYPosition();
++			return currentMap.calcLatLon(x-mapPos.x, y-mapPos.y);
++		}
++		
+ 		public void updateSymbolPositions() {
+ 			if (symbols == null) return;
+ 			Point pOnScreen;
+@@ -613,12 +624,14 @@
+ 				lastCompareY = Integer.MAX_VALUE;
+ 				if (! (mmp.mapImage == null) ) {
+ 					//Vm.debug(&quot;free: &quot;+Vm.getUsedMemory(false)+&quot;classMemory: &quot;+Vm.getClassMemory()+ &quot;after garbage collection: &quot;+Vm.getUsedMemory(false));
+-					mmp.removeImage(mmp.mapImage); mmp.mapImage.free(); mmp.mapImage = null;
++					mmp.removeImage(mmp.mapImage); mmp.mapImage.free(); mmp.mapImage = null; mapImage1to1 = mmp.mapImage;
++
+ 					//Vm.debug(&quot;free: &quot;+Vm.getUsedMemory(false)+&quot;classMemory: &quot;+Vm.getClassMemory()+ &quot;after garbage collection: &quot;+Vm.getUsedMemory(false));
+ 					Vm.getUsedMemory(true); // calls the garbage collection
+ 				} // give memory free before loading the new map to avoid out of memory error  
+ 				if (currentMap.fileName.length()&gt;0) mmp.mapImage = new AniImage(currentMap.fileName); // attention: when running in native java-vm, no exception will be thrown, not even OutOfMemeoryError
+ 				else mmp.mapImage = new AniImage();
++				mapImage1to1 = mmp.mapImage;
+ 				mmp.mapImage.properties = mmp.mapImage.properties | AniImage.IsMoveable;
+ 				if (mapHidden) mmp.mapImage.properties |= AniImage.IsInvisible;
+ 				mmp.mapImage.move(0,0);
+@@ -636,7 +649,7 @@
+ 				if (mmp.mapImage != null) {
+ 					mmp.removeImage(mmp.mapImage); 
+ 					mmp.mapImage.free();
+-					mmp.mapImage = null;
++					mmp.mapImage = null; mapImage1to1 = mmp.mapImage;
+ 				}
+ 				addOverlaySet();
+ 				updateOnlyPosition(lat, lon, false);
+@@ -648,7 +661,7 @@
+ 				if (mmp.mapImage != null) {
+ 					mmp.removeImage(mmp.mapImage); 
+ 					mmp.mapImage.free();
+-					mmp.mapImage = null;
++					mmp.mapImage = null; mapImage1to1 = mmp.mapImage;
+ 				}
+ 				addOverlaySet();
+ 				updateOnlyPosition(lat, lon, false);
+@@ -660,7 +673,7 @@
+ 				if (mmp.mapImage != null) {
+ 					mmp.removeImage(mmp.mapImage); 
+ 					mmp.mapImage.free();
+-					mmp.mapImage = null;
++					mmp.mapImage = null; mapImage1to1 = mmp.mapImage;
+ 				}
+ 				addOverlaySet();
+ 				updateOnlyPosition(lat, lon, false);
+@@ -684,8 +697,70 @@
+ 			mapHidden = false;
+ 			repaintNow();
+ 		}
++		
++		public void setZoomingMode() {
++			zoomingMode = true;
++		}
++		
++		/**
++		 * zommes in if w&gt;0 and out if w&lt;0
++		 * @param firstclickpoint
++		 * @param w
++		 * @param h
++		 */
++		public void zoom(Point firstclickpoint, int w, int h) {
++			Vm.showWait(true);
++			int newImageWidth = 1000;
++			int newImageHeight= 1000;
++			CWPoint center = ScreenXY2LatLon(firstclickpoint.x + w/2, firstclickpoint.y+h/2);
++			float zoomFactor;
++			if (w &gt; 0)  zoomFactor = (float)this.width / (float)w; // zoom in
++			else		zoomFactor = java.lang.Math.abs((float)w / (float)this.width);
++			
++			// calculate rect in unzoomed image in a wya that the center of the new image is the center of selected area 
++			newImageHeight = (int) (newImageHeight / zoomFactor / currentMap.zoomFactor);
++			newImageWidth = (int) (newImageWidth / zoomFactor / currentMap.zoomFactor);
++			Point mappos = getMapXYPosition();
++			int xinunscaledimage = (int) ((firstclickpoint.x - mappos.x) / currentMap.zoomFactor + currentMap.shift.x - newImageWidth/2);
++			int yinunscaledimage = (int) ((firstclickpoint.y - mappos.y) / currentMap.zoomFactor + currentMap.shift.y - newImageHeight/2);
++			Rect newImageRect = new Rect(xinunscaledimage , yinunscaledimage, newImageWidth, newImageHeight);
++			if (mapImage1to1 != null &amp;&amp; mmp.mapImage != null &amp;&amp; mapImage1to1.image != null)
++				{
++				if (newImageRect.x &lt; 0) newImageRect.x = 0;
++				if (newImageRect.y &lt; 0) newImageRect.y = 0;
++ 				if (newImageRect.x + newImageRect.width &gt;= mapImage1to1.getWidth()) newImageRect.width = mapImage1to1.getWidth()-1;
++				if (newImageRect.y + newImageRect.height &gt;= mapImage1to1.getHeight()) newImageRect.height= mapImage1to1.getHeight()-1;
++				if (newImageRect.x + newImageRect.width &gt;= mapImage1to1.getWidth()) newImageRect.x = 0;
++				if (newImageRect.y + newImageRect.height &gt;= mapImage1to1.getHeight()) newImageRect.y = 0;
++				int saveprop = mmp.mapImage.properties;
++				AniImage tmp = mmp.mapImage;
++				mmp.removeImage(mmp.mapImage);
++				try {
++					Vm.getUsedMemory(true);
++					tmp = new AniImage(mapImage1to1.scale((int) (newImageRect.width*zoomFactor*currentMap.zoomFactor), (int)(newImageRect.height*zoomFactor*currentMap.zoomFactor), newImageRect, 0));
++					mmp.mapImage.free();
++					currentMap.zoom(zoomFactor, newImageRect.x, newImageRect.y);
++				} catch (OutOfMemoryError e) {Vm.debug(e.toString());}
++				Vm.getUsedMemory(true);
++				mmp.mapImage = tmp; // use old image in case of OutOfMemoryError
++				mmp.mapImage.properties = saveprop;
++				mmp.addImage(mmp.mapImage);
++				mmp.images.moveToBack(mmp.mapImage);
++				}
++			if (mapImage1to1 != null &amp;&amp; mmp.mapImage != null &amp;&amp; mapImage1to1.image != null)
++			{
++				mappos = getMapXYPosition();
++				mmp.mapImage.move(mappos.x,mappos.y);
++			}
++			//updatePosition(center.latDec, center.lonDec);
++			addOverlaySet();
++			updateSymbolPositions();
++			this.repaintNow();
++			Vm.showWait(false);
++			//CWPoint test = ScreenXY2LatLon(0, 0);
++		}
++		
+ 
+-
+ 		public void onEvent(Event ev){
+ 			if(ev instanceof FormEvent &amp;&amp; (ev.type == FormEvent.CLOSED )){
+ 				gotoPanel.runMovingMap = false;
+@@ -703,17 +778,55 @@
+ 		AniImage mapImage;
+ 		Point saveMapLoc = null;
+ 		boolean saveGpsIgnoreStatus;
++		boolean paintingZoomArea;
++		int lastZoomWidth , lastZoomHeight;
+ 		public MovingMapPanel(MovingMap f){
+ 			this.mm = f;
+ 		}
+ 		public boolean imageBeginDragged(AniImage which,Point pos) {
++			if (mm.zoomingMode == true) {
++				saveMapLoc = pos;
++				return false;
++			}
+ 			if (!(which == null || which == mapImage || which instanceof TrackOverlay) ) return false;
+ 			saveGpsIgnoreStatus = mm.ignoreGps; 
+ 			mm.ignoreGps = true;
+ 			saveMapLoc = pos;
+ 			return super.imageBeginDragged(mapImage, pos);
+ 		}
++		
++/*		public boolean imageDragged(ImageDragContext dc,Point where) {
++			if (mm.zoomingMode == false) return super.imageDragged(dc, where);
++			dc.
++			void updateArea(DragContext dc,boolean doImage,boolean update)
++//			-------------------------------------------------------------------
++			{
++				if (imagePos == null) imagePos = new Point().set(dc.prevPoint.x,dc.prevPoint.y);
++				if (update) getUpdateArea(imagePos,dc.curPoint,null,null,imagePos);
++				Graphics g = ib.get(updateArea.width,updateArea.height,true);
++				g.setColor(new Color(0xff,0,0));
++				g.fillRect(0,0,updateArea.width,updateArea.height);
++				g.translate(-updateArea.x,-updateArea.y);
++				if (copied == null){
++					window.repaintNow(g,updateArea);
++					if (doImage) image.draw(g,imagePos.x-cx+wx,imagePos.y-cy+wy,0);
+ 
++				}else{
++					g.drawImage(copied,0,0);
++					if (doImage) image.draw(g,imagePos.x-cx+wx,imagePos.y-cy+wy,0);
++				}
++				if (relativeImagePos == null) relativeImagePos = new Point();
++				relativeImagePos.set(imagePos.x-cx,imagePos.y-cy);
++				wg.drawImage(ib.image,updateArea.x,updateArea.y);
++				wg.flush();
++				g.translate(updateArea.x,updateArea.y);
++				if (clearPendingDrags) dc.clearPendingDrags();
++			}
++
++		}
++		*/
++		
++
+ 		public boolean imageNotDragged(ImageDragContext dc,Point pos){
+ 			boolean ret = super.imageNotDragged(dc, pos);
+ 			mapMoved(pos.x - saveMapLoc.x, pos.y - saveMapLoc.y);
+@@ -721,6 +834,39 @@
+ 			return ret;
+ 
+ 		}
++		
++		public void onPenEvent(PenEvent ev) {
++			if (mm.zoomingMode &amp;&amp; ev.type == PenEvent.PEN_DOWN) {
++				saveMapLoc = new Point (ev.x, ev.y);
++				paintingZoomArea = true;
++				mm.zoomingMode = true;
++			}
++			if (mm.zoomingMode &amp;&amp; ev.type == PenEvent.PEN_UP ) {
++				paintingZoomArea = false;
++				mm.zoomingMode = false;
++				mm.zoom(saveMapLoc, lastZoomWidth, lastZoomHeight);
++			}
++			
++			if (mm.zoomingMode &amp;&amp; paintingZoomArea &amp;&amp; (ev.type == PenEvent.PEN_MOVED_ON || ev.type == PenEvent.PEN_MOVE || ev.type == PenEvent.PEN_DRAG)) {
++				int left, top;
++				Graphics dr = this.getGraphics();
++				if (lastZoomWidth &lt; 0)left = saveMapLoc.x + lastZoomWidth;
++				else left = saveMapLoc.x;
++				if (lastZoomHeight &lt; 0)top = saveMapLoc.y + lastZoomHeight;
++				else top = saveMapLoc.y;
++				this.repaintNow(dr, new Rect(left, top, java.lang.Math.abs(lastZoomWidth), java.lang.Math.abs(lastZoomHeight)));
++				dr.setColor(Color.LightGreen);
++				lastZoomWidth = ev.x - saveMapLoc.x;
++				lastZoomHeight =  ev.y - saveMapLoc.y;
++				if (lastZoomWidth &lt; 0) left = saveMapLoc.x + lastZoomWidth;
++				else left = saveMapLoc.x;
++				if (lastZoomHeight &lt; 0)top = saveMapLoc.y + lastZoomHeight;
++				else top = saveMapLoc.y;
++				dr.drawRect(left, top, java.lang.Math.abs(lastZoomWidth) , java.lang.Math.abs(lastZoomHeight), 2);
++			}
++			super.onPenEvent(ev);
++		}
++		
+ 		public void moveMap(int diffX, int diffY) {
+ 			Point p = new Point();
+ 			if (mapImage!= null) {
+@@ -790,6 +936,9 @@
+ 				} 
+ 				mm.SnapToGps();
+ 			}
++			if (which == mm.ButtonImageLens) {
++				mm.setZoomingMode();
++			}
+ 
+ 			/*if (which == mm.arrowRight)	{	moveMap(-10,0);	}
+ 		if (which == mm.arrowLeft)	{	moveMap(+10,0);	}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000108.html">[Cachewolf-svn] [Feature #3046] MovingMap: Zommen
+</A></li>
+	<LI>Next message: <A HREF="000110.html">[Cachewolf-svn] [Feature #3046] MovingMap: Zommen
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#109">[ date ]</a>
+              <a href="thread.html#109">[ thread ]</a>
+              <a href="subject.html#109">[ subject ]</a>
+              <a href="author.html#109">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

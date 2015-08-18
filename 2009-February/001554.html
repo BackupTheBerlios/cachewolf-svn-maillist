@@ -1,0 +1,141 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1646 - experiments/EVEhist/src/cachewolf/navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1646%20-%20experiments/EVEhist/src/cachewolf/navi&In-Reply-To=%3C200902211717.n1LHH07c007866%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001553.html">
+   <LINK REL="Next"  HREF="001555.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1646 - experiments/EVEhist/src/cachewolf/navi</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1646%20-%20experiments/EVEhist/src/cachewolf/navi&In-Reply-To=%3C200902211717.n1LHH07c007866%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1646 - experiments/EVEhist/src/cachewolf/navi">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Sat Feb 21 18:17:00 CET 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001553.html">[Cachewolf-svn] r1645 - trunk/src/CacheWolf/navi
+</A></li>
+        <LI>Next message: <A HREF="001555.html">[Cachewolf-svn] r1647 - trunk/docs
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1554">[ date ]</a>
+              <a href="thread.html#1554">[ thread ]</a>
+              <a href="subject.html#1554">[ subject ]</a>
+              <a href="author.html#1554">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2009-02-21 18:16:59 +0100 (Sat, 21 Feb 2009)
+New Revision: 1646
+
+Modified:
+   experiments/EVEhist/src/cachewolf/navi/MapImage.java
+   experiments/EVEhist/src/cachewolf/navi/MovingMap.java
+Log:
+Eve: MovingMap should work now. There are still some bug which I don't know how to reproduce :-(
+
+Modified: experiments/EVEhist/src/cachewolf/navi/MapImage.java
+===================================================================
+--- experiments/EVEhist/src/cachewolf/navi/MapImage.java	2009-02-21 13:53:41 UTC (rev 1645)
++++ experiments/EVEhist/src/cachewolf/navi/MapImage.java	2009-02-21 17:16:59 UTC (rev 1646)
+@@ -52,7 +52,7 @@
+ 			properties &amp;= ~AniImage.IsInvisible;
+ 		} else {
+ 			properties |= AniImage.IsInvisible;
+-			super.move(0, 0);
++			super.setLocation(0, 0);
+ 		}
+ 	}
+ 
+
+Modified: experiments/EVEhist/src/cachewolf/navi/MovingMap.java
+===================================================================
+--- experiments/EVEhist/src/cachewolf/navi/MovingMap.java	2009-02-21 13:53:41 UTC (rev 1645)
++++ experiments/EVEhist/src/cachewolf/navi/MovingMap.java	2009-02-21 17:16:59 UTC (rev 1646)
+@@ -1097,16 +1097,18 @@
+ 
+ 	public void setGpsStatus (int status) {
+ 		if (status == gpsStatus) return; // if ignoreGpsStatutsChanges == true than the Map is in manual-mode
++		if (gpsStatus == noGPS) 
++			mmp.addImage(posCircle);
+ 		gpsStatus = status;
+ 		dontUpdatePos = false;
+ 		ignoreGps = false;
+ 		switch (status) {
+-		case noGPS: 	{ posCircle.change(null); ignoreGps = true; break; } // TODO this causes a nullPointerExceptionin Eve
++		case noGPS: 	{ mmp.removeImage(posCircle); ignoreGps = true; break; } // TODO doesn't always work: try: start MM, close it, stopp GPS, start MM
+ 		case gotFix:    { posCircle.change(statusImageHaveSignal); break; }
+ 		case lostFix:   { posCircle.change(statusImageNoSignal); break; }
+ 		case noGPSData: { posCircle.change(statusImageNoGps); break; }
+ 		}
+-		mapMoved(0, 0); // positions the posCircle correctly accourding to its size (which can change when the image changes, e.g. from null to something else
++		mapMoved(0, 0); // positions the posCircle correctly according to its size (which can change when the image changes, e.g. from null to something else
+ 		posCircle.refresh(); // was refreshNow
+ 	}
+ 
+@@ -1482,8 +1484,9 @@
+ 	public boolean imageNotDragged(ImageDragContext dc,Point pos){
+ 		boolean ret = super.imageNotDragged(dc, pos);
+ 		bringMaptoBack();
+-		if (dc.image == null) moveMap(pos.x - saveMapLoc.x, pos.y - saveMapLoc.y);
+-		else mapMoved(pos.x - saveMapLoc.x, pos.y - saveMapLoc.y);
++		Vm.debug(&quot;p1: &quot; + dc.point1 + &quot;, p2: &quot; + dc.point2 + &quot;, prevp: &quot; + dc.prevPoint + &quot;, pos: &quot;+pos+&quot;, saveMapL: &quot;+saveMapLoc);
++		if (dc.image == null) moveMap(pos.x - dc.prevPoint.x, pos.y - dc.prevPoint.y);
++		else mapMoved(pos.x - dc.prevPoint.x, pos.y - dc.prevPoint.y);
+ 		mm.dontUpdatePos = saveGpsIgnoreStatus;
+ 		this.repaintNow();
+ 		return ret;
+@@ -1491,7 +1494,7 @@
+ 
+ 	public void onPenEvent(PenEvent ev) {
+ 		if (!mm.zoomingMode &amp;&amp; ev.type == PenEvent.PEN_DOWN) {
+-			saveMapLoc = new Point (ev.x, ev.y);
++			 saveMapLoc = new Point (ev.x, ev.y);
+ 		}
+ 		if (mm.zoomingMode &amp;&amp; ev.type == PenEvent.PEN_DOWN) {
+ 			saveGpsIgnoreStatus = mm.dontUpdatePos;
+@@ -1518,7 +1521,7 @@
+ 
+ 		if (mm.zoomingMode &amp;&amp; paintingZoomArea &amp;&amp; (ev.type == PenEvent.PEN_MOVED_ON || ev.type == PenEvent.PEN_MOVE || ev.type == PenEvent.PEN_DRAG)) {
+ 			int left, top;
+-			Graphics dr = this.getGraphics().getGraphics();
++			Graphics dr = this.getGraphics().getGraphics(); // in Ewe stant nur 1x getGrafics
+ 			if (lastZoomWidth &lt; 0)left = saveMapLoc.x + lastZoomWidth;
+ 			else left = saveMapLoc.x;
+ 			if (lastZoomHeight &lt; 0)top = saveMapLoc.y + lastZoomHeight;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001553.html">[Cachewolf-svn] r1645 - trunk/src/CacheWolf/navi
+</A></li>
+	<LI>Next message: <A HREF="001555.html">[Cachewolf-svn] r1647 - trunk/docs
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1554">[ date ]</a>
+              <a href="thread.html#1554">[ thread ]</a>
+              <a href="subject.html#1554">[ subject ]</a>
+              <a href="author.html#1554">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

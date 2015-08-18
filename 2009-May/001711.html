@@ -1,0 +1,197 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1793 - trunk/src/exp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-May/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1793%20-%20trunk/src/exp&In-Reply-To=%3C200905091525.n49FPfkE018773%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001710.html">
+   <LINK REL="Next"  HREF="001712.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1793 - trunk/src/exp</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1793%20-%20trunk/src/exp&In-Reply-To=%3C200905091525.n49FPfkE018773%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1793 - trunk/src/exp">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sat May  9 17:25:41 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001710.html">[Cachewolf-svn] r1792 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001712.html">[Cachewolf-svn] r1794 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1711">[ date ]</a>
+              <a href="thread.html#1711">[ thread ]</a>
+              <a href="subject.html#1711">[ subject ]</a>
+              <a href="author.html#1711">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2009-05-09 17:25:40 +0200 (Sat, 09 May 2009)
+New Revision: 1793
+
+Modified:
+   trunk/src/exp/LocExporter.java
+Log:
+Export to Garmin (via .LOC file): Speedup by only loading cache details when necessary
+
+Modified: trunk/src/exp/LocExporter.java
+===================================================================
+--- trunk/src/exp/LocExporter.java	2009-05-09 15:09:47 UTC (rev 1792)
++++ trunk/src/exp/LocExporter.java	2009-05-09 15:25:40 UTC (rev 1793)
+@@ -17,7 +17,7 @@
+ 	 * Defines how certain cachetypes are mapped to user icons
+ 	 */
+ 	private static GarminMap gm=null;
+-	
++
+ 	public LocExporter(){
+ 		super();
+ 		this.setMask(&quot;*.loc&quot;);
+@@ -30,21 +30,20 @@
+ 			gm.readGarminMap();
+ 		}
+ 	}
+-	
++
+ 	public String header () {
+ 		return &quot;&lt;?xml version=\&quot;1.0\&quot;?&gt;&lt;loc version=\&quot;1.0\&quot; src=\&quot;EasyGPS\&quot;&gt;\r\n&quot;;
+ 	}
+-	
++
+ 	public String record(CacheHolder ch){
+-		CacheHolderDetail det = ch.getExistingDetails();
+-		
++
+ 		// filter out not valid coords
+ 		if (!ch.pos.isValid()) return null;
+ 		StringBuffer strBuf = new StringBuffer(200);
+ 		strBuf.append(&quot;&lt;waypoint&gt;\r\n   &lt;name id=\&quot;&quot;);
+ 		String wptName=simplifyString(ch.getWayPoint());
+ 		if (Global.getPref().addDetailsToWaypoint) {
+-			wptName += getShortDetails( ch );			
++			wptName += getShortDetails( ch );
+ 		}
+ 		if (Global.getPref().garminMaxLen==0)
+ 			strBuf.append(wptName);
+@@ -59,9 +58,10 @@
+ 			if ( !Global.getPref().addDetailsToWaypoint ) {
+ 				strBuf.append( getShortDetails( ch ) );
+ 			}
++			CacheHolderDetail det = ch.getExistingDetails();
+ 			if ( (!det.Hints.equals(&quot;null&quot;)) &amp;&amp; (det.Hints.length() &gt; 0) ) {
+ 				strBuf.append(&quot;:&quot;);
+-				strBuf.append( simplifyString(Common.rot13(det.Hints)) );			
++				strBuf.append( simplifyString(Common.rot13(det.Hints)) );
+ 			}
+ 		}
+ 		strBuf.append(&quot;]]&gt;&lt;/name&gt;\r\n   &lt;coord lat=\&quot;&quot;);
+@@ -83,7 +83,7 @@
+ 	public String trailer(){
+ 		return &quot;&lt;/loc&gt;\r\n&quot;;
+ 	}
+-	
++
+ 	/**
+ 	 * This class implements user defined icons which depend on the cache type and the found status.
+ 	 * See also <A HREF="http://www.geoclub.de/ftopic10413.html">http://www.geoclub.de/ftopic10413.html</A>
+@@ -91,10 +91,10 @@
+ 	 *
+ 	 */
+ 	private class GarminMap extends MinML {
+-		
++
+ 		private IconMap[] symbols=new IconMap[24];
+ 		private int mapSize=0;
+-		
++
+ 		String lastName;
+ 		public void readGarminMap(){
+ 			try{
+@@ -105,7 +105,7 @@
+ 			}catch(Exception e){
+ 				if (e instanceof NullPointerException)
+ 					Global.getPref().log(&quot;Error reading garminmap.xml: NullPointerException in Element &quot;+lastName +&quot;. Wrong attribute?&quot;,e,true);
+-				else 
++				else
+ 					Global.getPref().log(&quot;Error reading garminmap.xml: &quot;, e);
+ 			}
+ 		}
+@@ -115,8 +115,8 @@
+ 				symbols[mapSize]=new IconMap(atts.getValue(&quot;type&quot;),atts.getValue(&quot;name&quot;),atts.getValue(&quot;found&quot;));
+ 				mapSize++;
+ 			}
+-		}		
+-		
++		}
++
+ 		public String getIcon(CacheHolder ch) {
+ 			// First check if there is a mapping for &quot;cache found&quot;
+ 			if (ch.is_found()) {
+@@ -127,19 +127,19 @@
+ 			// Now try mapping the cache irrespective of the &quot;found&quot; status
+ 			for (int i=0; i&lt;mapSize; i++)
+ 				if (symbols[i].type.equals(String.valueOf(ch.getType()))) return symbols[i].name;
+-		
++
+ 			// If it is not a mapped type, just use the standard mapping
+ 			if (ch.is_found())
+ 				return &quot;Geocache Found&quot;;
+ 			else
+ 				return &quot;Geocache&quot;;
+ 		}
+-		
++
+ 		private class IconMap {
+ 			public String type;
+ 			public String name;
+ 			public Boolean onlyIfFound;
+-			
++
+ 			IconMap(String type, String name, String onlyIfFound) {
+ 				this.type=type;
+ 				this.name=name;
+@@ -149,7 +149,7 @@
+ 					this.onlyIfFound=null;
+ 			}
+ 		}
+-	
++
+ 	}
+-	
++
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001710.html">[Cachewolf-svn] r1792 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001712.html">[Cachewolf-svn] r1794 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1711">[ date ]</a>
+              <a href="thread.html#1711">[ thread ]</a>
+              <a href="subject.html#1711">[ subject ]</a>
+              <a href="author.html#1711">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

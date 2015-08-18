@@ -1,0 +1,137 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r599 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r599%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702161123.l1GBNs54014087%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000409.html">
+   <LINK REL="Next"  HREF="000411.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r599 - trunk/src/CacheWolf</H1>
+    <B>bilbowolf at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r599%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702161123.l1GBNs54014087%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r599 - trunk/src/CacheWolf">bilbowolf at mail.berlios.de
+       </A><BR>
+    <I>Fri Feb 16 12:23:54 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000409.html">[Cachewolf-svn] r598 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000411.html">[Cachewolf-svn] r600 - in trunk: resources src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#410">[ date ]</a>
+              <a href="thread.html#410">[ thread ]</a>
+              <a href="subject.html#410">[ subject ]</a>
+              <a href="author.html#410">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: bilbowolf
+Date: 2007-02-16 12:23:52 +0100 (Fri, 16 Feb 2007)
+New Revision: 599
+
+Modified:
+   trunk/src/CacheWolf/Extractor.java
+   trunk/src/CacheWolf/SpiderGC.java
+Log:
+dnf und bugs funktionieren nun beim spider
+
+Modified: trunk/src/CacheWolf/Extractor.java
+===================================================================
+--- trunk/src/CacheWolf/Extractor.java	2007-02-16 02:34:51 UTC (rev 598)
++++ trunk/src/CacheWolf/Extractor.java	2007-02-16 11:23:52 UTC (rev 599)
+@@ -13,7 +13,8 @@
+ 		String end;
+ 		String tst;
+ 		boolean betweenonly;
+-		
++		public static boolean INCLUDESTARTEND = false;
++		public static boolean EXCLUDESTARTEND = true;
+ 		/**
+ 		*	Create an extractor.
+ 		*	sTxt = The string to search through.&lt;br&gt;
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2007-02-16 02:34:51 UTC (rev 598)
++++ trunk/src/CacheWolf/SpiderGC.java	2007-02-16 11:23:52 UTC (rev 599)
+@@ -197,6 +197,8 @@
+ 		pref.log(&quot;Trying terrain&quot;);
+ 		ch.terrain = getTerr(start);
+ 		pref.log(&quot;Got terrain&quot;);
++		ch.Bugs = getBugs(start);
++		if(ch.Bugs.length()&gt;0) ch.has_bug = true; else ch.has_bug = false;
+ 		//Vm.debug(&quot;Terr: &quot; + ch.terrain);
+ 		pref.log(&quot;Trying cache type&quot;);
+ 		ch.type = getType(start);
+@@ -401,11 +403,8 @@
+ 						getImages(start, ch);
+ 						pref.log(&quot;Got images&quot;);
+ 					}
+-	/*				if(getMaps){
+-						pref.log(&quot;Trying maps&quot;);
+-						getMaps(ch);
+-						pref.log(&quot;Got maps&quot;);
+-					} */
++					ch.Bugs = getBugs(start);
++					if(ch.Bugs.length()&gt;0) ch.has_bug = true; else ch.has_bug = false;
+ 					pref.log(&quot;Getting additional waypoints&quot;);
+ 					getAddWaypoints(start, ch);
+ 					pref.log(&quot;Got additional waypoints&quot;);
+@@ -445,8 +444,20 @@
+ 		} else return -1;
+ 	}
+ 	
+-	public void getBugs(){	
+-		
++	public String getBugs(String doc){	
++		Extractor exBlock = new Extractor(doc, &quot;Inventory&quot;,&quot;What is a Travel Bug?&quot;,0,Extractor.EXCLUDESTARTEND);
++		String bugBlock = exBlock.findNext();
++		Vm.debug(&quot;Bugblock: &quot;+bugBlock);
++		Extractor exBug = new Extractor(bugBlock, &quot;'&gt;&quot;, &quot;&lt;/a&gt;&lt;/strong&gt;&lt;/td&gt;&quot;,0,Extractor.EXCLUDESTARTEND);
++		String bug = new String();
++		String result = new String();
++		while(exBug.endOfSearch() == false){
++			bug= exBug.findNext();
++			if(bug.length()&gt;0) result = result + &quot;&lt;b&gt;Name:&lt;/b&gt; &quot;+ bug + &quot;&lt;br&gt;&lt;hr&gt;&quot;;
++			Vm.debug(&quot;B: &quot; + bug);
++			Vm.debug(&quot;End? &quot; + exBug.endOfSearch());
++		}
++		return result;
+ 	}
+ 	
+ 	public void getAddWaypoints(String doc, CacheHolder ch){
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000409.html">[Cachewolf-svn] r598 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000411.html">[Cachewolf-svn] r600 - in trunk: resources src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#410">[ date ]</a>
+              <a href="thread.html#410">[ thread ]</a>
+              <a href="subject.html#410">[ subject ]</a>
+              <a href="author.html#410">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

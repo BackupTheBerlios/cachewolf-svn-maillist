@@ -1,0 +1,472 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r705 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-May/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r705%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200705241810.l4OIA9mi027218%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000574.html">
+   <LINK REL="Next"  HREF="000576.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r705 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r705%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200705241810.l4OIA9mi027218%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r705 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Thu May 24 20:10:09 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000574.html">[Cachewolf-svn] [Feature #3434] Zeilenumbruch in Cachebeschreibung
+</A></li>
+        <LI>Next message: <A HREF="000576.html">[Cachewolf-svn] r706 - trunk/docs
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#575">[ date ]</a>
+              <a href="thread.html#575">[ thread ]</a>
+              <a href="subject.html#575">[ subject ]</a>
+              <a href="author.html#575">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-05-24 20:10:03 +0200 (Thu, 24 May 2007)
+New Revision: 705
+
+Removed:
+   trunk/src/CacheWolf/ProfilesScreen.java
+Modified:
+   trunk/src/CacheWolf/Preferences.java
+   trunk/src/CacheWolf/ProfileDataForm.java
+   trunk/src/CacheWolf/ProfilesForm.java
+Log:
+Support fuer alte Profile entfernt
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2007-05-23 19:05:42 UTC (rev 704)
++++ trunk/src/CacheWolf/Preferences.java	2007-05-24 18:10:03 UTC (rev 705)
+@@ -48,13 +48,6 @@
+ 	//public int nLogs = 5;
+ 	public boolean dirty = false;
+ 
+-	public int currProfile = 0;
+-	public String profiles[] = {&quot;&quot;,&quot;&quot;,&quot;&quot;,&quot;&quot;};
+-	public String profdirs[] = {&quot;&quot;,&quot;&quot;,&quot;&quot;,&quot;&quot;};
+-	public String lats[] = {&quot;&quot;,&quot;&quot;,&quot;&quot;,&quot;&quot;};
+-	public String longs[] = {&quot;&quot;,&quot;&quot;,&quot;&quot;,&quot;&quot;};
+-	public String lastSyncOC[] = {&quot;&quot;,&quot;&quot;,&quot;&quot;,&quot;&quot;};
+-	public String lastDistOC[] = {&quot;&quot;,&quot;&quot;,&quot;&quot;,&quot;&quot;};
+ 	public String garminConn=&quot;com1&quot;;  // The type of connection which GPSBABEL uses: com1 OR usb.
+ 	public String garminGPSBabelOptions=&quot;&quot;; // Additional options for GPSBabel, i.e. -s to synthethize short names
+ 	// These settings govern where the menu and the tabs are displayed and whether the statusbas is shown
+@@ -271,7 +264,7 @@
+ 		do {	
+ 			if(!profileExists || (showProfileSelector==PROFILE_SELECTOR_FORCED_ON) || 
+ 					(showProfileSelector==PROFILE_SELECTOR_ONOROFF &amp;&amp; !autoReloadLastProfile)){ // Ask for the profile
+-				ProfilesForm f = new ProfilesForm(baseDir,profiles,lastProfile,!profileExists || hasNewButton);
++				ProfilesForm f = new ProfilesForm(baseDir,lastProfile,!profileExists || hasNewButton);
+ 				int code = f.execute();
+ 				// If no profile chosen (includes a new one), terminate
+ 				if (code==-1) return false; // Cancel pressed
+@@ -285,15 +278,7 @@
+ 		} while (profileExists==false);
+ 		// Now we are sure that baseDir exists and basDir+profile exists
+ 		prof.name=lastProfile;
+-		currProfile=-1;
+-		if (lastProfile.equals(profiles[0])) openOldProfile(prof, 0);
+-		else if (lastProfile.equals(profiles[1])) openOldProfile(prof, 1);
+-		else if (lastProfile.equals(profiles[2])) openOldProfile(prof, 2);
+-		else if (lastProfile.equals(profiles[3])) openOldProfile(prof, 3);
+-		else { 
+-			prof.dataDir=baseDir+lastProfile;
+-			//mydatadir=prof.dataDir;
+-		}
++		prof.dataDir=baseDir+lastProfile;
+ 		prof.dataDir=prof.dataDir.replace('\\','/');
+ 		if (!prof.dataDir.endsWith(&quot;/&quot;)) prof.dataDir+='/';
+ 		savePreferences();
+@@ -302,31 +287,6 @@
+ 	}
+ 
+ 	/**
+-	 * Open an old Profile (stored in preferences)
+-	 * @param i 0-3 for profiles 1-4
+-	 */
+-	private void openOldProfile(Profile prof, int i) {
+-		currProfile=i+1;
+-		curCentrePt.set(lats[i]+&quot; &quot;+longs[i]);
+-		//mydatadir=profdirs[i];
+-		if(lastSyncOC[i] == null || lastSyncOC[i].endsWith(&quot;null&quot;)){
+-			prof.last_sync_opencaching = &quot;20050801000000&quot;;
+-		}else {
+-			prof.last_sync_opencaching = lastSyncOC[i];
+-		}
+-		if(lastDistOC[i] == null || lastDistOC[i].endsWith(&quot;null&quot;)){
+-			prof.distOC = &quot;0&quot;;
+-		} else {
+-			prof.distOC = lastDistOC[i];
+-		}
+-		prof.centre.set(lats[i]+&quot; &quot;+longs[i]);
+-		prof.dataDir=profdirs[i];
+-	}
+-
+-
+-
+-
+-	/**
+ 	 * Method that gets called when a new element has been identified in pref.xml
+ 	 */
+ 	public void startElement(String name, AttributeList atts){
+@@ -353,41 +313,6 @@
+ 			forwardGPS = Convert.toBoolean(atts.getValue(&quot;active&quot;));
+ 			forwardGpsHost = atts.getValue(&quot;destinationHost&quot;);
+ 		}
+-		//if(name.equals(&quot;logs&quot;)){
+-		//	nLogs = Convert.parseInt(atts.getValue(&quot;number&quot;));
+-		//}
+-		if(name.equals(&quot;profile1&quot;)){
+-			profiles[0] = atts.getValue(&quot;name&quot;);
+-			profdirs[0] = atts.getValue(&quot;dir&quot;);
+-			lats[0] = atts.getValue(&quot;lat&quot;);
+-			longs[0] = atts.getValue(&quot;lon&quot;);
+-			lastSyncOC[0] = atts.getValue(&quot;lastsyncoc&quot;);
+-			lastDistOC[0] = atts.getValue(&quot;lastdistoc&quot;);
+-		}
+-		if(name.equals(&quot;profile2&quot;)){
+-			profiles[1] = atts.getValue(&quot;name&quot;);
+-			profdirs[1] = atts.getValue(&quot;dir&quot;);
+-			lats[1] = atts.getValue(&quot;lat&quot;);
+-			longs[1] = atts.getValue(&quot;lon&quot;);
+-			lastSyncOC[1] = atts.getValue(&quot;lastsyncoc&quot;);
+-			lastDistOC[1] = atts.getValue(&quot;lastdistoc&quot;);
+-		}
+-		if(name.equals(&quot;profile3&quot;)){
+-			profiles[2] = atts.getValue(&quot;name&quot;);
+-			profdirs[2] = atts.getValue(&quot;dir&quot;);
+-			lats[2] = atts.getValue(&quot;lat&quot;);
+-			longs[2] = atts.getValue(&quot;lon&quot;);
+-			lastSyncOC[2] = atts.getValue(&quot;lastsyncoc&quot;);
+-			lastDistOC[2] = atts.getValue(&quot;lastdistoc&quot;);
+-		}
+-		if(name.equals(&quot;profile4&quot;)){
+-			profiles[3] = atts.getValue(&quot;name&quot;);
+-			profdirs[3] = atts.getValue(&quot;dir&quot;);
+-			lats[3] = atts.getValue(&quot;lat&quot;);
+-			longs[3] = atts.getValue(&quot;lon&quot;);
+-			lastSyncOC[3] = atts.getValue(&quot;lastsyncoc&quot;);
+-			lastDistOC[3] = atts.getValue(&quot;lastdistoc&quot;);
+-		}
+ 		if (name.equals(&quot;lastprofile&quot;)) {
+ 			collectElement=new StringBuffer(50);
+ 			if (atts.getValue(&quot;autoreload&quot;).equals(&quot;true&quot;)) autoReloadLastProfile=true;
+@@ -518,12 +443,6 @@
+ 	public void savePreferences(){
+ 		String datei = File.getProgramDirectory() + &quot;/&quot; + &quot;pref.xml&quot;;
+ 		datei = datei.replace('\\', '/');
+-		//last_sync_opencaching = last_sync_opencaching==null?&quot;20050801000000&quot;:last_sync_opencaching;
+-		//distOC = distOC==null?&quot;0&quot;:distOC;
+-		if (currProfile &gt; 0) {
+-			lastSyncOC[currProfile -1] = Global.getProfile().last_sync_opencaching;
+-			lastDistOC[currProfile - 1] = Global.getProfile().distOC;
+-		}
+ 
+ 		try{
+ 			PrintWriter outp =  new PrintWriter(new BufferedWriter(new FileWriter(datei)));
+@@ -569,10 +488,6 @@
+ 			//outp.print(&quot;	&lt;syncOC date = \&quot;&quot; + last_sync_opencaching + &quot;\&quot; dist = \&quot;&quot; + distOC +  &quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;	&lt;location lat = \&quot;&quot;+curCentrePt.getLatDeg(CWPoint.DD)+&quot;\&quot; long = \&quot;&quot;+curCentrePt.getLonDeg(CWPoint.DD)+&quot;\&quot;/&gt;\n&quot;);
+ 			if (customMapsPath!=null) outp.print(&quot;	&lt;mapspath dir = \&quot;&quot;+ customMapsPath +&quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;	&lt;profile1 name = \&quot;&quot;+profiles[0]+&quot;\&quot; lat = \&quot;&quot;+ lats[0] +&quot;\&quot; lon = \&quot;&quot;+ longs[0] +&quot;\&quot; dir = \&quot;&quot;+ profdirs[0] +&quot;\&quot; lastsyncoc= \&quot;&quot; + lastSyncOC[0] + &quot;\&quot; lastdistoc= \&quot;&quot; + lastDistOC[0] + &quot;\&quot; /&gt;\n&quot;);
+-			outp.print(&quot;	&lt;profile2 name = \&quot;&quot;+profiles[1]+&quot;\&quot; lat = \&quot;&quot;+ lats[1] +&quot;\&quot; lon = \&quot;&quot;+ longs[1] +&quot;\&quot; dir = \&quot;&quot;+ profdirs[1] +&quot;\&quot; lastsyncoc= \&quot;&quot; + lastSyncOC[1] + &quot;\&quot; lastdistoc= \&quot;&quot; + lastDistOC[1] + &quot;\&quot; /&gt;\n&quot;);
+-			outp.print(&quot;	&lt;profile3 name = \&quot;&quot;+profiles[2]+&quot;\&quot; lat = \&quot;&quot;+ lats[2] +&quot;\&quot; lon = \&quot;&quot;+ longs[2] +&quot;\&quot; dir = \&quot;&quot;+ profdirs[2] +&quot;\&quot; lastsyncoc= \&quot;&quot; + lastSyncOC[2] + &quot;\&quot; lastdistoc= \&quot;&quot; + lastDistOC[2] + &quot;\&quot; /&gt;\n&quot;);
+-			outp.print(&quot;	&lt;profile4 name = \&quot;&quot;+profiles[3]+&quot;\&quot; lat = \&quot;&quot;+ lats[3] +&quot;\&quot; lon = \&quot;&quot;+ longs[3] +&quot;\&quot; dir = \&quot;&quot;+ profdirs[3] +&quot;\&quot; lastsyncoc= \&quot;&quot; + lastSyncOC[3] + &quot;\&quot; lastdistoc= \&quot;&quot; + lastDistOC[3] + &quot;\&quot; /&gt;\n&quot;);
+ 			if (debug) outp.print(&quot;    &lt;debug value=\&quot;true\&quot; /&gt;\n&quot;); // Keep the debug switch if it is set
+ 			outp.print(&quot;&lt;/preferences&gt;&quot;);
+ 			outp.close();
+
+Modified: trunk/src/CacheWolf/ProfileDataForm.java
+===================================================================
+--- trunk/src/CacheWolf/ProfileDataForm.java	2007-05-23 19:05:42 UTC (rev 704)
++++ trunk/src/CacheWolf/ProfileDataForm.java	2007-05-24 18:10:03 UTC (rev 705)
+@@ -15,7 +15,7 @@
+ */
+ public class ProfileDataForm extends Form {
+ 
+-	private mButton btnOK, btnCurrentCentre, btnProfileCentre, btnCur2Prof, btnProf2Cur, btnOldProfiles;
++	private mButton btnOK, btnCurrentCentre, btnProfileCentre, btnCur2Prof, btnProf2Cur;
+ 	Preferences pref;
+ 	Profile profile;
+ 	CellPanel content = new CellPanel();
+@@ -42,7 +42,6 @@
+ 		content.addLast(btnProfileCentre=new mButton(profile.centre.toString()),HSTRETCH,HFILL|LEFT);
+ 		addLast(content,HSTRETCH,HFILL);
+ 		addLast(new mLabel(&quot;&quot;),VSTRETCH,FILL);
+-		addLast(btnOldProfiles=new mButton(MyLocale.getMsg(1119,&quot;Old Profiles&quot;)),HSTRETCH,HFILL);
+ 		//addNext(btnCancel = new mButton(MyLocale.getMsg(1604,&quot;Cancel&quot;)),DONTSTRETCH,DONTFILL|LEFT);
+ 		addLast(btnOK = new mButton(&quot;OK&quot;),DONTSTRETCH,HFILL|RIGHT);
+ 	}
+@@ -88,10 +87,6 @@
+ 				btnCurrentCentre.setText(pref.curCentrePt.toString());
+ 				Global.getProfile().updateBearingDistance();
+ 			}
+-			if (ev.target == btnOldProfiles){
+-				ProfilesScreen pfs = new ProfilesScreen(pref);
+-				pfs.execute();
+-			}
+ 		}
+ 		super.onEvent(ev);
+ 	}
+
+Modified: trunk/src/CacheWolf/ProfilesForm.java
+===================================================================
+--- trunk/src/CacheWolf/ProfilesForm.java	2007-05-23 19:05:42 UTC (rev 704)
++++ trunk/src/CacheWolf/ProfilesForm.java	2007-05-24 18:10:03 UTC (rev 705)
+@@ -54,7 +54,7 @@
+ 	* @param oldProfiles List of names of old profiles
+ 	* @param selectedProfile Name of the last used profile
+ 	*/
+-	public ProfilesForm(String baseDir, String[] oldProfiles,String selectedProfile, boolean hasNewButton){
++	public ProfilesForm(String baseDir, String selectedProfile, boolean hasNewButton){
+ 		super();
+     	resizable =  false;
+ 		int w=MyLocale.getScreenWidth();
+@@ -70,12 +70,6 @@
+ 		}
+ 		
+ 		choice=new MyList();
+-        // First add the old style profiles (stored in pref.xml)
+-        if (oldProfiles[0].length()&gt;0) choice.addItem(oldProfiles[0]);
+-        if (oldProfiles[1].length()&gt;0) choice.addItem(oldProfiles[1]);
+-        if (oldProfiles[2].length()&gt;0) choice.addItem(oldProfiles[2]);
+-        if (oldProfiles[3].length()&gt;0) choice.addItem(oldProfiles[3]);
+-        if (choice.itemsSize()&gt;0) choice.addItem(&quot;-&quot;);
+ 		// Get all subdirectories in the base directory
+ 		File fileBaseDir=new File(baseDir);
+ 		String[] existingProfiles=fileBaseDir.list(&quot;*&quot;,FileBase.LIST_DIRECTORIES_ONLY);
+
+Deleted: trunk/src/CacheWolf/ProfilesScreen.java
+===================================================================
+--- trunk/src/CacheWolf/ProfilesScreen.java	2007-05-23 19:05:42 UTC (rev 704)
++++ trunk/src/CacheWolf/ProfilesScreen.java	2007-05-24 18:10:03 UTC (rev 705)
+@@ -1,189 +0,0 @@
+-package CacheWolf;
+-
+-import ewe.sys.*;
+-import ewe.ui.*;
+-import ewe.filechooser.*;
+-
+-/**
+-*	This form displays fields to enter up to 4 different profile configurations.
+-*	A profile consists of the name an directory entered here as well as the current
+-*	home coordinates set up in the preferences screen.
+-*	Class ID = 1100
+-*/
+-public class ProfilesScreen extends Form {
+-	mButton cancelB, applyB;
+-	Preferences pref;
+-	mInput name1,dir1;
+-	mInput name2,dir2;
+-	mInput name3,dir3;
+-	mInput name4,dir4;
+-	mButton but1,but2,but3,but4,btnCoords1,btnCoords2,btnCoords3,btnCoords4;
+-	CellPanel content = new CellPanel();
+-	ScrollBarPanel scp;
+-	
+-	/**
+-	*	Constructor!
+-	*	Existing profile values are assigned upon set-up.
+-	*/
+-	public ProfilesScreen(Preferences p){
+-		scp = new ScrollBarPanel(content);
+-		pref = p;
+-		setMinimumSize(240,240);
+-		setMaximumSize(300,400);
+-
+-		this.title = MyLocale.getMsg(1100,&quot;Profiles&quot;);
+-		
+-		//content.addLast(new mLabel(MyLocale.getMsg(1101,&quot;Profile 1&quot;)));
+-		content.addNext(new mLabel(MyLocale.getMsg(1101,&quot;Profile 1&quot;)));
+-		content.addLast(btnCoords1 = new mButton(pref.lats[0] + &quot; &quot; + pref.longs[0]));
+-		content.addNext(new mLabel(&quot;Name&quot;));
+-		content.addLast(name1 = new mInput());
+-		content.addNext(new mLabel(&quot;Dir&quot;));
+-		content.addNext(dir1 = new mInput());
+-		content.addLast(but1 = new mButton(MyLocale.getMsg(1105,&quot;Browse&quot;)));
+-		name1.setText(pref.profiles[0]);
+-		dir1.setText(pref.profdirs[0]);
+-		
+-		//content.addLast(new mLabel(MyLocale.getMsg(1102,&quot;Profile 1&quot;)));
+-		content.addNext(new mLabel(MyLocale.getMsg(1102,&quot;Profile 2&quot;)));
+-		content.addLast(btnCoords2 = new mButton(pref.lats[1] + &quot; &quot; + pref.longs[1]));
+-		content.addNext(new mLabel(&quot;Name&quot;));
+-		content.addLast(name2 = new mInput());
+-		content.addNext(new mLabel(&quot;Dir&quot;));
+-		content.addNext(dir2 = new mInput());
+-		content.addLast(but2 = new mButton(MyLocale.getMsg(1105,&quot;Browse&quot;)));
+-		name2.setText(pref.profiles[1]);
+-		dir2.setText(pref.profdirs[1]);
+-		
+-		//content.addLast(new mLabel(MyLocale.getMsg(1103,&quot;Profile 1&quot;)));
+-		content.addNext(new mLabel(MyLocale.getMsg(1103,&quot;Profile 3&quot;)));
+-		content.addLast(btnCoords3 = new mButton(pref.lats[2] + &quot; &quot; + pref.longs[2]));
+-		content.addNext(new mLabel(&quot;Name&quot;));
+-		content.addLast(name3 = new mInput());
+-		content.addNext(new mLabel(&quot;Dir&quot;));
+-		content.addNext(dir3 = new mInput());
+-		content.addLast(but3 = new mButton(MyLocale.getMsg(1105,&quot;Browse&quot;)));
+-		name3.setText(pref.profiles[2]);
+-		dir3.setText(pref.profdirs[2]);
+-		
+-		//content.addLast(new mLabel(MyLocale.getMsg(1104,&quot;Profile 1&quot;)));
+-		content.addNext(new mLabel(MyLocale.getMsg(1104,&quot;Profile 4&quot;)));
+-		content.addLast(btnCoords4 = new mButton(pref.lats[3] + &quot; &quot; + pref.longs[3]));
+-		content.addNext(new mLabel(&quot;Name&quot;));
+-		content.addLast(name4 = new mInput());
+-		content.addNext(new mLabel(&quot;Dir&quot;));
+-		content.addNext(dir4 = new mInput());
+-		content.addLast(but4 = new mButton(MyLocale.getMsg(1105,&quot;Browse&quot;)));
+-		name4.setText(pref.profiles[3]);
+-		dir4.setText(pref.profdirs[3]);
+-		content.addNext(new mLabel(&quot;&quot;));
+-		content.addNext(cancelB = new mButton(MyLocale.getMsg(614,&quot;Cancel&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		content.addLast(applyB = new mButton(MyLocale.getMsg(620,&quot;Save&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.EAST));
+-		
+-		this.addLast(scp.getScrollablePanel(), CellConstants.STRETCH, CellConstants.FILL);
+-
+-	}
+-	
+-	/**
+-	*	Event handler to react to a users input.
+-	*	First of all the form catches if a user enteres or changes any of the
+-	*	input fields.
+-	*	When the user closes the form by hitting the Apply - Button the form checks
+-	*	if any of the fields have been changed. If so the values are updated in preferences
+-	*	and the currently set up home coordinates are associated with the updated
+-	*	profile.
+-	*	The form the requests the profiles to be saved and then closes itself.
+-	*/
+-	public void onEvent(Event ev){
+-		
+-		
+-		if (ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.PRESSED){
+-			if (ev.target == cancelB){
+-				this.close(0);
+-			}
+-			if (ev.target == applyB){
+-				pref.profiles[0] = name1.getText();
+-				pref.profdirs[0] = dir1.getText();
+-				pref.profiles[1] = name2.getText();
+-				pref.profdirs[1] = dir2.getText();
+-				pref.profiles[2] = name3.getText();
+-				pref.profdirs[2] = dir3.getText();
+-				pref.profiles[3] = name4.getText();
+-				pref.profdirs[3] = dir4.getText();
+-				pref.savePreferences();
+-				//pref.dirty = true; No need to reload database here
+-				this.close(0);
+-			}
+-
+-			if(ev.target == btnCoords1){
+-				getCoords((mButton)ev.target,0);
+-			}
+-
+-			if(ev.target == btnCoords2){
+-				getCoords((mButton)ev.target,1);
+-			}
+-			
+-			if(ev.target == btnCoords3){
+-				getCoords((mButton)ev.target,2);
+-			}
+-			
+-			if(ev.target == btnCoords4){
+-				getCoords((mButton)ev.target,3);
+-			}
+-			
+-			if(ev.target == but1){
+-				FileChooser fc = new FileChooser(FileChooser.DIRECTORY_SELECT, pref.baseDir);
+-				fc.setTitle(MyLocale.getMsg(616,&quot;Select data directory&quot;));
+-				if(fc.execute() != IDCANCEL)	{
+-					dir1.setText(fc.getChosen()+&quot;/&quot;);
+-				}
+-			}
+-			if(ev.target == but2){
+-				FileChooser fc = new FileChooser(FileChooser.DIRECTORY_SELECT, pref.baseDir);
+-				fc.setTitle(MyLocale.getMsg(616,&quot;Select data directory&quot;));
+-				if(fc.execute() != IDCANCEL)	{
+-					dir2.setText(fc.getChosen()+&quot;/&quot;);
+-				}
+-			}
+-			if(ev.target == but3){
+-				FileChooser fc = new FileChooser(FileChooser.DIRECTORY_SELECT, pref.baseDir);
+-				fc.setTitle(MyLocale.getMsg(616,&quot;Select data directory&quot;));
+-				if(fc.execute() != IDCANCEL)	{
+-					dir3.setText(fc.getChosen()+&quot;/&quot;);
+-				}
+-			}
+-			if(ev.target == but4){
+-				FileChooser fc = new FileChooser(FileChooser.DIRECTORY_SELECT, pref.baseDir);
+-				fc.setTitle(MyLocale.getMsg(616,&quot;Select data directory&quot;));
+-				if(fc.execute() != IDCANCEL)	{
+-					dir4.setText(fc.getChosen()+&quot;/&quot;);
+-				}
+-			}
+-			
+-		}
+-		super.onEvent(ev);
+-	}
+-	
+-	private void getCoords(mButton btn,int idx){
+-		CoordsScreen cs = new CoordsScreen();
+-		CWPoint profCoords = new CWPoint();
+-		//minimum check if there is some Data in the prefs
+-		if (pref.lats[idx] != null &amp;&amp;  pref.longs[idx] != null 
+-		&amp;&amp; (pref.lats[idx].length() &gt; 9) &amp;&amp; (pref.longs[idx].length() &gt; 9)) {
+-			profCoords.set(pref.lats[idx] + &quot; &quot; + pref.longs[idx], CWPoint.CW);
+-		}
+-		cs.setFields(profCoords, CWPoint.DMM);
+-		if (cs.execute()== IDOK){
+-			profCoords = cs.getCoords();
+-			// remember coords for profile ...
+-			pref.lats[idx] = profCoords.getNSLetter() + &quot; &quot; + profCoords.getLatDeg(CWPoint.DMM) + &quot; &quot; +
+-							  profCoords.getLatMin(CWPoint.DMM);
+-			pref.longs[idx] = profCoords.getEWLetter() + &quot; &quot; + profCoords.getLonDeg(CWPoint.DMM) + &quot; &quot; +
+-			  				   profCoords.getLonMin(CWPoint.DMM);
+-			btn.setText((pref.lats[idx] + &quot; &quot; + pref.longs[idx]));
+-			// .. and set current preferences
+-			pref.curCentrePt.set(profCoords);
+-		}
+-		
+-	}
+-}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000574.html">[Cachewolf-svn] [Feature #3434] Zeilenumbruch in Cachebeschreibung
+</A></li>
+	<LI>Next message: <A HREF="000576.html">[Cachewolf-svn] r706 - trunk/docs
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#575">[ date ]</a>
+              <a href="thread.html#575">[ thread ]</a>
+              <a href="subject.html#575">[ subject ]</a>
+              <a href="author.html#575">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,205 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r745 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-June/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r745%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200706131920.l5DJKsYU031427%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000626.html">
+   <LINK REL="Next"  HREF="000628.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r745 - trunk/src/CacheWolf</H1>
+    <B>kalli at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r745%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200706131920.l5DJKsYU031427%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r745 - trunk/src/CacheWolf">kalli at mail.berlios.de
+       </A><BR>
+    <I>Wed Jun 13 21:20:54 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000626.html">[Cachewolf-svn] [Feature #3509] Erweiterung KML
+</A></li>
+        <LI>Next message: <A HREF="000628.html">[Cachewolf-svn] r746 - branches/bugfix_09n/src/CacheWolf	trunk/resources trunk/resources/attributes
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#627">[ date ]</a>
+              <a href="thread.html#627">[ thread ]</a>
+              <a href="subject.html#627">[ subject ]</a>
+              <a href="author.html#627">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: kalli
+Date: 2007-06-13 21:20:51 +0200 (Wed, 13 Jun 2007)
+New Revision: 745
+
+Modified:
+   trunk/src/CacheWolf/OCXMLImporter.java
+   trunk/src/CacheWolf/myTableControl.java
+Log:
+FR #3495: Einzelne OC-Caches syncen. Muss noch genauer getestet werden.
+
+Modified: trunk/src/CacheWolf/OCXMLImporter.java
+===================================================================
+--- trunk/src/CacheWolf/OCXMLImporter.java	2007-06-10 21:12:49 UTC (rev 744)
++++ trunk/src/CacheWolf/OCXMLImporter.java	2007-06-13 19:20:51 UTC (rev 745)
+@@ -74,7 +74,93 @@
+ 		}//for
+ 
+ 	}
++	
++	public boolean syncSingle(int number, InfoBox infB) {
++		String finalMessage = new String();
++		boolean success=true;
+ 
++		CacheHolder ch = (CacheHolder)cacheDB.get(number);
++		CacheHolderDetail chD=new CacheHolderDetail(ch);
++
++		try{
++			BufferedReader r;
++			String file = new String();
++			String url = new String();
++
++			picCnt = 0;
++			//Build url
++			url =&quot;<A HREF="http://">http://</A>&quot; + OPENCACHING_HOST + &quot;/xml/ocxml11.php?&quot;
++				+ &quot;modifiedsince=&quot; + &quot;20050801000000&quot;
++				+ &quot;&amp;cache=1&quot;
++				+ &quot;&amp;cachedesc=1&quot;
++				+ &quot;&amp;picture=1&quot;
++				+ &quot;&amp;cachelog=1&quot;
++				+ &quot;&amp;removedobject=0&quot;
++				+ &quot;&amp;wp=&quot; + ch.wayPoint
++				+ &quot;&amp;charset=utf-8&quot;
++				+ &quot;&amp;cdata=0&quot;
++				+ &quot;&amp;session=0&quot;;
++			inf = new InfoBox(&quot;Opencaching download&quot;, MyLocale.getMsg(1608,&quot;downloading data\n from opencaching&quot;), InfoBox.PROGRESS_WITH_WARNINGS, false);
++//			inf = infB;
++			inf.setPreferredSize(220, 300);
++			inf.relayout(false);
++			inf.exec();
++			//Vm.debug(url);
++			//get file
++			file = fetch(url, &quot;dummy&quot;);
++			//file = &quot;628-0-1.zip&quot;;
++
++			//parse
++			File tmpFile = new File(profile.dataDir + file);
++			if (tmpFile.getLength() == 0 ) throw new IOException(&quot;no updates available&quot;);
++
++			ZipFile zif = new ZipFile (profile.dataDir + file);
++			ZipEntry zipEnt;
++			Enumeration zipEnum = zif.entries();
++			// there could be more than one file in the archive
++			inf.setInfo(&quot;...unzipping update file&quot;); 
++			while (zipEnum.hasMoreElements())
++			{
++				zipEnt = (ZipEntry) zipEnum.nextElement();
++				// skip over PRC-files and empty files
++				if (zipEnt.getSize()&gt; 0 &amp;&amp; zipEnt.getName().endsWith(&quot;xml&quot;)){
++					r = new BufferedReader (new InputStreamReader(zif.getInputStream(zipEnt), IO.JAVA_UTF8_CODEC));
++					parse(r);
++					r.close();
++				}
++			}
++			zif.close();
++		}catch (ZipException e){
++			finalMessage = MyLocale.getMsg(1614,&quot;Error while unzipping udpate file&quot;);
++			success = false;
++		}catch (IOException e){
++			if (e.getMessage().equalsIgnoreCase(&quot;no updates available&quot;)) { finalMessage = &quot;No updates available&quot;; success = false; }
++			else {
++				if (e.getMessage().equalsIgnoreCase(&quot;could not connect&quot;) ||
++						e.getMessage().equalsIgnoreCase(&quot;unkown host&quot;)) { // is there a better way to find out what happened?
++					finalMessage = MyLocale.getMsg(1616,&quot;Error: could not download udpate file from opencaching.de&quot;);
++				} else { finalMessage = &quot;IOException: &quot;+e.getMessage(); }
++				success = false;
++			}
++		}catch (IllegalArgumentException e) {
++			finalMessage = MyLocale.getMsg(1621,&quot;Error parsing update file\n this is likely a bug in opencaching.de\nplease try again later\n, state:&quot;)+&quot; &quot;+state+&quot;, waypoint: &quot;+ chD.wayPoint;
++			success = false;
++			Vm.debug(&quot;Parse error: &quot; + state + &quot; &quot; + chD.wayPoint);
++			e.printStackTrace();
++		}catch (Exception e){ // here schould be used the correct exepion
++			if (chD != null)	finalMessage = MyLocale.getMsg(1615,&quot;Error parsing update file, state:&quot;)+&quot; &quot;+state+&quot;, waypoint: &quot;+ chD.wayPoint;
++			else finalMessage = MyLocale.getMsg(1615,&quot;Error parsing update file, state:&quot;)+&quot; &quot;+state+&quot;, waypoint: &lt;unkown&gt;&quot;;
++			success = false;
++			Vm.debug(&quot;Parse error: &quot; + state + &quot; Exception:&quot; + e.toString()+&quot;   &quot;+chD.ocCacheID);
++			e.printStackTrace();
++		}
++		inf.setInfo(finalMessage);
++		if (success) inf.close(0);
++		else 		 inf.addOkButton();
++
++		return success;
++	}
++
+ 	public void doIt(){
+ 		String finalMessage = new String();
+ 		boolean success=true;
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2007-06-10 21:12:49 UTC (rev 744)
++++ trunk/src/CacheWolf/myTableControl.java	2007-06-13 19:20:51 UTC (rev 745)
+@@ -114,6 +114,7 @@
+ 
+ 		if (selectedItem.toString().equals(MyLocale.getMsg(1014,&quot;Update&quot;))){
+ 			SpiderGC spider = new SpiderGC(pref, profile, false);
++			OCXMLImporter ocSync = new OCXMLImporter(pref, profile);
+ 			//Vm.debug(&quot;ByPass? &quot; + profile.byPassIndexActive);
+ 			Vm.showWait(true);
+ 			if (spider.login()==Form.IDOK) {
+@@ -125,14 +126,18 @@
+ 				for(int i = 0; i &lt;	cacheDB.size(); i++){
+ 					ch = (CacheHolder)cacheDB.get(i);
+ 					if(ch.is_Checked == true) {
+-						if ( (ch.wayPoint.length() &gt; 1 &amp;&amp; ch.wayPoint.substring(0,2).equalsIgnoreCase(&quot;GC&quot;)))
++						if ( ch.wayPoint.length()&gt;1)
++
++//						if ( (ch.wayPoint.length() &gt; 1 &amp;&amp; ch.wayPoint.substring(0,2).equalsIgnoreCase(&quot;GC&quot;)))
+ 	//						Notiz: Wenn es ein addi Wpt ist, sollte eigentlich der Maincache gespidert werden
+ 	//						Alter code pr&#252;ft aber nur ob ein Maincache von GC existiert und versucht dann den addi direkt zu spidern, was nicht funktioniert
+ 	//						TODO: Diese Meldungen vor dem Einloggen darstellen						
+ 						{
+ 					    infB.setInfo(&quot;Loading: &quot; + ch.wayPoint);
+-						
+-						test = spider.spiderSingle(i, infB); 
++					    if (ch.wayPoint.substring(0,2).equalsIgnoreCase(&quot;GC&quot;))
++					    	test = spider.spiderSingle(i, infB);
++					    else
++					    	test = ocSync.syncSingle(i, infB);
+ 						if (!test) {
+ 							infB.close(0);
+ 							break;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000626.html">[Cachewolf-svn] [Feature #3509] Erweiterung KML
+</A></li>
+	<LI>Next message: <A HREF="000628.html">[Cachewolf-svn] r746 - branches/bugfix_09n/src/CacheWolf	trunk/resources trunk/resources/attributes
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#627">[ date ]</a>
+              <a href="thread.html#627">[ thread ]</a>
+              <a href="subject.html#627">[ subject ]</a>
+              <a href="author.html#627">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

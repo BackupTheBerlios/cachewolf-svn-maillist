@@ -1,0 +1,472 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r794 - in trunk: resources src/CacheWolf src/exp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-July/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r794%20-%20in%20trunk%3A%20resources%20src/CacheWolf%20src/exp&In-Reply-To=%3C200707281813.l6SID9uP007515%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000683.html">
+   <LINK REL="Next"  HREF="000685.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r794 - in trunk: resources src/CacheWolf src/exp</H1>
+    <B>kalli at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r794%20-%20in%20trunk%3A%20resources%20src/CacheWolf%20src/exp&In-Reply-To=%3C200707281813.l6SID9uP007515%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r794 - in trunk: resources src/CacheWolf src/exp">kalli at mail.berlios.de
+       </A><BR>
+    <I>Sat Jul 28 20:13:09 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000683.html">[Cachewolf-svn] r793 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000685.html">[Cachewolf-svn] r795 - in trunk: resources src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#684">[ date ]</a>
+              <a href="thread.html#684">[ thread ]</a>
+              <a href="subject.html#684">[ subject ]</a>
+              <a href="author.html#684">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: kalli
+Date: 2007-07-28 20:12:58 +0200 (Sat, 28 Jul 2007)
+New Revision: 794
+
+Modified:
+   trunk/resources/POIIcons.zip
+   trunk/src/CacheWolf/CacheType.java
+   trunk/src/exp/KMLExporter.java
+   trunk/src/exp/TomTomExporter.java
+Log:
+KML-Export: Gruppierung nach Available, Found, Ownes, Not Available sowie Cachetypen. Icons werden aus POIICons.zip geholt
+
+!!! Achtung !!! Resource POIIcons.zip hat sich geaendert
+
+Modified: trunk/resources/POIIcons.zip
+===================================================================
+(Binary files differ)
+
+Modified: trunk/src/CacheWolf/CacheType.java
+===================================================================
+--- trunk/src/CacheWolf/CacheType.java	2007-07-28 17:02:35 UTC (rev 793)
++++ trunk/src/CacheWolf/CacheType.java	2007-07-28 18:12:58 UTC (rev 794)
+@@ -114,7 +114,21 @@
+ 	
+ 	//fields
+ 	int type = 0;
++	
++	// array with names and types for exporters
++	public final static int WPT_TEXT = 0;
++	public final static int WPT_NUM = 1;
+ 
++	public static String[][] wayType = {{&quot;Custom&quot;,&quot;0&quot;},{&quot;Traditional&quot;,&quot;2&quot;},
++			{&quot;Multi&quot;,&quot;3&quot;}, {&quot;Virtual&quot;,&quot;4&quot;},
++			{&quot;Letterbox&quot;,&quot;5&quot;},{&quot;Event&quot;,&quot;6&quot;},
++			{&quot;Mega Event&quot;,&quot;453&quot;}, {&quot;Mystery&quot;,&quot;8&quot;},
++			{&quot;Webcam&quot;,&quot;11&quot;},{&quot;Locationless&quot;,&quot;12&quot;},
++			{&quot;CITO&quot;,&quot;13&quot;},{&quot;Earthcache&quot;,&quot;137&quot;},
++			{&quot;Parking&quot;,&quot;50&quot;},{&quot;Stage&quot;,&quot;51&quot;},
++			{&quot;Question&quot;,&quot;52&quot;},{&quot;Final&quot;,&quot;53&quot;},
++			{&quot;Trailhead&quot;,&quot;54&quot;},{&quot;Reference&quot;,&quot;55&quot;}};
++
+ 	public static String transType(String geoNum){
+ 		String geo = new String(&quot;Unknown&quot;);
+ 		if(geoNum.equals(&quot;2&quot;)) geo = &quot;Traditional Cache&quot;;
+
+Modified: trunk/src/exp/KMLExporter.java
+===================================================================
+--- trunk/src/exp/KMLExporter.java	2007-07-28 17:02:35 UTC (rev 793)
++++ trunk/src/exp/KMLExporter.java	2007-07-28 18:12:58 UTC (rev 794)
+@@ -1,7 +1,21 @@
+ package exp;
+-import ewe.fx.Color;
++
++import ewe.io.BufferedWriter;
+ import ewe.io.File;
++import ewe.io.FileOutputStream;
++import ewe.io.FileWriter;
++import ewe.io.IOException;
++import ewe.io.InputStream;
++import ewe.io.PrintWriter;
+ import ewe.sys.Convert;
++import ewe.sys.Handle;
++import ewe.sys.Vm;
++import ewe.ui.ProgressBarForm;
++import ewe.util.*;
++import ewe.util.Map.MapEntry;
++import ewe.util.zip.ZipEntry;
++import ewe.util.zip.ZipException;
++import ewe.util.zip.ZipFile;
+ import CacheWolf.*;
+ 
+ /**
+@@ -13,9 +27,19 @@
+ 	private static final String COLOR_FOUND = &quot;ff98fb98&quot;; 
+ 	private static final String COLOR_OWNED = &quot;ffffaa55&quot;; 
+ 	private static final String COLOR_AVAILABLE = &quot;ffffffff&quot;;
+-	private static final String COLOR_ARCHIVED = &quot;ff0000ff&quot;;
++	private static final String COLOR_NOT_AVAILABLE = &quot;ff0000ff&quot;;
+ 
+ 
++	static final int AVAILABLE = 0;
++	static final int FOUND = 1;
++	static final int OWNED = 2;
++	static final int NOT_AVAILABLE = 3;
++	static final int UNKNOWN = 4;
++	
++	
++	String []categoryNames = {&quot;Available&quot;,&quot;Found&quot;, &quot;Owned&quot;, &quot;Not Available&quot;, &quot;UNKNOWN&quot;};
++	Hashtable [] outCacheDB = new Hashtable[categoryNames.length];
++
+ 	public KMLExporter(){
+ 		super();
+ 		this.setMask(&quot;*.kml&quot;);
+@@ -27,7 +51,205 @@
+ 			super();
+ 			this.setMask(&quot;*.kml&quot;);
+ 	}
++
++	public void doIt(int variant){
++		File outFile;
++		String str;
++		CacheHolder ch;
++		CacheHolder addiWpt;
++		CacheHolderDetail holder;
++		ProgressBarForm pbf = new ProgressBarForm();
++		Handle h = new Handle();
++		
++		if (variant == ASK_FILE) {
++			outFile = getOutputFile();
++			if (outFile == null) return;
++		} else {
++			outFile = new File(tmpFileName);
++		}
++
++		pbf.showMainTask = false;
++		pbf.setTask(h,&quot;Exporting ...&quot;);
++		pbf.exec();
++
++		int counter = 0;
++		int expCount = 0;
++		for(int i = 0; i&lt;cacheDB.size();i++){
++			ch = (CacheHolder)cacheDB.get(i);
++			if(ch.is_black == false &amp;&amp; ch.is_filtered == false) counter++;
++		}
++		copyIcons(outFile.getParent());
++		buildOutDB();
++		
++		try{
++			PrintWriter outp =  new PrintWriter(new BufferedWriter(new FileWriter(outFile)));
++			str = this.header();
++			if (str != null) outp.print(str);
++			for (int cat = 0; cat &lt; categoryNames.length; cat++) {
++				// skip over empty categories
++				if (outCacheDB[cat]==null) continue;
++
++				Iterator outLoop = outCacheDB[cat].entries();
++				outp.print(startFolder(categoryNames[cat]));
++
++				Vector tmp;
++				MapEntry entry; 
++				while (outLoop.hasNext()){
++					entry = (MapEntry) outLoop.next();
++					tmp = (Vector)entry.getValue();
++					// skip over empty cachetypes
++					if (tmp.size() == 0) continue;
++					outp.print(startFolder(CacheType.transType((String)entry.getKey())));
++
++					for(int i = 0; i&lt;tmp.size(); i++){
++						ch = (CacheHolder) tmp.get(i);
++						expCount++;
++						h.progress = (float)expCount/(float)counter;
++						h.changed();
++						if (ch.isAddiWpt()) continue;
++						holder=new CacheHolderDetail(ch);
++						try {
++							holder.readCache(profile.dataDir);
++						} catch (IOException e) {
++							continue;
++						}
++						if (holder.pos.isValid()){
++							str = record(holder, holder.pos.getLatDeg(CWPoint.DD).replace('.', this.decimalSeparator),
++								     holder.pos.getLonDeg(CWPoint.DD).replace('.', this.decimalSeparator));
++							if (str != null) outp.print(str);
++						}
++						if (ch.hasAddiWpt()){
++						outp.print(startFolder(&quot;Additional Waypoints&quot;, false));
++							for(int j = 0; j&lt;ch.addiWpts.size(); j++){
++								addiWpt = (CacheHolder) ch.addiWpts.get(j);
++								holder=new CacheHolderDetail(addiWpt);
++								expCount++;
++								if (holder.pos.isValid()){
++									str = record(holder, holder.pos.getLatDeg(CWPoint.DD).replace('.', this.decimalSeparator),
++										     holder.pos.getLonDeg(CWPoint.DD).replace('.', this.decimalSeparator));
++									if (str != null) outp.print(str);
++								}
++								
++							}
++						outp.print(endFolder());// addi wpts
++						}
++					}
++					outp.print(endFolder());// cachetype
++				}
++				outp.print(endFolder());// category
++			}
++			
++			str = trailer();
++			if (str != null) outp.print(str);
++			outp.close();
++			pbf.exit(0);
++		} catch (IOException ioE){
++			Vm.debug(&quot;Error opening &quot; + outFile.getName());
++		}
++		//try
++
++	}
+ 	
++	private void buildOutDB(){
++		CacheHolder ch;
++		Vector tmp;
++		Iterator categoryLoop;
++		MapEntry entry;
++		boolean foundOne;
++		
++		// create the roots for the different categories
++		for (int i = 0; i &lt; categoryNames.length; i++) {
++			outCacheDB[i] = new Hashtable();
++			// create the roots for the cachetypes
++			for (int j = 0; j &lt; CacheType.wayType.length; j++) {
++				outCacheDB[i].put(CacheType.wayType[j][CacheType.WPT_NUM], new Vector());
++			}
++		}
++
++		// fill structure with data from cacheDB
++		for(int i = 0; i&lt;cacheDB.size(); i++){
++			ch=(CacheHolder)cacheDB.get(i);
++			if(ch.is_black == false &amp;&amp; ch.is_filtered == false &amp;&amp; !ch.isAddiWpt()){
++				if (ch.is_found) { tmp = (Vector) outCacheDB[FOUND].get(ch.type);}
++				else if (ch.is_owned) { tmp = (Vector) outCacheDB[OWNED].get(ch.type);}
++				else if (ch.is_archived || !ch.is_available){ tmp = (Vector) outCacheDB[NOT_AVAILABLE].get(ch.type);}
++				else if (ch.is_available){ tmp = (Vector) outCacheDB[AVAILABLE].get(ch.type);}
++				else { tmp = (Vector) outCacheDB[UNKNOWN].get(ch.type);}
++				
++				tmp.add(ch);
++			}
++		}
++		
++		//eleminate empty categories
++		for (int i = 0; i &lt; categoryNames.length; i++) {
++			categoryLoop = outCacheDB[i].entries();
++			foundOne = false;
++			//look if all vectors for cachetypes are filled
++			while (categoryLoop.hasNext()){
++				entry = (MapEntry) categoryLoop.next();
++				tmp = (Vector)entry.getValue();
++				if (tmp.size()&gt; 0){
++					foundOne = true;
++					break;
++				}
++			}
++			// set hashtable for that category to null
++			if (!foundOne)outCacheDB[i] = null;
++		}
++		
++
++	}
++	
++	private String startFolder(String name){
++		return startFolder(name, true);
++	}
++	
++	private String startFolder(String name, boolean open){
++		StringBuffer strBuf = new StringBuffer(200);
++		strBuf.append(&quot;&lt;Folder&gt;\r\n&quot;);
++		strBuf.append(&quot;&lt;name&gt;&quot; + name + &quot;&lt;/name&gt;\r\n&quot;);
++		strBuf.append(&quot;&lt;open&gt;&quot; + (open?&quot;1&quot;:&quot;0&quot;) + &quot;&lt;/open&gt;\r\n&quot;);
++
++		return strBuf.toString();
++	}
++
++	private String endFolder() {
++		
++		return &quot;&lt;/Folder&gt;\r\n&quot;;
++	}
++
++	public void copyIcons(String dir){
++		try {
++			ZipFile zif = new ZipFile (File.getProgramDirectory() + &quot;/POIIcons.zip&quot;);
++			ZipEntry zipEnt;
++			int len;
++			String entName, fileName; 
++
++			for (int i = 0; i &lt; CacheType.wayType.length; i++) {
++				fileName = CacheType.type2pic(Convert.parseInt(CacheType.wayType[i][CacheType.WPT_NUM]));
++				entName = &quot;GoogleEarthIcons/&quot; + fileName;
++				zipEnt = zif.getEntry(entName);
++				if (zipEnt == null) continue;
++			    byte[] buff = new byte[ (int) zipEnt.getSize() ];
++			    InputStream  fis = zif.getInputStream(zipEnt);
++			    FileOutputStream fos = new FileOutputStream( dir + &quot;/&quot; + fileName);
++			    while( 0 &lt; (len = fis.read( buff )) )
++			      fos.write( buff, 0, len );
++			    fos.flush();
++			    fos.close();
++			    fis.close();
++			}
++
++			} catch (ZipException e) {
++				Vm.debug(&quot;Problem copying Icon&quot;);
++				e.printStackTrace();
++			} catch (IOException e) {
++				Vm.debug(&quot;Problem copying Icon&quot;);
++				e.printStackTrace();
++			}
++	}
++
++	
+ 	public String header () {
+ 		StringBuffer strBuf = new StringBuffer(200);
+ 				
+@@ -36,15 +258,18 @@
+ 		strBuf.append(&quot;&lt;Folder&gt;\r\n&quot;);
+ 		strBuf.append(&quot;&lt;name&gt;CacheWolf&lt;/name&gt;\r\n&quot;);
+ 		strBuf.append(&quot;&lt;open&gt;1&lt;/open&gt;\r\n&quot;);
+-
++	
+ 		return strBuf.toString();
+ 	}
+-	
++
++
+ 	public String record(CacheHolderDetail ch, String lat, String lon){
+ 		StringBuffer strBuf = new StringBuffer(200);
+ 		
+ 		strBuf.append(&quot;   &lt;Placemark&gt;\r\n&quot;);
+-		strBuf.append(&quot;      &lt;description&gt;<A HREF="http://www.geocaching.com/seek/cache_details.aspx?wp=">http://www.geocaching.com/seek/cache_details.aspx?wp=</A>&quot;+ch.wayPoint+&quot;&lt;/description&gt;\r\n&quot;);
++		if (ch.URL != null){
++			strBuf.append(&quot;      &lt;description&gt;&quot;+SafeXML.clean(ch.URL)+&quot;&lt;/description&gt;\r\n&quot;);
++		}
+ 		strBuf.append(&quot;      &lt;name&gt;&quot;+ ch.wayPoint + &quot; - &quot; + SafeXML.clean(ch.CacheName) +&quot;&lt;/name&gt;\r\n&quot;);
+ 		strBuf.append(&quot;      &lt;LookAt&gt;\r\n&quot;);
+ 		strBuf.append(&quot;         &lt;latitude&gt;&quot; + lat + &quot;&lt;/latitude&gt;\r\n&quot;);
+@@ -57,7 +282,8 @@
+ 		strBuf.append(&quot;      &lt;Style&gt;\r\n&quot;);
+ 		strBuf.append(&quot;      &lt;IconStyle&gt;\r\n&quot;);
+ 		strBuf.append(&quot;         &lt;Icon&gt;\r\n&quot;);
+-		strBuf.append(&quot;            &lt;href&gt;&quot;+ File.getProgramDirectory()+ &quot;/&quot; + CacheType.type2pic(Convert.parseInt(ch.type))+ &quot;&lt;/href&gt;\r\n&quot;);
++//		strBuf.append(&quot;            &lt;href&gt;&quot;+ File.getProgramDirectory()+ &quot;/&quot; + CacheType.type2pic(Convert.parseInt(ch.type))+ &quot;&lt;/href&gt;\r\n&quot;);
++		strBuf.append(&quot;            &lt;href&gt;&quot;+ CacheType.type2pic(Convert.parseInt(ch.type))+ &quot;&lt;/href&gt;\r\n&quot;);
+ 		strBuf.append(&quot;         &lt;/Icon&gt;\r\n&quot;);
+ 		strBuf.append(&quot;      &lt;/IconStyle&gt;\r\n&quot;);
+ 		strBuf.append(&quot;      &lt;LabelStyle&gt;\r\n&quot;);
+@@ -81,7 +307,7 @@
+ 	private String getColor(CacheHolderDetail ch){
+ 		if (ch.is_found) return COLOR_FOUND;
+ 		if (ch.is_owned) return COLOR_OWNED;
+-		if (ch.is_archived) return COLOR_ARCHIVED;
++		if (ch.is_archived || !ch.is_available) return COLOR_NOT_AVAILABLE;
+ 		
+ 		return COLOR_AVAILABLE;
+ 	}
+
+Modified: trunk/src/exp/TomTomExporter.java
+===================================================================
+--- trunk/src/exp/TomTomExporter.java	2007-07-28 17:02:35 UTC (rev 793)
++++ trunk/src/exp/TomTomExporter.java	2007-07-28 18:12:58 UTC (rev 794)
+@@ -21,15 +21,6 @@
+ 	Profile profile;
+ 
+ 	
+-	String[][] wayType = {{&quot;Custom&quot;,&quot;0&quot;},{&quot;Traditional&quot;,&quot;2&quot;},
+-						{&quot;Multi&quot;,&quot;3&quot;}, {&quot;Virtual&quot;,&quot;4&quot;},
+-						{&quot;Letterbox&quot;,&quot;5&quot;},{&quot;Event&quot;,&quot;6&quot;},
+-						{&quot;Mega Event&quot;,&quot;453&quot;}, {&quot;Mystery&quot;,&quot;8&quot;},
+-						{&quot;Webcam&quot;,&quot;11&quot;},{&quot;Locationless&quot;,&quot;12&quot;},
+-						{&quot;CITO&quot;,&quot;13&quot;},{&quot;Earthcache&quot;,&quot;137&quot;},
+-						{&quot;Parking&quot;,&quot;50&quot;},{&quot;Stage&quot;,&quot;51&quot;},
+-						{&quot;Question&quot;,&quot;52&quot;},{&quot;Final&quot;,&quot;53&quot;},
+-						{&quot;Trailhead&quot;,&quot;54&quot;},{&quot;Reference&quot;,&quot;55&quot;}};
+ 
+ 	
+ 	public TomTomExporter() {
+@@ -94,14 +85,14 @@
+ 		ext = format==TT_ASC?&quot;.asc&quot;:&quot;.ov2&quot;;
+ 		try{
+ 			//loop through type
+-			for(int j = 0; j &lt; wayType.length; j++){
+-				fileName = dirName + &quot;/&quot; + prefix + wayType[j][TT_WPT_TEXT]+ ext;
++			for(int j = 0; j &lt; CacheType.wayType.length; j++){
++				fileName = dirName + &quot;/&quot; + prefix + CacheType.wayType[j][TT_WPT_TEXT]+ ext;
+ 				dfile = new File(fileName);
+ 				dfile.delete();
+ 				out =  new RandomAccessFile(fileName,&quot;rw&quot;);
+ 				for(int i = 0; i&lt;cacheDB.size(); i++){
+ 					holder=(CacheHolder)cacheDB.get(i);
+-					if(holder.type.equals(wayType[j][TT_WPT_NUM]) &amp;&amp; holder.is_black == false &amp;&amp; holder.is_filtered == false){
++					if(holder.type.equals(CacheType.wayType[j][TT_WPT_NUM]) &amp;&amp; holder.is_black == false &amp;&amp; holder.is_filtered == false){
+ 						currExp++;
+ 						h.progress = (float)currExp/(float)counter;
+ 						h.changed();
+@@ -119,7 +110,7 @@
+ 				if (dfile.length()==0) {
+ 					dfile.delete();
+ 				} else {
+-					copyIcon(j, dirName + &quot;/&quot; + prefix + wayType[j][TT_WPT_TEXT]); 
++					copyIcon(j, dirName + &quot;/&quot; + prefix + CacheType.wayType[j][TT_WPT_TEXT]); 
+ 				}
+ 			}//for wayType
+ 			pbf.exit(0);
+@@ -271,7 +262,7 @@
+ 			int len;
+ 			String entName; 
+ 			
+-			entName = &quot;TomTomIcons/&quot;+ &quot;GC-&quot; + wayType[intWayType][TT_WPT_TEXT] + &quot;.bmp&quot;;
++			entName = &quot;TomTomIcons/&quot;+ &quot;GC-&quot; + CacheType.wayType[intWayType][TT_WPT_TEXT] + &quot;.bmp&quot;;
+ 			zipEnt = zif.getEntry(entName);
+ 			if (zipEnt == null) return;
+ 			
+@@ -284,10 +275,10 @@
+ 		    fos.close();
+ 		    fis.close();
+ 		} catch (ZipException e) {
+-			Vm.debug(&quot;Problem copying Icon&quot; + &quot;GC-&quot; + wayType[intWayType][TT_WPT_TEXT] + &quot;.bmp&quot; );
++			Vm.debug(&quot;Problem copying Icon&quot; + &quot;GC-&quot; + CacheType.wayType[intWayType][TT_WPT_TEXT] + &quot;.bmp&quot; );
+ 			e.printStackTrace();
+ 		} catch (IOException e) {
+-			Vm.debug(&quot;Problem copying Icon&quot; + &quot;GC-&quot; + wayType[intWayType][TT_WPT_TEXT] + &quot;.bmp&quot; );
++			Vm.debug(&quot;Problem copying Icon&quot; + &quot;GC-&quot; + CacheType.wayType[intWayType][TT_WPT_TEXT] + &quot;.bmp&quot; );
+ 			e.printStackTrace();
+ 		}
+ 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000683.html">[Cachewolf-svn] r793 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000685.html">[Cachewolf-svn] r795 - in trunk: resources src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#684">[ date ]</a>
+              <a href="thread.html#684">[ thread ]</a>
+              <a href="subject.html#684">[ subject ]</a>
+              <a href="author.html#684">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

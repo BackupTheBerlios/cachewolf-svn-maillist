@@ -1,0 +1,160 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1779 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-April/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1779%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200904271733.n3RHXkLt017901%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001696.html">
+   <LINK REL="Next"  HREF="001698.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1779 - trunk/src/CacheWolf</H1>
+    <B>engywuck at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1779%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200904271733.n3RHXkLt017901%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1779 - trunk/src/CacheWolf">engywuck at mail.berlios.de
+       </A><BR>
+    <I>Mon Apr 27 19:33:46 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001696.html">[Cachewolf-svn] r1778 - trunk/src/CacheWolf/navi
+</A></li>
+        <LI>Next message: <A HREF="001698.html">[Cachewolf-svn] r1780 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1697">[ date ]</a>
+              <a href="thread.html#1697">[ thread ]</a>
+              <a href="subject.html#1697">[ subject ]</a>
+              <a href="author.html#1697">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: engywuck
+Date: 2009-04-27 19:33:42 +0200 (Mon, 27 Apr 2009)
+New Revision: 1779
+
+Modified:
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/SolverPanel.java
+Log:
+The solvers output panel is cleared if the selection is moved to a cache that doesn't belong to the previous one. 
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2009-04-27 15:28:44 UTC (rev 1778)
++++ trunk/src/CacheWolf/MainTab.java	2009-04-27 17:33:42 UTC (rev 1779)
+@@ -223,9 +223,9 @@
+ 			MyLocale.setSIPOff();
+ 			if (ch.isAddiWpt()) { 
+ 				chMain=ch.mainCache;
+-				solverP.setInstructions(ch.mainCache.getFreshDetails().Solver);
++				solverP.setInstructions(ch.mainCache);
+ 			} else {
+-				solverP.setInstructions(chD.Solver);
++				solverP.setInstructions(ch);
+ 			}
+ 			break;
+ 		case 6:  // CalcPanel
+@@ -315,7 +315,7 @@
+ 		detP.setDetails(pCh);
+ 		oldCard=1;
+ 		if (this.cardPanel.selectedItem != 1) select(detP);
+-		solverP.setInstructions(&quot;&quot;);
++		solverP.setInstructions(pCh);
+ 		detP.setNeedsTableUpdate(true);
+ 		//tbP.refreshTable(); // moved this instruction to onLeavingPanel
+ 
+
+Modified: trunk/src/CacheWolf/SolverPanel.java
+===================================================================
+--- trunk/src/CacheWolf/SolverPanel.java	2009-04-27 15:28:44 UTC (rev 1778)
++++ trunk/src/CacheWolf/SolverPanel.java	2009-04-27 17:33:42 UTC (rev 1779)
+@@ -25,7 +25,8 @@
+ 	Vector msgFIFO = new Vector();
+ 	Menu mnuContext;
+ 	private String originalInstructions=&quot;&quot;;
+-	mButton btnDegRad; 
++	mButton btnDegRad;
++	private CacheHolder ch; 
+ 	
+ 	public boolean isDirty() {
+ 		return !originalInstructions.equals(getInstructions());
+@@ -34,11 +35,33 @@
+ 	public String getInstructions() {
+ 		return mText.getText();
+ 	}
++	/**
++	 * Sets the instructions in the solver panel. The last remembered cache of the solver panel
++	 * is not changed.
++	 * @param text The instructions to set.
++	 */
+ 	public void setInstructions(String text) {
+ 		originalInstructions=text;
+ 		mText.setText(text);
+ 		mText.repaint();
+ 	}
++	/**
++	 * Sets the instructions of the solver panel to the solver code in the given cache.
++	 * The current cache is remembered. If the instructions are set for an other cache, 
++	 * then the output panel is cleared if the cache objects do not belong to each other.
++	 * @param pCh The cache who's solver code is used
++	 */
++	public void setInstructions(CacheHolder pCh) {
++		if (pCh != null) {
++	        this.setInstructions(pCh.getFreshDetails().Solver);
++	        if (!pCh.hasSameMainCache(ch)) {
++		        this.clearOutput();
++	        }
++        } else {
++        	this.setInstructions(&quot;&quot;);
++        }
++		ch = pCh;
++	}
+ 	
+ 	
+ 	private class OutputPanel extends mTextPad {
+@@ -131,6 +154,13 @@
+ 		}
+ 		mOutput.appendText(msgStr,true);
+     }
++    
++    /**
++     * Clears the output panel
++     */
++    void clearOutput() {
++    	mOutput.setText(&quot;&quot;);
++    }
+ 	
+ 	public void onEvent(Event ev){
+ 		if (ev instanceof DataChangeEvent) Global.mainTab.cacheDirty=true;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001696.html">[Cachewolf-svn] r1778 - trunk/src/CacheWolf/navi
+</A></li>
+	<LI>Next message: <A HREF="001698.html">[Cachewolf-svn] r1780 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1697">[ date ]</a>
+              <a href="thread.html#1697">[ thread ]</a>
+              <a href="subject.html#1697">[ subject ]</a>
+              <a href="author.html#1697">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

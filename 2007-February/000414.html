@@ -1,0 +1,192 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r603 - in trunk: resources src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r603%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200702161927.l1GJRJjW004309%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000413.html">
+   <LINK REL="Next"  HREF="000415.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r603 - in trunk: resources src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r603%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200702161927.l1GJRJjW004309%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r603 - in trunk: resources src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Fri Feb 16 20:27:19 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000413.html">[Cachewolf-svn] r602 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000415.html">[Cachewolf-svn] r604 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#414">[ date ]</a>
+              <a href="thread.html#414">[ thread ]</a>
+              <a href="subject.html#414">[ subject ]</a>
+              <a href="author.html#414">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-02-16 20:27:14 +0100 (Fri, 16 Feb 2007)
+New Revision: 603
+
+Modified:
+   trunk/resources/cachewolf.Languages.cfg
+   trunk/src/CacheWolf/Parser.java
+   trunk/src/CacheWolf/SolverPanel.java
+Log:
+Solver: Internationalisierung und Bugfix
+Bei Aenderung von Cache-Koordinaten werden auch die Richtung und Distanz zum Zentrum gesetzt
+
+Modified: trunk/resources/cachewolf.Languages.cfg
+===================================================================
+--- trunk/resources/cachewolf.Languages.cfg	2007-02-16 18:04:28 UTC (rev 602)
++++ trunk/resources/cachewolf.Languages.cfg	2007-02-16 19:27:14 UTC (rev 603)
+@@ -314,7 +314,12 @@
+ 		1730=Fehlendes &quot; am Ende der Zeichenkette
+ 		1731=Nicht erlaubtes Formatierungzeichen
+ 		1732=Nicht erlaubtes Zeichen
+-		1733=Befehl eingeben		
++		1733=Befehl eingeben
++		1734=Ausgabebereich l%f6schen
++		1735=Rechne!
++		1736=Laden
++		1737=Speichern
++		1738=Speichern als	
+ 		1800=Georeferenzierte Karten herunterladen
+ 		1801=Kacheln herunterladen
+ 		2000=GPX Export
+@@ -652,7 +657,12 @@
+ 		1730=Unterminated string
+ 		1731=Invalid format character
+ 		1732=Invalid character
+-		1733=Input command		
++		1733=Input command	
++		1734=Clear output
++		1735=Solve!
++		1736=Load
++		1737=Save
++		1738=SaveAs	
+ 		1800=Download georeferenced maps
+ 		1801=Download tiles
+ 		2000=GPX Export
+
+Modified: trunk/src/CacheWolf/Parser.java
+===================================================================
+--- trunk/src/CacheWolf/Parser.java	2007-02-16 18:04:28 UTC (rev 602)
++++ trunk/src/CacheWolf/Parser.java	2007-02-16 19:27:14 UTC (rev 603)
+@@ -102,7 +102,7 @@
+     	new fnType(&quot;crosstotal&quot;,&quot;ct&quot;,6),
+     	new fnType(&quot;ct&quot;,&quot;ct&quot;,2),
+      	new fnType(&quot;curpos&quot;,&quot;cp&quot;,1),
+-     	new fnType(&quot;distance&quot;,&quot;distance&quot;,2),
++     	new fnType(&quot;distance&quot;,&quot;distance&quot;,4),
+      	new fnType(&quot;encode&quot;,&quot;encode&quot;,8),
+     	new fnType(&quot;format&quot;,&quot;format&quot;,6),
+     	new fnType(&quot;goto&quot;,&quot;goto&quot;,6),
+@@ -393,9 +393,10 @@
+     private double funcDistance() throws Exception {
+     	String coordB=popCalcStackAsString();
+     	String coordA=popCalcStackAsString();
++		// Attention: isValidCoord has sideeffect of setting cwPt
++    	if (!isValidCoord(coordA)) err(MyLocale.getMsg(1712,&quot;Invalid coordinate: &quot;)+coordA);
++		if (!isValidCoord(coordB)) err(MyLocale.getMsg(1712,&quot;Invalid coordinate: &quot;)+coordB);
+     	cwPt.set(coordA);
+-		if (!isValidCoord(coordA)) err(MyLocale.getMsg(1712,&quot;Invalid coordinate: &quot;)+coordA);
+-		if (!isValidCoord(coordB)) err(MyLocale.getMsg(1712,&quot;Invalid coordinate: &quot;)+coordB);
+     	return cwPt.getDistance(new CWPoint(coordB));
+     }
+     
+@@ -403,10 +404,10 @@
+     private double funcBearing() throws Exception {
+     	String coordB=popCalcStackAsString();
+     	String coordA=popCalcStackAsString();
+-    	cwPt.set(coordA);
+-		if (!isValidCoord(coordA)) err(MyLocale.getMsg(1712,&quot;Invalid coordinate: &quot;)+coordA);
++ 		if (!isValidCoord(coordA)) err(MyLocale.getMsg(1712,&quot;Invalid coordinate: &quot;)+coordA);
+ 		if (!isValidCoord(coordB)) err(MyLocale.getMsg(1712,&quot;Invalid coordinate: &quot;)+coordB);
+-    	return cwPt.getBearing(new CWPoint(coordB));
++	   	cwPt.set(coordA);
++	   	return cwPt.getBearing(new CWPoint(coordB));
+     }
+     /**
+      * Encode a string by replacing all characters in a string with their corresponding characters in
+@@ -466,6 +467,7 @@
+     		CacheHolder ch=((CacheHolder)Global.getProfile().cacheDB.get(i));
+     		ch.LatLon=cwPt.toString(CWPoint.CW);
+     		ch.pos.set(cwPt);
++    		ch.calcDistance(Global.getPref().curCentrePt); // Update distance/bearing 
+     	}
+     }
+     
+@@ -685,6 +687,7 @@
+ 				if (cwPt.isValid() || coord.equals(&quot;&quot;)) { // Can clear coord with empty string
+ 					ch.LatLon=cwPt.toString(CWPoint.CW);
+ 					ch.pos.set(cwPt);
++					ch.calcDistance(Global.getPref().curCentrePt); // Update distance and bearing
+ 				    return;
+ 				} else
+ 					err(MyLocale.getMsg(1712,&quot;Invalid coordinate: &quot;)+coord);
+
+Modified: trunk/src/CacheWolf/SolverPanel.java
+===================================================================
+--- trunk/src/CacheWolf/SolverPanel.java	2007-02-16 18:04:28 UTC (rev 602)
++++ trunk/src/CacheWolf/SolverPanel.java	2007-02-16 19:27:14 UTC (rev 603)
+@@ -32,7 +32,7 @@
+ 		OutputPanel() {
+ 			this.modify(Control.NotEditable,0);
+ 			//this.modifiers=this.modifiers|WantHoldDown; 
+-			setMenu(mnuContext=getClipboardMenu(new Menu(new MenuItem[]{ mnuClr=new MenuItem(&quot;Clear output&quot;) },&quot;&quot;)));
++			setMenu(mnuContext=getClipboardMenu(new Menu(new MenuItem[]{ mnuClr=new MenuItem(MyLocale.getMsg(1734,&quot;Clear output&quot;)) },&quot;&quot;)));
+ 		} 
+ 		public void penRightReleased(Point p){
+ 			setMenu(mnuContext);
+@@ -71,10 +71,10 @@
+ 		split.setSplitter(PanelSplitter.AFTER|PanelSplitter.HIDDEN,PanelSplitter.BEFORE|PanelSplitter.HIDDEN,0);
+ 
+ 		programPanel.addLast(new ScrollBarPanel(mText = new InputPanel()));
+-		programPanel.addNext(mBtSolve= new mButton(&quot;Solve!&quot;),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+-		programPanel.addNext(btnLoad= new mButton(&quot;Load&quot;),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+-		programPanel.addNext(btnSave= new mButton(&quot;Save&quot;),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+-		programPanel.addLast(btnSaveAs= new mButton(&quot;SaveAs&quot;),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
++		programPanel.addNext(mBtSolve= new mButton(MyLocale.getMsg(1735,&quot;Solve!&quot;)),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
++		programPanel.addNext(btnLoad= new mButton(MyLocale.getMsg(1736,&quot;Load&quot;)),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
++		programPanel.addNext(btnSave= new mButton(MyLocale.getMsg(1737,&quot;Save&quot;)),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
++		programPanel.addLast(btnSaveAs= new mButton(MyLocale.getMsg(1738,&quot;SaveAs&quot;)),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 		outputPanel.addLast(new ScrollBarPanel(mOutput = new OutputPanel()));
+ 
+ 		this.addLast(split);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000413.html">[Cachewolf-svn] r602 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000415.html">[Cachewolf-svn] r604 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#414">[ date ]</a>
+              <a href="thread.html#414">[ thread ]</a>
+              <a href="subject.html#414">[ subject ]</a>
+              <a href="author.html#414">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

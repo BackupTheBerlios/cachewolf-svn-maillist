@@ -1,0 +1,906 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2518 - in trunk/src/CacheWolf: . exp imp navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-March/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2518%20-%20in%20trunk/src/CacheWolf%3A%20.%20exp%20imp%20navi&In-Reply-To=%3C201003170008.o2H08aKn008360%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002442.html">
+   <LINK REL="Next"  HREF="002444.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2518 - in trunk/src/CacheWolf: . exp imp navi</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2518%20-%20in%20trunk/src/CacheWolf%3A%20.%20exp%20imp%20navi&In-Reply-To=%3C201003170008.o2H08aKn008360%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2518 - in trunk/src/CacheWolf: . exp imp navi">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Wed Mar 17 01:08:36 CET 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002442.html">[Cachewolf-svn] r2517 - in trunk/src/CacheWolf: . exp imp navi
+</A></li>
+        <LI>Next message: <A HREF="002444.html">[Cachewolf-svn] r2519 - trunk/src/CacheWolf/navi/touchControls
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2443">[ date ]</a>
+              <a href="thread.html#2443">[ thread ]</a>
+              <a href="subject.html#2443">[ subject ]</a>
+              <a href="author.html#2443">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2010-03-17 01:08:03 +0100 (Wed, 17 Mar 2010)
+New Revision: 2518
+
+Modified:
+   trunk/src/CacheWolf/CacheHolder.java
+   trunk/src/CacheWolf/CalcPanel.java
+   trunk/src/CacheWolf/DetailsPanel.java
+   trunk/src/CacheWolf/Filter.java
+   trunk/src/CacheWolf/MyComparer.java
+   trunk/src/CacheWolf/Parser.java
+   trunk/src/CacheWolf/Profile.java
+   trunk/src/CacheWolf/ShowCacheInBrowser.java
+   trunk/src/CacheWolf/exp/GarminMap.java
+   trunk/src/CacheWolf/exp/HTMLExporter.java
+   trunk/src/CacheWolf/exp/TPLExporter.java
+   trunk/src/CacheWolf/imp/GPXImporter.java
+   trunk/src/CacheWolf/imp/LOCXMLImporter.java
+   trunk/src/CacheWolf/imp/OCXMLImporter.java
+   trunk/src/CacheWolf/imp/SpiderGC.java
+   trunk/src/CacheWolf/myTableControl.java
+   trunk/src/CacheWolf/myTableModel.java
+   trunk/src/CacheWolf/navi/GotoPanel.java
+   trunk/src/CacheWolf/navi/MapLoaderGui.java
+   trunk/src/CacheWolf/navi/MovingMap.java
+Log:
+correcting reading of cachedetails, if there are none (intermediate state)
+
+Modified: trunk/src/CacheWolf/CacheHolder.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolder.java	2010-03-16 16:23:55 UTC (rev 2517)
++++ trunk/src/CacheWolf/CacheHolder.java	2010-03-17 00:08:03 UTC (rev 2518)
+@@ -1,15 +1,21 @@
+ package CacheWolf;
+ 
++import CacheWolf.exp.Exporter;
++import CacheWolf.exp.GarminMap;
+ import CacheWolf.navi.Metrics;
+ 
+ import com.stevesoft.ewe_pat.Regex;
+ 
+ import ewe.fx.FontMetrics;
+ import ewe.fx.IconAndText;
++import ewe.io.AsciiCodec;
+ import ewe.io.IOException;
++import ewe.io.TextCodec;
+ import ewe.sys.Convert;
++import ewe.sys.Time;
+ import ewe.ui.FormBase;
+ import ewe.ui.MessageBox;
++import ewe.util.Hashtable;
+ import ewe.util.Vector;
+ 
+ /**
+@@ -33,7 +39,7 @@
+ 	/** The coordinates of the cache */
+ 	public CWPoint pos = new CWPoint();
+ 	/** The coordinates of the cache */
+-	public String LatLon = pos.toString();
++	private String LatLon = pos.toString();
+ 	/** The date when the cache was hidden in format yyyy-mm-dd */
+ 	private String dateHidden = EMPTY;
+ 	/** The size of the cache (as per GC cache sizes Micro, Small, ....) */
+@@ -44,7 +50,7 @@
+ 	public int lastMetric = -1; // Cache last metric
+ 	public String lastDistance = &quot;&quot;; // Cache last distance
+ 	/** The bearing N, NNE, NE, ENE ... from the current centre to this point */
+-	public String bearing = NOBEARING;
++	private String bearing = NOBEARING;
+ 	/** The angle (0=North, 180=South) from the current centre to this point */
+ 	public double degrees = 0;
+ 	/** The difficulty of the cache from 1 to 5 in .5 incements */ 
+@@ -564,27 +570,128 @@
+ 		sb.append(&quot;\&quot; /&gt;\n&quot;);
+ 		return sb.toString();
+ 	}
++	
++	/** Return a Hashtable containing all the cache data for Templates */
++	public Hashtable toHashtable(Regex dec, Regex rex, int shortWaypointLength, int shortNameLength, TextCodec codec, GarminMap gm) {
++		Hashtable varParams = new Hashtable();
++		CacheHolderDetail det = this.getCacheDetails(false);
++		varParams.put(&quot;TYPE&quot;, CacheType.type2TypeTag(type)); //&lt;type&gt;
++		varParams.put(&quot;SYM&quot;, CacheType.type2SymTag(type)); //&lt;sym&gt;
++		varParams.put(&quot;GSTYPE&quot;, CacheType.type2GSTypeTag(type)); //&lt;groundspeak:type&gt;
++		varParams.put(&quot;SHORTTYPE&quot;, CacheType.getExportShortId(type));
++		varParams.put(&quot;SIZE&quot;, CacheSize.cw2ExportString(cacheSize));
++		varParams.put(&quot;SHORTSIZE&quot;, CacheSize.getExportShortId(cacheSize));
++		if (isAddiWpt()) {
++			varParams.put(&quot;MAINWP&quot;,this.mainCache.getWayPoint());
++		}
++		else {
++			varParams.put(&quot;MAINWP&quot;, &quot;&quot;);
++		}
++		if (isCustomWpt()) {
+ 
+-	public void setLatLon(String latLon) {
+-		latLon=latLon.trim();
+-		if (!latLon.equals(LatLon.trim())) setUpdated(true);
+-		LatLon = latLon;
+-		pos.set(latLon);
++		}
++		varParams.put(&quot;WAYPOINT&quot;, wayPoint); //&lt;name&gt;
++		int wpl = wayPoint.length();
++		int wps = (wpl &lt; shortWaypointLength) ? 0 : wpl - shortWaypointLength;
++		varParams.put(&quot;SHORTWAYPOINT&quot;, wayPoint.substring(wps, wpl));
++		varParams.put(&quot;OWNER&quot;, cacheOwner);
++		varParams.put(&quot;DIFFICULTY&quot;, (isAddiWpt() || isCustomWpt() || hard &lt; 0)?&quot;&quot;:dec.replaceAll(CacheTerrDiff.longDT(hard)));
++		String sHard = Integer.toString(hard);
++		varParams.put(&quot;SHORTDIFFICULTY&quot;, (isAddiWpt() || isCustomWpt() || hard &lt; 0)?&quot;&quot;:sHard);
++		varParams.put(&quot;SHDIFFICULTY&quot;, (isAddiWpt() || isCustomWpt() || hard &lt; 0)?&quot;&quot;:sHard.substring(0,1));
++		varParams.put(&quot;TERRAIN&quot;, (isAddiWpt() || isCustomWpt() || terrain &lt; 0)?&quot;&quot;:dec.replaceAll(CacheTerrDiff.longDT(terrain)));
++		String sTerrain = Integer.toString(terrain);
++		varParams.put(&quot;SHORTTERAIN&quot;, (isAddiWpt() || isCustomWpt() || terrain &lt; 0)?&quot;&quot;:sTerrain);
++		varParams.put(&quot;SHTERRAIN&quot;, (isAddiWpt() || isCustomWpt() || terrain &lt; 0)?&quot;&quot;:sTerrain.substring(0,1));
++		varParams.put(&quot;DISTANCE&quot;, dec.replaceAll(getDistance()));
++		varParams.put(&quot;BEARING&quot;, bearing);
++		varParams.put(&quot;LATLON&quot;, LatLon);
++		varParams.put(&quot;LAT&quot;, dec.replaceAll(pos.getLatDeg(CWPoint.DD)));
++		varParams.put(&quot;LON&quot;, dec.replaceAll(pos.getLonDeg(CWPoint.DD)));
++		varParams.put(&quot;STATUS&quot;, cacheStatus);
++		varParams.put(&quot;GC_LOGTYPE&quot;, GetGCLogType());
++		varParams.put(&quot;STATUS_DATE&quot;, GetStatusDate());
++		varParams.put(&quot;STATUS_TIME&quot;, GetStatusTime());
++		varParams.put(&quot;DATE&quot;, dateHidden);
++		varParams.put(&quot;URL&quot;, det != null ? det.URL : &quot;&quot;);
++		varParams.put(&quot;DESCRIPTION&quot;, det != null ? det.LongDescription : &quot;&quot;);
++		if (codec instanceof AsciiCodec) {
++			cacheName=Exporter.simplifyString(cacheName);
++		}
++		if (rex != null) {
++			cacheName=rex.replaceAll(cacheName);
++			varParams.put(&quot;NOTES&quot;, det != null ? rex.replaceAll(det.getCacheNotes()): &quot;&quot;);
++			varParams.put(&quot;HINTS&quot;, det != null ? rex.replaceAll(det.Hints): &quot;&quot;);
++			varParams.put(&quot;DECRYPTEDHINTS&quot;, det != null ? rex.replaceAll(Common.rot13(det.Hints)): &quot;&quot;);
++		} else {
++			varParams.put(&quot;NOTES&quot;, det != null ? det.getCacheNotes(): &quot;&quot;);
++			varParams.put(&quot;HINTS&quot;, det != null ? det.Hints: &quot;&quot;);
++			varParams.put(&quot;DECRYPTEDHINTS&quot;, det != null ? Common.rot13(det.Hints): &quot;&quot;);
++		}
++		varParams.put(&quot;NAME&quot;, cacheName);
++		String shortName=removeCharsfromString(cacheName, shortNameLength, selbstLaute);
++		if (shortName.length()&gt;shortNameLength) {
++			shortName=removeCharsfromString(shortName, shortNameLength, mitLauteKlein());
++		}
++		varParams.put(&quot;SHORTNAME&quot;, shortName);
++		varParams.put(&quot;TRAVELBUG&quot;, (bugs?&quot;Y&quot;:&quot;N&quot;));
++		varParams.put(&quot;GMTYPE&quot;, gm != null ? gm.getIcon(this) : &quot;&quot;);
++		varParams.put(&quot;NOW_DATE&quot;,nowdate().setToCurrentTime().toString());
++		varParams.put(&quot;NOW_TIME&quot;,nowtime().setToCurrentTime().toString());
++		return varParams;
++	}	
++	private final static Time nowdate() {
++		Time nd = new Time();
++		return nd.setFormat(&quot;yyyy-MM-dd&quot;);
+ 	}
++	private final static Time nowtime() {
++		Time nt = new Time();
++		return nt.setFormat(&quot;HH:mm&quot;);
++	}	
++	private final static String selbstLaute=&quot;aeiouAEIOU&quot;;
++	private final static String mitLauteKlein() {
++		final StringBuffer lower=new StringBuffer(26);// region/language dependent ?
++		for (int i=97; i&lt;=122; i++ ) {
++			lower.append((char) i);
++		}
++		return lower.toString();
++	}
++    private static String removeCharsfromString( String text, int MaxLength, String chars ) {
++        if ( text == null ) return null;
++        int originalTextLength = text.length();
++        int anzToRemove=originalTextLength-MaxLength;
++        if (anzToRemove&lt;=0) return text;
++        int anzRemoved=0;
++        StringBuffer sb = new StringBuffer( 50 );
++        for ( int i = originalTextLength-1; i &gt;= 0; i-- ) {
++            char c = text.charAt( i );
++            if (chars.indexOf(c) == -1) {
++            	sb.insert(0,c);
++            }
++            else {
++            	anzRemoved++;
++            	if (anzRemoved==anzToRemove) {
++            		sb.insert(0, text.substring(0,i));
++            		i=0; // exit for
++            	}
++            }
++        }
++        return sb.toString();
++    }
+ 
+ 	/** return true if waypoint is an additional waypoint of a cache */
+ 	public boolean isAddiWpt() {
+-		return CacheType.isAddiWpt(this.getType());
++		return CacheType.isAddiWpt(type);
+ 	}
+ 	
+ 	/** return true if waypoint is a custom waypoint */
+ 	public boolean isCustomWpt() {
+-		return CacheType.isCustomWpt(getType());
++		return CacheType.isCustomWpt(type);
+ 	}
+ 	
+ 	/** return true if waypoint is a cache main waypoint */
+ 	public boolean isCacheWpt() {
+-		return CacheType.isCacheWpt(getType());
++		return CacheType.isCacheWpt(type);
+ 	}
+ 
+ 	/** return true waypoint has one or more additional waypoints */
+@@ -688,7 +795,7 @@
+ 					(new MessageBox(MyLocale.getMsg(31415,&quot;Error&quot;), MyLocale.getMsg(31415, &quot;Could not read cache details for cache: &quot;)
+ 					        + this.getWayPoint(), FormBase.OKB)).execute();
+ 				}
+-				details = null;
++				// details = null;
+ 				this.setIncomplete(true);
+ 			}
+ 			// for importing/spidering reasons helper objects with same waypoint are created
+@@ -1078,6 +1185,16 @@
+ 
+ 	// Getter and Setter for private properties
+ 
++	public String getLatLon() { return LatLon; }
++	public void setLatLon(String _LatLon) {
++		_LatLon=_LatLon.trim();
++		if (!_LatLon.equals(LatLon.trim())) setUpdated(true);
++		LatLon = _LatLon;
++		pos.set(_LatLon);
++	}
++
++	public String getBearing() {return bearing;}
++	
+ 	/**
+ 	 * Gets an IconAndText object for the cache. If the level of the Icon is equal to the 
+ 	 * last call of the method, the same (cached) object is returned. If the object is
+@@ -1099,9 +1216,7 @@
+ 		return iconAndTextWP;
+ 	}
+ 	
+-	public String getCacheStatus() {
+-    	return cacheStatus;
+-    }
++	public String getCacheStatus() { return cacheStatus; }
+ 
+ 	public void setCacheStatus(String cacheStatus) {
+         if (!cacheStatus.equals(this.cacheStatus)) {
+
+Modified: trunk/src/CacheWolf/CalcPanel.java
+===================================================================
+--- trunk/src/CacheWolf/CalcPanel.java	2010-03-16 16:23:55 UTC (rev 2517)
++++ trunk/src/CacheWolf/CalcPanel.java	2010-03-17 00:08:03 UTC (rev 2518)
+@@ -172,8 +172,8 @@
+ 				inpDistance.setText(&quot;0&quot;);
+ 
+ 				//currFormat = 1;
+-				if (ch.LatLon.length()== 0) coordInp.set(0,0);
+-				else coordInp.set(ch.LatLon, TransformCoordinates.CW);
++				if (ch.getLatLon().length()== 0) coordInp.set(0,0);
++				else coordInp.set(ch.getLatLon(), TransformCoordinates.CW);
+ 				setFields();				
+ 			}
+ 		}
+@@ -227,7 +227,7 @@
+ 				CacheHolder ch = new CacheHolder();
+ 				readFields(coordInp, bd);
+ 				coordOut = coordInp.project(bd.degrees, bd.distance);
+-				ch.LatLon = coordOut.toString();
++				ch.setLatLon(coordOut.toString());
+ 				ch.pos.set(coordOut);
+ 				ch.setType(CacheType.CW_TYPE_STAGE); // TODO unfertig
+ 				mainT.newWaypoint(ch);
+
+Modified: trunk/src/CacheWolf/DetailsPanel.java
+===================================================================
+--- trunk/src/CacheWolf/DetailsPanel.java	2010-03-16 16:23:55 UTC (rev 2517)
++++ trunk/src/CacheWolf/DetailsPanel.java	2010-03-17 00:08:03 UTC (rev 2518)
+@@ -577,7 +577,7 @@
+ 				blackStatusChanged = true;
+ 			} else if (ev.target == btnNewWpt) {
+ 				final CacheHolder ch = new CacheHolder();
+-				ch.LatLon = cache.LatLon;
++				ch.setLatLon(cache.getLatLon());
+ 				ch.pos = new CWPoint(cache.pos);
+ 				ch.setType(CacheType.CW_TYPE_STAGE);
+ 				ch.setHard(CacheTerrDiff.CW_DT_UNSET);
+@@ -597,7 +597,7 @@
+ 					Global.getProfile().notifyUnsavedChanges(!cache.pos.toString().equals(coords.toString()));
+ 					cache.pos.set(coords);
+ 					btnCoordinates.setText(coords.toString());
+-					cache.LatLon = coords.toString();
++					cache.setLatLon(coords.toString());
+ 					// If the current centre is valid, calculate the distance and bearing to it
+ 					final CWPoint centre = Global.getPref().getCurCentrePt();
+ 					if (centre.isValid()) {
+@@ -772,7 +772,7 @@
+ 		if (cache.getWayPoint().length() &lt; 2)
+ 			cache.setWayPoint(cache.getWayPoint() + &quot; &quot;);
+ 		cache.setCacheName(inpName.getText().trim());
+-		cache.LatLon = cache.pos.toString();
++		cache.setLatLon(cache.pos.toString());
+ 		if (!cache.isAddiWpt()) {
+ 			cache.setDateHidden(inpHidden.getText().trim());
+ 		}
+
+Modified: trunk/src/CacheWolf/Filter.java
+===================================================================
+--- trunk/src/CacheWolf/Filter.java	2010-03-16 16:23:55 UTC (rev 2517)
++++ trunk/src/CacheWolf/Filter.java	2010-03-17 00:08:03 UTC (rev 2518)
+@@ -173,7 +173,7 @@
+ 				//... go through the current cache database
+ 				for(int i = cacheDB.size()-1; i &gt;=0 ; i--){
+ 					ch = cacheDB.get(i);
+-					cwp = new CWPoint(ch.LatLon, TransformCoordinates.CW);
++					cwp = new CWPoint(ch.getLatLon(), TransformCoordinates.CW);
+ 					calcDistance = DistToSegment(fromPoint, toPoint, cwp);
+ 					calcDistance = (calcDistance*180*60)/java.lang.Math.PI;
+ 					calcDistance = calcDistance * 1.852;
+@@ -429,41 +429,41 @@
+ 	        // By first checking the first letter, we can reduce the average number further to
+ 	        // just under 5
+ 	        if (hasRoseMatchPattern) {
+-		        if (ch.bearing.startsWith(&quot;N&quot;)) {
+-			        if (ch.bearing.equals(&quot;NW&quot;))
++		        if (ch.getBearing().startsWith(&quot;N&quot;)) {
++			        if (ch.getBearing().equals(&quot;NW&quot;))
+ 				        cacheRosePattern = NW;
+-			        else if (ch.bearing.equals(&quot;NNW&quot;))
++			        else if (ch.getBearing().equals(&quot;NNW&quot;))
+ 				        cacheRosePattern = NNW;
+-			        else if (ch.bearing.equals(&quot;N&quot;))
++			        else if (ch.getBearing().equals(&quot;N&quot;))
+ 				        cacheRosePattern = N;
+-			        else if (ch.bearing.equals(&quot;NNE&quot;))
++			        else if (ch.getBearing().equals(&quot;NNE&quot;))
+ 				        cacheRosePattern = NNE;
+ 			        else
+ 				        cacheRosePattern = NE;
+-		        } else if (ch.bearing.startsWith(&quot;E&quot;)) {
+-			        if (ch.bearing.equals(&quot;ENE&quot;))
++		        } else if (ch.getBearing().startsWith(&quot;E&quot;)) {
++			        if (ch.getBearing().equals(&quot;ENE&quot;))
+ 				        cacheRosePattern = ENE;
+-			        else if (ch.bearing.equals(&quot;E&quot;))
++			        else if (ch.getBearing().equals(&quot;E&quot;))
+ 				        cacheRosePattern = E;
+ 			        else
+ 				        cacheRosePattern = ESE;
+-		        } else if (ch.bearing.startsWith(&quot;S&quot;)) {
+-			        if (ch.bearing.equals(&quot;SW&quot;))
++		        } else if (ch.getBearing().startsWith(&quot;S&quot;)) {
++			        if (ch.getBearing().equals(&quot;SW&quot;))
+ 				        cacheRosePattern = SW;
+-			        else if (ch.bearing.equals(&quot;SSW&quot;))
++			        else if (ch.getBearing().equals(&quot;SSW&quot;))
+ 				        cacheRosePattern = SSW;
+-			        else if (ch.bearing.equals(&quot;S&quot;))
++			        else if (ch.getBearing().equals(&quot;S&quot;))
+ 				        cacheRosePattern = S;
+-			        else if (ch.bearing.equals(&quot;SSE&quot;))
++			        else if (ch.getBearing().equals(&quot;SSE&quot;))
+ 				        cacheRosePattern = SSE;
+ 			        else
+ 				        cacheRosePattern = SE;
+ 		        } else {
+-			        if (ch.bearing.equals(&quot;WNW&quot;))
++			        if (ch.getBearing().equals(&quot;WNW&quot;))
+ 				        cacheRosePattern = WNW;
+-			        else if (ch.bearing.equals(&quot;W&quot;))
++			        else if (ch.getBearing().equals(&quot;W&quot;))
+ 				        cacheRosePattern = W;
+-			        else if (ch.bearing.equals(&quot;WSW&quot;))
++			        else if (ch.getBearing().equals(&quot;WSW&quot;))
+ 				        cacheRosePattern = WSW;
+ 			        else
+ 				        cacheRosePattern = 0;
+
+Modified: trunk/src/CacheWolf/MyComparer.java
+===================================================================
+--- trunk/src/CacheWolf/MyComparer.java	2010-03-16 16:23:55 UTC (rev 2517)
++++ trunk/src/CacheWolf/MyComparer.java	2010-03-17 00:08:03 UTC (rev 2518)
+@@ -45,7 +45,7 @@
+ 		} else if (colToCompare==6) {
+ 			for (int i=0; i&lt;visibleSize; i++) {
+ 				CacheHolder ch=cacheDB.get(i);
+-				ch.sort=ch.LatLon;
++				ch.sort=ch.getLatLon();
+ 			}
+ 		} else if (colToCompare==7) {
+ 			for (int i=0; i&lt;visibleSize; i++) {
+@@ -76,11 +76,11 @@
+ 		} else if (colToCompare==11) {
+ 			for (int i=0; i&lt;visibleSize; i++) {
+ 				CacheHolder ch=cacheDB.get(i);
+-				if (ch.bearing.equals(&quot;?&quot;)) {
++				if (ch.getBearing().equals(&quot;?&quot;)) {
+ 					ch.sort=&quot;\uFFFF&quot;;
+ 				}
+ 				else {
+-					ch.sort=ch.bearing;
++					ch.sort=ch.getBearing();
+ 				}			
+ 			}
+ 			
+
+Modified: trunk/src/CacheWolf/Parser.java
+===================================================================
+--- trunk/src/CacheWolf/Parser.java	2010-03-16 16:23:55 UTC (rev 2517)
++++ trunk/src/CacheWolf/Parser.java	2010-03-17 00:08:03 UTC (rev 2518)
+@@ -550,7 +550,7 @@
+     			err(MyLocale.getMsg(1714,&quot;Goto: Waypoint does not exist: &quot;)+waypointName);
+     			return;
+     		}
+-    		ch.LatLon=cwPt.toString(TransformCoordinates.CW);
++    		ch.setLatLon(cwPt.toString(TransformCoordinates.CW));
+     		ch.pos.set(cwPt);
+     		ch.calcDistance(Global.getPref().getCurCentrePt()); // Update distance/bearing
+     		nav.setDestination(ch);
+@@ -1000,7 +1000,7 @@
+ 				String coord=popCalcStackAsString();
+ 				cwPt.set(coord);
+ 				if (cwPt.isValid() || coord.equals(&quot;&quot;)) { // Can clear coord with empty string
+-					ch.LatLon=cwPt.toString(TransformCoordinates.CW);
++					ch.setLatLon(cwPt.toString(TransformCoordinates.CW));
+ 					ch.pos.set(cwPt);
+ 					ch.calcDistance(Global.getPref().getCurCentrePt()); // Update distance and bearing
+ 		    	    Global.getProfile().selectionChanged=true; // Tell moving map to updated displayed waypoints
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2010-03-16 16:23:55 UTC (rev 2517)
++++ trunk/src/CacheWolf/Profile.java	2010-03-17 00:08:03 UTC (rev 2518)
+@@ -568,7 +568,7 @@
+ 			ch = cacheDB.get(i);
+ 			if (!onlyOfSelected || ch.is_Checked) {
+ 				if (ch.pos == null) { // this can not happen
+-					tmpca.set(ch.LatLon);
++					tmpca.set(ch.getLatLon());
+ 					ch.pos = new CWPoint(tmpca);
+ 				}
+ 				if (ch.pos.isValid() ){ // done: &amp;&amp; ch.pos.latDec != 0 &amp;&amp; ch.pos.lonDec != 0 TO-DO != 0 sollte rausgenommen werden sobald in der Liste vern&#252;nftig mit nicht gesetzten pos umgegangen wird
+
+Modified: trunk/src/CacheWolf/ShowCacheInBrowser.java
+===================================================================
+--- trunk/src/CacheWolf/ShowCacheInBrowser.java	2010-03-16 16:23:55 UTC (rev 2517)
++++ trunk/src/CacheWolf/ShowCacheInBrowser.java	2010-03-17 00:08:03 UTC (rev 2518)
+@@ -76,9 +76,9 @@
+ 					tpl.setParam(&quot;DIFFICULTY&quot;, CacheTerrDiff.longDT(chD.getHard()));
+ 					tpl.setParam(&quot;TERRAIN&quot;, CacheTerrDiff.longDT(chD.getTerrain()));
+ 					tpl.setParam(&quot;DISTANCE&quot;, chD.getDistance().replace(',','.'));
+-					tpl.setParam(&quot;BEARING&quot;, chD.bearing);
++					tpl.setParam(&quot;BEARING&quot;, chD.getBearing());
+ 					if (chD.pos!=null &amp;&amp; chD.pos.isValid()) {
+-						tpl.setParam(&quot;LATLON&quot;, chD.LatLon);
++						tpl.setParam(&quot;LATLON&quot;, chD.getLatLon());
+ 					} else {
+ 						tpl.setParam(&quot;LATLON&quot;, &quot;unknown&quot;);
+ 					}
+@@ -190,7 +190,7 @@
+ 							CacheHolder ch=(CacheHolder) chD.addiWpts.get(i);
+ 							addis.put(&quot;WAYPOINT&quot;,ch.getWayPoint());
+ 							addis.put(&quot;NAME&quot;,ch.getCacheName());
+-							addis.put(&quot;LATLON&quot;,ch.LatLon);
++							addis.put(&quot;LATLON&quot;,ch.getLatLon());
+ 							addis.put(&quot;IMG&quot;,&quot;&lt;img src=\&quot;&quot;+CacheType.typeImageForId(ch.getType())+&quot;\&quot;&gt;&quot;);
+ 							addis.put(&quot;LONGDESC&quot;,ch.getCacheDetails(true).LongDescription); // Do we need to treat longDesc as above ?
+ 							addiVect.add(addis);
+
+Modified: trunk/src/CacheWolf/exp/GarminMap.java
+===================================================================
+--- trunk/src/CacheWolf/exp/GarminMap.java	2010-03-16 16:23:55 UTC (rev 2517)
++++ trunk/src/CacheWolf/exp/GarminMap.java	2010-03-17 00:08:03 UTC (rev 2518)
+@@ -15,7 +15,7 @@
+  * @author salzkammergut
+  *
+  */
+-class GarminMap extends MinML {
++public class GarminMap extends MinML {
+ 
+ 	private Vector symbols=new Vector(24);
+ 
+
+Modified: trunk/src/CacheWolf/exp/HTMLExporter.java
+===================================================================
+--- trunk/src/CacheWolf/exp/HTMLExporter.java	2010-03-16 16:23:55 UTC (rev 2517)
++++ trunk/src/CacheWolf/exp/HTMLExporter.java	2010-03-17 00:08:03 UTC (rev 2518)
+@@ -88,33 +88,8 @@
+ 						Global.getPref().log(&quot;HTMLExport: skipping export of incomplete waypoint &quot;+ch.getWayPoint());
+ 						continue;
+ 					}
+-					det=ch.getCacheDetails(true);
+-					varParams = new Hashtable();
+-					varParams.put(&quot;TYPE&quot;, CacheType.type2TypeTag(ch.getType())); //&lt;type&gt;
+-					varParams.put(&quot;SYM&quot;, CacheType.type2SymTag(ch.getType())); //&lt;sym&gt;
+-					varParams.put(&quot;GSTYPE&quot;, CacheType.type2GSTypeTag(ch.getType())); //&lt;groundspeak:type&gt;
+-					varParams.put(&quot;WAYPOINT&quot;, ch.getWayPoint()); //&lt;name&gt;
+-					varParams.put(&quot;NAME&quot;, ch.getCacheName());
+-					varParams.put(&quot;OWNER&quot;, ch.getCacheOwner());
+-					if (ch.isAddiWpt() || ch.isCustomWpt()) {
+-						varParams.put(&quot;SIZE&quot;, &quot;&quot;);
+-						varParams.put(&quot;DIFFICULTY&quot;, &quot;&quot;);
+-						varParams.put(&quot;TERRAIN&quot;, &quot;&quot;);
+-					} else {
+-						varParams.put(&quot;SIZE&quot;, CacheSize.isValidSize(ch.getCacheSize())?
+-								CacheSize.cw2ExportString(ch.getCacheSize()):&quot;&quot;);
+-						varParams.put(&quot;DIFFICULTY&quot;, CacheTerrDiff.isValidTD(ch.getHard())?
+-								CacheTerrDiff.longDT(ch.getHard()):&quot;&quot;);
+-						varParams.put(&quot;TERRAIN&quot;, CacheTerrDiff.isValidTD(ch.getTerrain())?
+-								CacheTerrDiff.longDT(ch.getTerrain()):&quot;&quot;);
+-					}
+-					varParams.put(&quot;DISTANCE&quot;, ch.getDistance());
+-					varParams.put(&quot;BEARING&quot;, ch.bearing);
+-					varParams.put(&quot;LATLON&quot;, ch.LatLon);
+-					varParams.put(&quot;LAT&quot;, dec.replaceAll(ch.pos.getLatDeg(CWPoint.DD)));
+-					varParams.put(&quot;LON&quot;, dec.replaceAll(ch.pos.getLonDeg(CWPoint.DD)));
+-					varParams.put(&quot;STATUS&quot;, ch.getCacheStatus());
+-					varParams.put(&quot;DATE&quot;, ch.getDateHidden());
++					det=ch.getCacheDetails(false);
++					varParams=ch.toHashtable(dec, null, 0, 30, new AsciiCodec(), null);
+ 					cache_index.add(varParams);
+ 					//We can generate the individual page here!
+ 					try{
+@@ -130,8 +105,8 @@
+ 						page_tpl.setParam(&quot;DIFFICULTY&quot;, varParams.get(&quot;DIFFICULTY&quot;).toString());
+ 						page_tpl.setParam(&quot;TERRAIN&quot;, varParams.get(&quot;TERRAIN&quot;).toString());
+ 						page_tpl.setParam(&quot;DISTANCE&quot;, ch.getDistance());
+-						page_tpl.setParam(&quot;BEARING&quot;, ch.bearing);
+-						page_tpl.setParam(&quot;LATLON&quot;, ch.LatLon);
++						page_tpl.setParam(&quot;BEARING&quot;, ch.getBearing());
++						page_tpl.setParam(&quot;LATLON&quot;, ch.getLatLon());
+ 						page_tpl.setParam(&quot;LAT&quot;, dec.replaceAll(ch.pos.getLatDeg(CWPoint.DD)));
+ 						page_tpl.setParam(&quot;LON&quot;, dec.replaceAll(ch.pos.getLonDeg(CWPoint.DD)));
+ 						page_tpl.setParam(&quot;STATUS&quot;, ch.getCacheStatus());
+
+Modified: trunk/src/CacheWolf/exp/TPLExporter.java
+===================================================================
+--- trunk/src/CacheWolf/exp/TPLExporter.java	2010-03-16 16:23:55 UTC (rev 2517)
++++ trunk/src/CacheWolf/exp/TPLExporter.java	2010-03-17 00:08:03 UTC (rev 2518)
+@@ -25,17 +25,11 @@
+ 
+ package CacheWolf.exp;
+ 
+-import CacheWolf.CWPoint;
+ import CacheWolf.CacheDB;
+ import CacheWolf.CacheHolder;
+-import CacheWolf.CacheHolderDetail;
+-import CacheWolf.CacheSize;
+-import CacheWolf.CacheTerrDiff;
+-import CacheWolf.CacheType;
+ import CacheWolf.Global;
+ import CacheWolf.Preferences;
+ import CacheWolf.Profile;
+-import CacheWolf.Common;
+ import HTML.Template;
+ import ewe.filechooser.FileChooser;
+ import ewe.filechooser.FileChooserBase;
+@@ -172,12 +166,6 @@
+ 		pbf.setTask(h,&quot;Exporting ...&quot;);
+ 		pbf.exec();
+ 
+-		String selbstLaute=&quot;aeiouAEIOU&quot;;
+-		StringBuffer lower=new StringBuffer(26);// region/language dependent ?
+-		for (int i=97; i&lt;=122; i++ ) {
+-			lower.append((char) i);
+-		}
+-		String mitLauteKlein=lower.toString();
+ 		try {
+ 			TplFilter myFilter = new TplFilter();			
+ 			Hashtable args = new Hashtable();
+@@ -195,93 +183,18 @@
+ 			if(fc.execute() == FormBase.IDCANCEL) return;
+ 			File saveTo = fc.getChosenFile();
+ 			pref.setExportPath(expName, saveTo.getPath());
+-			
+-			Time nowdate = new Time();
+-			nowdate = nowdate.setFormat(&quot;yyyy-MM-dd&quot;);
+-			Time nowtime = new Time();
+-			nowtime = nowtime.setFormat(&quot;HH:mm&quot;);
+ 
++			Regex dec = new Regex(&quot;[,.]&quot;,myFilter.decSep);
++			if (myFilter.badChars != null) rex = new Regex(&quot;[&quot;+myFilter.badChars+&quot;]&quot;,&quot;&quot;);
++
+ 			Vector cache_index = new Vector(); 			
+ 			for(int i = 0; i&lt;counter;i++){
+ 				CacheHolder ch = cacheDB.get(i);
+-				CacheHolderDetail det = ch.getCacheDetails(true);
+ 				h.progress = (float)i/(float)counter;
+ 				h.changed();
+-				if(ch.isVisible()){
+-					if (ch.pos.isValid() == false) continue;
++				if(ch.isVisible() &amp;&amp; ch.pos.isValid()){
+ 					try {
+-						Regex dec = new Regex(&quot;[,.]&quot;,myFilter.decSep);
+-						if (myFilter.badChars != null) rex = new Regex(&quot;[&quot;+myFilter.badChars+&quot;]&quot;,&quot;&quot;);
+-						Hashtable varParams = new Hashtable();
+-						varParams.put(&quot;TYPE&quot;, CacheType.type2TypeTag(ch.getType())); //&lt;type&gt;
+-						varParams.put(&quot;SYM&quot;, CacheType.type2SymTag(ch.getType())); //&lt;sym&gt;
+-						varParams.put(&quot;GSTYPE&quot;, CacheType.type2GSTypeTag(ch.getType())); //&lt;groundspeak:type&gt;
+-						varParams.put(&quot;SHORTTYPE&quot;, CacheType.getExportShortId(ch.getType()));
+-						varParams.put(&quot;SIZE&quot;, CacheSize.cw2ExportString(ch.getCacheSize()));
+-						varParams.put(&quot;SHORTSIZE&quot;, CacheSize.getExportShortId(ch.getCacheSize()));
+-						if (ch.isAddiWpt()) {
+-							varParams.put(&quot;MAINWP&quot;,ch.mainCache.getWayPoint());
+-						}
+-						else {
+-							varParams.put(&quot;MAINWP&quot;, &quot;&quot;);
+-						}
+-						if (ch.isCustomWpt()) {
+-
+-						}
+-						String wp = ch.getWayPoint();
+-						varParams.put(&quot;WAYPOINT&quot;, wp); //&lt;name&gt;
+-						int wpl = wp.length();
+-						int wps = (wpl &lt; myFilter.shortWaypointLength) ? 0 : wpl - myFilter.shortWaypointLength;
+-						varParams.put(&quot;SHORTWAYPOINT&quot;, wp.substring(wps, wpl));
+-						varParams.put(&quot;OWNER&quot;, ch.getCacheOwner());
+-						byte chGetHard=ch.getHard();
+-						varParams.put(&quot;DIFFICULTY&quot;, (ch.isAddiWpt() || ch.isCustomWpt() || chGetHard &lt; 0)?&quot;&quot;:dec.replaceAll(CacheTerrDiff.longDT(chGetHard)));
+-						String sHard = Integer.toString(chGetHard);
+-						varParams.put(&quot;SHORTDIFFICULTY&quot;, (ch.isAddiWpt() || ch.isCustomWpt() || chGetHard &lt; 0)?&quot;&quot;:sHard);
+-						varParams.put(&quot;SHDIFFICULTY&quot;, (ch.isAddiWpt() || ch.isCustomWpt() || chGetHard &lt; 0)?&quot;&quot;:sHard.substring(0,1));
+-						byte chGetTerrain=ch.getTerrain();
+-						varParams.put(&quot;TERRAIN&quot;, (ch.isAddiWpt() || ch.isCustomWpt() || chGetTerrain &lt; 0)?&quot;&quot;:dec.replaceAll(CacheTerrDiff.longDT(chGetTerrain)));
+-						String sTerrain = Integer.toString(chGetTerrain);
+-						varParams.put(&quot;SHORTTERAIN&quot;, (ch.isAddiWpt() || ch.isCustomWpt() || chGetTerrain &lt; 0)?&quot;&quot;:sTerrain);
+-						varParams.put(&quot;SHTERRAIN&quot;, (ch.isAddiWpt() || ch.isCustomWpt() || chGetTerrain &lt; 0)?&quot;&quot;:sTerrain.substring(0,1));
+-						varParams.put(&quot;DISTANCE&quot;, dec.replaceAll(ch.getDistance()));
+-						varParams.put(&quot;BEARING&quot;, ch.bearing);
+-						varParams.put(&quot;LATLON&quot;, ch.LatLon);
+-						varParams.put(&quot;LAT&quot;, dec.replaceAll(ch.pos.getLatDeg(CWPoint.DD)));
+-						varParams.put(&quot;LON&quot;, dec.replaceAll(ch.pos.getLonDeg(CWPoint.DD)));
+-						varParams.put(&quot;STATUS&quot;, ch.getCacheStatus());
+-						varParams.put(&quot;GC_LOGTYPE&quot;, ch.GetGCLogType());
+-						varParams.put(&quot;STATUS_DATE&quot;, ch.GetStatusDate());
+-						varParams.put(&quot;STATUS_TIME&quot;, ch.GetStatusTime());
+-						varParams.put(&quot;DATE&quot;, ch.getDateHidden());
+-						varParams.put(&quot;URL&quot;, det != null ? det.URL : &quot;&quot;);
+-						varParams.put(&quot;DESCRIPTION&quot;, det != null ? det.LongDescription : &quot;&quot;);
+-						String cacheName=ch.getCacheName();
+-						if (myFilter.codec instanceof AsciiCodec) {
+-							cacheName=Exporter.simplifyString(cacheName);
+-						}
+-						if (myFilter.badChars != null) {
+-							cacheName=rex.replaceAll(cacheName);
+-							varParams.put(&quot;NOTES&quot;, det != null ? rex.replaceAll(det.getCacheNotes()): &quot;&quot;);
+-							varParams.put(&quot;HINTS&quot;, det != null ? rex.replaceAll(det.Hints): &quot;&quot;);
+-							varParams.put(&quot;DECRYPTEDHINTS&quot;, det != null ? rex.replaceAll(Common.rot13(det.Hints)): &quot;&quot;);
+-						} else {
+-							varParams.put(&quot;NOTES&quot;, det != null ? det.getCacheNotes(): &quot;&quot;);
+-							varParams.put(&quot;HINTS&quot;, det != null ? det.Hints: &quot;&quot;);
+-							varParams.put(&quot;DECRYPTEDHINTS&quot;, det != null ? Common.rot13(det.Hints): &quot;&quot;);
+-						}
+-						varParams.put(&quot;NAME&quot;, cacheName);
+-						String shortName=removeCharsfromString(cacheName, myFilter.shortNameLength, selbstLaute);
+-						if (shortName.length()&gt;myFilter.shortNameLength) {
+-							shortName=removeCharsfromString(shortName, myFilter.shortNameLength, mitLauteKlein);
+-						}
+-						varParams.put(&quot;SHORTNAME&quot;, shortName);
+-						varParams.put(&quot;TRAVELBUG&quot;, (ch.has_bugs()?&quot;Y&quot;:&quot;N&quot;));
+-						varParams.put(&quot;GMTYPE&quot;, gm.getIcon(ch));
+-						varParams.put(&quot;NOW_DATE&quot;,nowdate.setToCurrentTime().toString());
+-						varParams.put(&quot;NOW_TIME&quot;,nowtime.setToCurrentTime().toString());
+-
+-						cache_index.add(varParams);
++						cache_index.add(ch.toHashtable(dec, rex, myFilter.shortWaypointLength, myFilter.shortNameLength, myFilter.codec, gm));
+ 					}catch(Exception e){
+ 						Vm.debug(&quot;Problem getting Parameter, Cache: &quot; + ch.getWayPoint());
+ 						e.printStackTrace();
+@@ -311,29 +224,6 @@
+ 		}
+ 		pbf.exit(0);
+ 	}
+-
+-    private static String removeCharsfromString( String text, int MaxLength, String chars ) {
+-        if ( text == null ) return null;
+-        int originalTextLength = text.length();
+-        int anzToRemove=originalTextLength-MaxLength;
+-        if (anzToRemove&lt;=0) return text;
+-        int anzRemoved=0;
+-        StringBuffer sb = new StringBuffer( 50 );
+-        for ( int i = originalTextLength-1; i &gt;= 0; i-- ) {
+-            char c = text.charAt( i );
+-            if (chars.indexOf(c) == -1) {
+-            	sb.insert(0,c);
+-            }
+-            else {
+-            	anzRemoved++;
+-            	if (anzRemoved==anzToRemove) {
+-            		sb.insert(0, text.substring(0,i));
+-            		i=0; // exit for
+-            	}
+-            }
+-        }
+-        return sb.toString();
+-    }
+ }
+ 
+ //##################################################################
+
+Modified: trunk/src/CacheWolf/imp/GPXImporter.java
+===================================================================
+--- trunk/src/CacheWolf/imp/GPXImporter.java	2010-03-16 16:23:55 UTC (rev 2517)
++++ trunk/src/CacheWolf/imp/GPXImporter.java	2010-03-17 00:08:03 UTC (rev 2518)
+@@ -190,7 +190,7 @@
+ 		if (name.equals(&quot;wpt&quot;)) {
+ 			holder = new CacheHolder();
+ 			holder.pos.set(Common.parseDouble(atts.getValue(&quot;lat&quot;)),Common.parseDouble(atts.getValue(&quot;lon&quot;)));
+-			holder.LatLon=holder.pos.toString();
++			holder.setLatLon(holder.pos.toString());
+ 			inWpt = true;
+ 			inLogs = false;
+ 			inBug = false;
+@@ -315,9 +315,9 @@
+ 				// if waypoint starts with &quot;GC&quot;
+ 				if(doSpider) {
+ 					if(spiderOK &amp;&amp; holder.is_archived() == false){
+-							if(holder.LatLon.length() &gt; 1){
++							if(holder.getLatLon().length() &gt; 1){
+ 							if(getMaps){
+-								ParseLatLon pll = new ParseLatLon(holder.LatLon,&quot;.&quot;);
++								ParseLatLon pll = new ParseLatLon(holder.getLatLon(),&quot;.&quot;);
+ 								pll.parse();
+ 								//MapLoader mpl = new MapLoader(pref.myproxy, pref.myproxyport);
+ 								//mpl.loadTo(profile.dataDir + &quot;/&quot; + holder.wayPoint + &quot;_map.gif&quot;, &quot;3&quot;);
+
+Modified: trunk/src/CacheWolf/imp/LOCXMLImporter.java
+===================================================================
+--- trunk/src/CacheWolf/imp/LOCXMLImporter.java	2010-03-16 16:23:55 UTC (rev 2517)
++++ trunk/src/CacheWolf/imp/LOCXMLImporter.java	2010-03-17 00:08:03 UTC (rev 2518)
+@@ -93,7 +93,7 @@
+ 		if (name.equals(&quot;coord&quot;)) {
+ 			holder.pos.set(Common.parseDouble(atts.getValue(&quot;lat&quot;)), Common
+ 					.parseDouble(atts.getValue(&quot;lon&quot;)));
+-			holder.LatLon = holder.pos.toString();
++			holder.setLatLon(holder.pos.toString());
+ 			return;
+ 		}
+ 	}
+
+Modified: trunk/src/CacheWolf/imp/OCXMLImporter.java
+===================================================================
+--- trunk/src/CacheWolf/imp/OCXMLImporter.java	2010-03-16 16:23:55 UTC (rev 2517)
++++ trunk/src/CacheWolf/imp/OCXMLImporter.java	2010-03-17 00:08:03 UTC (rev 2518)
+@@ -522,7 +522,7 @@
+ 		}
+ 		if(name.equals(&quot;latitude&quot;)) {
+ 			holder.pos.set(Common.parseDouble(strData),longitude);
+-			holder.LatLon = holder.pos.toString();
++			holder.setLatLon(holder.pos.toString());
+ 			return;
+ 		}
+ 		if(name.equals(&quot;difficulty&quot;)) {
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2010-03-16 16:23:55 UTC (rev 2517)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2010-03-17 00:08:03 UTC (rev 2518)
+@@ -1155,7 +1155,7 @@
+ 						// General Cache Data
+ 						//==========
+ 						ch.setLatLon(latLon);
+-						pref.log(&quot;LatLon: &quot; + ch.LatLon);
++						pref.log(&quot;LatLon: &quot; + ch.getLatLon());
+ 
+ 						ch.getCacheDetails(false).setLongDescription(getLongDesc(completeWebPage));
+ 						pref.log(&quot;Got description&quot;);
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2010-03-16 16:23:55 UTC (rev 2517)
++++ trunk/src/CacheWolf/myTableControl.java	2010-03-17 00:08:03 UTC (rev 2518)
+@@ -239,7 +239,7 @@
+ 				return;
+ 			}
+ 			CacheHolder thisCache = cacheDB.get(tbp.getSelectedCache());
+-			CWPoint cp=new CWPoint(thisCache.LatLon);
++			CWPoint cp=new CWPoint(thisCache.getLatLon());
+ 			if (!cp.isValid()){
+ 				MessageBox tmpMB = new MessageBox(MyLocale.getMsg(321,&quot;Error&quot;), MyLocale.getMsg(4111,&quot;Coordinates must be entered in the format N DD MM.MMM E DDD MM.MMM&quot;), FormBase.OKB);
+ 				tmpMB.execute();
+
+Modified: trunk/src/CacheWolf/myTableModel.java
+===================================================================
+--- trunk/src/CacheWolf/myTableModel.java	2010-03-16 16:23:55 UTC (rev 2517)
++++ trunk/src/CacheWolf/myTableModel.java	2010-03-17 00:08:03 UTC (rev 2518)
+@@ -369,7 +369,7 @@
+ 						wpVal.addColumn(ch.getCacheName());
+ 						return wpVal;
+ 					case 6: // Location
+-						return ch.LatLon;
++						return ch.getLatLon();
+ 					case 7: // Owner
+ 						return ch.getCacheOwner();
+ 					case 8: // Date hidden
+@@ -379,7 +379,7 @@
+ 					case 10: // Distance
+ 						return ch.getDistance();
+ 					case 11: // Bearing
+-						return ch.bearing;
++						return ch.getBearing();
+ 					case 12: // Size
+ 						if (ch.isAddiWpt()) {
+ 							return &quot;&quot;;
+
+Modified: trunk/src/CacheWolf/navi/GotoPanel.java
+===================================================================
+--- trunk/src/CacheWolf/navi/GotoPanel.java	2010-03-16 16:23:55 UTC (rev 2517)
++++ trunk/src/CacheWolf/navi/GotoPanel.java	2010-03-17 00:08:03 UTC (rev 2518)
+@@ -374,7 +374,7 @@
+ 			// create new waypoint with current GPS-position
+ 			if (ev.target == btnSave){
+ 				CacheHolder ch = new CacheHolder();
+-				ch.LatLon = myNavigation.gpsPos.toString();
++				ch.setLatLon(myNavigation.gpsPos.toString());
+ 				ch.pos = new CWPoint(myNavigation.gpsPos);
+ 				ch.setType(CacheType.CW_TYPE_STAGE); // see CacheType.GC_AW_STAGE_OF_MULTI // TODO unfertig
+ 				mainT.newWaypoint(ch);
+
+Modified: trunk/src/CacheWolf/navi/MapLoaderGui.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MapLoaderGui.java	2010-03-16 16:23:55 UTC (rev 2517)
++++ trunk/src/CacheWolf/navi/MapLoaderGui.java	2010-03-17 00:08:03 UTC (rev 2518)
+@@ -270,7 +270,7 @@
+ 				ch = cacheDB.get(i);
+ 				if (!this.onlySelected || ch.is_Checked) {
+ 					if (ch.pos == null) { // this can not happen
+-						tmpca.set(ch.LatLon);
++						tmpca.set(ch.getLatLon());
+ 						ch.pos = new CWPoint(tmpca);
+ 					}
+ 					if (ch.pos.isValid() &amp;&amp; ch.pos.latDec != 0 &amp;&amp; ch.pos.lonDec != 0) { // TODO != 0 sollte verschwinden, sobald das handling von nicht gesetzten Koos &#252;berall korrekt ist
+
+Modified: trunk/src/CacheWolf/navi/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MovingMap.java	2010-03-16 16:23:55 UTC (rev 2517)
++++ trunk/src/CacheWolf/navi/MovingMap.java	2010-03-17 00:08:03 UTC (rev 2518)
+@@ -2343,7 +2343,7 @@
+ 						mm.postEvent(close);
+ 						CacheHolder newWP = new CacheHolder();
+ 						newWP.pos = mm.ScreenXY2LatLon(saveMapLoc.x, saveMapLoc.y);
+-						newWP.LatLon=newWP.pos.toString();
++						newWP.setLatLon(newWP.pos.toString());
+ 						Global.mainTab.newWaypoint(newWP);
+ 					}
+ 					if (action == addCachetoListMenuItem) {
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002442.html">[Cachewolf-svn] r2517 - in trunk/src/CacheWolf: . exp imp navi
+</A></li>
+	<LI>Next message: <A HREF="002444.html">[Cachewolf-svn] r2519 - trunk/src/CacheWolf/navi/touchControls
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2443">[ date ]</a>
+              <a href="thread.html#2443">[ thread ]</a>
+              <a href="subject.html#2443">[ subject ]</a>
+              <a href="author.html#2443">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

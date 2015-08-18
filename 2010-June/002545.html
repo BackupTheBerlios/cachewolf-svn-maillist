@@ -1,0 +1,280 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2607 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-June/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2607%20-%20trunk/src/CacheWolf&In-Reply-To=%3C201006140859.o5E8x7co014882%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002544.html">
+   <LINK REL="Next"  HREF="002546.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2607 - trunk/src/CacheWolf</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2607%20-%20trunk/src/CacheWolf&In-Reply-To=%3C201006140859.o5E8x7co014882%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2607 - trunk/src/CacheWolf">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Mon Jun 14 10:59:07 CEST 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002544.html">[Cachewolf-svn] r2606 - trunk/src/CacheWolf/imp
+</A></li>
+        <LI>Next message: <A HREF="002546.html">[Cachewolf-svn] r2608 - in trunk: res_noewe/languages src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2545">[ date ]</a>
+              <a href="thread.html#2545">[ thread ]</a>
+              <a href="subject.html#2545">[ subject ]</a>
+              <a href="author.html#2545">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2010-06-14 10:59:06 +0200 (Mon, 14 Jun 2010)
+New Revision: 2607
+
+Modified:
+   trunk/src/CacheWolf/Rebuild.java
+Log:
+simplifying Rebuild, searching the missing memory. (result : it is not in the CW Code)
+
+Modified: trunk/src/CacheWolf/Rebuild.java
+===================================================================
+--- trunk/src/CacheWolf/Rebuild.java	2010-06-14 08:52:06 UTC (rev 2606)
++++ trunk/src/CacheWolf/Rebuild.java	2010-06-14 08:59:06 UTC (rev 2607)
+@@ -2,119 +2,122 @@
+ 
+ import CacheWolf.utils.FileBugfix;
+ import ewe.io.FileBase;
++import ewe.io.FileInputStream;
+ import ewe.io.FileReader;
++import ewe.io.IOException;
+ import ewe.sys.Handle;
+-import ewe.ui.FormBase;
+-import ewe.ui.MessageBox;
+ import ewe.ui.ProgressBarForm;
+ 
+ public class Rebuild {
+ 	private int cacheXmlVersion;
+-	private int startOfCacheDetails;
+ 
+ 	public Rebuild() { // Public constructor
+ 	}
+ 
+ 	public void rebuild() {
+ 		int i;
+-		Profile prof=Global.getProfile();
++		Profile prof = Global.getProfile();
++		CacheDB cacheDB=prof.cacheDB;
+ 
+ 		myProgressBarForm pbf = new myProgressBarForm();
+ 		Handle h = new Handle();
+ 
+-		int orphans=0; // xml Files without entry in database : Changed to all entries!!!
+-		int nAdded=0;  // caches added to database
+-		boolean checkOlder = false;
+-		//MessageBox mBox = new MessageBox(&quot;&quot;, MyLocale.getMsg(5522,&quot;Check for older Versions xml-Files ( without &lt;CACHE... /&gt; )&quot;) , FormBase.IDYES |FormBase.IDNO);
+-		//if (mBox.execute() == FormBase.IDOK){checkOlder=true;}
+-		//else {checkOlder=false;}
+-		// still time consuming the list files
++		int count = 0;
++		int nAdded = 0;
+ 		pbf.setTask(h, &quot;Reading Directory, be patient&quot;);
+ 		pbf.exec();
+-		h.progress=(float) 0.5;
++		h.progress = (float) 0.5;
+ 		h.changed();
+-		String[] CacheFiles = new FileBugfix(prof.dataDir).list(&quot;*.xml&quot;, FileBase.LIST_FILES_ONLY|FileBase.LIST_DONT_SORT);
+-		pbf.setTask(h,&quot;checking XML-files&quot;);
+-		for (i=0; i&lt;CacheFiles.length; i++) {
+-				int pos=CacheFiles[i].lastIndexOf('.');
+-				if (pos&lt;0) continue;
+-				String wayPoint=CacheFiles[i].substring(0,pos).toUpperCase();
+-				if (wayPoint.equalsIgnoreCase(&quot;index&quot;))	// Check for index.xml and index.bak
+-					CacheFiles[i]=null;   				// Remove (existing caches) or index.xml
+-				else {
+-					//ewe.sys.Vm.debug(&quot;Orphan: &quot;+wayPoint);
+-					orphans++;
+-					h.progress = ((float)(orphans)/(float)CacheFiles.length);
+-					h.changed();
+-					if (checkOlder) {
+-						int cacheIndex=prof.getCacheIndex(wayPoint);
+-						if (cacheIndex &gt; -1) {
+-							// In older Versions of CW the &lt;CACHE... /&gt; line was not stored in the cache.xml
+-							// therefore get it from the index.xml (prof.cacheDB) and put it into the cache.xml
+-							getCacheDetails(prof.dataDir+CacheFiles[i]);
+-							if (startOfCacheDetails &lt; 0) {
+-								CacheHolder ch=prof.cacheDB.get(cacheIndex);
+-								ch.save();
++		String[] CacheFiles = new FileBugfix(prof.dataDir).list(&quot;*.xml&quot;,FileBase.LIST_FILES_ONLY | FileBase.LIST_DONT_SORT);
++		pbf.setTask(h, &quot;preparing XML-files&quot;);
++		for (i = 0; i &lt; CacheFiles.length; i++) {
++			int pos = CacheFiles[i].lastIndexOf('.');
++			if (pos &lt; 0)
++				continue;
++			String wayPoint = CacheFiles[i].substring(0, pos).toUpperCase();
++			if (wayPoint.equalsIgnoreCase(&quot;index&quot;)) CacheFiles[i] = null;
++			else {
++				count++;
++			}
++		}
++		cacheDB.clear();
++		Global.getPref().log(&quot;Start Rebuild!&quot;);
++		pbf.setTask(h, MyLocale.getMsg(209, &quot;Rebuilding index&quot;));
++		if (count &gt; 0) {
++			int nProcessed = 0;
++			// Now do the actual work
++			String details=&quot;&quot;;
++			byte [] buff = new byte[10*1024];
++			StringBuffer str = new StringBuffer();
++			for (i = 0; i &lt; CacheFiles.length; i++) {
++				if (CacheFiles[i] != null) {
++					
++					nProcessed++;
++					if (nProcessed%100==0) {
++						h.progress = ((float) nProcessed) / (float) (count);
++						h.changed();
++					}
++					int start=0;
++					boolean doit=true;
++					try {
++						FileInputStream in = new FileInputStream(prof.dataDir + CacheFiles[i]);
++
++						// details=in.readAll();
++						str.setLength(0);
++						while(true){
++							int got = in.read(buff,0,buff.length);
++							if (got == -1) { details = str.toString(); break; }
++							for (int j = 0; j &lt; got; j++) {
++								str.append((char) buff[j]); 
+ 							}
+-							// prof.cacheDB.removeElementAt(cacheIndex);
++
+ 						}
++						// end readAll substitute
++						in.close();
++
++						start = details.indexOf(&quot;&lt;CACHE &quot;);
++						if (start &lt; 0) doit=false;
++						else if (details.indexOf(&quot;&lt;CACHEDETAILS&gt;&quot;) &lt; 0) doit=false;					
+ 					}
+-				}
+-		}
+-		prof.cacheDB.clear(); //easier than removeElementAt
+-		pbf.setTask(h,MyLocale.getMsg(209,&quot;Rebuilding index&quot;));
+-		if (orphans&gt;0) { // At least one cache not in database
+-			int nProcessed=0;
+-			// Now do the actual work
+-			for(i = 0; i&lt;CacheFiles.length; i++){
+-				if (CacheFiles[i]!=null) {
+-					h.progress = ((float)nProcessed++)/(float)(orphans);
+-					h.changed();
+-					String details=getCacheDetails(prof.dataDir+CacheFiles[i]);
+-					if (details!=null) {
+-						CacheHolder ch=new CacheHolder(details, cacheXmlVersion);
+-						prof.cacheDB.add(ch);
++					catch (IOException e) {
++						doit=false;
++					};
++					
++					if (doit) {
++						int end;
++						int vstart=details.indexOf(&quot;&lt;VERSION value = \&quot;&quot;);						
++						if (vstart &gt;= 0) {
++							cacheXmlVersion = Integer.valueOf(details.substring(vstart + 18, details.indexOf(&quot;\&quot;&quot;,vstart + 18))).intValue();
++						}
++						else {
++							cacheXmlVersion = 1;
++						}
++						end = details.indexOf(&quot;/&gt;&quot;, start);
++						CacheHolder ch = new CacheHolder(details.substring(start, end + 2),cacheXmlVersion);
++						cacheDB.add(ch);
+ 						nAdded++;
+-						CacheFiles[i]=null;
+-					} else Global.getPref().log(&quot;File &quot;+CacheFiles[i]+&quot; not in index.xml&quot;);
++						Global.getPref().log(ch.getWayPoint() + &quot; added. (&quot; + nAdded + &quot;)&quot;);
++						// CacheFiles[i] = null;
++					} else
++						Global.getPref().log(&quot;File &quot; + CacheFiles[i] + &quot; not entered to index.xml&quot;);
++						;
+ 				}
+-				if (pbf.isClosed) break;
++				if (pbf.isClosed)
++					break;
+ 			}
+ 			prof.buildReferences();
+-			prof.saveIndex(Global.getPref(),true);
++			prof.saveIndex(Global.getPref(), true);
+ 		}
+ 		pbf.exit(0);
+ 	}
+ 
+-	private String getCacheDetails(String xmlFile) {
+-		try {
+-			FileReader in = new FileReader(xmlFile);
+-			String text= in.readAll();
+-			in.close();
+-			int start,end;
+-			int vstart;
+-			cacheXmlVersion = 1; // Initial guess
+-			// Check that we have not accidentally listed another xml file in the directory
+-			startOfCacheDetails=text.indexOf(&quot;&lt;CACHE &quot;);
+-			if ((start=startOfCacheDetails)&lt;0) return null;
+-			if (text.indexOf(&quot;&lt;CACHEDETAILS&gt;&quot;)&lt;0) return null; // startOfCacheDetails must be set in advance
+-			if ((vstart = text.indexOf(&quot;&lt;VERSION value = \&quot;&quot;)) &gt;= 0) {
+-				cacheXmlVersion = Integer.valueOf(text.substring(vstart+18, text.indexOf(&quot;\&quot;&quot;, vstart+18))).intValue();
+-			}
+-			end=text.indexOf(&quot;/&gt;&quot;,start);
+-			return text.substring(start,end+2);
+-		} catch (Exception ex) {
+-			return null;
++	class myProgressBarForm extends ProgressBarForm {
++		boolean isClosed = false;
++
++		protected boolean canExit(int exitCode) {
++			isClosed = true;
++			return true;
+ 		}
+ 	}
+ 
+-	class myProgressBarForm extends ProgressBarForm {
+-		 boolean isClosed=false;
+-		 protected boolean canExit(int exitCode) {
+-			isClosed=true;
+-			return true;
+-		 }
+-	 }
+-
+-
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002544.html">[Cachewolf-svn] r2606 - trunk/src/CacheWolf/imp
+</A></li>
+	<LI>Next message: <A HREF="002546.html">[Cachewolf-svn] r2608 - in trunk: res_noewe/languages src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2545">[ date ]</a>
+              <a href="thread.html#2545">[ thread ]</a>
+              <a href="subject.html#2545">[ subject ]</a>
+              <a href="author.html#2545">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

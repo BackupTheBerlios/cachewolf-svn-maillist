@@ -1,0 +1,379 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r442 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r442%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701230325.l0N3PpN6014233%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000209.html">
+   <LINK REL="Next"  HREF="000211.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r442 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r442%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701230325.l0N3PpN6014233%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r442 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Tue Jan 23 04:25:51 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000209.html">[Cachewolf-svn] r441 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000211.html">[Cachewolf-svn] r443 - trunk/resources
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#210">[ date ]</a>
+              <a href="thread.html#210">[ thread ]</a>
+              <a href="subject.html#210">[ subject ]</a>
+              <a href="author.html#210">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-01-23 04:25:42 +0100 (Tue, 23 Jan 2007)
+New Revision: 442
+
+Modified:
+   trunk/src/CacheWolf/CWPoint.java
+   trunk/src/CacheWolf/CalcPanel.java
+   trunk/src/CacheWolf/DetailsPanel.java
+   trunk/src/CacheWolf/GotoPanel.java
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/Map.java
+   trunk/src/CacheWolf/MovingMap.java
+Log:
+MovingMap: Durch Rechtsklick neuen Wegpunkt anlegen
+MovingMap: Anzeige der Entfernung zum Zielpunkt
+MovingMap: Tuning
+Detailspanel verwendet String cachHolder.latlon nicht mehr
+an ein paar Stellen ?\195?\156bergabe der Globalen Pref und Profile beseitigt
+
+
+Modified: trunk/src/CacheWolf/CWPoint.java
+===================================================================
+--- trunk/src/CacheWolf/CWPoint.java	2007-01-23 00:00:32 UTC (rev 441)
++++ trunk/src/CacheWolf/CWPoint.java	2007-01-23 03:25:42 UTC (rev 442)
+@@ -240,7 +240,6 @@
+ 					set(rex.stringMatched(17),rex.stringMatched(19),rex.stringMatched(18)); //parse sequence is E N, but set needs N E
+ 				}
+ 				//else Vm.debug(&quot;CWPoint: &quot;+coord+&quot; could not be parsed&quot;);
+-				//makeValid(); // TODO was solld as hier?
+ 			}	/**
+ 	 * set lat and lon 
+ 	 * @param strLatNS &quot;N&quot; or &quot;S&quot;
+
+Modified: trunk/src/CacheWolf/CalcPanel.java
+===================================================================
+--- trunk/src/CacheWolf/CalcPanel.java	2007-01-23 00:00:32 UTC (rev 441)
++++ trunk/src/CacheWolf/CalcPanel.java	2007-01-23 03:25:42 UTC (rev 442)
+@@ -160,7 +160,7 @@
+ 				readFields(coordInp, bd, currFormat);
+ 				coordOut = coordInp.project(bd.degrees, bd.distance);
+ 				ch.LatLon = coordOut.toString();
+-				detP.newWaypoint(ch, mainT, pref, profile);
++				detP.newWaypoint(ch, mainT);
+ 			}
+ 			
+ 			if (ev.target == btnGoto){
+
+Modified: trunk/src/CacheWolf/DetailsPanel.java
+===================================================================
+--- trunk/src/CacheWolf/DetailsPanel.java	2007-01-23 00:00:32 UTC (rev 441)
++++ trunk/src/CacheWolf/DetailsPanel.java	2007-01-23 03:25:42 UTC (rev 442)
+@@ -99,7 +99,7 @@
+ 	/**
+ 	*	Set the values to display.
+ 	*/
+-	public void setDetails(CacheHolder ch, MainTab mt, Preferences p, Profile prof){
++	public void setDetails(CacheHolder ch, MainTab mt){
+ 		if (this.newWp){
+ 			this.newWp = false;
+ 			btCrWp.setText(MyLocale.getMsg(312,&quot;Save&quot;));
+@@ -108,8 +108,8 @@
+ 		else {
+ 			btCrWp.setText(MyLocale.getMsg(311,&quot;Create Waypoint&quot;));
+ 		}
+-		pref = p;
+-		profile=prof;
++		pref = Global.getPref();
++		profile=Global.getProfile();
+ 		mainT = mt;
+ 		cacheDB = profile.cacheDB;
+ 		thisCache = ch;
+@@ -118,7 +118,7 @@
+ 		dirty_newOrDelete = false; // Cache has been created/deleted but not saved
+ 		wayPoint.setText(ch.wayPoint);
+ 		wayName.setText(ch.CacheName);
+-	    btnWayLoc.setText(ch.LatLon);
++	    btnWayLoc.setText(ch.pos.toString());
+ 		wayHidden.setText(ch.DateHidden);
+ 		wayOwner.setText(ch.CacheOwner);
+ 		wayStatus.setText(ch.CacheStatus);
+@@ -163,12 +163,20 @@
+ 		return strWp;
+ 	}
+ 	
+-	public void newWaypoint(CacheHolder ch, MainTab mt, Preferences pref, Profile profile){
+-
++	/**
++	 * this is called from goto / MovingMap and so on to 
++	 * offer the user the possibility of entering an new waypoint
++	 * at a given position
++	 * 
++	 * @param ch
++	 * @param mt
++	 */
++	public void newWaypoint(CacheHolder ch, MainTab mt){
++		this.profile = Global.getProfile();
+ 		ch.wayPoint = getNewWayPointName(profile.cacheDB);
+ 		ch.type = &quot;0&quot;;
+ 		ch.CacheSize = &quot;None&quot;;
+-		setDetails(ch, mt,pref, profile);
++		setDetails(ch, mt);
+ 		this.newWp = true;
+ 		cacheDB.add(thisCache);
+ 		mt.select(this);
+
+Modified: trunk/src/CacheWolf/GotoPanel.java
+===================================================================
+--- trunk/src/CacheWolf/GotoPanel.java	2007-01-23 00:00:32 UTC (rev 441)
++++ trunk/src/CacheWolf/GotoPanel.java	2007-01-23 03:25:42 UTC (rev 442)
+@@ -614,7 +614,7 @@
+ 				CacheHolder ch = new CacheHolder();
+ 				ch.LatLon = gpsPosition.toString();
+ 				ch.pos = new CWPoint(gpsPosition);
+-				detP.newWaypoint(ch,mainT, pref, profile);
++				detP.newWaypoint(ch,mainT);
+ 			}
+ 			// change destination waypoint
+ 			if (ev.target == btnGoto){
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2007-01-23 00:00:32 UTC (rev 441)
++++ trunk/src/CacheWolf/MainTab.java	2007-01-23 03:25:42 UTC (rev 442)
+@@ -157,7 +157,7 @@
+ 			  }
+ 			  if(this.getSelectedItem() == 1){ // DetailsPanel
+ 				  MyLocale.setSIPButton();
+-				  detP.setDetails(ch, this,pref, profile);
++				  detP.setDetails(ch, this);
+ 			  }
+ 			  if(this.getSelectedItem() == 2) { // Description Panel
+ 				  openDesciptionPanel(ch);
+
+Modified: trunk/src/CacheWolf/Map.java
+===================================================================
+--- trunk/src/CacheWolf/Map.java	2007-01-23 00:00:32 UTC (rev 441)
++++ trunk/src/CacheWolf/Map.java	2007-01-23 03:25:42 UTC (rev 442)
+@@ -35,7 +35,7 @@
+ 	*/
+ 	public Map(Preferences pref){
+ 		this.pref = pref;
+-		mapsPath = pref.getMapManuallySavePath()+&quot;/&quot;; //File.getProgramDirectory() + &quot;/maps/&quot;; // TODO veraltet
++		mapsPath = pref.getMapManuallySavePath()+&quot;/&quot;; //File.getProgramDirectory() + &quot;/maps/&quot;;
+ 	}
+ 	
+ 	/**
+
+Modified: trunk/src/CacheWolf/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/MovingMap.java	2007-01-23 00:00:32 UTC (rev 441)
++++ trunk/src/CacheWolf/MovingMap.java	2007-01-23 03:25:42 UTC (rev 442)
+@@ -44,6 +44,8 @@
+ 	AniImage buttonImageLens = new AniImage(&quot;lupe.png&quot;);
+ 	AniImage buttonImageLensActivated = new AniImage(&quot;lupe_activated.png&quot;);
+ 	AniImage buttonImageZoom1to1 = new AniImage(&quot;zoom1to1.png&quot;);
++	AniImage DistanceImage;
++	Graphics DistanceImageGraphics;
+ 	MapImage posCircle = new MapImage(&quot;position_green.png&quot;);
+ 	int posCircleX = 0, posCircleY = 0, lastCompareX = Integer.MAX_VALUE, lastCompareY = Integer.MAX_VALUE;
+ 	double posCircleLat, posCircleLon;
+@@ -93,6 +95,13 @@
+ 		mmp.addImage(buttonImageLens);
+ 		buttonImageZoom1to1.properties = AniImage.AlwaysOnTop;
+ 		mmp.addImage(buttonImageZoom1to1);
++		//Label distLbl = new mLabel(&quot;Distance: ----,-- km&quot;);
++		DistanceImage = new AniImage();
++		DistanceImage.setImage(new Image(120, 20), Color.White); // consider the size of the font used
++		DistanceImageGraphics = new Graphics(DistanceImage.image);
++		DistanceImageGraphics.setFont(new Font(&quot;Helvetica&quot;, Font.BOLD, 16));
++		DistanceImage.properties = AniImage.AlwaysOnTop;
++		mmp.addImage(DistanceImage);
+ 		resizeTo(pref.myAppWidth, pref.myAppWidth); // is necessary to initialize mapImage.screenSize
+ 		setGpsStatus(noGPS);
+ 		posCircle.properties = AniImage.AlwaysOnTop;
+@@ -111,6 +120,7 @@
+ 		directionArrows.setLocation(w/2-directionArrows.getWidth()/2, 10);
+ 		buttonImageZoom1to1.setLocation(w - buttonImageZoom1to1.getWidth()-10, h/2 - buttonImageLens.getHeight()/2 - buttonImageZoom1to1.getHeight() -10);
+ 		buttonImageLens.setLocation(w - buttonImageLens.getWidth()-10, h/2 - buttonImageLens.getHeight()/2 );
++		DistanceImage.setLocation(w/2 - DistanceImage.location.width/2, h - DistanceImage.location.height -10);
+ 		// TODO TrackOverlay-gr&#246;&#223;e muss angepasst werden
+ 	}
+ 	
+@@ -172,6 +182,27 @@
+ 		this.mapsloaded = true;
+ 	}
+ 
++	public void updateDistance() {
++		if (gotoPos == null || posCircleLat &lt; -360) return;
++		ewe.sys.Double dd = new ewe.sys.Double();
++		dd.set((new CWPoint(gotoPos.lat, gotoPos.lon).getDistance(posCircleLat, posCircleLon)));
++		String d; 
++		if (dd.value &lt; 1) {
++			dd.value = dd.value * 1000; 
++			dd.decimalPlaces = 0;
++			d = &quot;Distance: &quot; + dd.toString() + &quot;m&quot;;} 
++		else {
++			dd.decimalPlaces = 2;
++			d = &quot;Distance: &quot; + dd.toString() + &quot;km&quot;;
++		}
++		DistanceImageGraphics.setColor(DistanceImage.transparentColor);
++		DistanceImageGraphics.fillRect(0, 0, DistanceImage.location.width,DistanceImage.location.height);
++		DistanceImageGraphics.setColor(Color.MediumBlue);
++		DistanceImageGraphics.drawText(d, 0, 0);
++		DistanceImageGraphics.drawImage(DistanceImage.image,null,Color.DarkBlue,0,0,DistanceImage.location.width,DistanceImage.location.height); // changing the mask forces graphics to copy from image._awtImage to image.bufferedImage, which is displayed 
++		DistanceImageGraphics.drawImage(DistanceImage.image,null,Color.White,0,0,DistanceImage.location.width,DistanceImage.location.height); // these 2 commands are necessary because of a bug or near to a bug in the ewe-vm
++	}
++	
+ 	public void forceMapLoad() {
+ 		forceMapLoad = true;
+ 		updatePosition(lastUpatePosition.latDec, lastUpatePosition.lonDec); // this sets forceMapLoad to false after loading a map
+@@ -602,6 +633,7 @@
+ 		if (symbols==null) symbols=new Vector();
+ 		MapSymbol ms = new MapSymbol(name, filename, lat, lon);
+ 		ms.loadImage();
++		ms.properties |= AniImage.AlwaysOnTop;
+ 		Point pOnScreen=getXYonScreen(lat, lon);
+ 		ms.setLocation(pOnScreen.x-ms.getWidth()/2, pOnScreen.y-ms.getHeight()/2);
+ 		symbols.add(ms);
+@@ -621,6 +653,7 @@
+ 	public void setGotoPosition(double lat, double lon) {
+ 		removeGotoPosition();
+ 		gotoPos=addSymbol(&quot;goto&quot;, &quot;goto_map.png&quot;, lat, lon);
++		updateDistance();
+ 	}
+ 
+ 	public void removeGotoPosition() {
+@@ -680,6 +713,7 @@
+ 		if (forceMapLoad || (java.lang.Math.abs(oldMapPos.x - mapPos.x) &gt; 1 || java.lang.Math.abs(oldMapPos.y - mapPos.y) &gt; 1)) {
+ 			if (mmp.mapImage != null) 	mmp.mapImage.move(mapPos.x,mapPos.y);
+ 			updateSymbolPositions();
++			updateDistance();
+ 			if (updateOverlay ) updateOverlayPos(); // &amp;&amp; TrackOverlays != null
+ 			//}
+ 			mmp.repaintNow(); // TODO test if the &quot;if&quot; above can be used: i guess it can be used as long as the posCircle doesn't move autonom without a mapmove
+@@ -1005,8 +1039,9 @@
+ class MovingMapPanel extends InteractivePanel implements EventListener {
+ 	Menu mapsMenu;
+ 	Menu kontextMenu;
+-	MenuItem gotoMenuItem;
++	MenuItem gotoMenuItem = new MenuItem(&quot;Goto here$g&quot;, 0, null);
+ 	MenuItem openCacheDescMenuItem;
++	MenuItem newWayPointMenuItem = new MenuItem(&quot;Create new Waypoint here$n&quot;, 0, null);;
+ 	CacheHolder clickedCache;
+ 	MovingMap mm;
+ 	MapImage mapImage;
+@@ -1018,8 +1053,6 @@
+ 	public MovingMapPanel(MovingMap f){
+ 		this.mm = f;
+ 		set(Control.WantHoldDown, true); // want to get simulated right-clicks
+-		gotoMenuItem = new MenuItem(&quot;Goto here&quot;, 0, null);
+-
+ 	}
+ 
+ 	public boolean imageBeginDragged(AniImage which,Point pos) {
+@@ -1028,7 +1061,7 @@
+ 			mm.ignoreGps = true;
+ 			return false;
+ 		}
+-		if (!(which == null || which == mapImage || which instanceof TrackOverlay) ) return false;
++		//if (!(which == null || which == mapImage || which instanceof TrackOverlay) ) return false;
+ 		saveGpsIgnoreStatus = mm.ignoreGps; 
+ 		mm.ignoreGps = true;
+ 		saveMapLoc = pos;
+@@ -1202,15 +1235,16 @@
+ 
+ 	public void penHeld(Point p){
+ 		//	if (!menuIsActive()) doMenu(p);
+-		if (!mm.zoomingMode) // &amp;&amp; ev instanceof PenEvent &amp;&amp; (
++		if (!mm.zoomingMode) { 
+ 			//( (ev.type == PenEvent.PEN_DOWN) &amp;&amp; ((PenEvent)ev).modifiers == PenEvent.RIGHT_BUTTON)
+-		{ //|| ((ev.type == PenEvent.RIGHT_BUTTON) ) )){		
++			//|| ((ev.type == PenEvent.RIGHT_BUTTON) ) )) ---&gt; these events are not posted --&gt; this overridering is the only solution 
+ 			kontextMenu = new Menu();
+ 			kontextMenu.addItem(gotoMenuItem);
++			kontextMenu.addItem(newWayPointMenuItem);
+ 			AniImage clickedOnImage = images.findHotImage(p);
+ 			if (clickedOnImage != null &amp;&amp; clickedOnImage instanceof MapSymbol) {
+ 				clickedCache = ((CacheHolder)((MapSymbol)clickedOnImage).mapObject);
+-				openCacheDescMenuItem = new MenuItem(&quot;Open &quot;+clickedCache.CacheName);
++				openCacheDescMenuItem = new MenuItem(&quot;Open '&quot;+clickedCache.CacheName+&quot;'$o&quot;);
+ 				kontextMenu.addItem(openCacheDescMenuItem);
+ 			}
+ 			kontextMenu.exec(this, new Point(p.x, p.y), this);
+@@ -1259,11 +1293,12 @@
+ 			} // if (ev.target == mapsMenu)
+ 			if (ev.target == kontextMenu) {
+ 				if ((((MenuEvent)ev).type==MenuEvent.SELECTED)) {
+-					if (kontextMenu.getSelectedItem() == gotoMenuItem) {
++					MenuItem action = (MenuItem) kontextMenu.getSelectedItem(); 
++					if (action == gotoMenuItem) {
+ 						kontextMenu.close();
+ 						mm.gotoPanel.setDestination(mm.ScreenXY2LatLon(saveMapLoc.x, saveMapLoc.y));	
+ 					}
+-					if (kontextMenu.getSelectedItem() == openCacheDescMenuItem) {
++					if (action == openCacheDescMenuItem) {
+ 						//mm.onEvent(new FormEvent(FormEvent.CLOSED, mm));
+ 						kontextMenu.close();
+ 						WindowEvent close = new WindowEvent();
+@@ -1274,6 +1309,18 @@
+ 						mm.gotoPanel.mainT.select(mm.gotoPanel.mainT.descP);
+ 						mm.gotoPanel.mainT.openDesciptionPanel(clickedCache);
+ 					}
++					if (action == newWayPointMenuItem) {
++						kontextMenu.close();
++						WindowEvent close = new WindowEvent();
++						close.target = mm;
++						close.type = WindowEvent.CLOSE;
++						mm.postEvent(close);
++						CacheHolder newWP = new CacheHolder();
++						newWP.pos = mm.ScreenXY2LatLon(saveMapLoc.x, saveMapLoc.y);
++						mm.gotoPanel.mainT.detP.newWaypoint(newWP, mm.gotoPanel.mainT);
++						
++					}
++					
+ 				}
+ 			} // if (ev.target == kontextMenu)
+ 		} // if (ev instanceof ControlEvent ) 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000209.html">[Cachewolf-svn] r441 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000211.html">[Cachewolf-svn] r443 - trunk/resources
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#210">[ date ]</a>
+              <a href="thread.html#210">[ thread ]</a>
+              <a href="subject.html#210">[ subject ]</a>
+              <a href="author.html#210">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

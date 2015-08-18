@@ -1,0 +1,126 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2318 - in trunk: res_noewe src/CacheWolf/imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-November/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2318%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf/imp&In-Reply-To=%3C200911051936.nA5Jaw0w003973%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002241.html">
+   <LINK REL="Next"  HREF="002243.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2318 - in trunk: res_noewe src/CacheWolf/imp</H1>
+    <B>mik77 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2318%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf/imp&In-Reply-To=%3C200911051936.nA5Jaw0w003973%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2318 - in trunk: res_noewe src/CacheWolf/imp">mik77 at mail.berlios.de
+       </A><BR>
+    <I>Thu Nov  5 20:36:58 CET 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002241.html">[Cachewolf-svn] r2317 - trunk/src/CacheWolf/imp
+</A></li>
+        <LI>Next message: <A HREF="002243.html">[Cachewolf-svn] r2319 - in branches/bugfix_1.0: res_noewe	src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2242">[ date ]</a>
+              <a href="thread.html#2242">[ thread ]</a>
+              <a href="subject.html#2242">[ subject ]</a>
+              <a href="author.html#2242">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mik77
+Date: 2009-11-05 20:36:57 +0100 (Thu, 05 Nov 2009)
+New Revision: 2318
+
+Modified:
+   trunk/res_noewe/spider.def
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+Some more changes for new GC design (TBs).
+
+Modified: trunk/res_noewe/spider.def
+===================================================================
+--- trunk/res_noewe/spider.def	2009-11-05 19:09:22 UTC (rev 2317)
++++ trunk/res_noewe/spider.def	2009-11-05 19:36:57 UTC (rev 2318)
+@@ -33,6 +33,7 @@
+ # Version 4.9 - 20091018 Should work now with proxies and cachetypes as background
+ # Version 4.10- 20091021 Tags in Description are now correctly closed
+ # Version 4.11- 20091023 Reverted last change, because it doesn't work with EWE/EXE
++# Version 5.0 - 20091105 adaption to new GC-design
+ #============================================================
+ # A suffix of Rex indicates a regular expression
+ # A suffix of ExStart indicates the start of an Extractor search pattern
+@@ -50,7 +51,7 @@
+ #Section1: First page with list of caches
+ #--------------------------------------
+ firstPage          = <A HREF="http://www.geocaching.com/seek/nearest.aspx?lat=">http://www.geocaching.com/seek/nearest.aspx?lat=</A>
+-firstPage2         = &amp;lon=
++firstPage2         = &amp;lng=
+ firstPageFinds     = <A HREF="http://www.geocaching.com/seek/nearest.aspx?ul=">http://www.geocaching.com/seek/nearest.aspx?ul=</A>
+ # Regex to search for cachenames
+ listBlockRex       = &lt;table id=&quot;ctl00_ContentBody_dlResults&quot;((?s).*?)&lt;/table&gt;
+@@ -59,7 +60,8 @@
+ waypointRex        = \\(GC(.*?)\\)&lt;br\ /&gt;
+ showOnlyFound      = &amp;f=1
+ maxDistance        = &amp;dist=
+-firstLine          = <A HREF="http://www.geocaching.com/seek/nearest.aspx?">http://www.geocaching.com/seek/nearest.aspx?</A>
++firstLine          = <A HREF="http://www.geocaching.com/seek/nearest.aspx?lat=">http://www.geocaching.com/seek/nearest.aspx?lat=</A>
++firstLine2         = &amp;lng=
+ nextListPage       = /seek/nearest.aspx
+ 
+ onlyWherigo         = &amp;tx=0544fa55-772d-4e5c-96a9-36a51ebcf5c9
+@@ -132,7 +134,7 @@
+ #--------------------------------------
+ # blockEx extrahiert zun&#228;chst den Bugbereich aus der gesamten Seite
+ blockExStart       = &gt;&nbsp;&lt;b&gt;Inventory&lt;/b&gt;
+-blockExEnd         = What\ is\ a\ Travel\ Bug?
++blockExEnd         = What\ are\ Trackable\ Items?
+ # bugEx extrahiert die Namen der einzelnen Bugs aus dem Bugbereich
+ bugExStart         = &lt;a\ href='
+ bugExEnd           = &lt;/a&gt;&lt;/strong&gt;&lt;/td&gt;
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2009-11-05 19:09:22 UTC (rev 2317)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2009-11-05 19:36:57 UTC (rev 2318)
+@@ -585,7 +585,7 @@
+ 				if (spiderAllFinds) {
+ 					postStr = p.getProp(&quot;firstLine&quot;);
+ 				} else {
+-					postStr = p.getProp(&quot;firstLine&quot;) + &quot;lat=&quot; + origin.getLatDeg(TransformCoordinates.DD) + &quot;&amp;lng=&quot; + origin.getLonDeg(TransformCoordinates.DD)
++					postStr = p.getProp(&quot;firstLine&quot;) + origin.getLatDeg(TransformCoordinates.DD) + p.getProp(&quot;firstLine2&quot;) + origin.getLonDeg(TransformCoordinates.DD)
+ 							                             + p.getProp(&quot;maxDistance&quot;) + Integer.toString( (int)saveDistanceInMiles );
+ 					if(doNotgetFound) postStr = postStr + p.getProp(&quot;showOnlyFound&quot;);
+ 				}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002241.html">[Cachewolf-svn] r2317 - trunk/src/CacheWolf/imp
+</A></li>
+	<LI>Next message: <A HREF="002243.html">[Cachewolf-svn] r2319 - in branches/bugfix_1.0: res_noewe	src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2242">[ date ]</a>
+              <a href="thread.html#2242">[ thread ]</a>
+              <a href="subject.html#2242">[ subject ]</a>
+              <a href="author.html#2242">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

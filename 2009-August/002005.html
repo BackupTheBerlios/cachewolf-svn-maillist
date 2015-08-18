@@ -1,0 +1,225 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2083 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-August/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2083%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200908141706.n7EH67rp031782%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002004.html">
+   <LINK REL="Next"  HREF="002006.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2083 - trunk/src/CacheWolf</H1>
+    <B>greiol at BerliOS</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2083%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200908141706.n7EH67rp031782%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2083 - trunk/src/CacheWolf">greiol at mail.berlios.de
+       </A><BR>
+    <I>Fri Aug 14 19:06:07 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002004.html">[Cachewolf-svn] r2082 - in trunk: res_noewe/webmapservices	src/CacheWolf src/CacheWolf/navi
+</A></li>
+        <LI>Next message: <A HREF="002006.html">[Cachewolf-svn] r2084 - in trunk/src/CacheWolf: . imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2005">[ date ]</a>
+              <a href="thread.html#2005">[ thread ]</a>
+              <a href="subject.html#2005">[ subject ]</a>
+              <a href="author.html#2005">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: greiol
+Date: 2009-08-14 19:05:59 +0200 (Fri, 14 Aug 2009)
+New Revision: 2083
+
+Modified:
+   trunk/src/CacheWolf/DetailsPanel.java
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/Profile.java
+   trunk/src/CacheWolf/myTableModel.java
+Log:
+hopefully fixed the miracle of vanishing addtional waypoints without parents
+
+Modified: trunk/src/CacheWolf/DetailsPanel.java
+===================================================================
+--- trunk/src/CacheWolf/DetailsPanel.java	2009-08-13 23:09:30 UTC (rev 2082)
++++ trunk/src/CacheWolf/DetailsPanel.java	2009-08-14 17:05:59 UTC (rev 2083)
+@@ -420,10 +420,11 @@
+ 	 */
+ 	public void createWptName() {
+ 		String wpt = inpWaypoint.getText().toUpperCase();
+-		if (CacheType.isAddiWpt(CacheType.guiSelect2Cw(chcType.getInt())) &amp;&amp; 
+-				(Global.mainTab.mainCache.startsWith(&quot;GC&quot;) || 
+-					Global.mainTab.mainCache.startsWith(&quot;OC&quot;) || 
+-					Global.mainTab.mainCache.startsWith(&quot;CW&quot;)) 
++		if (CacheType.isAddiWpt(CacheType.guiSelect2Cw(chcType.getInt())) 
++				&amp;&amp; Global.mainTab.mainCache != null 
++				&amp;&amp; (Global.mainTab.mainCache.startsWith(&quot;GC&quot;) 
++						|| Global.mainTab.mainCache.startsWith(&quot;OC&quot;) 
++						|| Global.mainTab.mainCache.startsWith(&quot;CW&quot;)) 
+ 				&amp;&amp; wpt.startsWith(&quot;CW&quot;)) {
+ 			// for what was this?:
+ 			Global.mainTab.lastselected = Global.mainTab.mainCache; // I don't know exactly, but it's needed for creating a series of Addis
+@@ -743,6 +744,7 @@
+ 						.isAddiWpt(oldType)) &amp;&amp; !thisCache.getWayPoint()
+ 						.equals(oldWaypoint))) {
+ 			// If we changed the type to addi, check that a parent exists
++			//FIXME: if cache was renamed we need to rebuild CacheDB.hashDB first
+ 			if (CacheType.isAddiWpt(thisCache.getType())) {
+ 				profile.setAddiRef(thisCache);
+ 			} else {
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2009-08-13 23:09:30 UTC (rev 2082)
++++ trunk/src/CacheWolf/MainTab.java	2009-08-14 17:05:59 UTC (rev 2083)
+@@ -4,9 +4,16 @@
+ import CacheWolf.navi.MapImage;
+ import CacheWolf.navi.MovingMap;
+ import CacheWolf.navi.Navigate;
+-import ewe.sys.Vm;
+-import ewe.ui.*;
+-import ewe.fx.*;
++import ewe.fx.Color;
++import ewe.fx.Image;
++import ewe.fx.mImage;
++import ewe.ui.Card;
++import ewe.ui.Event;
++import ewe.ui.FormBase;
++import ewe.ui.MessageBox;
++import ewe.ui.MultiPanelEvent;
++import ewe.ui.TableEvent;
++import ewe.ui.mTabbedPanel;
+ 
+ /**
+  *	This class creates the tabbed panel and sets the tabs to the respective
+@@ -294,7 +301,11 @@
+ 		if (selectedIndex &gt;= 0) {
+ 			CacheHolder selectedCache = profile.cacheDB.get( selectedIndex );
+ 			if ( selectedCache.isAddiWpt() ) {
+-				mainCache = selectedCache.mainCache.getWayPoint();
++				if (selectedCache.mainCache != null) {
++					mainCache = selectedCache.mainCache.getWayPoint();
++				} else {
++					mainCache = null;
++				}
+ 			}			
+ 		}
+ 		if (CacheType.isAddiWpt(pCh.getType()) &amp;&amp; mainCache!=null &amp;&amp; mainCache.length()&gt;2) {
+@@ -302,10 +313,6 @@
+ 			profile.setAddiRef(pCh);
+ 		} else { 
+ 			pCh.setWayPoint(profile.getNewWayPointName());
+-			pCh.setType(CacheType.CW_TYPE_CUSTOM);
+-			pCh.setHard(CacheTerrDiff.CW_DT_UNSET);
+-			pCh.setTerrain(CacheTerrDiff.CW_DT_UNSET);
+-			pCh.setCacheSize(CacheSize.CW_SIZE_NOTCHOSEN);
+ 			lastselected=pCh.getWayPoint();
+ 		}
+ 		pCh.setCacheSize(CacheSize.CW_SIZE_NOTCHOSEN);
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2009-08-13 23:09:30 UTC (rev 2082)
++++ trunk/src/CacheWolf/Profile.java	2009-08-14 17:05:59 UTC (rev 2083)
+@@ -442,17 +442,21 @@
+ 	public void setAddiRef(CacheHolder ch) {
+ 		String mainwpt = ch.getWayPoint().substring(2);
+ 		int mainindex = getCacheIndex(&quot;GC&quot; + mainwpt);
+-		if (mainindex &lt; 0)
++		if (mainindex &lt; 0 || !cacheDB.get(mainindex).isCacheWpt())
+ 			mainindex = getCacheIndex(&quot;OC&quot; + mainwpt);
+-		if (mainindex &lt; 0)
++		if (mainindex &lt; 0 || !cacheDB.get(mainindex).isCacheWpt())
+ 			mainindex = getCacheIndex(&quot;CW&quot; + mainwpt);
+-		if (mainindex &lt; 0) {
++		if (mainindex &lt; 0 || !cacheDB.get(mainindex).isCacheWpt()) {
+ 			ch.setIncomplete(true);
+ 		} else {
+ 			CacheHolder mainch = cacheDB.get(mainindex);
+-			mainch.addiWpts.add(ch);
+-			ch.mainCache = mainch;
+-			ch.setAttributesFromMainCache();
++			if (mainch.getWayPoint().equals(ch.getWayPoint())) {
++				ch.setIncomplete(true);
++			} else {
++				mainch.addiWpts.add(ch);
++				ch.mainCache = mainch;
++				ch.setAttributesFromMainCache();
++			}
+ 		}
+ 	}
+ 
+
+Modified: trunk/src/CacheWolf/myTableModel.java
+===================================================================
+--- trunk/src/CacheWolf/myTableModel.java	2009-08-13 23:09:30 UTC (rev 2082)
++++ trunk/src/CacheWolf/myTableModel.java	2009-08-14 17:05:59 UTC (rev 2083)
+@@ -1,11 +1,20 @@
+ package CacheWolf;
+ 
+-import ewe.ui.*;
+-import ewe.sys.*;
+-import ewe.util.*;
+-import ewe.fx.*;
++import ewe.fx.Color;
++import ewe.fx.FontMetrics;
++import ewe.fx.IconAndText;
++import ewe.fx.Image;
++import ewe.fx.Point;
++import ewe.fx.mImage;
++import ewe.sys.Convert;
++import ewe.sys.Time;
++import ewe.sys.Vm;
++import ewe.ui.CellConstants;
++import ewe.ui.IKeys;
++import ewe.ui.TableCellAttributes;
++import ewe.ui.TableModel;
++import ewe.util.Vector;
+ 
+-
+ /**
+ *	Table model used to display the cache list.
+ * 	Used by the table control in the first panel of
+@@ -161,6 +170,9 @@
+ 						if (! ch.mainCache.isVisible())
+ 							sortDB.add(ch); // Unfiltered Addi Wpt with filtered Main Wpt, show it on its own
+ 						// else Main cache is not filtered, Addi will be added below main cache further down
++						else
++							//FIXME: is there anything useful we can do about this?
++							Global.getPref().log(&quot;Huston, we have a problem with &quot;+ch.getWayPoint()+&quot; in myTableModel.updateRows()&quot;);
+ 					} else { //Addi without main Cache
+ 						sortDB.add(ch);
+ 					}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002004.html">[Cachewolf-svn] r2082 - in trunk: res_noewe/webmapservices	src/CacheWolf src/CacheWolf/navi
+</A></li>
+	<LI>Next message: <A HREF="002006.html">[Cachewolf-svn] r2084 - in trunk/src/CacheWolf: . imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2005">[ date ]</a>
+              <a href="thread.html#2005">[ thread ]</a>
+              <a href="subject.html#2005">[ subject ]</a>
+              <a href="author.html#2005">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

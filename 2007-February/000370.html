@@ -1,0 +1,340 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r562 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r562%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702112106.l1BL6ULl021640%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000369.html">
+   <LINK REL="Next"  HREF="000371.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r562 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r562%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702112106.l1BL6ULl021640%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r562 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sun Feb 11 22:06:30 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000369.html">[Cachewolf-svn] r561 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000371.html">[Cachewolf-svn] r563 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#370">[ date ]</a>
+              <a href="thread.html#370">[ thread ]</a>
+              <a href="subject.html#370">[ subject ]</a>
+              <a href="author.html#370">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-02-11 22:06:18 +0100 (Sun, 11 Feb 2007)
+New Revision: 562
+
+Removed:
+   trunk/src/CacheWolf/DistComparer.java
+Modified:
+   trunk/src/CacheWolf/CacheHolder.java
+   trunk/src/CacheWolf/MyComparer.java
+   trunk/src/CacheWolf/myTableModel.java
+Log:
+MyComparer: Bugfix Datumssortierung
+DistComparer in MyComparer integriert
+Wesentlich schneller durch Setzen eines Sortierfeldes VOR dem Sortieren
+
+
+Modified: trunk/src/CacheWolf/CacheHolder.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolder.java	2007-02-11 19:34:09 UTC (rev 561)
++++ trunk/src/CacheWolf/CacheHolder.java	2007-02-11 21:06:18 UTC (rev 562)
+@@ -70,6 +70,7 @@
+   public boolean is_Checked = false;
+   public Vector addiWpts = new Vector();
+   public CacheHolder mainCache;
++  public String sort;
+     
+   
+   /**
+
+Deleted: trunk/src/CacheWolf/DistComparer.java
+===================================================================
+--- trunk/src/CacheWolf/DistComparer.java	2007-02-11 19:34:09 UTC (rev 561)
++++ trunk/src/CacheWolf/DistComparer.java	2007-02-11 21:06:18 UTC (rev 562)
+@@ -1,41 +0,0 @@
+-package CacheWolf;
+-import ewe.util.*;
+-import ewe.sys.*;
+-
+-/**
+-*	This class handles sorting of caches according to distance.
+-*	All other sorts are handled by MyComparer.
+-*	@see MyComparer
+-*/
+-public class DistComparer implements Comparer{
+-	Locale l = Vm.getLocale();
+-	
+-	public int compare(Object o1, Object o2){
+-		int ret = 0;
+-		CacheHolder oo1 = (CacheHolder)o1;
+-		CacheHolder oo2 = (CacheHolder)o2;
+-		if(oo1.is_filtered == false &amp;&amp; oo2.is_filtered == false){
+-			String strA = new String();
+-			String strB = new String();
+-			if (oo1.distance.length()&gt;2)strA = oo1.distance.substring(0,oo1.distance.length()-3); //Bugfix 9531 if added
+-			if (oo2.distance.length()&gt;2)strB = oo2.distance.substring(0,oo2.distance.length()-3); //Bugfix 9531 if added
+-			/*
+-			if(l.getString(Locale.LANGUAGE_SHORT ,0,0).equals(&quot;DE&quot;)){
+-				//Vm.debug(strA);
+-				strA = strA.replace(',', '.');
+-				strB = strB.replace(',', '.');
+-			}*/
+-			double A = Common.parseDouble(strA);
+-			double B = Common.parseDouble(strB);
+-			if(A &gt;= B) ret =  -1;
+-			if(A &lt; B) ret =  1;
+-			return ret;
+-		} else {
+-			int retval = 0;
+-			if(oo1.is_filtered == false &amp;&amp; oo2.is_filtered == true) retval = -1;
+-			if(oo1.is_filtered == true &amp;&amp; oo2.is_filtered == false) retval = 1;
+-			
+-			return retval;
+-		}
+-	}
+-}
+
+Modified: trunk/src/CacheWolf/MyComparer.java
+===================================================================
+--- trunk/src/CacheWolf/MyComparer.java	2007-02-11 19:34:09 UTC (rev 561)
++++ trunk/src/CacheWolf/MyComparer.java	2007-02-11 21:06:18 UTC (rev 562)
+@@ -10,93 +10,102 @@
+ */
+ public class MyComparer implements Comparer{
+ 	String compareWhat;
+-	Locale l = Vm.getLocale();
+-	LocalResource lr = l.getLocalResource(&quot;cachewolf.Languages&quot;,true);
+ 	String nmQuest, nmD,nmT,nmWay,nmName,nmLoc,nmOwn,nmHid,nmStat,nmDist,nmBear = new String();
++	int visibleSize;
++	Vector cacheDB;
+ 	
+ 	public MyComparer(String what){
+ 		compareWhat = what;
+ 		nmQuest = &quot;?&quot;;
+-		nmD = (String)lr.get(1000,&quot;D&quot;);
+-		nmT = (String)lr.get(1001,&quot;T&quot;);
+-		nmWay = (String)lr.get(1002,&quot;Waypoint&quot;);
+-		nmName = (String)lr.get(1003,&quot;Name&quot;);
+-		nmLoc = (String)lr.get(1004,&quot;Location&quot;);
+-		nmOwn = (String)lr.get(1005,&quot;Owner&quot;);
+-		nmHid = (String)lr.get(1006,&quot;Hidden&quot;);
+-		nmStat = (String)lr.get(1007,&quot;Status&quot;);
+-		nmDist = (String)lr.get(1008,&quot;Dist&quot;);
+-		nmBear = (String)lr.get(1009,&quot;Bear&quot;);
++		nmD = MyLocale.getMsg(1000,&quot;D&quot;);
++		nmT = MyLocale.getMsg(1001,&quot;T&quot;);
++		nmWay = MyLocale.getMsg(1002,&quot;Waypoint&quot;);
++		nmName = MyLocale.getMsg(1003,&quot;Name&quot;);
++		nmLoc = MyLocale.getMsg(1004,&quot;Location&quot;);
++		nmOwn = MyLocale.getMsg(1005,&quot;Owner&quot;);
++		nmHid = MyLocale.getMsg(1006,&quot;Hidden&quot;);
++		nmStat = MyLocale.getMsg(1007,&quot;Status&quot;);
++		nmDist = MyLocale.getMsg(1008,&quot;Dist&quot;);
++		nmBear = MyLocale.getMsg(1009,&quot;Bear&quot;);
++		visibleSize=Global.mainTab.tbP.myMod.numRows;
++		cacheDB=Global.getProfile().cacheDB;
++		if (visibleSize&lt;2) return;
++		if (what.equals(nmQuest)) {
++			for (int i=0; i&lt;visibleSize; i++) {
++				CacheHolder ch=(CacheHolder) cacheDB.get(i);
++				ch.sort=ch.type;
++			}
++		} else if (what.equals(nmD)) {
++			for (int i=0; i&lt;visibleSize; i++) {
++				CacheHolder ch=(CacheHolder) cacheDB.get(i);
++				ch.sort=ch.hard;
++			}
++		} else if (what.equals(nmT)) {
++			for (int i=0; i&lt;visibleSize; i++) {
++				CacheHolder ch=(CacheHolder) cacheDB.get(i);
++				ch.sort=ch.terrain;
++			}
++		} else if (what.equals(nmWay)) {
++			for (int i=0; i&lt;visibleSize; i++) {
++				CacheHolder ch=(CacheHolder) cacheDB.get(i);
++				ch.sort=ch.wayPoint;
++			}
++		} else if (what.equals(nmName)) {
++			for (int i=0; i&lt;visibleSize; i++) {
++				CacheHolder ch=(CacheHolder) cacheDB.get(i);
++				ch.sort=ch.CacheName;
++			}
++		} else if (what.equals(nmLoc)) {
++			for (int i=0; i&lt;visibleSize; i++) {
++				CacheHolder ch=(CacheHolder) cacheDB.get(i);
++				ch.sort=ch.LatLon;
++			}
++		} else if (what.equals(nmOwn)) {
++			for (int i=0; i&lt;visibleSize; i++) {
++				CacheHolder ch=(CacheHolder) cacheDB.get(i);
++				ch.sort=ch.CacheOwner;
++			}
++		} else if (what.equals(nmHid)) {
++			for (int i=0; i&lt;visibleSize; i++) {
++				CacheHolder ch=(CacheHolder) cacheDB.get(i);
++				// Dates are in format M/D/Y
++				int p1,p2=-1;
++				p1=ch.DateHidden.indexOf(&quot;/&quot;);
++				if (p1&gt;0) p2=ch.DateHidden.indexOf(&quot;/&quot;,p1+1);
++				if (p1&gt;0 &amp;&amp; p2&gt;0) {
++					ch.sort=ch.DateHidden.substring(p2+1)+
++					        (p1==1?&quot;0&quot;:&quot;&quot;)+ch.DateHidden.substring(0,p1)+
++					        (p1+2==p2?&quot;0&quot;:&quot;&quot;)+ch.DateHidden.substring(p1+1,p2);
++				} else
++					ch.sort=&quot;&quot;;
++			}
++		} else if (what.equals(nmStat)) {
++			for (int i=0; i&lt;visibleSize; i++) {
++				CacheHolder ch=(CacheHolder) cacheDB.get(i);
++				ch.sort=ch.CacheStatus;
++			}
++		} else if (what.equals(nmDist)) {
++			for (int i=0; i&lt;visibleSize; i++) {
++				CacheHolder ch=(CacheHolder) cacheDB.get(i);
++				int p=ch.distance.indexOf(&quot;,&quot;);
++				if (p&lt;0) p=ch.distance.indexOf(&quot;.&quot;);
++				if (p&gt;=0 &amp;&amp; p&lt;=5)
++					ch.sort=&quot;00000&quot;.substring(0,5-p)+ch.distance;
++				else
++					ch.sort=ch.distance;
++			}
++		} else if (what.equals(nmBear)) {
++			for (int i=0; i&lt;visibleSize; i++) {
++				CacheHolder ch=(CacheHolder) cacheDB.get(i);
++				ch.sort=ch.bearing;
++			}
++			
++		}
+ 	}
+ 	
+ 	public int compare(Object o1, Object o2){
+ 		CacheHolder oo1 = (CacheHolder)o1;
+ 		CacheHolder oo2 = (CacheHolder)o2;
+-		if(oo1.is_filtered == false &amp;&amp; oo2.is_filtered == false){
+-			String str01 = new String();
+-			String str02 = new String();
+-			try{
+-				if(compareWhat.equals(nmQuest)){
+-					str01 = oo1.type;
+-					str02 = oo2.type;
+-				}
+-				if(compareWhat.equals(nmD)){
+-					str01 = oo1.hard;
+-					str02 = oo2.hard;
+-				}
+-				if(compareWhat.equals(nmT)){
+-					str01 = oo1.terrain;
+-					str02 = oo2.terrain;
+-				}
+-				if(compareWhat.equals(nmWay)){
+-					str01 = oo1.wayPoint;
+-					str02 = oo2.wayPoint;
+-				}
+-				if(compareWhat.equals(nmName)){
+-					str01 = oo1.CacheName;
+-					str02 = oo2.CacheName;
+-				}
+-				if(compareWhat.equals(nmLoc)){
+-					str01 = oo1.LatLon;
+-					str02 = oo2.LatLon;
+-				}
+-				if(compareWhat.equals(nmOwn)){
+-					str01 = oo1.CacheOwner;
+-					str02 = oo2.CacheOwner;
+-				}
+-				if(compareWhat.equals(nmHid)){
+-					if (oo1.DateHidden.length() &gt; 9) {
+-						str01 = oo1.DateHidden.substring(6,10);   // year
+-						str01 += oo1.DateHidden.substring(0,2);   // month
+-						str01 += oo1.DateHidden.substring(3,5); } // day 
+-					if (oo2.DateHidden.length() &gt; 9) {
+-						str02 = oo2.DateHidden.substring(6,10);   // year
+-						str02 += oo2.DateHidden.substring(0,2);   // month
+-						str02 += oo2.DateHidden.substring(3,5); } // day
+-				}
+-				if(compareWhat.equals(nmStat)){
+-					str01 = oo1.CacheStatus;
+-					str02 = oo2.CacheStatus;
+-				}
+-				if(compareWhat.equals(nmBear)){
+-					str01 = oo1.bearing;
+-					str02 = oo2.bearing;
+-				}
+-				if(compareWhat.equals(&quot;filter&quot;)){
+-					str01 = Convert.toString(oo1.is_filtered);
+-					str02 = Convert.toString(oo2.is_filtered);
+-				}
+-				return str01.toLowerCase().compareTo(str02.toLowerCase());
+-			} catch (IndexOutOfBoundsException e ) { // sollte eigentlich nicht vorkommen k&#246;nnte auftreten von substring
+-				return str01.toLowerCase().compareTo(str02.toLowerCase());
+-			}
+-
+-		} else{
+-			int retval = 0;
+-			if(oo1.is_filtered == false &amp;&amp; oo2.is_filtered == true) retval = -1;
+-			if(oo1.is_filtered == true &amp;&amp; oo2.is_filtered == false) retval = 1;
+-
+-			return retval;
+-		}
++		return oo1.sort.compareTo(oo2.sort);
+ 	}
+ }
+
+Modified: trunk/src/CacheWolf/myTableModel.java
+===================================================================
+--- trunk/src/CacheWolf/myTableModel.java	2007-02-11 19:34:09 UTC (rev 561)
++++ trunk/src/CacheWolf/myTableModel.java	2007-02-11 21:06:18 UTC (rev 562)
+@@ -289,10 +289,7 @@
+ 				Vm.showWait(true);
+ 				Point a = tcControl.getSelectedCell(null);
+ 				if(a != null) ch = (CacheHolder)cacheDB.get(a.y);
+-				if(colID[cell.x]!=10)
+-					cacheDB.sort(new MyComparer(colName[cell.x]), sortAsc);
+-				else // Distance sort
+-					cacheDB.sort(new DistComparer(), sortAsc);
++				cacheDB.sort(new MyComparer(colName[cell.x]), sortAsc);
+ 				updateRows();
+ 				if(a != null){
+ 					int rownum = Global.getProfile().getCacheIndex(ch.wayPoint);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000369.html">[Cachewolf-svn] r561 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000371.html">[Cachewolf-svn] r563 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#370">[ date ]</a>
+              <a href="thread.html#370">[ thread ]</a>
+              <a href="subject.html#370">[ subject ]</a>
+              <a href="author.html#370">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

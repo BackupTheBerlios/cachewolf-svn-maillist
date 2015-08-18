@@ -1,0 +1,605 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r451 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r451%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701250016.l0P0GcvX000885%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000218.html">
+   <LINK REL="Next"  HREF="000220.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r451 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r451%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701250016.l0P0GcvX000885%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r451 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Thu Jan 25 01:16:38 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000218.html">[Cachewolf-svn] r450 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000220.html">[Cachewolf-svn] r452 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#219">[ date ]</a>
+              <a href="thread.html#219">[ thread ]</a>
+              <a href="subject.html#219">[ subject ]</a>
+              <a href="author.html#219">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-01-25 01:16:35 +0100 (Thu, 25 Jan 2007)
+New Revision: 451
+
+Added:
+   trunk/src/CacheWolf/MapsList.java
+Modified:
+   trunk/src/CacheWolf/MapInfoObject.java
+   trunk/src/CacheWolf/MovingMap.java
+Log:
+MovingMap: es gab eine NullpointerException bei rechtsklick auf der Goto-Position
+MovingMap / Karten download: Vorbereitung f?\195?\188r besseren automatischen Kartenwechsel und Vorbereitung daf?\195?\188r, dass nur Karten gedowmnloaded werden, die in dem Ma?\195?\159stab noch nicht existieren
+
+Modified: trunk/src/CacheWolf/MapInfoObject.java
+===================================================================
+--- trunk/src/CacheWolf/MapInfoObject.java	2007-01-24 04:09:48 UTC (rev 450)
++++ trunk/src/CacheWolf/MapInfoObject.java	2007-01-25 00:16:35 UTC (rev 451)
+@@ -30,7 +30,8 @@
+ 	public double transLatX, transLatY, transLonX, transLonY; // this are needed for the inervers calculation from lat/lon to x/y
+ 	public CWPoint center = new CWPoint();
+ 	public float sizeKm = 0; // diagonale
+-	public float zoomFactor = 1;
++	public float scaleX; // in meters per pixel in horizontal direction
++	public float zoomFactor = 1; // if the image is zoomed, direct after laoding always 1
+ 	public Point shift = new Point (0,0);
+ 	public CWPoint OrigUpperLeft; // this is only valid after zooming 
+ 	public float rotationRad; // contains the rotation of the map == north direction in rad
+@@ -158,25 +159,27 @@
+ 	 */
+ 
+ 	private void doCalculations() throws ArithmeticException {
+-		center.set((lowlat + affine[4])/2,(lowlon + affine[5])/2);
+-		sizeKm = java.lang.Math.abs((float)center.getDistance(lowlat, lowlon)) *2;
++		try {
++			center.set((lowlat + affine[4])/2,(lowlon + affine[5])/2);
++			sizeKm = java.lang.Math.abs((float)center.getDistance(lowlat, lowlon)) *2;
+ 
+-		//calculate reverse affine
+-		double nenner=(-affine[1]*affine[2]+affine[0]*affine[3]);
+-		transLatX = affine[3]/nenner; // nenner == 0 cannot happen as long als affine is correct
+-		transLonX = -affine[2]/nenner;
+-		transLatY = -affine[1]/nenner;
+-		transLonY = affine[0]/nenner;
++			//calculate reverse affine
++			double nenner=(-affine[1]*affine[2]+affine[0]*affine[3]);
++			transLatX = affine[3]/nenner; // nenner == 0 cannot happen as long als affine is correct
++			transLonX = -affine[2]/nenner;
++			transLatY = -affine[1]/nenner;
++			transLonY = affine[0]/nenner;
+ 
+-		// calculate north direction
+-		float scaleX = 1/(float)java.lang.Math.sqrt(java.lang.Math.pow(transLonX,2)+java.lang.Math.pow(transLonY,2));
+-		//	float scaleY = 1/(float)java.lang.Math.sqrt(java.lang.Math.pow(transLatX,2)+java.lang.Math.pow(transLatY,2));
+-		float rotationX2x=(float)transLonX*scaleX;
+-		float rotationX2y=(float)transLonY*scaleX;
+-		//rotationY2y=-(float)transLatY*scaleY; // lat -&gt; y = -, y -&gt; y = +
+-		//rotationY2x=-(float)transLatX*scaleY; // uncomment an make it a field of MapInfoObject if you need translation from x to x rotated
+-		rotationRad = (float)java.lang.Math.atan(rotationX2y);
+-		if (rotationX2x &lt; 0) rotationRad = (float)java.lang.Math.PI - rotationRad; 
++			// calculate north direction
++			scaleX = 1/(float)java.lang.Math.sqrt(java.lang.Math.pow(transLonX,2)+java.lang.Math.pow(transLonY,2));
++			//	float scaleY = 1/(float)java.lang.Math.sqrt(java.lang.Math.pow(transLatX,2)+java.lang.Math.pow(transLatY,2));
++			float rotationX2x=(float)transLonX*scaleX;
++			float rotationX2y=(float)transLonY*scaleX;
++			//rotationY2y=-(float)transLatY*scaleY; // lat -&gt; y = -, y -&gt; y = +
++			//rotationY2x=-(float)transLatX*scaleY; // uncomment an make it a field of MapInfoObject if you need translation from x to x rotated
++			rotationRad = (float)java.lang.Math.atan(rotationX2y);
++			if (rotationX2x &lt; 0) rotationRad = (float)java.lang.Math.PI - rotationRad;
++		} catch (ArithmeticException ex) { throw new ArithmeticException(&quot;Not allowed values in affine\n (matrix cannot be inverted)\n in file \n&quot; + fileNameWFL); }
+ 	}
+ 
+ 
+
+Added: trunk/src/CacheWolf/MapsList.java
+===================================================================
+--- trunk/src/CacheWolf/MapsList.java	2007-01-24 04:09:48 UTC (rev 450)
++++ trunk/src/CacheWolf/MapsList.java	2007-01-25 00:16:35 UTC (rev 451)
+@@ -0,0 +1,116 @@
++package CacheWolf;
++
++import ewe.io.File;
++import ewe.io.IOException;
++import ewe.ui.MessageBox;
++import ewe.util.Vector;
++/**
++ * class to handle a list of maps
++ * it loads the list, finds the best map for a given location
++ * says if a map is available for a given lat lon at a given scale
++ * @author r
++ *
++ */
++public class MapsList extends Vector {
++
++	/**
++	 * loads alle the maps in mapsPath in all subDirs but not recursive, only one level 
++	 * @param mapsPath
++	 */
++
++	public MapsList(String mapsPath) {
++		super(); // forget already loaded maps
++		//if (mmp.mapImage != null) 
++		String dateien[];
++		File files = new File(mapsPath);
++		String rawFileName = new String();
++		String[] dirstmp = files.list(&quot;*.wfl&quot;, File.LIST_ALWAYS_INCLUDE_DIRECTORIES | File.LIST_DIRECTORIES_ONLY);
++		Vector dirs;
++		if (dirstmp != null) dirs = new Vector(dirstmp);
++		else dirs = new Vector();
++		dirs.add(&quot;.&quot;); // include the mapsPath itself
++		MapInfoObject tempMIO;
++		MessageBox f = null;
++		for (int j = dirs.size()-1; j &gt;= 0; j--) {
++			files = new File(mapsPath+&quot;/&quot;+dirs.get(j));
++			dateien = files.list(&quot;*.wfl&quot;, File.LIST_FILES_ONLY);
++			for(int i = 0; i &lt; dateien.length;i++){
++				rawFileName = dateien[i].substring(0, dateien[i].lastIndexOf(&quot;.&quot;));
++				try {
++					tempMIO = new MapInfoObject();
++					tempMIO.loadwfl(mapsPath+&quot;/&quot;+dirs.get(j)+&quot;/&quot;, rawFileName);
++					add(tempMIO);
++				}catch(IOException ex){ 
++					if (f == null) (f=new MessageBox(&quot;Warning&quot;, &quot;Ignoring error while \n reading calibration file \n&quot;+ex.toString(), MessageBox.OKB)).exec();
++				}catch(ArithmeticException ex){ // affine contain not allowed values 
++					if (f == null) (f=new MessageBox(&quot;Warning&quot;, &quot;Ignoring error while \n reading calibration file \n&quot;+ex.toString(), MessageBox.OKB)).exec();
++				} 
++			}
++		}
++	}
++
++	public void addEmptyMaps(double lat) {
++		MapInfoObject tempMIO;
++		tempMIO = new MapInfoObject(1.0, lat);
++		add(tempMIO);
++		tempMIO = new MapInfoObject(5.0, lat);
++		add(tempMIO);
++		tempMIO = new MapInfoObject(50.0, lat);
++		add(tempMIO);
++		tempMIO = new MapInfoObject(250.0, lat);
++		add(tempMIO);
++		tempMIO = new MapInfoObject(1000.0, lat);
++		add(tempMIO);
++	}
++
++	/**
++	 * find the best map for lat/lon in the list of maps
++	 * currently the best map is the one, whose center is nearest to
++	 * it always return a map (if the list is not empty) 
++	 * even if the map is not inbound
++	 * lat/lon
++	 * @param lat
++	 * @param lon
++	 * @return
++	 */
++public MapInfoObject getBestMap(double lat, double lon) {
++		if (size() == 0) return null;
++		MapInfoObject mi;
++		MapInfoObject bestMap = (MapInfoObject)get(0);
++		double minDistLat = 1000000000000000000000000000000000000000000000.0;
++		double minDistLon = 1000000000000000000000000000000000000000000000.0;
++		boolean latNearer, lonNearer;
++		int minDistMap = -1; // return this value if you are interested in the number of the map
++		boolean better = false;
++		for (int i=0; i &lt; size() ;i++) {
++			better = false;
++			mi = (MapInfoObject)get(i);
++			latNearer = java.lang.Math.abs(lat - mi.center.latDec)/mi.sizeKm &lt; minDistLat ;
++			lonNearer = java.lang.Math.abs(lon - mi.center.lonDec)/mi.sizeKm &lt; minDistLon;
++			if ( latNearer &amp;&amp; lonNearer) better = true; // for faster processing: if lat and lon are nearer then the distancance doesn't need to be calculated
++			if ( !better &amp;&amp; (latNearer || lonNearer )) { 
++				if ( mi.center.getDistanceRad(lat, lon) &lt; bestMap.center.getDistanceRad(lat, lon) ) better = true;
++			}
++			if (better) {
++				minDistLat = java.lang.Math.abs(lat - mi.center.latDec)/mi.sizeKm;
++				minDistLon = java.lang.Math.abs(lon - mi.center.lonDec)/mi.sizeKm;
++				minDistMap = i;
++				bestMap = mi;
++				// Vm.debug(&quot;better&quot;+ i);
++			}
++		}
++		return bestMap; // return minDistMap
++	}
++
++	public MapInfoObject getMapForRect(CWPoint topleft, CWPoint bottomright){
++		MapInfoObject mi;
++		MapInfoObject fittingmap = null;
++		for (int i=0; i &lt; size() ;i++) {
++			mi = (MapInfoObject)get(i);
++			if (mi.inBound(topleft) &amp;&amp; mi.inBound(bottomright)) {
++				if (fittingmap == null || fittingmap.scaleX &gt; mi.scaleX) fittingmap = mi;
++			}
++		} // for
++		return fittingmap;
++	}
++}
+
+Modified: trunk/src/CacheWolf/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/MovingMap.java	2007-01-24 04:09:48 UTC (rev 450)
++++ trunk/src/CacheWolf/MovingMap.java	2007-01-25 00:16:35 UTC (rev 451)
+@@ -23,7 +23,7 @@
+ 	public int GpsStatus;
+ 	Preferences pref;
+ 	MovingMapPanel mmp;
+-	Vector maps;
++	MapsList maps;
+ 	Vector symbols;
+ 	GotoPanel gotoPanel;
+ 	Vector cacheDB;
+@@ -130,62 +130,25 @@
+ 		if (posCircle != null) posCircle.move(posCircle.locAlways.x, posCircle.locAlways.y); // this is necessary to make a new decision if it is still on the screen (and actually mor important because MapImage only now gets to know the screen size) 
+ 		if (tracks != null) addOverlaySet();
+ 	}
+-	
++
+ 	/**
+ 	 * loads the list of maps
+ 	 *
+ 	 */
+ 	public void loadMaps(String mapsPath, double lat){
+ 		this.mapPath = mapsPath;
+-		Vm.showWait(true);
++		Vm.showWait(this, true);
+ 		resetCenterOfMap();
+ 		InfoBox inf = new InfoBox(&quot;Info&quot;, &quot;Loading list of maps...&quot;);
+ 		inf.exec();
+-		maps = new Vector(); // forget already loaded maps
+-		//if (mmp.mapImage != null) 
+-		String dateien[];
+-		File files = new File(mapsPath);
+-		String rawFileName = new String();
+-		String[] dirstmp = files.list(&quot;*.wfl&quot;, File.LIST_ALWAYS_INCLUDE_DIRECTORIES | File.LIST_DIRECTORIES_ONLY);
+-		Vector dirs;
+-		if (dirstmp != null) dirs = new Vector(dirstmp);
+-		else dirs = new Vector();
+-		dirs.add(&quot;.&quot;); // include the mapsPath itself
+-		MapInfoObject tempMIO;
+-		MessageBox f = null;
+-		for (int j = dirs.size()-1; j &gt;= 0; j--) {
+-			files = new File(mapsPath+&quot;/&quot;+dirs.get(j));
+-			dateien = files.list(&quot;*.wfl&quot;, File.LIST_FILES_ONLY);
+-			for(int i = 0; i &lt; dateien.length;i++){
+-				rawFileName = dateien[i].substring(0, dateien[i].lastIndexOf(&quot;.&quot;));
+-				try {
+-					tempMIO = new MapInfoObject();
+-					tempMIO.loadwfl(mapsPath+&quot;/&quot;+dirs.get(j)+&quot;/&quot;, rawFileName);
+-					maps.add(tempMIO);
+-				}catch(IOException ex){ 
+-					if (f == null) (f=new MessageBox(&quot;Warning&quot;, &quot;Ignoring error while \n reading calibration file \n&quot;+ex.toString(), MessageBox.OKB)).exec();
+-				}catch(ArithmeticException ex){ // affine contain not allowed values 
+-					if (f == null) (f=new MessageBox(&quot;Warning&quot;, &quot;Ignoring error while \n reading calibration file \n&quot;+mapsPath+dirs.get(j)+&quot;/&quot; + rawFileName+&quot;.wfl \n&quot;+ex.toString(), MessageBox.OKB)).exec();
+-				} 
+-			}
+-		}
+-		if (maps.isEmpty())
+-		{
++		maps = new MapsList(mapsPath);
++		if (maps.isEmpty()) {
+ 			(new MessageBox(MyLocale.getMsg(327, &quot;Information&quot;), MyLocale.getMsg(326, &quot;Es steht keine kalibrierte Karte zur Verf&#252;gung&quot;), MessageBox.OKB)).execute();
+ 			noMapsAvailable = true;
+ 		} else noMapsAvailable = false;
+-		tempMIO = new MapInfoObject(1.0, lat);
+-		maps.add(tempMIO);
+-		tempMIO = new MapInfoObject(5.0, lat);
+-		maps.add(tempMIO);
+-		tempMIO = new MapInfoObject(50.0, lat);
+-		maps.add(tempMIO);
+-		tempMIO = new MapInfoObject(250.0, lat);
+-		maps.add(tempMIO);
+-		tempMIO = new MapInfoObject(1000.0, lat);
+-		maps.add(tempMIO);
++		maps.addEmptyMaps(lat);
+ 		inf.close(0);
+-		Vm.showWait(false);
++		Vm.showWait(this, false);
+ 		this.mapsloaded = true;
+ 	}
+ 
+@@ -209,7 +172,7 @@
+ 		DistanceImageGraphics.drawImage(DistanceImage.image,null,Color.DarkBlue,0,0,DistanceImage.location.width,DistanceImage.location.height); // changing the mask forces graphics to copy from image._awtImage to image.bufferedImage, which is displayed 
+ 		DistanceImageGraphics.drawImage(DistanceImage.image,null,Color.White,0,0,DistanceImage.location.width,DistanceImage.location.height); // these 2 commands are necessary because of a bug or near to a bug in the ewe-vm
+ 	}
+-	
++
+ 	public void forceMapLoad() {
+ 		forceMapLoad = true;
+ 		updatePosition(lastUpatePosition.latDec, lastUpatePosition.lonDec); // this sets forceMapLoad to false after loading a map
+@@ -495,45 +458,6 @@
+ 	}
+ 
+ 	/**
+-	 * find the best map for lat/lon in the list of maps
+-	 * currently the best map is the one, whose center is nearest to
+-	 * lat/lon
+-	 * @param lat
+-	 * @param lon
+-	 * @return
+-	 */
+-	private int getBestMap(double lat, double lon) { // finds the map which is next (center of the map) to the gps-position / could be a good idea to seachr only maps which show the current position (use InBound)
+-		// maps, gotoPanel.gpsPosition.latDec != 0, gotoPanel.gpsPosition
+-		MapInfoObject mi = new MapInfoObject();
+-		MapInfoObject bestMap = new MapInfoObject();
+-		double minDistLat = 1000000000000000000000000000000000000000000000.0;
+-		double minDistLon = 1000000000000000000000000000000000000000000000.0;
+-		boolean latNearer, lonNearer;
+-		int minDistMap = -1;
+-		boolean better = false;
+-		for (int i=0; i&lt;maps.size() ;i++) {
+-			better = false;
+-			mi=(MapInfoObject)maps.get(i);
+-			latNearer=java.lang.Math.abs(lat - mi.center.latDec)/mi.sizeKm &lt; minDistLat ;
+-			lonNearer=java.lang.Math.abs(lon - mi.center.lonDec)/mi.sizeKm &lt; minDistLon;
+-			if ( latNearer &amp;&amp; lonNearer) better = true;
+-			if ( !better &amp;&amp; (latNearer || lonNearer )) { 
+-				if ( mi.center.getDistanceRad(lat, lon) &lt; bestMap.center.getDistanceRad(lat, lon) ) better = true;
+-			}
+-			if (better) {
+-				minDistLat = java.lang.Math.abs(lat - mi.center.latDec)/mi.sizeKm;
+-				minDistLon = java.lang.Math.abs(lon - mi.center.lonDec)/mi.sizeKm;
+-				minDistMap = i;
+-				bestMap = mi;
+-				// Vm.debug(&quot;better&quot;+ i);
+-			}
+-		}
+-		//	tmp = secBestMap.center.getDistance(gotoPanel.gpsPosition.latDec, gotoPanel.gpsPosition.lonDec)/secBestMap.sizeKm; // quasi second return value 
+-		return minDistMap ;
+-	}
+-
+-
+-	/**
+ 	 * move posCircle to the Center of the Screen
+ 	 *
+ 	 */
+@@ -761,16 +685,14 @@
+ 			}
+ 		}
+ 	}
+-	
++
+ 	public void setBestMap(double lat, double lon) {
+-		int newMapN=getBestMap(lat, lon); // this is independet of the Position of the PosCircle on the windows -&gt; may be it would be better to call it with the coos of the center of the window?, nein, es k&#246;nnte st&#246;ren, wenn man manuell die Karte bewegt und er st&#228;ndig ne neue l&#228;d... bleibt erstmal so
+-		MapInfoObject newmap ;
+-		newmap = (MapInfoObject) maps.get(newMapN);
++		MapInfoObject newmap = maps.getBestMap(lat, lon); 
+ 		if (currentMap == null || currentMap.mapName != newmap.mapName) {
+ 			setMap(newmap, lat, lon);
+ 			Vm.debug(&quot;better map found&quot;);
+ 		}
+-		
++
+ 	}
+ 
+ 	public void setGpsStatus (int status) {
+@@ -900,7 +822,7 @@
+ 	public void showMap() {
+ 		if (mmp != null &amp;&amp; mmp.mapImage != null)
+ 		{ mmp.mapImage.unhide();
+-		  mmp.mapImage.move(mmp.mapImage.locAlways.x, mmp.mapImage.locAlways.y); 
++		mmp.mapImage.move(mmp.mapImage.locAlways.x, mmp.mapImage.locAlways.y); 
+ 		}
+ 		mapHidden = false;
+ 		repaintNow();
+@@ -1025,14 +947,14 @@
+ 		ignoreGps = savegpsstatus;
+ 	}
+ 
+-/*	public void gotFocus(int how) {
++	/*	public void gotFocus(int how) {
+ 		super.gotFocus(how);
+ 		Dimension ws = getSize(null);
+ 		onWindowResize(ws.width, ws.height);
+ 		Vm.debug(ws.width + &quot; h: &quot;+ws.height);
+ 		this.setPreferredSize(width, height)
+ 	}
+-*/
++	 */
+ 	public void onEvent(Event ev){
+ 		if(ev instanceof FormEvent &amp;&amp; (ev.type == FormEvent.CLOSED )){
+ 			gotoPanel.runMovingMap = false;
+@@ -1161,7 +1083,7 @@
+ 		if (mapImage!= null) {
+ 			p = mapImage.locAlways;
+ 			mapImage.move(p.x+diffX,p.y+diffY);
+-	//		if (mm.mapHidden) mapImage.properties |= AniImage.IsInvisible; // this is neccesarry because move will unhide the map if the coos show that the map is on the screen
++			//		if (mm.mapHidden) mapImage.properties |= AniImage.IsInvisible; // this is neccesarry because move will unhide the map if the coos show that the map is on the screen
+ 		}
+ 		mapMoved(diffX, diffY);
+ 	}
+@@ -1257,7 +1179,7 @@
+ 			AniImage clickedOnImage = images.findHotImage(p);
+ 			if (clickedOnImage != null &amp;&amp; clickedOnImage instanceof MapSymbol) {
+ 				clickedCache = ((CacheHolder)((MapSymbol)clickedOnImage).mapObject);
+-				openCacheDescMenuItem = new MenuItem(&quot;Open '&quot;+clickedCache.CacheName+&quot;'$o&quot;);
++				if (clickedCache != null) openCacheDescMenuItem = new MenuItem(&quot;Open '&quot;+clickedCache.CacheName+&quot;'$o&quot;); // clickedCache == null can happen if clicked on the goto-symbol
+ 				kontextMenu.addItem(openCacheDescMenuItem);
+ 			}
+ 			kontextMenu.exec(this, new Point(p.x, p.y), this);
+@@ -1331,9 +1253,9 @@
+ 						CacheHolder newWP = new CacheHolder();
+ 						newWP.pos = mm.ScreenXY2LatLon(saveMapLoc.x, saveMapLoc.y);
+ 						mm.gotoPanel.mainT.detP.newWaypoint(newWP, mm.gotoPanel.mainT);
+-						
++
+ 					}
+-					
++
+ 				}
+ 			} // if (ev.target == kontextMenu)
+ 		} // if (ev instanceof ControlEvent ) 
+@@ -1427,6 +1349,7 @@
+ 		okButton = new mButton(&quot;Select&quot;);
+ 		okButton.setHotKey(0, KeyEvent.getActionKey(true));
+ 		this.addLast(okButton,CellConstants.STRETCH, CellConstants.FILL);
++		okButton.takeFocus(0);
+ 	}
+ 	private boolean mapIsInList(int mapNr){ // it is not used  anymore could be deleted
+ 		String testitem = new String();
+@@ -1442,6 +1365,27 @@
+ 		return false;
+ 	}
+ 
++	public void mapSelected() {
++		try { 
++			selectedMap = null;
++			int mapNum = 0;
++			String it = new String();
++			it = list.getText();
++			if (it != &quot;&quot;){
++				it = it.substring(0,it.indexOf(':'));
++				mapNum = Convert.toInt(it);
++				//	Vm.debug(&quot;Kartennummer: &quot; + mapNum);
++				selectedMap = (MapInfoObject)maps.get(mapNum);
++				selected = true;
++				this.close(FormBase.IDOK);
++			}
++			else {
++				selected = false;
++				this.close(FormBase.IDCANCEL);
++			}
++		}catch (NegativeArraySizeException e) {} // happens in substring when a dividing line selected 
++	}
++
+ 	public void onEvent(Event ev){
+ 		if(ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.PRESSED){
+ 			if (ev.target == cancelButton){
+@@ -1449,29 +1393,16 @@
+ 				selected = false;
+ 				this.close(FormBase.IDCANCEL);
+ 			}
+-			if (ev.target == okButton){
+-				try {
+-					selectedMap = null;
+-					int mapNum = 0;
+-					String it = new String();
+-					it = list.getText();
+-					if (it != &quot;&quot;){
+-						it = it.substring(0,it.indexOf(':'));
+-						mapNum = Convert.toInt(it);
+-						//	Vm.debug(&quot;Kartennummer: &quot; + mapNum);
+-						selectedMap = (MapInfoObject)maps.get(mapNum);
+-						selected = true;
+-						this.close(FormBase.IDOK);
+-					}
+-					else {
+-						selected = false;
+-						this.close(FormBase.IDCANCEL);
+-					}
+-				}catch (NegativeArraySizeException e) {} // happens in substring when a dividing line selected 
++			if (ev.target == okButton || ev.target == list){ // ev.target == list is posted by mList if a selection was double clicked
++				mapSelected();
+ 			}
+ 		}
+ 		super.onEvent(ev);
+ 	}
++	
++	public void  penDoubleClicked(Point where) {
++		mapSelected();
++	}
+ }
+ 
+ class MapSymbol extends AniImage {
+@@ -1619,32 +1550,32 @@
+ 		widthi = getWidth();
+ 		heighti = getHeight();
+ 	}
+-	
++
+ 	public MapImage(String f) {
+ 		super(f);
+ 		widthi = getWidth(); // this is necessary becaus width is not directly accessable from here and an function call each time the pos ist updated shall be avoided becaus of performance reasons
+ 		heighti = getHeight();
+ 		if (screenDim == null) screenDim = new Dimension(0,0);
+ 	}
+-	
++
+ 	public MapImage(mImage im) {
+ 		super(im);
+ 		widthi = getWidth();
+ 		heighti = getHeight();
+ 		if (screenDim == null) screenDim = new Dimension(0,0);
+ 	}
+-	
++
+ 	public static void setScreenSize(int w, int h) {
+ 		screenDim = new Dimension(w, h);
+ 	}
+-	
++
+ 	public void setImage(Image im, Color c) {
+ 		super.setImage(im, c);
+ 		widthi = getWidth();
+ 		heighti = getHeight();
+ 		if (screenDim == null) screenDim = new Dimension(0,0);
+ 	}
+-	
++
+ 	public void setLocation (int x, int y) {
+ 		locAlways.x = x;
+ 		locAlways.y = y;
+@@ -1656,7 +1587,7 @@
+ 			super.move(0, 0);
+ 		}
+ 	}
+-	
++
+ 	public void move (int x, int y) {
+ 		locAlways.x = x;
+ 		locAlways.y = y;
+@@ -1668,13 +1599,13 @@
+ 			super.move(0, 0);
+ 		}
+ 	}
+-		
++
+ 	public boolean isOnScreen() { 
+ 		if ( (locAlways.x + widthi &gt; 0 &amp;&amp; locAlways.x &lt; screenDim.width) &amp;&amp; 
+ 				(locAlways.y + heighti &gt; 0 &amp;&amp; locAlways.y &lt; screenDim.height) ) return true;
+ 		else return false;
+ 	}
+-	
++
+ 	public void hide() {
+ 		hidden = true;
+ 		properties |= AniImage.IsInvisible;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000218.html">[Cachewolf-svn] r450 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000220.html">[Cachewolf-svn] r452 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#219">[ date ]</a>
+              <a href="thread.html#219">[ thread ]</a>
+              <a href="subject.html#219">[ subject ]</a>
+              <a href="author.html#219">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,287 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1958 - trunk/src/CacheWolf/navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-June/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1958%20-%20trunk/src/CacheWolf/navi&In-Reply-To=%3C200906280953.n5S9rqaV011422%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001876.html">
+   <LINK REL="Next"  HREF="001878.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1958 - trunk/src/CacheWolf/navi</H1>
+    <B>jennergruhle at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1958%20-%20trunk/src/CacheWolf/navi&In-Reply-To=%3C200906280953.n5S9rqaV011422%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1958 - trunk/src/CacheWolf/navi">jennergruhle at mail.berlios.de
+       </A><BR>
+    <I>Sun Jun 28 11:53:52 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001876.html">[Cachewolf-svn] r1957 - trunk/src/CacheWolf/navi
+</A></li>
+        <LI>Next message: <A HREF="001878.html">[Cachewolf-svn] r1959 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1877">[ date ]</a>
+              <a href="thread.html#1877">[ thread ]</a>
+              <a href="subject.html#1877">[ subject ]</a>
+              <a href="author.html#1877">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: jennergruhle
+Date: 2009-06-28 11:53:49 +0200 (Sun, 28 Jun 2009)
+New Revision: 1958
+
+Modified:
+   trunk/src/CacheWolf/navi/Navigate.java
+Log:
+Added GPSD usage
+
+Modified: trunk/src/CacheWolf/navi/Navigate.java
+===================================================================
+--- trunk/src/CacheWolf/navi/Navigate.java	2009-06-28 09:53:27 UTC (rev 1957)
++++ trunk/src/CacheWolf/navi/Navigate.java	2009-06-28 09:53:49 UTC (rev 1958)
+@@ -9,6 +9,7 @@
+ import ewe.io.SerialPort;
+ import ewe.io.SerialPortOptions;
+ import ewe.net.Socket;
++import ewe.sys.Vm;
+ import ewe.sys.mThread;
+ import ewe.ui.FormBase;
+ import ewe.ui.MessageBox;
+@@ -35,6 +36,7 @@
+ 
+ 	public GotoPanel gotoPanel = null;
+ 	public MovingMap movingMap = null;
++	public GpsdThread gpsdThread = null;
+ 	public SerialThread serThread = null;
+ 	public Preferences pref = Global.getPref();
+ 	public UpdateThread tickerThread;
+@@ -52,37 +54,60 @@
+ 
+ 	public void startGps(boolean loggingOn, int loggingIntervall) {
+ 		setRawLogging(loggingOn, loggingIntervall);
+-		if (serThread != null) if (serThread.isAlive()) return; // TODO use gpsRunning
+-		try {
+-			serThread = new SerialThread(pref.mySPO, gpsPos, (pref.forwardGPS ? pref.forwardGpsHost : &quot;&quot;));
+-			if (pref.forwardGPS &amp;&amp; !serThread.tcpForward) {
+-				(new MessageBox(MyLocale.getMsg(4400, &quot;Warning&quot;), 
+-						MyLocale.getMsg(4401, &quot;Ignoring error:\n could not forward GPS data to host:\n&quot;)
+-						+ pref.forwardGpsHost+&quot;\n&quot; + serThread.lastError
+-						+ MyLocale.getMsg(4402, &quot;\nstop and start GPS to retry&quot;), FormBase.OKB)).exec();
++		if(Global.getPref().useGPSD){
++			try {
++				gpsdThread = new GpsdThread(gpsPos);
++				if (gpsPos.latDec == 0 &amp;&amp; gpsPos.lonDec == 0) { // TODO use isValid() // TODO raus damit?
++					gpsPos.latDec = destination.latDec; // setze Zielpunkt als Ausgangspunkt
++					gpsPos.lonDec = destination.lonDec;
++				}
++				gpsdThread.start();
++				startDisplayTimer();
++				gpsRunning = true;
++				curTrack = new Track(trackColor); // TODO addTrack here to MovingMap? see MovingMapPanel.snapToGps
++				if (lograw)	gpsPos.startLog(Global.getProfile().dataDir, logIntervall, CWGPSPoint.LOGALL);
++				if (gotoPanel != null) gotoPanel.gpsStarted();
++				if (movingMap != null) movingMap.gpsStarted();
++			} catch (IOException e) {
++				(new MessageBox(MyLocale.getMsg(4403, &quot;Error&quot;), 
++					MyLocale.getMsg(4408, &quot;Could not connect to GPSD:&quot;) 
++					+ e.getMessage()
++					+ MyLocale.getMsg(4409, &quot;\npossible reasons:\nGPSD is not running or GPSD host is not reachable&quot;), 
++					FormBase.OKB)).execute(); 
+ 			}
+-			if (gpsPos.latDec == 0 &amp;&amp; gpsPos.lonDec == 0) { // TODO use isValid() // TODO raus damit?
+-				gpsPos.latDec = destination.latDec; // setze Zielpunkt als Ausgangspunkt
+-				gpsPos.lonDec = destination.lonDec;
++		}else{
++			if (serThread != null) if (serThread.isAlive()) return; // TODO use gpsRunning
++			try {
++				serThread = new SerialThread(pref.mySPO, gpsPos, (pref.forwardGPS ? pref.forwardGpsHost : &quot;&quot;));
++				if (pref.forwardGPS &amp;&amp; !serThread.tcpForward) {
++					(new MessageBox(MyLocale.getMsg(4400, &quot;Warning&quot;), 
++							MyLocale.getMsg(4401, &quot;Ignoring error:\n could not forward GPS data to host:\n&quot;)
++							+ pref.forwardGpsHost+&quot;\n&quot; + serThread.lastError
++							+ MyLocale.getMsg(4402, &quot;\nstop and start GPS to retry&quot;), FormBase.OKB)).exec();
++				}
++				if (gpsPos.latDec == 0 &amp;&amp; gpsPos.lonDec == 0) { // TODO use isValid() // TODO raus damit?
++					gpsPos.latDec = destination.latDec; // setze Zielpunkt als Ausgangspunkt
++					gpsPos.lonDec = destination.lonDec;
++				}
++				serThread.start();
++				startDisplayTimer();
++				gpsRunning = true;
++				curTrack = new Track(trackColor); // TODO addTrack here to MovingMap? see MovingMapPanel.snapToGps
++				if (lograw)	gpsPos.startLog(Global.getProfile().dataDir, logIntervall, CWGPSPoint.LOGALL);
++				if (gotoPanel != null) gotoPanel.gpsStarted();
++				if (movingMap != null) movingMap.gpsStarted();
++			} catch (IOException e) {
++				(new MessageBox(MyLocale.getMsg(4403, &quot;Error&quot;), 
++						MyLocale.getMsg(4404, &quot;Could not connect to GPS-receiver.\n Error while opening serial Port &quot;) 
++						+ e.getMessage()
++						+ MyLocale.getMsg(4405, &quot;\npossible reasons:\n Another (GPS-)program is blocking the port\nwrong port\nOn Loox: active infra-red port is blocking GPS&quot;), 
++						FormBase.OKB)).execute(); 
++			} catch (UnsatisfiedLinkError e) {
++				(new MessageBox(MyLocale.getMsg(4403, &quot;Error&quot;), 
++						MyLocale.getMsg(4404, &quot;Could not connect to GPS-receiver.\n Error while opening serial Port &quot;) 
++						+ MyLocale.getMsg(4406, &quot;Please copy jave_ewe.dll into the directory of the cachewolf program&quot;), 
++						FormBase.OKB)).execute(); 
+ 			}
+-			serThread.start();
+-			startDisplayTimer();
+-			gpsRunning = true;
+-			curTrack = new Track(trackColor); // TODO addTrack here to MovingMap? see MovingMapPanel.snapToGps
+-			if (lograw)	gpsPos.startLog(Global.getProfile().dataDir, logIntervall, CWGPSPoint.LOGALL);
+-			if (gotoPanel != null) gotoPanel.gpsStarted();
+-			if (movingMap != null) movingMap.gpsStarted();
+-		} catch (IOException e) {
+-			(new MessageBox(MyLocale.getMsg(4403, &quot;Error&quot;), 
+-					MyLocale.getMsg(4404, &quot;Could not connect to GPS-receiver.\n Error while opening serial Port &quot;) 
+-					+ e.getMessage()
+-					+ MyLocale.getMsg(4405, &quot;\npossible reasons:\n Another (GPS-)program is blocking the port\nwrong port\nOn Loox: active infra-red port is blocking GPS&quot;), 
+-					FormBase.OKB)).execute(); 
+-		} catch (UnsatisfiedLinkError e) {
+-			(new MessageBox(MyLocale.getMsg(4403, &quot;Error&quot;), 
+-					MyLocale.getMsg(4404, &quot;Could not connect to GPS-receiver.\n Error while opening serial Port &quot;) 
+-					+ MyLocale.getMsg(4406, &quot;Please copy jave_ewe.dll into the directory of the cachewolf program&quot;), 
+-					FormBase.OKB)).execute(); 
+ 		}
+ 	}
+ 
+@@ -100,7 +125,10 @@
+ 	}
+ 
+ 	public void stopGps() {
+-		serThread.stop();
++		if(serThread!=null)
++			serThread.stop();
++		if(gpsdThread!=null)
++			gpsdThread.stop();
+ 		stopDisplayTimer();
+ 		gpsPos.stopLog();
+ 		gpsRunning = false;
+@@ -109,8 +137,7 @@
+ 	}
+ 
+ 	public boolean isGpsPosValid() {
+-		return 	serThread != null &amp;&amp; serThread.isAlive() &amp;&amp; gpsPos.isValid() ; // &amp;&amp; gpsPos.getfiex();
+-
++		return (serThread != null &amp;&amp; serThread.isAlive() || gpsdThread != null &amp;&amp; gpsdThread.isAlive() ) &amp;&amp; gpsPos.isValid() ; // &amp;&amp; gpsPos.getfiex();
+ 	}
+ 
+ 
+@@ -171,6 +198,83 @@
+ 	}
+ }
+ 
++
++class GpsdThread extends mThread{
++	Socket gpsdSocket;
++	CWGPSPoint myGPS;
++	boolean run, tcpForward;
++	Socket tcpConn;
++	String lastError = new String();
++	
++	public GpsdThread(CWGPSPoint GPSPoint) throws IOException {
++		try{
++			gpsdSocket = new Socket(Global.getPref().gpsdHost, Global.getPref().gpsdPort);
++		} catch (IOException e) {
++			throw new IOException(Global.getPref().gpsdHost);
++		} // catch (UnsatisfiedLinkError e) {} // TODO in original java-vm 
++		myGPS = GPSPoint;
++	}
++	
++	public void run() {
++		String gpsResult;
++		int noData = 0;
++		int notinterpreted = 0;
++		run = true;
++		while (run){
++			try {
++				sleep(900);
++				noData++;
++				if (noData &gt; 5) { myGPS.noDataError(); }
++			} catch (InterruptedException e) {
++				Global.getPref().log(&quot;Ignored Exception&quot;, e, true);
++			}
++			if (gpsdSocket != null)	{
++				gpsResult = getGpsdData(&quot;ADPQTV\r\n&quot;);
++				if (gpsResult!=null) {
++					//Vm.debug(&quot;P -&gt; &quot; + gpsResult);
++					noData = 0;
++					if (myGPS.examineGpsd(gpsResult))
++						notinterpreted = 0; 
++					else 
++						notinterpreted++;
++					if (notinterpreted &gt; 22) myGPS.noInterpretableData();
++				}
++			}
++		} // while
++		myGPS.noData();
++	}
++
++	private String getGpsdData(String command) {
++		byte[] rcvBuff = new byte[1024*10]; // when some action takes a long time (eg. loading or zooming a map), a lot of data can be in the buffer, read that at once
++		int rcvLength = 0;
++		try {
++			gpsdSocket.write(command.getBytes());
++		} catch (IOException e) {
++			Global.getPref().log(&quot;Socket exception&quot;, e, true);
++		}
++		try {
++			sleep(100);
++		} catch (InterruptedException e) {
++			Global.getPref().log(&quot;Ignored exception&quot;, e, true);
++		}
++		try {
++			rcvLength = gpsdSocket.read(rcvBuff);
++		} catch (IOException e) {
++			Global.getPref().log(&quot;Socket exception&quot;, e, true);
++		}
++		String str = null;
++		if (rcvLength &gt; 0)	{
++			str = mString.fromAscii(rcvBuff, 0, rcvLength); 
++		}
++		return str;
++	}
++
++	public void stop() {
++		run = false;
++		if (gpsdSocket != null) gpsdSocket.close();
++	}
++}
++
+ /**
+  * Thread for reading data from COM-port
+  *
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001876.html">[Cachewolf-svn] r1957 - trunk/src/CacheWolf/navi
+</A></li>
+	<LI>Next message: <A HREF="001878.html">[Cachewolf-svn] r1959 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1877">[ date ]</a>
+              <a href="thread.html#1877">[ thread ]</a>
+              <a href="subject.html#1877">[ subject ]</a>
+              <a href="author.html#1877">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

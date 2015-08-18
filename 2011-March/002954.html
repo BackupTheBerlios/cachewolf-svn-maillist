@@ -1,0 +1,267 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2963 - trunk/src/CacheWolf/navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2011-March/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2963%20-%20trunk/src/CacheWolf/navi&In-Reply-To=%3C20110321184359.4AA974801A1%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002953.html">
+   <LINK REL="Next"  HREF="002955.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2963 - trunk/src/CacheWolf/navi</H1>
+    <B>apreisser at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2963%20-%20trunk/src/CacheWolf/navi&In-Reply-To=%3C20110321184359.4AA974801A1%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2963 - trunk/src/CacheWolf/navi">apreisser at mail.berlios.de
+       </A><BR>
+    <I>Mon Mar 21 07:43:59 CET 2011</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002953.html">[Cachewolf-svn] r2962 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="002955.html">[Cachewolf-svn] r2964 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2954">[ date ]</a>
+              <a href="thread.html#2954">[ thread ]</a>
+              <a href="subject.html#2954">[ subject ]</a>
+              <a href="author.html#2954">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: apreisser
+Date: 2011-03-21 19:43:58 +0100 (Mon, 21 Mar 2011)
+New Revision: 2963
+
+Modified:
+   trunk/src/CacheWolf/navi/Track.java
+   trunk/src/CacheWolf/navi/TrackOverlay.java
+Log:
+Track reimplemented as RingBuffer.
+Track will not be cleared on overflow, instead first entry will be deleted.
+
+Modified: trunk/src/CacheWolf/navi/Track.java
+===================================================================
+--- trunk/src/CacheWolf/navi/Track.java	2011-03-20 10:24:47 UTC (rev 2962)
++++ trunk/src/CacheWolf/navi/Track.java	2011-03-21 18:43:58 UTC (rev 2963)
+@@ -1,81 +1,92 @@
+-    /*
+-    GNU General Public License
+-    CacheWolf is a software for PocketPC, Win and Linux that
+-    enables paperless caching.
+-    It supports the sites geocaching.com and opencaching.de
+-
+-    Copyright (C) 2006  CacheWolf development team
+-    See <A HREF="http://developer.berlios.de/projects/cachewolf/">http://developer.berlios.de/projects/cachewolf/</A>
+-    for more information.
+-    Contact: 	<A HREF="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">bilbowolf at users.berlios.de</A>
+-    			<A HREF="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">kalli at users.berlios.de</A>
+-
+-    This program is free software; you can redistribute it and/or modify
+-    it under the terms of the GNU General Public License as published by
+-    the Free Software Foundation; version 2 of the License.
+-
+-    This program is distributed in the hope that it will be useful,
+-    but WITHOUT ANY WARRANTY; without even the implied warranty of
+-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-    GNU General Public License for more details.
+-
+-    You should have received a copy of the GNU General Public License
+-    along with this program; if not, write to the Free Software
+-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+-    */
+ package CacheWolf.navi;
+ 
+ import ewe.fx.Color;
++import ewe.io.BufferedWriter;
++import ewe.io.FileWriter;
++import ewe.io.IOException;
++import ewe.io.PrintWriter;
++import ewe.ui.MessageBox;
++import ewe.util.Utils;
+ 
+ public class Track {
+ 	public Color trackColor;
+-	public TrackPoint TrackPoints[];
+-	public int num;
++	private TrackPoint trackPoints[];
++    private int index;
++	private int num;
+ 	
+-	public Track(Color f) {
++	public Track(Color f, int trackSize) {
+ 		trackColor = f;
+-		TrackPoints = new TrackPoint[5000];
++		trackPoints = new TrackPoint[trackSize];
+ 		num = 0;
++        index = 0;
+ 	}
+-/*===== add is currently not used	
++
++        public Track (Color f){
++            this(f, 5000);
++        }
++
++        public Track (){
++            this (new Color (0xff,0,0));
++        }
++
+ 	public void add(double lat, double lon) {
+-		TrackPoints[num] = new TrackPoint(lat, lon);
+-		num++;
++		add(new TrackPoint(lat, lon));
+ 	}
+-=====*/	
++
+ 	/**
+-	 * throws IndexOutOfBoundsException when track is full
+ 	 */
+ 	public void add(TrackPoint t) { 
+-		if (TrackPoints == null || t == null) return;
+-		TrackPoints[num] = new TrackPoint(t);
++		if (t == null) return;
++		
++		trackPoints[index] = new TrackPoint(t);
++        index++;
++        if (index &gt;= trackPoints.length) index = 0;
+ 		num++;
++        if (num &gt;= trackPoints.length) num = trackPoints.length;
+ 	}
+-/*===== loadTrack/saveTrack are currently not used
++        
++        /**
++         * returns number of Point in this track
++         */
++        public int size(){
++            return num;
++        }
++
++        /**
++          * returns the i.th point in this track
++          */
++        public TrackPoint get (int i){
++            //The array has never been filled, so first position is 0:
++            if (num &lt; trackPoints.length) return trackPoints[i];
++            //Once filled, the least inserted position is marked by index
++            int tmpIndex = (index+i) % trackPoints.length;
++            return trackPoints[tmpIndex];
++        }
++
+ 	public void loadTrack(String filename){ // TODO untested!
+ 		byte [] all = ewe.sys.Vm.readResource(null,filename);
+ 		if (all == null) return; // TODO error handling
+ 		num = Utils.readInt(all, 0, 4);
+ 		for (int i=0; i&lt;=num; i++){
+-			TrackPoints[i].latDec = Double.longBitsToDouble(Utils.readLong(all, (i*2)*8 + 4));
+-			TrackPoints[i].lonDec = Double.longBitsToDouble(Utils.readLong(all, (i*2+1)*8 + 4));
++			trackPoints[i].latDec = Double.longBitsToDouble(Utils.readLong(all, (i*2)*8 + 4));
++			trackPoints[i].lonDec = Double.longBitsToDouble(Utils.readLong(all, (i*2+1)*8 + 4));
+ 		}
+ 	}
+ 	
+-	public void saveTrack(String filename){  // TODO untested!
+-	//ByteArray ba=new ByteArray();
+-	byte[] ba = new byte[8*2*num+4]; // 8 bytes is one double int has size 4
+-	Utils.writeInt(num, ba, 0, 4);
+-	for (int i=0; i&lt;=num; i++){
+-		Utils.writeLong(Double.doubleToLongBits(TrackPoints[i].latDec), ba, (i*2)*8 + 4);
+-		Utils.writeLong(Double.doubleToLongBits(TrackPoints[i].lonDec), ba, (i*2+1)*8 + 4);
++	public void saveTrack(String filename) { // TODO untested!
++		// ByteArray ba=new ByteArray();
++		byte[] ba = new byte[8 * 2 * num + 4]; // 8 bytes is one double int has
++												// size 4
++		Utils.writeInt(num, ba, 0, 4);
++		for (int i = 0; i &lt;= num; i++) {
++			Utils.writeLong(Double.doubleToLongBits(trackPoints[i].latDec), ba, (i * 2) * 8 + 4);
++			Utils.writeLong(Double.doubleToLongBits(trackPoints[i].lonDec), ba, (i * 2 + 1) * 8 + 4);
++		}
++		try {
++			PrintWriter outp = new PrintWriter(new BufferedWriter(new FileWriter(filename)));
++			outp.print(ba.toString());
++		} catch (IOException e) {
++			(new MessageBox(&quot;Error&quot;, &quot;Error reading trackfile:\n&quot; + e.toString(), MessageBox.OKB)).execute();
++		}
+ 	}
+-	try{
+-		PrintWriter outp =  new PrintWriter(new BufferedWriter(new FileWriter(filename)));
+-		outp.print(ba.toString());
+-	}catch (IOException e) {
+-		(new MessageBox(&quot;Error&quot;, &quot;Error reading trackfile:\n&quot;+e.toString(), MessageBox.OKB)).execute();}
+-	}
+-=====*/
+-
+ }
+
+Modified: trunk/src/CacheWolf/navi/TrackOverlay.java
+===================================================================
+--- trunk/src/CacheWolf/navi/TrackOverlay.java	2011-03-20 10:24:47 UTC (rev 2962)
++++ trunk/src/CacheWolf/navi/TrackOverlay.java	2011-03-21 18:43:58 UTC (rev 2963)
+@@ -107,9 +107,9 @@
+ 		int tri, i;
+ 		Track tr;
+ 		int numberOfTracks = tracks.size();
+-		int numberOfPoints = ((Track)tracks.get(numberOfTracks - 1)).num;
++		int numberOfPoints = ((Track)tracks.get(numberOfTracks - 1)).size();
+ 		if (numberOfTracks &gt; 1){
+-			numberOfPoints += (numberOfTracks - 1) * ((Track)tracks.get(0)).num;
++			numberOfPoints += (numberOfTracks - 1) * ((Track)tracks.get(0)).size();
+ 		}
+ 		int n = 0;
+ 		
+@@ -117,13 +117,13 @@
+ 			tr = (Track)tracks.get(tri);
+ 			//draw.setPen(new Pen((Color) tr.trackColor,Pen.SOLID,3));
+ 			draw.setColor(tr.trackColor);
+-			if (tr.num &gt; 0) {
+-				for (i=0; i &lt; tr.num; i++) {
++			if (tr.size() &gt; 0) {
++				for (i=0; i &lt; tr.size(); i++) {
+ 					n++;
+ 					if  ((numberOfPoints - n &gt; 5*60) &amp;&amp; ((n &amp; 1) == 0)) continue;
+ 					if  ((numberOfPoints - n &gt; 15*60) &amp;&amp; ((n &amp; 2) == 0)) continue;
+ 					if  ((numberOfPoints - n &gt; 30*60) &amp;&amp; ((n &amp; 4) == 0)) continue;
+-					paintPoint(tr.trackColor, tr.TrackPoints[i]);
++					paintPoint(tr.trackColor, tr.get(i));
+ 				}
+ 			}
+ 		}
+@@ -195,7 +195,7 @@
+ 	public void paintLastAddedPoint(Track tr) { 
+ 		//draw.setPen(new Pen((Color) tr.trackColor,Pen.SOLID,3));
+ 		draw.setColor(tr.trackColor);
+-		if (paintPoint(tr.trackColor, tr.TrackPoints[tr.num-1])) notOnThisOverlaySince = 0;
++		if (paintPoint(tr.trackColor, tr.get(tr.size()-1))) notOnThisOverlaySince = 0;
+ 		else notOnThisOverlaySince++;
+ 		if (notOnThisOverlaySince &gt; FIXATE_IF_NO_PIXELS_NUM) { // zur Performanceverbesserung: wenn in den letzten 60 Updates keines mehr f&#252;r dieses Overlay dabei war, Overlay Pixels fest schreiben, damit doDraw entlastet wird.
+ 			fixate();
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002953.html">[Cachewolf-svn] r2962 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="002955.html">[Cachewolf-svn] r2964 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2954">[ date ]</a>
+              <a href="thread.html#2954">[ thread ]</a>
+              <a href="subject.html#2954">[ subject ]</a>
+              <a href="author.html#2954">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

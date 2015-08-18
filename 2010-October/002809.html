@@ -1,0 +1,256 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2821 - in trunk/src/CacheWolf/navi: . touchControls
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-October/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2821%20-%20in%20trunk/src/CacheWolf/navi%3A%20.%20touchControls&In-Reply-To=%3C20101015135736.15B90480FFC%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002806.html">
+   <LINK REL="Next"  HREF="002810.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2821 - in trunk/src/CacheWolf/navi: . touchControls</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2821%20-%20in%20trunk/src/CacheWolf/navi%3A%20.%20touchControls&In-Reply-To=%3C20101015135736.15B90480FFC%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2821 - in trunk/src/CacheWolf/navi: . touchControls">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Fri Oct 15 03:57:36 CEST 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002806.html">[Cachewolf-svn] r2818 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="002810.html">[Cachewolf-svn] r2822 - trunk/src/CacheWolf/navi/touchControls
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2809">[ date ]</a>
+              <a href="thread.html#2809">[ thread ]</a>
+              <a href="subject.html#2809">[ subject ]</a>
+              <a href="author.html#2809">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2010-10-15 15:57:35 +0200 (Fri, 15 Oct 2010)
+New Revision: 2821
+
+Modified:
+   trunk/src/CacheWolf/navi/MovingMap.java
+   trunk/src/CacheWolf/navi/touchControls/MovingMapControlItem.java
+   trunk/src/CacheWolf/navi/touchControls/MovingMapControlItemText.java
+   trunk/src/CacheWolf/navi/touchControls/MovingMapControlSettings.java
+   trunk/src/CacheWolf/navi/touchControls/MovingMapControls.java
+Log:
+MovingMap / xml configuration : content extended with hdop and sats.
+
+Modified: trunk/src/CacheWolf/navi/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MovingMap.java	2010-10-14 11:12:51 UTC (rev 2820)
++++ trunk/src/CacheWolf/navi/MovingMap.java	2010-10-15 13:57:35 UTC (rev 2821)
+@@ -351,13 +351,11 @@
+ 
+ 			int lineLengthPixels = (int)java.lang.Math.round( lineLengthMeters / currentMap.scale );
+ 
+-			controlsLayer.updateContext(&quot;scale&quot;, lineLengthString,
+-					lineLengthPixels);
++			controlsLayer.updateContent(&quot;scale&quot;, lineLengthString, lineLengthPixels);
+ 		}
+ 		else{
+ 
+-		controlsLayer.updateContext(&quot;scale&quot;, &quot;no map&quot;,
+-				20);
++		controlsLayer.updateContent(&quot;scale&quot;, &quot;no map&quot;, 20);
+ 		}
+ 	}
+ 
+@@ -397,13 +395,13 @@
+ 					d = dd.toString(3,0,0) + Metrics.getUnit(smallUnit);
+ 				}
+ 
+-				controlsLayer.updateContext(&quot;distance&quot;, d);
++				controlsLayer.updateContent(&quot;distance&quot;, d);
+ 
+ 			}
+ 		}
+ 		else
+ 		{
+-			controlsLayer.updateContext(&quot;distance&quot;, &quot;&quot;);
++			controlsLayer.updateContent(&quot;distance&quot;, &quot;&quot;);
+ 		}
+ 	}
+ 
+@@ -1398,6 +1396,8 @@
+ 		}
+ 		if (fix == 0 &amp;&amp; myNavigation.gpsPos.getSats()== 0) 	setGpsStatus(MovingMap.lostFix);
+ 		if (fix &lt; 0 )	setGpsStatus(MovingMap.noGPSData);
++		controlsLayer.updateContent(&quot;hdop&quot;, Convert.toString(myNavigation.gpsPos.getHDOP()));
++		controlsLayer.updateContent(&quot;sats&quot;, Convert.toString(myNavigation.gpsPos.getSats()) + &quot;/&quot; + Convert.toString(myNavigation.gpsPos.getSatsInView()));
+ 	}
+ 
+ 	public void gpsStarted() {
+
+Modified: trunk/src/CacheWolf/navi/touchControls/MovingMapControlItem.java
+===================================================================
+--- trunk/src/CacheWolf/navi/touchControls/MovingMapControlItem.java	2010-10-14 11:12:51 UTC (rev 2820)
++++ trunk/src/CacheWolf/navi/touchControls/MovingMapControlItem.java	2010-10-15 13:57:35 UTC (rev 2821)
+@@ -153,7 +153,7 @@
+ 		return -1;
+ 	}
+ 
+-	public String getContext() {
++	public String getContent() {
+ 		return null;
+ 	}
+ 
+
+Modified: trunk/src/CacheWolf/navi/touchControls/MovingMapControlItemText.java
+===================================================================
+--- trunk/src/CacheWolf/navi/touchControls/MovingMapControlItemText.java	2010-10-14 11:12:51 UTC (rev 2820)
++++ trunk/src/CacheWolf/navi/touchControls/MovingMapControlItemText.java	2010-10-15 13:57:35 UTC (rev 2821)
+@@ -34,20 +34,20 @@
+ 
+ 	private ImageWithText aniImage;
+ 	private int command;
+-	private String context;
++	private String content;
+ 
+ 	public MovingMapControlItemText(final String iconText, String imageSource,String iconSource,
+-			int alpha, int actionCommand, String context, String alignText,TextOptions tOptions) {
++			int alpha, int actionCommand, String content, String alignText,TextOptions tOptions) {
+ 
+ 		Image image = MovingMapControlItem.createImage(imageSource, iconSource, alpha);		
+ 		aniImage = new ImageWithText(image,tOptions);
+ 		aniImage.setText(iconText);
+ 		aniImage.freeSource();
+ 		aniImage.properties |= mImage.AlwaysOnTop;		
+-		if (context != null) {
+-			this.context = context;
++		if (content != null) {
++			this.content = content;
+ 			xProperties |= IS_ICON_WITH_TEXT;
+-			if (context.equals(&quot;scale&quot;)) {
++			if (content.equals(&quot;scale&quot;)) {
+ 				xProperties |= IS_ICON_WITH_FRONTLINE;
+ 			}
+ 		}
+@@ -90,8 +90,8 @@
+ 	public int getCommand() {
+ 		return command;
+ 	}
+-	public String getContext() {
+-		return context;
++	public String getContent() {
++		return content;
+ 	}
+ 	public void setAdditionalProperty(int prop) {
+ 		aniImage.setStartlineWitdth(prop);
+
+Modified: trunk/src/CacheWolf/navi/touchControls/MovingMapControlSettings.java
+===================================================================
+--- trunk/src/CacheWolf/navi/touchControls/MovingMapControlSettings.java	2010-10-14 11:12:51 UTC (rev 2820)
++++ trunk/src/CacheWolf/navi/touchControls/MovingMapControlSettings.java	2010-10-15 13:57:35 UTC (rev 2821)
+@@ -123,9 +123,10 @@
+ 	 */
+ 	public static final String BUTTON_ATTR_CHANGE_STAE_OF = &quot;changeStateof&quot;;
+ 	/**
+-	 * the name of content which is displayed on the button. Currently the content distance and scale are known.
++	 * the name of content which is displayed on the button.
++	 * Currently the content distance, scale, hdop, sats are known.
+ 	 */
+-	public static final String BUTTON_ATTR_CONTEXT = &quot;content&quot;;
++	public static final String BUTTON_ATTR_CONTENT = &quot;content&quot;;
+ 	/**
+ 	 * the alignment of the text on the buttons. if the String starts with 'T' the text will be displayed on the top
+ 	 * line of the button if the String starts with 'B' the text will be displayed on the bottom line of the button if
+@@ -220,7 +221,7 @@
+ 				iconLocation = CONFIG_RELATIVE_PATH + iconLocation; 
+ 			}
+ 			String alignText = attributes.getValue(BUTTON_ATTR_ALIGNTEXT);
+-			String context = attributes.getValue(BUTTON_ATTR_CONTEXT);
++			String content = attributes.getValue(BUTTON_ATTR_CONTENT);
+ 			if (visibility == null) {
+ 				Global.getPref().log(&quot;read MovingMap settings: &quot; + BUTTON_ATTR_VISIBILITY
+ 						+ &quot; not set!&quot;,null);
+@@ -251,12 +252,12 @@
+ 					attributes, BUTTON_ATTR_TEXT_OFFSET_B, 0));
+ 
+ 			MovingMapControlItem button;
+-			if (context != null) {
++			if (content != null) {
+ 				button = new MovingMapControlItemText(&quot;&quot;, 
+-						imageLocation, iconLocation, alphavalue, action, context, alignText, tOptions);
++						imageLocation, iconLocation, alphavalue, action, content, alignText, tOptions);
+ 			} else if (localeDefault != null) {
+ 				button = new MovingMapControlItemText(MyLocale.getMsg(localIDValue, localeDefault),
+-						imageLocation, iconLocation, alphavalue, action, context, alignText, tOptions);
++						imageLocation, iconLocation, alphavalue, action, content, alignText, tOptions);
+ 			} else {
+ 				button = new MovingMapControlItemButton(imageLocation, iconLocation, action, alphavalue);
+ 			}
+
+Modified: trunk/src/CacheWolf/navi/touchControls/MovingMapControls.java
+===================================================================
+--- trunk/src/CacheWolf/navi/touchControls/MovingMapControls.java	2010-10-14 11:12:51 UTC (rev 2820)
++++ trunk/src/CacheWolf/navi/touchControls/MovingMapControls.java	2010-10-15 13:57:35 UTC (rev 2821)
+@@ -252,25 +252,25 @@
+ 	// }
+ 	// }}
+ 
+-	public void updateContext(String contextName, String text) {
+-		if (contextName == null) {
++	public void updateContent(String contentName, String text) {
++		if (contentName == null) {
+ 			return;
+ 		}
+-		updateContext(contextName, text, -1);
++		updateContent(contentName, text, -1);
+ 
+ 	}
+ 
+-	public void updateContext(String contextName, String text, int property) {
++	public void updateContent(String contentName, String text, int property) {
+ 		for (int i = 0; i &lt; buttons.size(); i++) {
+ 			MovingMapControlItem item = (MovingMapControlItem) buttons.get(i);
+ 
+ 			if ((item.xProperties &amp; MovingMapControlItem.IS_ICON_WITH_TEXT) != 0) {
+-				if (contextName.equals(item.getContext())) {
++				if (contentName.equals(item.getContent())) {
+ 					item.setText(text);
+ 				}
+ 			}
+ 			if ((item.xProperties &amp; MovingMapControlItem.IS_ICON_WITH_FRONTLINE) != 0) {
+-				if (contextName.equals(item.getContext())) {
++				if (contentName.equals(item.getContent())) {
+ 					item.setAdditionalProperty(property);
+ 				}
+ 			}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002806.html">[Cachewolf-svn] r2818 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="002810.html">[Cachewolf-svn] r2822 - trunk/src/CacheWolf/navi/touchControls
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2809">[ date ]</a>
+              <a href="thread.html#2809">[ thread ]</a>
+              <a href="subject.html#2809">[ subject ]</a>
+              <a href="author.html#2809">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

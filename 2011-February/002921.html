@@ -1,0 +1,394 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2930 - in trunk: res_noewe/webmapservices	src/CacheWolf/imp src/CacheWolf/navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2011-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2930%20-%20in%20trunk%3A%20res_noewe/webmapservices%0A%09src/CacheWolf/imp%20src/CacheWolf/navi&In-Reply-To=%3C20110207220011.4D748480D17%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002920.html">
+   <LINK REL="Next"  HREF="002922.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2930 - in trunk: res_noewe/webmapservices	src/CacheWolf/imp src/CacheWolf/navi</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2930%20-%20in%20trunk%3A%20res_noewe/webmapservices%0A%09src/CacheWolf/imp%20src/CacheWolf/navi&In-Reply-To=%3C20110207220011.4D748480D17%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2930 - in trunk: res_noewe/webmapservices	src/CacheWolf/imp src/CacheWolf/navi">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Mon Feb  7 11:00:11 CET 2011</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002920.html">[Cachewolf-svn] r2929 - branches/r1.2/src/CacheWolf/imp
+</A></li>
+        <LI>Next message: <A HREF="002922.html">[Cachewolf-svn] r2931 - in trunk: res_noewe/webmapservices	src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2921">[ date ]</a>
+              <a href="thread.html#2921">[ thread ]</a>
+              <a href="subject.html#2921">[ subject ]</a>
+              <a href="author.html#2921">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2011-02-07 23:00:10 +0100 (Mon, 07 Feb 2011)
+New Revision: 2930
+
+Modified:
+   trunk/res_noewe/webmapservices/OSMMapnik.wms
+   trunk/src/CacheWolf/imp/SpiderGC.java
+   trunk/src/CacheWolf/navi/MapLoader.java
+Log:
+generating calibrated maps with help of maperitive (prg for rendering osm-files).
+OSMMapnik.wms is a sample file, that can be extended to your purposes.
+
+Modified: trunk/res_noewe/webmapservices/OSMMapnik.wms
+===================================================================
+--- trunk/res_noewe/webmapservices/OSMMapnik.wms	2011-02-07 21:47:31 UTC (rev 2929)
++++ trunk/res_noewe/webmapservices/OSMMapnik.wms	2011-02-07 22:00:10 UTC (rev 2930)
+@@ -1,20 +1,27 @@
+-TakenFromUrl: <A HREF="http://downloads.igorbrejc.net/osm/kosmos/">http://downloads.igorbrejc.net/osm/kosmos/</A>
+-#Kosmos Download : <A HREF="http://downloads.igorbrejc.net/osm/kosmos/">http://downloads.igorbrejc.net/osm/kosmos/</A>
++TakenFromUrl: <A HREF="http://maperitive.net/">http://maperitive.net/</A>
+ GetCapabilitiesUrl:
+-Name:               OSMMapnik mit Kosmos.Console.exe
++Name:               OSM Mapnik with Maperitive.exe
+ MapType:                        topo
+-MainUrl:            C:\\Programme\\Kosmos-2.5.405.6\\Console\\Kosmos.Console.exe
+-ServiceTypeUrlPart: OSMMapnik.kpr
+-VersionUrlPart:
++#MainUrl: name of exceutable
++MainUrl:            Maperitive.exe
++#ServiceTypeUrlPart: default map to use : may be empty(=mapnik) or mapnik or osmarender or osmcyclemap(does not work at moment)
++ServiceTypeUrlPart: 
++#VersionUrlPart: path to executable of mainUrl
++VersionUrlPart: C:/Programme/Maperitive
+ CoordinateReferenceSystemCacheWolf:  4326
+ CoordinateReferenceSystemUrlPart: SRS=EPSG:4326
+-RequestUrlPart:     Kosmos
++#RequestUrlPart: must be Maperitive
++RequestUrlPart:     Maperitive
++#LayersUrlPart: empty or filename (osm or other) for the load-source command; path from VersionUrlPart will be added by CW
+ LayersUrlPart:
++#StylesUrlPart: empty or filename for the use-ruleset location; path from VersionUrlPart will be added by CW
+ StylesUrlPart:
+ ImageFormatUrlPart:FORMAT=image/png
++# BBox the osm-file covers
+ BoundingBoxTopLeftWGS84: N 90.0000 W 180.0000
+ BoundingBoxButtomRightWGS84: S 90.0000 E 180.0000
+ MinScale:   0
+ MaxScale:   1000
+ RecommendedScale:   5
+-ImageFileExtension: .png
++#Maperitive does many png, jpg(jpeg), bmp, tif(tiff) , gif, emf, wmf
++ImageFileExtension: .jpg
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2011-02-07 21:47:31 UTC (rev 2929)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2011-02-07 22:00:10 UTC (rev 2930)
+@@ -405,7 +405,18 @@
+ 				}
+ 				if (pointsIndex == points.size())
+ 					nextPos = null;
++				else {
++					if (Global.mainTab.statBar != null)
++						Global.mainTab.statBar.updateDisplay(&quot;GC pages: &quot;
++								+ page_number + &quot; Caches added to CW: &quot;
++								+ num_added + &quot; at &quot;
++								+ pointsIndex+&quot;(&quot;+points.size()+&quot;)&quot;
++								+ nextPos
++								);
++				}
+ 			}
++
++
+ 			if (nextPos != null) {
+ 				sq = getSquare(startPos, lateralDistance);
+ 				getCaches(sq.topleft.latDec, sq.topleft.lonDec,
+
+Modified: trunk/src/CacheWolf/navi/MapLoader.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MapLoader.java	2011-02-07 21:47:31 UTC (rev 2929)
++++ trunk/src/CacheWolf/navi/MapLoader.java	2011-02-07 22:00:10 UTC (rev 2930)
+@@ -34,11 +34,15 @@
+ import CacheWolf.STRreplace;
+ import CacheWolf.utils.FileBugfix;
+ import ewe.fx.Point;
++import ewe.io.BufferedWriter;
+ import ewe.io.File;
+ import ewe.io.FileBase;
+ import ewe.io.FileInputStream;
+ import ewe.io.FileOutputStream;
++import ewe.io.FileReader;
++import ewe.io.FileWriter;
+ import ewe.io.IOException;
++import ewe.io.PrintWriter;
+ import ewe.net.Socket;
+ import ewe.sys.Convert;
+ import ewe.sys.Double;
+@@ -251,35 +255,204 @@
+ 	public void downloadMap(CWPoint center, float scale, Point pixelsize, String path) throws Exception {
+ 		MapInfoObject mio = currentOnlineMapService.getMapInfoObject(center, scale, pixelsize);
+ 		String filename = createFilename(mio.getCenter(), mio.scale);
+-		String imagename = mio.setName(path, filename) + currentOnlineMapService.getImageFileExt();
++		String imagename = mio.setName(path, filename);
++		String imagetype = currentOnlineMapService.getImageFileExt();
+ 		String url = currentOnlineMapService.getUrlForCenterScale(center, scale, pixelsize);
+ 		if (currentOnlineMapService instanceof ExpediaMapService) {
+-			downloadImage(url, path+imagename);
+-			mio.saveWFL();
++			downloadImage(url, path+imagename+imagetype);
+ 		}
+ 		else {
+ 			WebMapService wms = (WebMapService) currentOnlineMapService;
+-			if (wms.requestUrlPart.equalsIgnoreCase(&quot;Kosmos&quot;)) {
+-				url=&quot;bitmapgen&quot;+
+-					&quot; \&quot;&quot;+FileBase.getProgramDirectory().replace('/',File.separatorChar)+&quot;\\&quot;+wms.serviceTypeUrlPart+&quot;\&quot;&quot;+
+-					&quot; \&quot;&quot;+path.replace('/', File.separatorChar)+imagename+&quot;\&quot;&quot;+
+-					&quot; -mb &quot;+url; // + minx miny maxx maxy + pixelsize.x
+-				File f=new FileBugfix(wms.MainUrl);
++			
++			if (wms.requestUrlPart.startsWith(&quot;REQUEST&quot;)) {
++				downloadImage(url, path+imagename+imagetype);
++			}
++			else {
++				Area maparea = wms.CenterScaleToArea(center, scale, pixelsize);
++				CWPoint buttomleft = new CWPoint (maparea.buttomright.latDec, maparea.topleft.lonDec);
++				CWPoint topright = new CWPoint (maparea.topleft.latDec, maparea.buttomright.lonDec);
++
++				String mapProgramPath = wms.versionUrlPart+&quot;/&quot;;
++				mapProgramPath = mapProgramPath.replace('/', FileBase.separatorChar);
++				String mapProgram = mapProgramPath+wms.MainUrl;
++				File f=new FileBugfix(mapProgram);
+ 				if (!f.exists() || !f.canRead()) {
+ 					MessageBox mb=new MessageBox(MyLocale.getMsg(321,&quot;Error&quot;),MyLocale.getMsg(1834,&quot;Please enter the correct path to Kosmos.Console.exe into the wms-file.&quot;),ewe.ui.MessageBox.OKB);
+ 					mb.execute();
+-				} else {
+-					Vm.exec(wms.MainUrl.replace('/', File.separatorChar), url, 0, true);
+-					mio.saveWFL();
++					return;
+ 				}
++				
++				String mapProgramParams = &quot;&quot;;
++				
++				if (wms.requestUrlPart.equalsIgnoreCase(&quot;Kosmos&quot;)) {					
++					// minx miny maxx maxy + pixelsize.x
++					mapProgramParams=&quot;bitmapgen&quot; +
++						&quot; \&quot;&quot;+FileBase.getProgramDirectory().replace('/',File.separatorChar)+&quot;\\&quot;+wms.serviceTypeUrlPart+&quot;\&quot;&quot;+
++						&quot; \&quot;&quot;+path.replace('/', File.separatorChar)+imagename+imagetype+&quot;\&quot;&quot;+
++						&quot; -mb &quot; +
++						buttomleft.toString(TransformCoordinates.LAT_LON).replace(',',' ') + &quot; &quot; +
++						topright.toString(TransformCoordinates.LAT_LON).replace(',',' ') +
++						&quot; -w &quot;+pixelsize.x;				
++					Vm.exec(mapProgram, mapProgramParams, 0, true);				
++				}
++				else { 
++					if (wms.requestUrlPart.equalsIgnoreCase(&quot;Maperitive&quot;)) {
++						// Maperitive runs on Windows and Linux
++						// generating scriptfile for Maperitive from wmsfile
++						String cwPath = FileBase.getProgramDirectory().replace('/',FileBase.separatorChar) + FileBase.separatorChar;
++						String scriptFileName = cwPath + &quot;maperitive.script&quot;;
++						
++						PrintWriter outp =  new PrintWriter(new BufferedWriter(new FileWriter(scriptFileName)));
++						outp.println(&quot;use-ruleset alias=default&quot;);
++						outp.println(&quot;clear-map&quot;);
++
++						if (wms.serviceTypeUrlPart.equals(&quot;&quot;)) {
++							outp.println(&quot;add-web-map&quot;);
++						}
++						else {
++							outp.println(&quot;add-web-map provider=&quot; + wms.serviceTypeUrlPart);
++						}
++						
++						if (!wms.stylesUrlPart.equals(&quot;&quot;)) {
++							String myrules = mapProgramPath + wms.stylesUrlPart;
++							outp.println(&quot;use-ruleset location=&quot; + myrules + &quot;as-alias=myrules&quot;);
++							// outp.println(&quot;apply-ruleset&quot;);
++						}
++						if (!wms.layersUrlPart.equals(&quot;&quot;)) {
++							outp.println(&quot;clear-map&quot;);
++							outp.println(&quot;load-source &quot; + mapProgramPath + wms.layersUrlPart);
++							// implicit does apply-ruleset
++						}
++						
++						String koords = buttomleft.toString(TransformCoordinates.LON_LAT) + &quot;,&quot; + topright.toString(TransformCoordinates.LON_LAT);
++						outp.println(&quot;bounds-set &quot;+koords);
++						outp.println(&quot;zoom-bounds&quot;);
++						outp.print(&quot;export-bitmap file=&quot; + path + imagename + imagetype);
++						outp.print(&quot; bounds=&quot;+ koords);
++						String pxSize = &quot; width=&quot;+pixelsize.x + &quot; height=&quot;+pixelsize.y;						
++						outp.print(pxSize);
++						outp.println(&quot; kml=false&quot;);
++						outp.close();
++						// executing the generated script
++						mapProgramParams = &quot;-exitafter &quot; + &quot;\&quot;&quot; + scriptFileName + &quot;\&quot;&quot;; 
++						Vm.exec(mapProgram, mapProgramParams, 0, true);
++						// preparation for generating wfl from the ozi map-file
++						Vector GCPs = map2wfl(path+imagename);
++						mio.evalGCP(GCPs, pixelsize.x, pixelsize.y);
++						// can not supress genaration of pgw-file
++						File pgwFile = new File(path + imagename + &quot;.pgw&quot;);
++						pgwFile.delete();
++					}
++				}
++			}			
++		}
++		mio.saveWFL();
++	}
++
++	private Vector map2wfl(String pathAndImageName) {
++		Vector GCPs = new Vector();
++		File mapFile = new File(pathAndImageName + &quot;.map&quot;);
++		if(mapFile.exists()){
++			GCPoint gcp1 = new GCPoint();
++			GCPoint gcp2 = new GCPoint();
++			GCPoint gcp3 = new GCPoint();
++			GCPoint gcp4 = new GCPoint();
++			GCPoint gcpG = new GCPoint();
++			String line=&quot;&quot;;
++			String[] parts;
++			try {
++				FileReader inMap = new FileReader(pathAndImageName + &quot;.map&quot;);
++				while((line = inMap.readLine()) != null){
++					if(line.equals(&quot;MMPNUM,4&quot;)){
++
++						line = inMap.readLine();
++						parts = mString.split(line, ',');
++						gcp1.bitMapX = Convert.toInt(parts[2]);
++						gcp1.bitMapY = Convert.toInt(parts[3]);
++						if(gcp1.bitMapX == 0) gcp1.bitMapX = 1;
++						if(gcp1.bitMapY == 0) gcp1.bitMapY = 1;
++
++						line = inMap.readLine();
++						parts = mString.split(line, ',');
++						gcp2.bitMapX = Convert.toInt(parts[2]);
++						gcp2.bitMapY = Convert.toInt(parts[3]);
++						if(gcp2.bitMapX == 0) gcp2.bitMapX = 1;
++						if(gcp2.bitMapY == 0) gcp2.bitMapY = 1;
++
++						line = inMap.readLine();
++						parts = mString.split(line, ',');
++						gcp3.bitMapX = Convert.toInt(parts[2]);
++						gcp3.bitMapY = Convert.toInt(parts[3]);
++						if(gcp3.bitMapX == 0) gcp3.bitMapX = 1;
++						if(gcp3.bitMapY == 0) gcp3.bitMapY = 1;
++						//imageWidth = gcp3.bitMapX;
++						//imageHeight = gcp3.bitMapY;
++
++						line = inMap.readLine();
++						parts = mString.split(line, ',');
++						gcp4.bitMapX = Convert.toInt(parts[2]);
++						gcp4.bitMapY = Convert.toInt(parts[3]);
++						if(gcp4.bitMapX == 0) gcp4.bitMapX = 1;
++						if(gcp4.bitMapY == 0) gcp4.bitMapY = 1;
++
++						line = inMap.readLine();
++						parts = mString.split(line, ',');
++						if(MyLocale.getDigSeparator().equals(&quot;,&quot;)) {
++							parts[3]= parts[3].replace('.', ',');
++							parts[2]= parts[2].replace('.', ',');
++						}
++						gcpG = new GCPoint(Convert.toDouble(parts[3]), Convert.toDouble(parts[2]));
++						gcpG.bitMapX = gcp1.bitMapX;
++						gcpG.bitMapY = gcp1.bitMapY;
++						GCPs.add(gcpG);
++
++						line = inMap.readLine();
++						parts = mString.split(line, ',');
++						if(MyLocale.getDigSeparator().equals(&quot;,&quot;)) {
++							parts[3]= parts[3].replace('.', ',');
++							parts[2]= parts[2].replace('.', ',');
++						}
++						gcpG = new GCPoint(Convert.toDouble(parts[3]), Convert.toDouble(parts[2]));
++						gcpG.bitMapX = gcp2.bitMapX;
++						gcpG.bitMapY = gcp2.bitMapY;
++						GCPs.add(gcpG);
++
++						line = inMap.readLine();
++						parts = mString.split(line, ',');
++						if(MyLocale.getDigSeparator().equals(&quot;,&quot;)) {
++							parts[3]= parts[3].replace('.', ',');
++							parts[2]= parts[2].replace('.', ',');
++						}
++						gcpG = new GCPoint(Convert.toDouble(parts[3]), Convert.toDouble(parts[2]));
++						gcpG.bitMapX = gcp3.bitMapX;
++						gcpG.bitMapY = gcp3.bitMapY;
++						GCPs.add(gcpG);
++
++						line = inMap.readLine();
++						parts = mString.split(line, ',');
++						if(MyLocale.getDigSeparator().equals(&quot;,&quot;)) {
++							parts[3]= parts[3].replace('.', ',');
++							parts[2]= parts[2].replace('.', ',');
++						}
++						gcpG = new GCPoint(Convert.toDouble(parts[3]), Convert.toDouble(parts[2]));
++						gcpG.bitMapX = gcp4.bitMapX;
++						gcpG.bitMapY = gcp4.bitMapY;
++						GCPs.add(gcpG);
++					} // if
++				} // while
++				inMap.close();
++			} catch(IllegalArgumentException ex){ // is thrown from Convert.toDouble and saveWFL if affine[0-5]==0 NumberFormatException is a subclass of IllegalArgumentExepction
++				Global.getPref().log(MyLocale.getMsg(4117, &quot;Error while importing .map-file: &quot;), ex);
++			} catch(IOException ex){
++				Global.getPref().log(MyLocale.getMsg(4118, &quot;IO-Error while reading or writing calibration file&quot;), ex);
+ 			}
+-			else {
+-				downloadImage(url, path+imagename);
+-				mio.saveWFL();
+-			}
++			mapFile.delete(); 
++		} else { // if map file.exists
++			Global.getPref().log(MyLocale.getMsg(4119, &quot;No calibration file found for: &quot;), null);
+ 		}
++		return GCPs;
+ 	}
+-
++	
+ 	public String createFilename(CWPoint center, float scale) {
+ 		String filename = Common.ClearForFileName(currentOnlineMapService.getNameForFileSystem()+&quot;_s&quot;+Common.DoubleToString(scale,0,1)
+ 				+ &quot;_c&quot; + center.toString(TransformCoordinates.LAT_LON).replace(',', '-'));
+@@ -633,12 +806,6 @@
+ 		coordinateReferenceSystemUrlPart[crs] + &quot;&amp;&quot; + bbox +
+ 		&quot;&amp;WIDTH=&quot; + pixelsize.x + &quot;&amp;HEIGHT=&quot; + pixelsize.y + &quot;&amp;&quot; +
+ 		layersUrlPart + &quot;&amp;&quot; + stylesUrlPart + &quot;&amp;&quot; + imageFormatUrlPart;
+-		if (requestUrlPart.equalsIgnoreCase(&quot;Kosmos&quot;)) {
+-			// minlat minlng maxlat maxlng
+-			ret=buttomleft.toString(TransformCoordinates.LAT_LON).replace(',',' ')+&quot; &quot;+
+-				topright.toString(TransformCoordinates.LAT_LON).replace(',',' ')+
+-				&quot; -w &quot;+pixelsize.x;
+-		}
+ 		Global.getPref().log(ret + &quot; WGS84: Buttom left: &quot; + buttomleft.toString(TransformCoordinates.DD) + &quot;top right: &quot; + topright.toString(TransformCoordinates.DD));
+ 		return ret;
+ 	}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002920.html">[Cachewolf-svn] r2929 - branches/r1.2/src/CacheWolf/imp
+</A></li>
+	<LI>Next message: <A HREF="002922.html">[Cachewolf-svn] r2931 - in trunk: res_noewe/webmapservices	src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2921">[ date ]</a>
+              <a href="thread.html#2921">[ thread ]</a>
+              <a href="subject.html#2921">[ subject ]</a>
+              <a href="author.html#2921">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,119 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2824 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-October/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2824%20-%20trunk/src/CacheWolf&In-Reply-To=%3C20101017094107.03E9F480F00%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002813.html">
+   <LINK REL="Next"  HREF="002814.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2824 - trunk/src/CacheWolf</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2824%20-%20trunk/src/CacheWolf&In-Reply-To=%3C20101017094107.03E9F480F00%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2824 - trunk/src/CacheWolf">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Sun Oct 17 11:41:06 CEST 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002813.html">[Cachewolf-svn] r2825 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="002814.html">[Cachewolf-svn] r2826 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2812">[ date ]</a>
+              <a href="thread.html#2812">[ thread ]</a>
+              <a href="subject.html#2812">[ subject ]</a>
+              <a href="author.html#2812">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2010-10-17 11:41:06 +0200 (Sun, 17 Oct 2010)
+New Revision: 2824
+
+Modified:
+   trunk/src/CacheWolf/Parser.java
+Log:
+introducing a third parameter for the format - command: getting the Nth part of the result of the same command without the third parameter. Separator for the parts is Blank.
+<A HREF="http://www.geoclub.de/viewtopic.php?f=40&amp;t=49563">http://www.geoclub.de/viewtopic.php?f=40&amp;t=49563</A>
+
+Modified: trunk/src/CacheWolf/Parser.java
+===================================================================
+--- trunk/src/CacheWolf/Parser.java	2010-10-15 15:37:16 UTC (rev 2823)
++++ trunk/src/CacheWolf/Parser.java	2010-10-17 09:41:06 UTC (rev 2824)
+@@ -79,6 +79,7 @@
+ import ewe.util.Hashtable;
+ import ewe.util.Iterator;
+ import ewe.util.Vector;
++import ewe.util.mString;
+ 
+ /**
+ *	The wolf language parser. New version - January 2007
+@@ -142,7 +143,7 @@
+      	new fnType(&quot;deg2rad&quot;,&quot;deg2rad&quot;,2),
+      	new fnType(&quot;distance&quot;,&quot;distance&quot;,4),
+      	new fnType(&quot;encode&quot;,&quot;encode&quot;,8),
+-    	new fnType(&quot;format&quot;,&quot;format&quot;,6),
++    	new fnType(&quot;format&quot;,&quot;format&quot;,12),
+     	new fnType(&quot;goto&quot;,&quot;goto&quot;,6),
+     	new fnType(&quot;ic&quot;,&quot;ic&quot;,3),
+     	new fnType(&quot;ignorecase&quot;,&quot;ic&quot;,3),
+@@ -547,14 +548,23 @@
+      * @param nargs 1 or 2 args
+      */
+     private String funcFormat(int nargs) throws Exception {
++    	int spart=0;
++    	if (nargs==3) spart=(int) popCalcStackAsNumber(0);
+     	String fmtStr=&quot;&quot;;
+-    	if (nargs==2)fmtStr=popCalcStackAsString().toLowerCase();
++    	if (nargs&gt;=2)fmtStr=popCalcStackAsString().toLowerCase();
+     	String coord=popCalcStackAsString();
+ 		if (!isValidCoord(coord)) err(MyLocale.getMsg(1712,&quot;Invalid coordinate: &quot;)+coord);
+     	cwPt.set(coord);
+     	int fmt = TransformCoordinates.getLocalSystemCode(fmtStr);
+     	if (fmt == TransformCoordinates.LOCALSYSTEM_NOT_SUPPORTED) err(MyLocale.getMsg(1713,&quot;Invalid coordinate format. Allowed are cw / dd / dmm / dms / &quot;) + Common.arrayToString(TransformCoordinates.getProjectedSystemIDs(), &quot; / &quot;));
+-    	return cwPt.toString(fmt);
++    	String ret = cwPt.toString(fmt);
++    	if (nargs==3){
++    		String[] parts=mString.split(ret, ' ');
++    		if (spart&gt;0 &amp;&amp; parts.length&gt;=spart)
++    		ret = parts[spart-1];
++    		else err(&quot;Param 3 !!! &quot;+MyLocale.getMsg(1713,&quot;Invalid coordinate format.&quot;));
++    	}
++    	return ret;
+     }
+ 
+     /** Implements a goto command goto(coordinate,optionalWaypointName).
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002813.html">[Cachewolf-svn] r2825 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="002814.html">[Cachewolf-svn] r2826 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2812">[ date ]</a>
+              <a href="thread.html#2812">[ thread ]</a>
+              <a href="subject.html#2812">[ subject ]</a>
+              <a href="author.html#2812">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

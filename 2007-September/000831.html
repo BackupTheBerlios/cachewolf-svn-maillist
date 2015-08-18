@@ -1,0 +1,316 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r938 - in trunk: resources src/CacheWolf	src/CacheWolf/imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-September/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r938%20-%20in%20trunk%3A%20resources%20src/CacheWolf%0A%09src/CacheWolf/imp&In-Reply-To=%3C200709241513.l8OFDmXJ027138%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000830.html">
+   <LINK REL="Next"  HREF="000832.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r938 - in trunk: resources src/CacheWolf	src/CacheWolf/imp</H1>
+    <B>bilbowolf at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r938%20-%20in%20trunk%3A%20resources%20src/CacheWolf%0A%09src/CacheWolf/imp&In-Reply-To=%3C200709241513.l8OFDmXJ027138%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r938 - in trunk: resources src/CacheWolf	src/CacheWolf/imp">bilbowolf at mail.berlios.de
+       </A><BR>
+    <I>Mon Sep 24 17:13:48 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000830.html">[Cachewolf-svn] r937 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000832.html">[Cachewolf-svn] r939 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#831">[ date ]</a>
+              <a href="thread.html#831">[ thread ]</a>
+              <a href="subject.html#831">[ subject ]</a>
+              <a href="author.html#831">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: bilbowolf
+Date: 2007-09-24 17:13:26 +0200 (Mon, 24 Sep 2007)
+New Revision: 938
+
+Added:
+   trunk/src/CacheWolf/imp/
+   trunk/src/CacheWolf/imp/KMLImporter.java
+Modified:
+   trunk/resources/goto.gif
+   trunk/src/CacheWolf/CacheHolder.java
+   trunk/src/CacheWolf/Filter.java
+   trunk/src/CacheWolf/Version.java
+Log:
+
+
+Modified: trunk/resources/goto.gif
+===================================================================
+(Binary files differ)
+
+Modified: trunk/src/CacheWolf/CacheHolder.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolder.java	2007-09-24 14:56:38 UTC (rev 937)
++++ trunk/src/CacheWolf/CacheHolder.java	2007-09-24 15:13:26 UTC (rev 938)
+@@ -80,6 +80,8 @@
+ public boolean is_HTML = true;
+ /** List of additional waypoints associated with this waypoint */
+ public Vector addiWpts = new Vector();
++/** in range is used by the route filter to identify caches in range of a segment*/
++public boolean in_range = false;
+ /** If this is an additional waypoint, this links back to the main waypoint */
+ public CacheHolder mainCache;
+ /** The date this cache was last synced with OC in format yyyyMMddHHmmss */
+
+Modified: trunk/src/CacheWolf/Filter.java
+===================================================================
+--- trunk/src/CacheWolf/Filter.java	2007-09-24 14:56:38 UTC (rev 937)
++++ trunk/src/CacheWolf/Filter.java	2007-09-24 15:13:26 UTC (rev 938)
+@@ -4,6 +4,7 @@
+ import ewe.sys.*;
+ import ewe.io.*;
+ import com.stevesoft.ewe_pat.*;
++import CacheWolf.imp.*;
+ 
+ /**
+ *	Class that actually filters the cache database.&lt;br&gt;
+@@ -119,40 +120,46 @@
+ 		CacheHolder ch;
+ 		double lat,lon, calcDistance = 0;
+ 		try{
+-			FileReader in = new FileReader(routeFile);
+-			String line; 
+-			while((line = in.readLine()) != null){
+-				rex.search(line);
+-				/*
+-				Vm.debug(line);
+-				Vm.debug(rex.stringMatched(1));
+-				Vm.debug(rex.stringMatched(2));
+-				Vm.debug(rex.stringMatched(3));
+-				Vm.debug(rex.stringMatched(5));
+-				
+-				Vm.debug(rex.stringMatched(6));
+-				Vm.debug(rex.stringMatched(7));
+-				Vm.debug(rex.stringMatched(8));
+-				Vm.debug(rex.stringMatched(10));
+-				Vm.debug(&quot; &quot;);
+-				*/
+-				// parse the route file
+-				if(rex.didMatch()){
+-					lat = Convert.toDouble(rex.stringMatched(2)) + Convert.toDouble(rex.stringMatched(3))/60 + Convert.toDouble(rex.stringMatched(5))/60000;
+-					lon = Convert.toDouble(rex.stringMatched(7)) + Convert.toDouble(rex.stringMatched(8))/60 + Convert.toDouble(rex.stringMatched(10))/60000;
+-				
+-					if(rex.stringMatched(1).equals(&quot;S&quot;) || rex.stringMatched(1).equals(&quot;s&quot;)) lat = -lat;
+-					if(rex.stringMatched(6).equals(&quot;W&quot;) || rex.stringMatched(6).equals(&quot;w&quot;)) lon = -lon;	
+-				
+-					cwp = new CWPoint(lat, lon);
++			if((routeFile.getFullPath()).indexOf(&quot;.kml&quot;) &gt; 0){
++				KMLImporter kml = new KMLImporter(routeFile.getFullPath());
++				kml.importFile();
++				wayPoints = kml.getPoints();
++			} else {
++				FileReader in = new FileReader(routeFile);
++				String line; 
++				while((line = in.readLine()) != null){
++					rex.search(line);
++					/*
++					Vm.debug(line);
++					Vm.debug(rex.stringMatched(1));
++					Vm.debug(rex.stringMatched(2));
++					Vm.debug(rex.stringMatched(3));
++					Vm.debug(rex.stringMatched(5));
+ 					
+-					wayPoints.add(cwp);
++					Vm.debug(rex.stringMatched(6));
++					Vm.debug(rex.stringMatched(7));
++					Vm.debug(rex.stringMatched(8));
++					Vm.debug(rex.stringMatched(10));
++					Vm.debug(&quot; &quot;);
++					*/
++					// parse the route file
++					if(rex.didMatch()){
++						lat = Convert.toDouble(rex.stringMatched(2)) + Convert.toDouble(rex.stringMatched(3))/60 + Convert.toDouble(rex.stringMatched(5))/60000;
++						lon = Convert.toDouble(rex.stringMatched(7)) + Convert.toDouble(rex.stringMatched(8))/60 + Convert.toDouble(rex.stringMatched(10))/60000;
++					
++						if(rex.stringMatched(1).equals(&quot;S&quot;) || rex.stringMatched(1).equals(&quot;s&quot;)) lat = -lat;
++						if(rex.stringMatched(6).equals(&quot;W&quot;) || rex.stringMatched(6).equals(&quot;w&quot;)) lon = -lon;	
++					
++						cwp = new CWPoint(lat, lon);
++						
++						wayPoints.add(cwp);
++					}
+ 				}
+ 			}
+ 			//initialize database
+ 			for(int i = cacheDB.size()-1; i &gt;=0 ; i--){
+ 				ch = (CacheHolder)cacheDB.get(i);
+-				ch.is_filtered = true;
++				ch.in_range = false;
+ 				//cacheDB.set(i, ch);
+ 			}
+ 			// for each segment of the route...
+@@ -170,13 +177,16 @@
+ 					calcDistance = calcDistance * 1.852;
+ 					//Vm.debug(&quot;Distcalc: &quot; + calcDistance + &quot;Cache: &quot; +ch.CacheName + &quot; / z is = &quot; + z);
+ 					if(calcDistance &lt;= distance) {
+-						Vm.debug(&quot;Distcalc: &quot; + calcDistance + &quot;Cache: &quot; +ch.CacheName + &quot; / z is = &quot; + z);
+-						ch.is_filtered = false;
++						//Vm.debug(&quot;Distcalc: &quot; + calcDistance + &quot;Cache: &quot; +ch.CacheName + &quot; / z is = &quot; + z);
++						ch.in_range = true;
+ 					}
+ 					//cacheDB.set(i, ch);
+ 				} // for database
+ 			} // for segments
+-			
++			for(int i = cacheDB.size()-1; i &gt;=0 ; i--){
++				ch = (CacheHolder)cacheDB.get(i);
++				if(ch.is_filtered == false &amp;&amp; ch.in_range == false) ch.is_filtered = true;
++			}
+ 		}catch(FileNotFoundException fnex){
+ 			(new MessageBox(&quot;Error&quot;, &quot;File not found&quot;, MessageBox.OKB)).execute();
+ 		}catch(IOException ioex){
+
+Modified: trunk/src/CacheWolf/Version.java
+===================================================================
+--- trunk/src/CacheWolf/Version.java	2007-09-24 14:56:38 UTC (rev 937)
++++ trunk/src/CacheWolf/Version.java	2007-09-24 15:13:26 UTC (rev 938)
+@@ -10,7 +10,7 @@
+ 	static final String VER_MAJOR = &quot;BE&quot;;
+ 	static final String VER_MINOR = &quot;&quot;;
+ 	static final String VER_BUILD = &quot; &quot;;
+-	static final String VER_SVN =&quot;$LastChangedRevision$&quot;; // the number is automatically replaced by subversion to the latest versionnumer of this file (svn:keywords LastChangedRevision)
++	static final String VER_SVN =&quot;$LastChangedRevision$&quot;; //the number is automatically replaced by subversion to the latest versionnumer of this file (svn:keywords LastChangedRevision)
+ 	
+ 	/**
+ 	 * @return
+
+Added: trunk/src/CacheWolf/imp/KMLImporter.java
+===================================================================
+--- trunk/src/CacheWolf/imp/KMLImporter.java	2007-09-24 14:56:38 UTC (rev 937)
++++ trunk/src/CacheWolf/imp/KMLImporter.java	2007-09-24 15:13:26 UTC (rev 938)
+@@ -0,0 +1,93 @@
++package CacheWolf.imp;
++
++import ewesoft.xml.*;
++import ewe.util.*;
++import ewesoft.xml.sax.*;
++import ewe.io.*;
++import ewe.sys.*;
++import CacheWolf.Extractor;
++import CacheWolf.CWPoint;
++
++/**
++ * Class to import coordinates from a KML file generated from
++ * google earth.
++ * it looks for &lt;placemark&gt;&lt;MultiGeometry&gt;&lt;LineString&gt;&lt;coordinates&gt;
++ * and gathers all coordinated in a vector
++ * @author Bilbowolf
++ *
++ */
++public class KMLImporter extends MinML {
++	
++	public Vector points = new Vector();
++	private CWPoint point = new CWPoint();
++	private String file = new String();
++	String strData = new String();
++	private int status = 0;
++	private static int MultiGeometry = 1;
++	private static int LineString = 2;
++	private static int coordinates = 3;
++	
++	public KMLImporter(String file){
++		this.file = file;
++	}
++	
++	public void importFile() {
++		try{
++			Reader r;
++			Vm.showWait(true);
++			r = new FileReader(file);
++			parse(r);
++			r.close();
++			Vm.showWait(false);
++		}catch(Exception e){
++			//Vm.debug(e.toString());
++			Vm.showWait(false);
++		}
++	}
++	
++	public Vector getPoints(){
++		return points;
++	}
++	
++	public void startElement(String name, AttributeList atts){
++		strData = &quot;&quot;;
++		if(name.equals(&quot;MultiGeometry&quot;)) status = MultiGeometry;
++		if(name.equals(&quot;LineString&quot;) &amp;&amp; status == MultiGeometry) status = LineString;
++		if(name.equals(&quot;coordinates&quot;) &amp;&amp; status == LineString) status = coordinates;
++	}
++	
++	public void endElement(String name){
++		if(name.equals(&quot;coordinates&quot;) &amp;&amp; status == coordinates){
++			parseCoordinatesLine();
++			//10.09052,49.78188000000001,0
++		}
++		if(name.equals(&quot;LineString&quot;) &amp;&amp; status == coordinates) status = LineString;
++		if(name.equals(&quot;MultiGeometry&quot;) &amp;&amp; status == LineString) status = 0;
++	}
++	
++	public void characters(char[] ch,int start,int length){
++		String chars = new String(ch,start,length);
++		strData += chars;
++	}
++	
++	private void parseCoordinatesLine(){
++		StringTokenizer exBlock = new StringTokenizer(strData, &quot; &quot;);
++		StringTokenizer numbers;
++		String lat = new String();
++		String lon = new String();
++		
++		String test = new String();
++		
++		while(exBlock.hasMoreTokens()){
++			test = exBlock.nextToken();
++			//Vm.debug(&quot;==&gt; &quot; + test + &quot; &lt;==&quot;);
++			numbers = new StringTokenizer(test, &quot;,&quot;);
++			//Vm.debug(numbers.nextToken());
++			//Vm.debug(numbers.nextToken());
++			lon = numbers.nextToken();
++			lat = numbers.nextToken();
++			point = new CWPoint(Convert.parseDouble(lat),Convert.parseDouble(lon));
++			points.add(point);
++		}
++	}
++}
+\ No newline at end of file
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000830.html">[Cachewolf-svn] r937 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000832.html">[Cachewolf-svn] r939 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#831">[ date ]</a>
+              <a href="thread.html#831">[ thread ]</a>
+              <a href="subject.html#831">[ subject ]</a>
+              <a href="author.html#831">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

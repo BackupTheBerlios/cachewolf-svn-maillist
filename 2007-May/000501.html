@@ -1,0 +1,202 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r676 - in trunk: resources src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-May/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r676%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200705051446.l45EkWn3001495%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000500.html">
+   <LINK REL="Next"  HREF="000502.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r676 - in trunk: resources src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r676%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200705051446.l45EkWn3001495%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r676 - in trunk: resources src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sat May  5 16:46:32 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000500.html">[Cachewolf-svn] [Feature #3379] markieren des ersten Caches in Liste
+</A></li>
+        <LI>Next message: <A HREF="000502.html">[Cachewolf-svn] r677 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#501">[ date ]</a>
+              <a href="thread.html#501">[ thread ]</a>
+              <a href="subject.html#501">[ subject ]</a>
+              <a href="author.html#501">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-05-05 16:46:21 +0200 (Sat, 05 May 2007)
+New Revision: 676
+
+Modified:
+   trunk/resources/cachewolf.Languages.cfg
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/Preferences.java
+   trunk/src/CacheWolf/PreferencesScreen.java
+Log:
+Export zu Garmin: Die Generierung von Kurznamen anstatt der geocaching.com Namen (GCxxxxx) kann ueber die Praeferenzen eingestellt werden
+
+Modified: trunk/resources/cachewolf.Languages.cfg
+===================================================================
+--- trunk/resources/cachewolf.Languages.cfg	2007-04-29 17:50:03 UTC (rev 675)
++++ trunk/resources/cachewolf.Languages.cfg	2007-05-05 14:46:21 UTC (rev 676)
+@@ -59,6 +59,8 @@
+ 		170=Basisverzeichnis f%fc die Profile w%e4hlen
+ 		171=Profil existiert nicht:+
+ 		172=Kann das Kartenverzeichnis nicht erstellen:%0a
++		173=Garmin: PC Port:
++		174=Kurznamen
+ 		200=Details
+ 		201=Beschreibung
+ 		202=Bilder
+@@ -402,6 +404,8 @@
+ 		170=Select base directory for cache data
+ 		171=Profile does not exist:+
+ 		172=Error: cannot create maps directory:%0a
++		173=Garmin: PC Port:
++		174=Short Names
+ 		200=Details
+ 		201=Description
+ 		202=Images
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2007-04-29 17:50:03 UTC (rev 675)
++++ trunk/src/CacheWolf/MainMenu.java	2007-05-05 14:46:21 UTC (rev 676)
+@@ -264,10 +264,12 @@
+ 				loc.doIt(LocExporter.MODE_AUTO);
+ 				ProgressBarForm.display(MyLocale.getMsg(950,&quot;Transfer&quot;),MyLocale.getMsg(951,&quot;Sending to GPS&quot;), null);
+ 				try{
+-					ewe.sys.Process p = Vm.exec(&quot;gpsbabel -s -i geo -f \&quot;&quot;+ tmpFileName +&quot;\&quot; -o garmin -F &quot; + pref.garminConn +&quot;:&quot;);
+-					Vm.debug(&quot;gpsbabel -i geo -f  \&quot;&quot;+ tmpFileName +&quot;\&quot; -o garmin -F &quot; + pref.garminConn +&quot;:&quot;);
++					ewe.sys.Process p = Vm.exec(&quot;gpsbabel &quot;+pref.garminGPSBabelOptions+&quot; -i geo -f \&quot;&quot;+ tmpFileName +&quot;\&quot; -o garmin -F &quot; + pref.garminConn +&quot;:&quot;);
++					Vm.debug(&quot;gpsbabel &quot;+pref.garminGPSBabelOptions+&quot; -i geo -f  \&quot;&quot;+ tmpFileName +&quot;\&quot; -o garmin -F &quot; + pref.garminConn +&quot;:&quot;);
+ 					p.waitFor();
+-				}catch(IOException ioex){};
++				}catch(IOException ioex){
++					(new MessageBox(&quot;Error&quot;, &quot;Garmin export unsuccessful&quot;, MessageBox.OKB)).execute();
++				};
+ 				ProgressBarForm.clear();
+ 				Vm.showWait(false);
+ 			}
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2007-04-29 17:50:03 UTC (rev 675)
++++ trunk/src/CacheWolf/Preferences.java	2007-05-05 14:46:21 UTC (rev 676)
+@@ -56,6 +56,7 @@
+ 	public String lastSyncOC[] = {&quot;&quot;,&quot;&quot;,&quot;&quot;,&quot;&quot;};
+ 	public String lastDistOC[] = {&quot;&quot;,&quot;&quot;,&quot;&quot;,&quot;&quot;};
+ 	public String garminConn=&quot;com1&quot;;  // The type of connection which GPSBABEL uses: com1 OR usb.
++	public String garminGPSBabelOptions=&quot;&quot;; // Additional options for GPSBabel, i.e. -s to synthethize short names
+ 	// These settings govern where the menu and the tabs are displayed and whether the statusbas is shown
+ 	public boolean menuAtTop=true;
+ 	public boolean tabsAtTop=true;
+@@ -411,8 +412,8 @@
+ 		}
+ 		if (name.equals(&quot;garmin&quot;)) {
+ 			garminConn=atts.getValue(&quot;connection&quot;);
++			garminGPSBabelOptions=atts.getValue(&quot;GPSBabelOptions&quot;);
+ 		}
+-
+ 		if(name.equals(&quot;tableType&quot;)){ 
+ 			tablePrefs[1] = Convert.parseInt(atts.getValue(&quot;active&quot;));
+ 			tmp = atts.getValue(&quot;width&quot;);
+@@ -555,7 +556,7 @@
+ 			outp.print(&quot;    &lt;font size =\&quot;&quot;+fontSize+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;	&lt;browser name = \&quot;&quot;+browser+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;fixedsip state = \&quot;&quot;+fixSIP+&quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;    &lt;garmin connection = \&quot;&quot;+garminConn+&quot;\&quot;/&gt;\n&quot;);
++			outp.print(&quot;    &lt;garmin connection = \&quot;&quot;+garminConn+&quot;\&quot; GPSBabelOptions = \&quot;&quot;+garminGPSBabelOptions+&quot;\&quot; /&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;lastprofile autoreload=\&quot;&quot;+autoReloadLastProfile+&quot;\&quot;&gt;&quot;+lastProfile+&quot;&lt;/lastprofile&gt;\n&quot;); //RB
+ 			outp.print(&quot;    &lt;screen menuattop=\&quot;&quot;+menuAtTop+&quot;\&quot; tabsattop=\&quot;&quot;+tabsAtTop+&quot;\&quot; showstatus=\&quot;&quot;+showStatus+&quot;\&quot; hasclosebutton=\&quot;&quot;+hasCloseButton+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;imagepanel showdeletedimages=\&quot;&quot;+showDeletedImages+&quot;\&quot;/&gt;\n&quot;);
+
+Modified: trunk/src/CacheWolf/PreferencesScreen.java
+===================================================================
+--- trunk/src/CacheWolf/PreferencesScreen.java	2007-04-29 17:50:03 UTC (rev 675)
++++ trunk/src/CacheWolf/PreferencesScreen.java	2007-05-05 14:46:21 UTC (rev 676)
+@@ -17,15 +17,17 @@
+ 	mChoice NS, EW;
+ 	mInput NSDeg, NSm, EWDeg, EWm, DataDir, Proxy, ProxyPort, Alias, nLogs, Browser, fontSize, inpGPS, inpLogsPerPage;
+ 	mCheckBox dif, ter, loc, own, hid, stat, dist, bear, chkAutoLoad, chkShowDeletedImg, chkMenuAtTop, 
+-	          chkTabsAtTop, chkShowStatus,chkHasCloseButton;
++	          chkTabsAtTop, chkShowStatus,chkHasCloseButton,chkSynthShort;
+ 	mTabbedPanel mTab;
+ 	mChoice chcGarminPort;
++	mLabel lblGarmin;
+ 	
+ 	Preferences pref;
+ 	
+ 	CellPanel pnlGeneral = new CellPanel();
+ 	CellPanel pnlDisplay = new CellPanel();
+ 	CellPanel pnlMore = new CellPanel();
++	Frame frmGarmin = new Frame();
+ 	ScrollBarPanel scp;
+ 	String [] garminPorts= new String[]{&quot;com1&quot;,&quot;com2&quot;,&quot;com3&quot;,&quot;com4&quot;,&quot;com5&quot;,&quot;com6&quot;,&quot;com7&quot;,&quot;usb&quot;};
+ 	
+@@ -74,9 +76,18 @@
+ 		pnlGeneral.addLast(fontSize = new mInput(),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 		ProxyPort.setText(pref.myproxyport);
+ 		fontSize.setText(Convert.toString(pref.fontSize));
+-		pnlGeneral.addNext(new mLabel(&quot;Garmin PC Port&quot;));
+-		pnlGeneral.addNext(chcGarminPort=new mChoice(garminPorts,0));
++		// Garmin and GPSBabel
++		frmGarmin.addNext(lblGarmin=new mLabel(MyLocale.getMsg(173,&quot;Garmin:  PC Port:&quot;)),DONTSTRETCH,LEFT);
++		lblGarmin.setTag(INSETS,new Insets(4,0,0,0));
++		frmGarmin.addNext(chcGarminPort=new mChoice(garminPorts,0),DONTSTRETCH,LEFT);
++		chcGarminPort.setTag(INSETS,new Insets(4,0,0,0));
+ 		chcGarminPort.selectItem(pref.garminConn);
++		frmGarmin.addLast(chkSynthShort=new mCheckBox(MyLocale.getMsg(174,&quot;Short Names&quot;)),STRETCH,RIGHT);
++		chkSynthShort.setTag(INSETS,new Insets(4,0,0,0));
++		chkSynthShort.setState(!pref.garminGPSBabelOptions.equals(&quot;&quot;));
++		frmGarmin.borderStyle=CellPanel.BDR_RAISEDOUTER|CellPanel.BDR_SUNKENINNER|CellPanel.BF_TOP;
++		frmGarmin.setTag(INSETS,new Insets(4,0,0,0));
++		pnlGeneral.addLast(frmGarmin);
+ 		pnlGeneral.addLast(new mLabel(&quot;&quot;));
+ 		
+ 		/////////////////////////////////////////////////////////
+@@ -188,6 +199,7 @@
+ 				pref.autoReloadLastProfile=chkAutoLoad.getState();
+ 				pref.showDeletedImages=chkShowDeletedImg.getState();
+ 				pref.garminConn=chcGarminPort.getSelectedItem().toString();
++				pref.garminGPSBabelOptions=chkSynthShort.state?&quot;-s&quot;:&quot;&quot;;
+ 				pref.menuAtTop=chkMenuAtTop.getState();
+ 				pref.tabsAtTop=chkTabsAtTop.getState();
+ 				pref.showStatus=chkShowStatus.getState();
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000500.html">[Cachewolf-svn] [Feature #3379] markieren des ersten Caches in Liste
+</A></li>
+	<LI>Next message: <A HREF="000502.html">[Cachewolf-svn] r677 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#501">[ date ]</a>
+              <a href="thread.html#501">[ thread ]</a>
+              <a href="subject.html#501">[ subject ]</a>
+              <a href="author.html#501">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

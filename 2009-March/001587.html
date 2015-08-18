@@ -1,0 +1,303 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1676 - in trunk/src/CacheWolf: . navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-March/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1676%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C200903051711.n25HBow9011918%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001586.html">
+   <LINK REL="Next"  HREF="001588.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1676 - in trunk/src/CacheWolf: . navi</H1>
+    <B>engywuck at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1676%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C200903051711.n25HBow9011918%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1676 - in trunk/src/CacheWolf: . navi">engywuck at mail.berlios.de
+       </A><BR>
+    <I>Thu Mar  5 18:11:50 CET 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001586.html">[Cachewolf-svn] r1675 - in trunk: res_noewe/languages	src/CacheWolf/navi
+</A></li>
+        <LI>Next message: <A HREF="001588.html">[Cachewolf-svn] r1677 - in trunk: res_noewe/languages src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1587">[ date ]</a>
+              <a href="thread.html#1587">[ thread ]</a>
+              <a href="subject.html#1587">[ subject ]</a>
+              <a href="author.html#1587">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: engywuck
+Date: 2009-03-05 18:11:48 +0100 (Thu, 05 Mar 2009)
+New Revision: 1676
+
+Modified:
+   trunk/src/CacheWolf/Parser.java
+   trunk/src/CacheWolf/navi/Metrics.java
+Log:
+Redesign of conversion function. 
+
+Modified: trunk/src/CacheWolf/Parser.java
+===================================================================
+--- trunk/src/CacheWolf/Parser.java	2009-03-04 23:13:23 UTC (rev 1675)
++++ trunk/src/CacheWolf/Parser.java	2009-03-05 17:11:48 UTC (rev 1676)
+@@ -487,8 +487,7 @@
+     	double distKM = cwPt.getDistance(new CWPoint(coordB));
+     	result = distKM*1000.0;
+     	if (Global.getPref().metricSystem == Metrics.IMPERIAL) {
+-    		result = Metrics.convertUnit(distKM, Metrics.KILOMETER, Metrics.MILES);
+-    		result = Metrics.convertUnit(result, Metrics.MILES, Metrics.YARDS);
++    		result = Metrics.convertUnit(distKM, Metrics.KILOMETER, Metrics.YARDS);
+     	}
+     	return result;
+     }
+@@ -629,8 +628,7 @@
+ 		if (!isValidCoord(coord)) err(MyLocale.getMsg(1712,&quot;Invalid coordinate: &quot;)+coord);
+     	cwPt.set(coord);
+     	if (Global.getPref().metricSystem == Metrics.IMPERIAL) {
+-    		distance = Metrics.convertUnit(distance, Metrics.YARDS, Metrics.MILES);
+-    		distance = Metrics.convertUnit(distance, Metrics.MILES, Metrics.KILOMETER);
++    		distance = Metrics.convertUnit(distance, Metrics.YARDS, Metrics.KILOMETER);
+     	} else {
+     		distance = distance / 1000.0;
+     	}
+
+Modified: trunk/src/CacheWolf/navi/Metrics.java
+===================================================================
+--- trunk/src/CacheWolf/navi/Metrics.java	2009-03-04 23:13:23 UTC (rev 1675)
++++ trunk/src/CacheWolf/navi/Metrics.java	2009-03-05 17:11:48 UTC (rev 1676)
+@@ -29,107 +29,80 @@
+ 	
+ 	/**
+ 	 * Converts values from one to another unit.
+-	 * @param value Value to convert
+-	 * @param sourceUnit Constant from class Metrics to represent unit in which 
+-	 * &lt;code&gt;value&lt;/code&gt; is meant. 
+-	 * @param targetUnit Constant from class Metrics to represent the unit in 
+-	 * which &lt;code&gt;value&lt;/code&gt; has to be transformed
++	 * 
++	 * @param value
++	 *            Value to convert
++	 * @param sourceUnit
++	 *            Constant from class Metrics to represent unit in which &lt;code&gt;value&lt;/code&gt; is
++	 *            meant.
++	 * @param targetUnit
++	 *            Constant from class Metrics to represent the unit in which &lt;code&gt;value&lt;/code&gt;
++	 *            has to be transformed
+ 	 * @return The new converted value
+-	 * @throws UnsupportedOperationException when the conversion between the two units
+-	 * is not programmed.
++	 * @throws UnsupportedOperationException
++	 *             when the conversion between the two units is not programmed.
+ 	 */
+ 	public static final double convertUnit(double value, int sourceUnit, int targetUnit) {
++		/*
++		 * Strategy: For each metrical system we define a standard unit: km and mi. In a first step
++		 * any input value is converted to the standard unit in its system Then (if required) the
++		 * standard units are converted between the systems. Last step: The converted unit is
++		 * converted to the target unit (which is in the same metrical system).
++		 */
++
+ 		double result = Double.NaN;
+-		if (sourceUnit == targetUnit) {
+-			result = value;
+-		} else {
+-			switch (sourceUnit) {
+-			case KILOMETER:
+-				switch (targetUnit) {
+-				case METER:
+-					result = value * 1000;
+-					break;
+-				case MILES:
+-					result = value / FCT_MILE2KILOMETER;
+-					break;
+-				case YARDS:
+-					result = (value / FCT_MILE2KILOMETER) * FCT_MILE2YARD;
+-					break;
+-				case FEET:
+-					result = (value / FCT_MILE2KILOMETER) * FCT_MILE2FOOT;
+-					break;
+-				}
+-				break;
+-			case METER:
+-				switch (targetUnit) {
+-				case KILOMETER:
+-					result = value / 1000;
+-					break;
+-				case MILES:
+-					result = (value / 1000) / FCT_MILE2KILOMETER;
+-					break;
+-				case YARDS:
+-					result = ((value / 1000) / FCT_MILE2KILOMETER) * FCT_MILE2YARD;
+-					break;
+-				case FEET:
+-					result = ((value / 1000) / FCT_MILE2KILOMETER) * FCT_MILE2FOOT;
+-					break;
+-				}
+-				break;
+-			case MILES:
+-				switch (targetUnit) {
+-				case KILOMETER:
+-					result = value * FCT_MILE2KILOMETER;
+-					break;
+-				case METER:
+-					result = value * FCT_MILE2KILOMETER * 1000;
+-					break;
+-				case YARDS:
+-					result = value * FCT_MILE2YARD;
+-					break;
+-				case FEET:
+-					result = value * FCT_MILE2FOOT;
+-					break;
+-				}
+-				break;
+-			case YARDS:
+-				switch (targetUnit) {
+-				case KILOMETER:
+-					result = (value / FCT_MILE2YARD) * FCT_MILE2KILOMETER;
+-					break;
+-				case METER:
+-					result = (value / FCT_MILE2YARD) * FCT_MILE2KILOMETER * 1000;
+-					break;
+-				case MILES:
+-					result = value / FCT_MILE2YARD;
+-					break;
+-				case FEET:
+-					result = value / FCT_MILE2YARD * FCT_MILE2FOOT;
+-					break;
+-				}
+-				break;
+-			case FEET:
+-				switch (targetUnit) {
+-				case KILOMETER:
+-					result = (value / FCT_MILE2FOOT) * FCT_MILE2KILOMETER;
+-					break;
+-				case METER:
+-					result = (value / FCT_MILE2FOOT) * FCT_MILE2KILOMETER * 1000;
+-					break;
+-				case MILES:
+-					result = value / FCT_MILE2FOOT;
+-					break;
+-				case YARDS:
+-					result = value * FCT_MILE2YARD / FCT_MILE2FOOT;
+-					break;
+-				}
+-				break;
+-			}
+-		}
+-		if (String.valueOf(result).equals(&quot;NaN&quot;)) {
+-			Global.getPref().log(&quot;Cannot convert &quot;+getUnit(sourceUnit)+ &quot; to &quot;+getUnit(targetUnit));
+-			throw new UnsupportedOperationException(&quot;Cannot convert &quot;+getUnit(sourceUnit)+ &quot; to &quot;+targetUnit);
+-		}
++	    if (sourceUnit == targetUnit) {
++	    	result = value;
++	    } else {
++	    	double stdValue;
++	    	int sourceStdUnit = getMetricSystemStdUnit(sourceUnit);
++	    	int targetStdUnit = getMetricSystemStdUnit(targetUnit);
++	    	switch (sourceUnit) {
++	    	case KILOMETER:
++	    	case MILES:
++	    		stdValue = value;
++	    		break;
++	    	case METER: 
++	    		stdValue = value / 1000.0;
++	    		break;
++	    	case YARDS:
++	    		stdValue = value / FCT_MILE2YARD;
++	    		break;
++	    	case FEET:
++	    		stdValue = value / FCT_MILE2FOOT;
++	    		break;
++	    	default:
++	    		Global.getPref().log(&quot;Cannot convert unit&quot;+getUnit(sourceUnit));
++	    		throw new UnsupportedOperationException(&quot;Cannot convert unit&quot;+getUnit(sourceUnit));
++	    	}
++	    	
++	    	// Convert between standard units of imperial systems
++	    	if (sourceStdUnit == KILOMETER &amp;&amp; targetStdUnit == MILES) {
++	    		stdValue = stdValue / FCT_MILE2KILOMETER; 
++	    	} else if (sourceStdUnit == MILES &amp;&amp; targetStdUnit == KILOMETER) {
++	    		stdValue = stdValue * FCT_MILE2KILOMETER; 
++	    	} 
++	    	
++	    	// Convert to unit from standard unit
++	    	switch (targetUnit) {
++	    	case KILOMETER:
++	    	case MILES:
++	    		result = stdValue;
++	    		break;
++	    	case METER: 
++	    		result = stdValue * 1000.0;
++	    		break;
++	    	case YARDS:
++	    		result = stdValue * FCT_MILE2YARD;
++	    		break;
++	    	case FEET:
++	    		result = stdValue * FCT_MILE2FOOT;
++	    		break;
++	    	default:
++	    		Global.getPref().log(&quot;Cannot convert unit&quot;+getUnit(targetUnit));
++	    		throw new UnsupportedOperationException(&quot;Cannot convert unit&quot;+getUnit(targetUnit));
++	    	}
++	    }	
+ 		return result;
+ 	}
+ 	
+@@ -156,4 +129,23 @@
+ 		}
+ 		return result;
+ 	}
++	
++	/**
++	 * Returns the constant for the metric systems standard unit (km or mi.) a given unit belongs to.
++	 * @param unit Unit to examine
++	 * @return Constant of the standard unit
++	 */
++	private static int getMetricSystemStdUnit(int unit) {
++		switch (unit) {
++		case KILOMETER:
++		case METER:
++			return KILOMETER;
++		case MILES:
++		case YARDS:
++		case FEET:
++			return MILES;
++		default:
++			throw new UnsupportedOperationException(&quot;Unknown unit: &quot;+String.valueOf(unit));			
++		}
++	}
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001586.html">[Cachewolf-svn] r1675 - in trunk: res_noewe/languages	src/CacheWolf/navi
+</A></li>
+	<LI>Next message: <A HREF="001588.html">[Cachewolf-svn] r1677 - in trunk: res_noewe/languages src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1587">[ date ]</a>
+              <a href="thread.html#1587">[ thread ]</a>
+              <a href="subject.html#1587">[ subject ]</a>
+              <a href="author.html#1587">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,144 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r409 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r409%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701201431.l0KEVGFF000486%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000163.html">
+   <LINK REL="Next"  HREF="000165.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r409 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r409%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701201431.l0KEVGFF000486%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r409 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Sat Jan 20 15:31:16 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000163.html">[Cachewolf-svn] [Bug #9801] solver
+</A></li>
+        <LI>Next message: <A HREF="000165.html">[Cachewolf-svn] r410 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#164">[ date ]</a>
+              <a href="thread.html#164">[ thread ]</a>
+              <a href="subject.html#164">[ subject ]</a>
+              <a href="author.html#164">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-01-20 15:31:12 +0100 (Sat, 20 Jan 2007)
+New Revision: 409
+
+Modified:
+   trunk/src/CacheWolf/MapLoader.java
+   trunk/src/CacheWolf/MapLoaderGui.java
+   trunk/src/CacheWolf/Preferences.java
+Log:
+Expedia-Map-Loader:
+* funktioniert jetzt auch mit der deutschen Locale
+* ignoriert caches mit lat/lon = 0/0
+* mkdir funktioniert jetzt auch, wenn gleichzeitig mehrere Unterverzeichnisse angelegt werden m?\195?\188ssen
+
+Modified: trunk/src/CacheWolf/MapLoader.java
+===================================================================
+--- trunk/src/CacheWolf/MapLoader.java	2007-01-20 08:18:53 UTC (rev 408)
++++ trunk/src/CacheWolf/MapLoader.java	2007-01-20 14:31:12 UTC (rev 409)
+@@ -158,8 +158,8 @@
+ 		lonD.set(lon);
+ 		quelle = &quot;<A HREF="http://www.expedia.de/pub/agent.dll?qscr=mrdt">http://www.expedia.de/pub/agent.dll?qscr=mrdt</A>&quot;;
+ 		quelle = quelle + &quot;&amp;ID=3kQaz.&quot;;
+-		quelle = quelle + &quot;&amp;CenP=&quot; + latD.toString() + &quot;,&quot; + lonD.toString();
+-		quelle = quelle + &quot;&amp;Alti=&quot;+Convert.toString(alti)+&quot;&amp;Lang=&quot;+zone+&quot;&amp;Size=&quot;+Convert.toString(PixelWidth)+&quot;,&quot;+Convert.toString(PixelHeight)+&quot;&amp;Offs=0,0&amp;MapS=0&quot;; //&amp;Pins=|&quot; + latD.toString() + &quot;,&quot; + lonD.toString() + &quot;|5|&quot;;
++		quelle = quelle + &quot;&amp;CenP=&quot; + latD.toString().replace(',', '.') + &quot;,&quot; + lonD.toString().replace(',', '.');
++		quelle = quelle + &quot;&amp;Alti=&quot;+Convert.toString(alti)+&quot;&amp;Lang=&quot;+zone+&quot;&amp;Size=&quot;+Convert.toString(PixelWidth)+&quot;,&quot;+Convert.toString(PixelHeight)+&quot;&amp;Offs=0,0&amp;MapS=0&quot;; //&amp;Pins=|&quot; + latD.toString().replace(',', '.') + &quot;,&quot; + lonD.toString().replace(',', '.') + &quot;|5|&quot;;
+ 		//Vm.debug(lat + &quot;,&quot; + lon);
+ 		if(proxy.length()&gt;0){
+ 			connImg = new HttpConnection(proxy, Convert.parseInt(port), quelle);
+
+Modified: trunk/src/CacheWolf/MapLoaderGui.java
+===================================================================
+--- trunk/src/CacheWolf/MapLoaderGui.java	2007-01-20 08:18:53 UTC (rev 408)
++++ trunk/src/CacheWolf/MapLoaderGui.java	2007-01-20 14:31:12 UTC (rev 409)
+@@ -110,15 +110,7 @@
+ 		this.addLast(mTab);
+ 	}
+ 	public String getMapsDir() {
+-		String subdir = Global.getProfile().dataDir.substring(Global.getPref().baseDir.length());
+-		String mapsDir = Global.getPref().baseDir + &quot;/maps/expedia/&quot; + subdir;
+-		if (!(new File(mapsDir).isDirectory())) { // dir exists? 
+-			if (new File(mapsDir).mkdir() == false) // dir creation failed?
+-			{(new MessageBox(&quot;Error&quot;, &quot;Error: cannot create maps directory: \n&quot;+new File(mapsDir).getParentFile(), MessageBox.OKB)).exec();
+-			return null;
+-			}
+-		}
+-		return mapsDir;
++		return Global.getPref().getMapExpediaPath();
+ 	}
+ 	public void downloadTiles() {
+ 		String mapsDir = getMapsDir();
+@@ -193,7 +185,7 @@
+ 					tmpca.set(ch.LatLon);
+ 					ch.pos = new CWPoint(tmpca);
+ 				}
+-				if (ch.pos.isValid()) {
++				if (ch.pos.isValid() &amp;&amp; ch.pos.latDec != 0 &amp;&amp; ch.pos.lonDec != 0 ){ // TODO != 0 sollte rausgenommen werden sobald in der Liste vern&#252;nftig mit nicht gesetzten pos umgegangen wird
+ 					if (topleft == null) topleft = new CWPoint(ch.pos);
+ 					if (buttomright == null) buttomright = new CWPoint(ch.pos);
+ 					if (topleft.latDec &lt; ch.pos.latDec) topleft.latDec = ch.pos.latDec;
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2007-01-20 08:18:53 UTC (rev 408)
++++ trunk/src/CacheWolf/Preferences.java	2007-01-20 14:31:12 UTC (rev 409)
+@@ -186,7 +186,15 @@
+ 	 * to this path the automatically downloaded maps are saved
+ 	 */
+ 	public String getMapExpediaPath() {
+-		return baseDir + &quot;/maps/expedia&quot;;
++		String subdir = Global.getProfile().dataDir.substring(Global.getPref().baseDir.length());
++		String mapsDir = Global.getPref().baseDir + &quot;/maps/expedia/&quot; + subdir;
++		if (!(new File(mapsDir).isDirectory())) { // dir exists? 
++			if (new File(mapsDir).mkdirs() == false) // dir creation failed?
++			{(new MessageBox(&quot;Error&quot;, &quot;Error: cannot create maps directory: \n&quot;+new File(mapsDir).getParentFile(), MessageBox.OKB)).exec();
++			return null;
++			}
++		}
++		return mapsDir;
+ 	}
+ 
+ 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000163.html">[Cachewolf-svn] [Bug #9801] solver
+</A></li>
+	<LI>Next message: <A HREF="000165.html">[Cachewolf-svn] r410 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#164">[ date ]</a>
+              <a href="thread.html#164">[ thread ]</a>
+              <a href="subject.html#164">[ subject ]</a>
+              <a href="author.html#164">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,1219 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r355 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r355%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701071417.l07EHgiN012475%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000034.html">
+   <LINK REL="Next"  HREF="000035.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r355 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r355%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701071417.l07EHgiN012475%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r355 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Sun Jan  7 15:17:42 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000034.html">[Cachewolf-svn] r354 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000035.html">[Cachewolf-svn] r356 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#39">[ date ]</a>
+              <a href="thread.html#39">[ thread ]</a>
+              <a href="subject.html#39">[ subject ]</a>
+              <a href="author.html#39">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-01-07 15:17:39 +0100 (Sun, 07 Jan 2007)
+New Revision: 355
+
+Modified:
+   trunk/src/CacheWolf/Common.java
+   trunk/src/CacheWolf/GotoPanel.java
+   trunk/src/CacheWolf/MovingMap.java
+   trunk/src/CacheWolf/OCXMLImporter.java
+   trunk/src/CacheWolf/TrackOverlay.java
+   trunk/src/CacheWolf/TrackPoint.java
+Log:
+Tracks werden jetzt immer richtig angezeigt
+Fehler bei Bilddateinamen beim download von Opencaching.de, die &quot;?&quot; enthielten wird &quot;?&quot; nun ersetzt, so dass kein Fehler mehr auftritt
+
+Modified: trunk/src/CacheWolf/Common.java
+===================================================================
+--- trunk/src/CacheWolf/Common.java	2007-01-07 12:04:41 UTC (rev 354)
++++ trunk/src/CacheWolf/Common.java	2007-01-07 14:17:39 UTC (rev 355)
+@@ -103,6 +103,10 @@
+ 		strBuf.append(strHex);
+ 		return strBuf.toString();
+ 	}
++	public static String ClearForFileName(String str) {
++		String ret = str.replace('?', '_');
++		return ret;
++	}
+ 
+ 
+ }
+
+Modified: trunk/src/CacheWolf/GotoPanel.java
+===================================================================
+--- trunk/src/CacheWolf/GotoPanel.java	2007-01-07 12:04:41 UTC (rev 354)
++++ trunk/src/CacheWolf/GotoPanel.java	2007-01-07 14:17:39 UTC (rev 355)
+@@ -13,9 +13,6 @@
+ import ewe.sys.Double;
+ 
+ 
+-
+-
+-
+ /**
+  * Thread for reading data from COM-port
+  *
+@@ -28,7 +25,7 @@
+ 	boolean run, tcpForward;
+ 	Socket tcpConn;
+ 	String lastError = new String();
+-	
++
+ 	public SerialThread(SerialPortOptions spo, CWGPSPoint GPSPoint, String forwardIP) throws IOException {
+ 		try{
+ 			comSp = new SerialPort(spo);
+@@ -65,7 +62,7 @@
+ 					String str = mString.fromAscii(comBuff, 0, comLength); 
+ 					if (tcpForward) {
+ 						try {
+-						tcpConn.write(comBuff, 0, comLength);
++							tcpConn.write(comBuff, 0, comLength);
+ 						} catch (IOException e) { tcpForward = false; }
+ 					}
+ 					//Vm.debug(str);
+@@ -77,7 +74,7 @@
+ 		myGPS.noData();
+ 		tcpConn.close();
+ 	}
+-	
++
+ 	public void stop() {
+ 		run = false;
+ 		if (comSp != null) comSp.close();
+@@ -94,20 +91,20 @@
+ 	public boolean run;
+ 	public int calldelay;
+ 	public GotoPanel ticked;
+-	
++
+ 	public UpdateThread (GotoPanel gp, int cd) {
+ 		ticked = gp;
+ 		calldelay = cd;
+ 	}
+-	
++
+ 	public void run () {
+ 		run = true;
+ 		while (run) {
+ 			try { sleep (calldelay);} catch (InterruptedException e) {}
+-		  ticked.ticked();
++			ticked.ticked();
+ 		}
+ 	}
+-	
++
+ 	public void stop() {
+ 		run = false;
+ 	}
+@@ -115,10 +112,10 @@
+ 
+ 
+ /**
+-*	Class to create the panel which handles the connection to the GPS-device&lt;br&gt;
+-*	Displays: current position,speed and bearing; relation to destination waypoint&lt;br&gt;
+-*	Class ID: 1500
+-*/
++ *	Class to create the panel which handles the connection to the GPS-device&lt;br&gt;
++ *	Displays: current position,speed and bearing; relation to destination waypoint&lt;br&gt;
++ *	Class ID: 1500
++ */
+ 
+ 
+ public class GotoPanel extends CellPanel {
+@@ -131,14 +128,14 @@
+ 	mCheckBox chkDMM, chkDMS, chkDD, chkUTM;
+ 	CheckBoxGroup chkFormat = new CheckBoxGroup();
+ 	int currFormat;
+-	
++
+ 	mLabel lblPosition, lblSats, lblSpeed, lblBearMov, lblBearWayP, lblDist, lblHDOP;
+ 	mLabel lblSatsText, lblSpeedText, lblDirText, lblDistText, lblSunAzimut;
+ 	mLabel lblGPS, lblDST, lblCurr, lblWayP;
+ 	mLabel lblLog;
+ 	mCheckBox chkLog;
+ 	mInput inpLogSeconds;
+-	
++
+ 	MainTab mainT;
+ 	Vector cacheDB;
+ 	DetailsPanel detP;
+@@ -152,30 +149,30 @@
+ 	CellPanel roseP = new CellPanel();
+ 	CellPanel GotoP = new CellPanel();
+ 	CellPanel LogP = new CellPanel();
+-	
++
+ 	SerialThread serThread;
+ 	UpdateThread tickerThread;
+-	
++
+ 	ImageControl ic; 
+-	
++
+ 	static Color RED = new Color(255,0,0);
+ 	static Color YELLOW = new Color(255,255,0);
+ 	static Color GREEN = new Color(0,255,0);
+ 	static Color BLUE = new Color(0,255,255);
+-	
++
+ 	static Font BOLD = new Font(&quot;Arial&quot;, Font.BOLD, 14);
+ 
+ 	int centerX, centerY;
+-	
++
+ 	int ticker = 0;
+-	
++
+ 	boolean mapsLoaded = false;
+ 	public boolean runMovingMap = false;
+ 	Vector availableMaps = new Vector();
+ 	MapInfoObject tempMIO = new MapInfoObject();
+ 	MovingMap mmp;
+ 	Track currTrack;
+-	
++
+ 	/**
+ 	 * Create GotoPanel 
+ 	 * @param Preferences 	global preferences
+@@ -196,7 +193,7 @@
+ 		ButtonP.addNext(btnCenter = new mButton(MyLocale.getMsg(309,&quot;Center&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		ButtonP.addNext(btnSave = new mButton(MyLocale.getMsg(311,&quot;Create Waypoint&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		ButtonP.addLast(btnMap = new mButton(&quot;Map&quot;),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		
++
+ 		//Format selection for coords
+ 		FormatP.addNext(chkDD =new mCheckBox(&quot;d.d&#176;&quot;),CellConstants.DONTSTRETCH, CellConstants.WEST);
+ 		FormatP.addNext(chkDMM =new mCheckBox(&quot;d&#176;m.m\'&quot;),CellConstants.DONTSTRETCH, CellConstants.WEST);
+@@ -209,7 +206,7 @@
+ 		chkUTM.setGroup(chkFormat);
+ 		currFormat = CWPoint.DMM;
+ 		chkFormat.selectIndex(currFormat);
+-		
++
+ 		//Coords
+ 		CoordsP.addNext(lblGPS = new mLabel(&quot;GPS: &quot;),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		lblGPS.backGround = RED;
+@@ -224,7 +221,7 @@
+ 		centerY = img.getHeight() / 2;
+ 		centerX = img.getWidth() / 2;
+ 		roseP.addLast(ic,CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.NORTH));
+-		
++
+ 		//Goto
+ 		//things from GPS
+ 		GotoP.addLast(lblCurr = new mLabel(MyLocale.getMsg(1501,&quot;Current&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+@@ -238,7 +235,7 @@
+ 		GotoP.addLast(lblHDOP = new mLabel(&quot;HDOP: &quot; + Convert.toString(gpsPosition.getHDOP())),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 		lblHDOP.font = BOLD;
+ 
+-		
++
+ 		GotoP.addLast(lblSpeed = new mLabel(Convert.toString(gpsPosition.getSpeed())),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 		lblSpeed.font = BOLD;
+ 
+@@ -251,10 +248,10 @@
+ 		lblWayP.font = BOLD;
+ 		GotoP.addLast(lblBearWayP = new mLabel(&quot;0&quot;),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 		lblBearWayP.font = BOLD;
+-		
++
+ 		GotoP.addLast(lblDist = new mLabel(&quot;0&quot;),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 		lblDist.font = BOLD;
+-		
++
+ 		LogP.addNext(lblLog = new mLabel(&quot;Log &quot;),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		LogP.addNext(chkLog = new mCheckBox(),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		LogP.addNext(inpLogSeconds = new mInput(&quot;10&quot;),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+@@ -263,23 +260,16 @@
+ 		chkLog.useCross = true;
+ 		chkLog.setState(false);
+ 		inpLogSeconds.columns = 5;
+-		
++
+ 		LogP.addNext(lblGPS = new mLabel(&quot;Sonne: &quot;),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		lblGPS.backGround = YELLOW;
+ 		lblGPS.setTag(SPAN, new Dimension(2,1));
+-		
++
+ 		LogP.addLast(lblSunAzimut = new mLabel(&quot;---&quot;),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.NORTH));
+-		// for debuging
+-		//Double sunAzimut = new Double();
+-		//sunAzimut.set((getSunAzimut(&quot;060000&quot;,&quot;060806&quot;, 48.1, 11.6))); //wikipedia vergleich
+-		//getSunAzimut(&quot;060000&quot;,&quot;060806&quot;, 48.1, 11.6))); //wikipedia vergleich
+-		//sunAzimut.set((getSunAzimut(&quot;121336.000&quot;,&quot;130906&quot;,50.744 , 7.0933)));
+-		//sunAzimut.set((getSunAzimut(&quot;121436.000&quot;,&quot;130906&quot;,50.744 , 7.0933)));
+-		//lblSunAzimut.setText(l.format(Locale.FORMAT_PARSE_NUMBER,sunAzimut,&quot;0.0&quot;) + &quot; Grad&quot;);
+ 		lblSunAzimut.setText(&quot;---&quot;);
+ 		lblSunAzimut.font = BOLD;
+ 
+-		
++
+ 		//add Panels
+ 		this.addLast(ButtonP,CellConstants.DONTSTRETCH, CellConstants.DONTFILL|CellConstants.WEST).setTag(SPAN,new Dimension(2,1));
+ 		this.addLast(FormatP,CellConstants.DONTSTRETCH, CellConstants.DONTFILL|CellConstants.WEST).setTag(SPAN,new Dimension(2,1));
+@@ -289,7 +279,7 @@
+ 		this.addLast(LogP,CellConstants.DONTSTRETCH, CellConstants.DONTFILL|CellConstants.NORTHWEST).setTag(SPAN,new Dimension(1,1));
+ 
+ 		// for debuging
+-/*		CWGPSPoint myGPS;
++		/*		CWGPSPoint myGPS;
+ 		myGPS = new CWGPSPoint();
+ 		String ex = new String();
+ 		boolean test = false;
+@@ -306,28 +296,28 @@
+ 		test = myGPS.examine(&quot;$GPGSV,4,2,13,29,72,289,38,26,63,296,41,09,12,259,35,18,14,324,*79&quot;);
+ 		test = myGPS.examine(&quot;$GPGSV,4,3,13,19,09,025,,17,06,138,,21,06,300,,37,29,171,40*7A&quot;);
+ 		test = myGPS.examine(&quot;$GPGSV,4,4,13,39,29,166,38*40&quot;);
+-		*/
+-		
++		 */
++
+ 		//while (true){
+-//			int notinterpreted = 0;
+-//					if (myGPS.examine(&quot;@&#246;&#246;H @&#246;&#246;H&#246;@&#214;&#214;HH&#220;&#196;&#220;&#214;&#196;&#196;&#196;H&quot;)) { notinterpreted = 0;} else notinterpreted++;
+-//					if (notinterpreted &gt; 5) myGPS.noInterpretableData();
+-//					// myGPS.noInterpretableData();
+-//				
+-//
++//		int notinterpreted = 0;
++//		if (myGPS.examine(&quot;@&#246;&#246;H @&#246;&#246;H&#246;@&#214;&#214;HH&#220;&#196;&#220;&#214;&#196;&#196;&#196;H&quot;)) { notinterpreted = 0;} else notinterpreted++;
++//		if (notinterpreted &gt; 5) myGPS.noInterpretableData();
++//		// myGPS.noInterpretableData();
++
++
+ //		}	
+-		}
+-	
++	}
++
+ 	/**
+ 	 * draw arrows for the directions of movement and destination waypoint
+ 	 * @param ctrl the control to paint on
+ 	 * @param moveDir degrees of movement
+ 	 * @param destDir degrees of destination waypoint
+ 	 */
+-	
++
+ 	private void drawArrows(Control ctrl,double moveDir, double destDir, double sunAziumt){
+ 		Graphics g = ctrl.getGraphics();
+-		
++
+ 		if (g != null) {
+ 			ctrl.repaintNow();
+ 			// draw only valid arrows
+@@ -348,15 +338,15 @@
+ 	private void drawArrow(Graphics g, double angle, Color col) {
+ 		double angleRad;
+ 		int x, y;
+-		
++
+ 		angleRad = angle * java.lang.Math.PI / 180;
+ 		x = centerX + new Float(centerX * java.lang.Math.sin(angleRad)).intValue();
+ 		y = centerY - new Float(centerY * java.lang.Math.cos(angleRad)).intValue();
+ 		g.setPen(new Pen(col,Pen.SOLID,3));
+ 		g.drawLine(centerX,centerY,x,y);
+-		
++
+ 	}
+-	
++
+ 	/**
+ 	 * set the coords of the destination  
+ 	 * @param dest destination
+@@ -376,14 +366,10 @@
+ 		btnGoto.setText(toPoint.toString(currFormat));
+ 		mainT.select(this);
+ 	}
+-	
++
+ 	/**
+ 	 * method which is called if a timer is set up  
+-	 * 
+ 	 */ 
+-	/**
+-	 * 
+-	 */
+ 	public void ticked() {
+ 		Double bearMov = new Double();
+ 		Double bearWayP = new Double();
+@@ -394,101 +380,85 @@
+ 
+ 		//		Vm.debug(&quot;ticked&quot;);
+ 		int fix = gpsPosition.getFix();
+-		//if(!runMovingMap){
+-			lblSats.setText(&quot;Sats: &quot; + Convert.toString(gpsPosition.getSats()));
+-			lblHDOP.setText(&quot;HDOP: &quot; + Convert.toString(gpsPosition.getHDOP()));
+-			// display values only, if signal good
+-			if ((fix &gt; 0) &amp;&amp; (gpsPosition.getSats()&gt;= 0)) {
+-				//gpsPosition.printAll();
+-				Vm.debug(&quot;currTrack.add: voher&quot;);
++		lblSats.setText(&quot;Sats: &quot; + Convert.toString(gpsPosition.getSats()));
++		lblHDOP.setText(&quot;HDOP: &quot; + Convert.toString(gpsPosition.getHDOP()));
++		// display values only, if signal good
++		if ((fix &gt; 0) &amp;&amp; (gpsPosition.getSats()&gt;= 0)) {
++			//gpsPosition.printAll();
++			//Vm.debug(&quot;currTrack.add: voher&quot;);
++			try {
+ 				currTrack.add(gpsPosition);
+-				Vm.debug(&quot;currTrack.add: nachher&quot;);
+-				lblPosition.setText(gpsPosition.toString(currFormat));
+-				speed.set(gpsPosition.getSpeed());
+-				lblSpeed.setText(MyLocale.formatDouble(speed,&quot;0.0&quot;) + &quot; km/h&quot;);
+-				try { 
+-					sunAzimut.set(getSunAzimut(gpsPosition.Time, gpsPosition.Date, gpsPosition.latDec, gpsPosition.lonDec));
+-					lblSunAzimut.setText(MyLocale.formatDouble(sunAzimut,&quot;0.0&quot;) + &quot; Grad&quot;);
+-				} catch (NumberFormatException e) { 
+-					// irgendeine Info zu Berechnung des Sonnenaziumt fehlt (insbesondere Datum und Uhrzeit sind nicht unbedingt gleichzeitig verf&#252;gbar wenn es einen Fix gibt)
+-					sunAzimut.set(500); // any value out of range (bigger than 360) will prevent drawArrows from drawing it 
+-					lblSunAzimut.setText(&quot;---&quot;);
+-				}//sunAzimut.set(getSunAzimut(&quot;141303&quot;,&quot;130906&quot;, 50.744, 7.0935));
++			} catch (IndexOutOfBoundsException e) { // track full -&gt; create a new one
++				currTrack = new Track(RED); 
++				currTrack.add(gpsPosition);
++				if (mmp != null) mmp.addTrack(currTrack); // TODO maybe gotoPanel should also hold a list of Tracks, because otherwise they will be destroyed if not saved in mmp before
++			}
++			//Vm.debug(&quot;currTrack.add: nachher&quot;);
++			lblPosition.setText(gpsPosition.toString(currFormat));
++			speed.set(gpsPosition.getSpeed());
++			lblSpeed.setText(MyLocale.formatDouble(speed,&quot;0.0&quot;) + &quot; km/h&quot;);
++			try { 
++				sunAzimut.set(getSunAzimut(gpsPosition.Time, gpsPosition.Date, gpsPosition.latDec, gpsPosition.lonDec));
++				lblSunAzimut.setText(MyLocale.formatDouble(sunAzimut,&quot;0.0&quot;) + &quot; Grad&quot;);
++			} catch (NumberFormatException e) { 
++				// irgendeine Info zu Berechnung des Sonnenaziumt fehlt (insbesondere Datum und Uhrzeit sind nicht unbedingt gleichzeitig verf&#252;gbar wenn es einen Fix gibt)
++				sunAzimut.set(500); // any value out of range (bigger than 360) will prevent drawArrows from drawing it 
++				lblSunAzimut.setText(&quot;---&quot;);
++			}//sunAzimut.set(getSunAzimut(&quot;141303&quot;,&quot;130906&quot;, 50.744, 7.0935));
+ 
+-				bearMov.set(gpsPosition.getBear());
+-				lblBearMov.setText(bearMov.toString(0,0,0) + &quot; Grad&quot;);
+-				bearWayP.set(gpsPosition.getBearing(toPoint));
+-				lblBearWayP.setText(bearWayP.toString(0,0,0) + &quot; Grad&quot;);
++			bearMov.set(gpsPosition.getBear());
++			lblBearMov.setText(bearMov.toString(0,0,0) + &quot; Grad&quot;);
++			bearWayP.set(gpsPosition.getBearing(toPoint));
++			lblBearWayP.setText(bearWayP.toString(0,0,0) + &quot; Grad&quot;);
+ 
+-				dist.set(gpsPosition.getDistance(toPoint));
++			dist.set(gpsPosition.getDistance(toPoint));
+ 
+-				if (dist.value &gt;= 1){
+-					lblDist.setText(MyLocale.formatDouble(dist,&quot;0.000&quot;)+ &quot; km&quot;);
+-				}
+-				else {
+-					dist.set(dist.value * 1000);
+-					lblDist.setText(dist.toString(3,0,0) + &quot; m&quot;);
+-				}
++			if (dist.value &gt;= 1){
++				lblDist.setText(MyLocale.formatDouble(dist,&quot;0.000&quot;)+ &quot; km&quot;);
++			}
++			else {
++				dist.set(dist.value * 1000);
++				lblDist.setText(dist.toString(3,0,0) + &quot; m&quot;);
++			}
+ 
+-				drawArrows(ic,bearMov.value,bearWayP.value, sunAzimut.value);
++			drawArrows(ic,bearMov.value,bearWayP.value, sunAzimut.value);
+ 
+-				// Set background to signal quality
+-				lblSats.backGround = GREEN;
+-				//return;
+-			}
++			// Set background to signal quality
++			lblSats.backGround = GREEN;
++		}
+ 
+-			// receiving data, but signal ist not good
+-			if ((fix == 0) &amp;&amp; (gpsPosition.getSats()&gt;= 0)) {
+-				lblSats.backGround = YELLOW;
+-				//return;
++		// receiving data, but signal ist not good
++		if ((fix == 0) &amp;&amp; (gpsPosition.getSats()&gt;= 0)) {
++			lblSats.backGround = YELLOW;
++		}
++		// receiving no data
++		if (fix == -1) {
++			if (lblSats.backGround != RED) (new MessageBox(&quot;Error&quot;, &quot;No data from GPS\nConnection to serial port closed&quot;,MessageBox.OKB)).exec();
++			lblSats.backGround = RED;
++			stopGPS();
++		}
++		// cannot interprete data
++		if (fix == -2) {
++			if (lblSats.backGround != RED) (new MessageBox(&quot;Error&quot;, &quot;Cannot interpret data from GPS\n possible reasons:\n wrong Port,\n wrong Baudrate,\n not NMEA-Protocol\nConnection to serial port closed\nLast String tried to interprete:\n &quot;+gpsPosition.lastStrExamined, MessageBox.OKB)).exec();
++			lblSats.backGround = RED;
++			stopGPS();
++		}
++
++		// In moving map mode
++		if (mmp != null &amp;&amp; runMovingMap ) { // neccessary in case of multi-threaded Java-VM: ticked could be called during load of mmp 
++			if ((fix &gt; 0) &amp;&amp; (gpsPosition.getSats()&gt;= 0)) {
++				Vm.debug(&quot;ShowLastAddedPoint: voher&quot;);
++				mmp.ShowLastAddedPoint(currTrack);
++				Vm.debug(&quot;ShowLastAddedPoint: nachher&quot;);
++				mmp.updatePosition(gpsPosition.latDec, gpsPosition.lonDec);
++				mmp.setGpsStatus(MovingMap.gotFix);
+ 			}
+-			// receiving no data
+-			if (fix == -1) {
+-				if (lblSats.backGround != RED) (new MessageBox(&quot;Error&quot;, &quot;No data from GPS\nConnection to serial port closed&quot;,MessageBox.OKB)).exec();
+-				lblSats.backGround = RED;
+-				stopGPS();
+-				//return;
++			if ((fix == 0) &amp;&amp; (gpsPosition.getSats()== 0)) {
++				mmp.setGpsStatus(MovingMap.lostFix);
+ 			}
+-			// cannot interprete data
+-			if (fix == -2) {
+-				if (lblSats.backGround != RED) (new MessageBox(&quot;Error&quot;, &quot;Cannot interpret data from GPS\n possible reasons:\n wrong Port,\n wrong Baudrate,\n not NMEA-Protocol\nConnection to serial port closed\nLast String tried to interprete:\n &quot;+gpsPosition.lastStrExamined, MessageBox.OKB)).exec();
+-				lblSats.backGround = RED;
+-				stopGPS();
+-				//return;
++			if (fix &lt; 0 ) {
++				mmp.setGpsStatus(MovingMap.noGPSData);
+ 			}
+-
+-	//	}else{ // In moving map mode
+-			if (mmp != null &amp;&amp; runMovingMap ) { // neccessary in case of multi-threaded Java-VM: ticked could be called during load of mmp 
+-//				currTrack.add(new CWPoint(50.71343, 007.09998));
+-//				mmp.ShowLastAddedPoint(currTrack);
+-//				currTrack.add(new CWPoint(50.748, 7.09958));
+-//				currTrack.add(new CWPoint(50.75, 7.09958));
+-//				currTrack.add(new CWPoint(50.755, 7.09958));
+-//				currTrack.add(new CWPoint(50.76, 7.09958));
+-//				currTrack.add(new CWPoint(50.765, 7.09958));
+-//				gpsPosition.latDec = 50.75;
+-//				gpsPosition.lonDec = 7.1;
+-//				mmp.updatePosition(50.75, 7.1);
+-//				mmp.addSymbol(&quot;test&quot;, &quot;110.png&quot;, 50.7446, 7.0935);
+-//				try {Thread.sleep(5000);} catch (InterruptedException e) {};
+-//				gpsPosition.latDec = 50.74;
+-//				gpsPosition.lonDec = 7.1;
+-//				mmp.updatePosition(50.74, 7.1);
+-				if ((fix &gt; 0) &amp;&amp; (gpsPosition.getSats()&gt;= 0)) {
+-					Vm.debug(&quot;ShowLastAddedPoint: voher&quot;);
+-					mmp.ShowLastAddedPoint(currTrack);
+-					Vm.debug(&quot;ShowLastAddedPoint: nachher&quot;);
+-					mmp.updatePosition(gpsPosition.latDec, gpsPosition.lonDec);
+-					mmp.setGpsStatus(MovingMap.gotFix);
+-				}
+-				if ((fix == 0) &amp;&amp; (gpsPosition.getSats()== 0)) {
+-					mmp.setGpsStatus(MovingMap.lostFix);
+-				}
+-				if (fix &lt; 0 ) {
+-					mmp.setGpsStatus(MovingMap.noGPSData);
+-				}
+-
+-		//	}
+ 		}
+ 	}
+ 
+@@ -496,11 +466,11 @@
+ 		tickerThread = new UpdateThread(this, 1000);
+ 		tickerThread.start();
+ 	}
+-	
++
+ 	public void stopDisplayTimer(){
+ 		if (tickerThread != null) tickerThread.stop();
+ 	}
+-	
++
+ 	/**
+ 	 * @param utc in the format as it comes from gps DDMMYY
+ 	 * @param datum in the format as it comes from gps HHMMSS
+@@ -510,7 +480,7 @@
+ 	 * @throws NumberFormatException when utc / datum could not be interpreted
+ 	 */
+ 	public double getSunAzimut (String utc, String datum, double lat, double lon) {
+-	//	(new MessageBox(&quot;test&quot;, &quot;utc:&quot;+utc+&quot; datum: &quot;+datum+&quot;, lat: &quot;+lat+&quot;, len: &quot;+lon, MessageBox.OKB)).exec();
++		//	(new MessageBox(&quot;test&quot;, &quot;utc:&quot;+utc+&quot; datum: &quot;+datum+&quot;, lat: &quot;+lat+&quot;, len: &quot;+lon, MessageBox.OKB)).exec();
+ 		try {
+ 			int tag, monat, jahr, stunde, minute, sekunde;
+ 			tag = Convert.parseInt(datum.substring(0, 2));
+@@ -557,7 +527,7 @@
+ 			throw new NumberFormatException();
+ 		}
+ 	}
+-	
++
+ 	private void stopGPS() {
+ 		serThread.stop();
+ 		stopDisplayTimer();
+@@ -568,7 +538,7 @@
+ 		this.repaintNow(); // without this the change in the background color will not be displayed
+ 		chkLog.modify(0,ControlConstants.Disabled);
+ 	}
+-	
++
+ 	public void startGps() {
+ 		if (serThread != null) if (serThread.isAlive()) return;
+ 		try {
+@@ -593,7 +563,7 @@
+ 		currTrack = new Track(RED);
+ 	}
+ 
+-	
++
+ 	/**
+ 	 * Eventhandler
+ 	 */
+@@ -612,8 +582,8 @@
+ 			if (ev.target == btnGPS){
+ 				if (btnGPS.getText().equals(&quot;Start&quot;)) startGps();
+ 				else stopGPS();
+-				}
+-			
++			}
++
+ 			// set current position as center and recalculate distance of caches in MainTab 
+ 			if (ev.target == btnCenter){
+ 				Vm.showWait(true);
+@@ -632,7 +602,7 @@
+ 						mmp.updatePosition(toPoint.latDec, toPoint.lonDec);
+ 						mmp.ignoreGps = true;
+ 					}
+-					if (currTrack != null) mmp.addOverlaySet(currTrack);
++					if (currTrack != null) mmp.addTrack(currTrack);
+ 					mmp.setGotoPosition(toPoint.latDec, toPoint.lonDec);
+ 					mmp.exec();
+ 				}
+@@ -649,8 +619,8 @@
+ 						String rawFileName = new String();
+ 						dateien = files.list(&quot;*.png&quot;, File.LIST_FILES_ONLY);
+ 						for(int i = 0; i &lt; dateien.length;i++){
+-								ext = new Extractor(dateien[i], &quot;&quot;, &quot;.&quot;, 0, true);
+-								rawFileName = ext.findNext();
++							ext = new Extractor(dateien[i], &quot;&quot;, &quot;.&quot;, 0, true);
++							rawFileName = ext.findNext();
+ 							try {
+ 								tempMIO = new MapInfoObject();
+ 								tempMIO.loadwfl(mapsPath, rawFileName);
+@@ -667,18 +637,9 @@
+ 						mmp.loadMap(toPoint.latDec, toPoint.lonDec);
+ 					} else
+ 						mmp.loadMap(gpsPosition.latDec, gpsPosition.lonDec);
+-					if (currTrack != null) mmp.addOverlaySet(currTrack);
++					if (currTrack != null) mmp.addTrack(currTrack);
+ 					mmp.setGotoPosition(toPoint.latDec, toPoint.lonDec);
+ 					mmp.exec();
+-					//				mmp.updatePosition(50.733, 7.096);
+-					/*				mmp.updatePosition(50.74455, 7.0935);
+-				try {  Thread.sleep(2000);	} catch (InterruptedException e){ }
+-				mmp.updatePosition(50.733, 7.096);
+-				try {  Thread.sleep(2000);	} catch (InterruptedException e){ }
+-				mmp.updatePosition(50.7, 7.0);
+-				try {  Thread.sleep(2000);	} catch (InterruptedException e){ }
+-				mmp.updatePosition(50.733, 7.096);
+-					 */	
+ 				}
+ 
+ 			} // if (ev.target == btnMap
+
+Modified: trunk/src/CacheWolf/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/MovingMap.java	2007-01-07 12:04:41 UTC (rev 354)
++++ trunk/src/CacheWolf/MovingMap.java	2007-01-07 14:17:39 UTC (rev 355)
+@@ -25,6 +25,7 @@
+ 	GotoPanel gotoPanel;
+ 	Vector cacheDB;
+ 	TrackOverlay[] TrackOverlays;
++	Vector tracks;
+ 	MapInfoObject currentMap;
+ 	AniImage statusImageHaveSignal = new AniImage(&quot;position_green.png&quot;);
+ 	AniImage statusImageNoSignal = new AniImage(&quot;position_yellow.png&quot;);
+@@ -55,47 +56,38 @@
+ 		mmp = new MovingMapPanel(this, maps, gotoPanel, cacheDB);
+ 		this.addLast(mmp);
+ 	}
++	public void addTrack(Track tr) {
++		if (tr == null) return;
++		if (tracks == null) tracks = new Vector();
++		if (tracks.find(tr) &gt;= 0 ) return; // track already in list
++		tracks.add(tr);
++		addOverlaySet();
++	}
++	
++	public void addTracks(Track[] trs) {
++		if (trs==null || trs.length == 0) return;
++		for (int i=0; i&lt;trs.length; i++) {
++			addTrack(trs[i]);
++		}
++		addOverlaySet();
++	}
++	
+ 	/**
+ 	 * adds an 3x3 set of overlays to the map-window which contain the track
+ 	 * 
+-	 * @param tr: tr==null - use the tracks which are already in use
++	 * add tracks with addtrack(track) before
+ 	 */
+ 	
+-	public void addOverlaySet(Track tr) {
+-		if (tr == null &amp;&amp; TrackOverlays == null) return; // no tracks
+-		Track[] trs;
+-		if (tr==null &amp;&amp; TrackOverlays != null) trs=getTracks(); 
+-		else {
+-			trs=new Track[1];
+-			trs[0]=tr;
+-		}
++	public void addOverlaySet() {
++		if (tracks == null) return; // no tracks
+ 		if (TrackOverlays != null) {
+ 			for (int i=0; i&lt; TrackOverlays.length; i++) {	destroyOverlay(i);	}
+ 		}
+-		addMissingOverlays(trs);
+-		repaintNow();
++		addMissingOverlays();
+ 	}
+ 	
+-	public Track[] getTracks(){
+-		Track[] trs=null;
+-		if (TrackOverlays == null) return null;
+-		// copy tracks from existing Overlays
+-		for (int i=0; i&lt;TrackOverlays.length; i++) {
+-			if (TrackOverlays[i] != null) {
+-				if (TrackOverlays[i].tracks != null) {
+-					trs = new Track[TrackOverlays[i].tracks.size()];
+-					for (int t=0; t&lt;trs.length; t++) {
+-						trs[t]=(Track)TrackOverlays[i].tracks.get(t); 
+-					}
+-				}
+-				break;
+-			}
+-		}
+-		return trs;
+-	}
+ 
+-	public void addMissingOverlays(Track[] trs) {
+-		if (trs == null) trs=getTracks();
++	public void addMissingOverlays() {
+ 		Point upperleft = getMapXYPosition();
+ 		int ww = pref.myAppWidth;
+ 		int wh = pref.myAppHeight;
+@@ -107,7 +99,7 @@
+ 				if (TrackOverlays[i]==null) { 
+ 					TrackOverlays[i]= new TrackOverlay(currentMap.calcLatLon(-upperleft.x+(xi-1)*ww, -upperleft.y+(yi-1)*wh), ww, wh, currentMap); 
+ 					TrackOverlays[i].setLocation(0, 0);
+-					TrackOverlays[i].addTracks(trs);
++					TrackOverlays[i].tracks = this.tracks;
+ 					TrackOverlays[i].paintTracks();
+ 					mmp.addImage(TrackOverlays[i]);
+ 				}
+@@ -227,9 +219,6 @@
+ 		if (TrackOverlays == null || tr == null) return;
+ 		for (int i=0; i&lt;TrackOverlays.length; i++){
+ 			TrackOverlays[i].paintLastAddedPoint(tr);
+-			//TrackOverlays[i].draw.drawRect(50, 50, 100, 100);
+-			//TrackOverlays[i].image.set
+-			//TrackOverlays[i].draw.flush(); doesn't helpt :-(
+ 		}
+ 	}
+ 
+@@ -254,8 +243,8 @@
+ 		updateOverlayOnlyPos();
+ 		if (TrackOverlays[0].location.x&gt;pref.myAppWidth || TrackOverlays[0].location.x + 3*pref.myAppWidth &lt; 0 || // testForNeedToRearange
+ 				TrackOverlays[0].location.y&gt;pref.myAppHeight || TrackOverlays[0].location.y + 3*pref.myAppHeight &lt;0) {
+-			rearangeOverlays(); // TODO Fehler: wenn ein Sprung gemacht wurde, sind werden alle Overlays gel&#246;scht -&gt; Information &#252;ber bereits laufende Tracks gehen verloren -&gt; vorher sp&#252;eichern.
+-			addMissingOverlays(null);
++			rearangeOverlays();
++			addMissingOverlays();
+ 			// updateOverlayOnlyPos(); is called from addMissingOverlays 
+ 		}
+ 	}
+@@ -387,7 +376,6 @@
+ 		ms.pic.setLocation(pOnScreen.x-ms.pic.getWidth()/2, pOnScreen.y-ms.pic.getHeight()/2);
+ 		this.mmp.addImage(ms.pic);
+ 		symbols.add(ms);
+-//		repaintNow();
+ 	}
+ 	
+ 	public void setGotoPosition(double lat, double lon) {
+@@ -534,7 +522,7 @@
+ 			mmp.mapImage.setLocation(0,0);
+ 			mmp.addImage(mmp.mapImage);
+ 			mmp.images.moveToBack(mmp.mapImage);
+-			addOverlaySet(null);
++			addOverlaySet();
+ 			updateOnlyPosition(lat, lon, false);
+ 			inf.close(0);  // this doesn't work in a ticked-thread in the ewe-vm. That's why i made a new mThread in gotoPanel for ticked
+ 			Vm.showWait(false);
+@@ -545,7 +533,7 @@
+ 				mmp.mapImage.free();
+ 				mmp.mapImage = null;
+ 			}
+-			addOverlaySet(null);
++			addOverlaySet();
+ 			updateOnlyPosition(lat, lon, false);
+ 			inf.close(0);
+ 			Vm.showWait(false);
+@@ -557,7 +545,7 @@
+ 				mmp.mapImage.free();
+ 				mmp.mapImage = null;
+ 			}
+-			addOverlaySet(null);
++			addOverlaySet();
+ 			updateOnlyPosition(lat, lon, false);
+ 			inf.close(0);
+ 			Vm.showWait(false);
+@@ -569,7 +557,7 @@
+ 				mmp.mapImage.free();
+ 				mmp.mapImage = null;
+ 			}
+-			addOverlaySet(null);
++			addOverlaySet();
+ 			updateOnlyPosition(lat, lon, false);
+ 			inf.close(0);
+ 			Vm.showWait(false);
+@@ -625,10 +613,6 @@
+ 		mm.posCircle.move(p.x+diffX, p.y+diffY);
+ 		mm.posCircleX = mm.posCircleX+diffX;
+ 		mm.posCircleY = mm.posCircleY+diffY;
+-		//mm.ignoreGpsStatutsChanges = false;
+-		//mm.setGpsStatus(MovingMap.noGPS);   // TODO mm.posCircle.move(, y)
+-		//mm.ignoreGpsStatutsChanges = true;
+-		// for debugging: mm.updatePosition(10, 10);
+ 		mm.updateSymbolPositions();
+ 		mm.updateOverlayPos();
+ 		this.repaintNow();
+@@ -683,8 +667,8 @@
+ 		if (which == mm.ButtonImageGpsOn) {
+ 			if (mm.gotoPanel.serThread == null || !mm.gotoPanel.serThread.isAlive()) {
+ 				mm.gotoPanel.startGps();
+-				mm.addOverlaySet(mm.gotoPanel.currTrack); // use new track when gps now started
+-			} else mm.addOverlaySet(null); // use existing tracks if gps was already running
++				mm.addTrack(mm.gotoPanel.currTrack); // use new track when gps now started
++			} else mm.addOverlaySet(); // use existing tracks if gps was already running
+ 			mm.SnapToGps();
+ 		}
+ 		if (which == mm.arrowRight)	{	moveMap(-10,0);	}
+@@ -711,12 +695,17 @@
+ 		this.maps = maps;
+ 		MapInfoObject map;
+ 		ScrollBarPanel scb;
++		boolean[] inList = new boolean[maps.size()];
+ 		if (gotopos != null &amp;&amp; Gps != null) {
+ 			list.addItem(&quot;--- Karten von akt. Position und Ziel ---&quot;);
+ 			for(int i = 0; i&lt;maps.size();i++){
+ 				map = new MapInfoObject();
+ 				map = (MapInfoObject)maps.get(i);
+-				if( map.inBound(Gps.latDec, Gps.lonDec) &amp;&amp; map.inBound(gotopos) ) list.addItem(i + &quot;: &quot; + map.mapName);
++				if( map.inBound(Gps.latDec, Gps.lonDec) &amp;&amp; map.inBound(gotopos) ) 
++					{
++					list.addItem(i + &quot;: &quot; + map.mapName);
++					inList[i] = true;
++					} else inList[i] = false;
+ 			}
+ 		}
+ 		if (Gps != null) {
+@@ -724,7 +713,11 @@
+ 			for(int i = 0; i&lt;maps.size();i++){
+ 				map = new MapInfoObject();
+ 				map = (MapInfoObject)maps.get(i);
+-				if(map.inBound(Gps.latDec, Gps.lonDec) == true) list.addItem(i + &quot;: &quot; + map.mapName);
++				if(map.inBound(Gps.latDec, Gps.lonDec) == true) 
++					{
++					list.addItem(i + &quot;: &quot; + map.mapName);
++					inList[i] = true;
++					}
+ 			}
+ 		}
+ 		if (gotopos != null) {
+@@ -732,14 +725,17 @@
+ 			for(int i = 0; i&lt;maps.size();i++){
+ 				map = new MapInfoObject();
+ 				map = (MapInfoObject)maps.get(i);
+-				if(map.inBound(gotopos)) list.addItem(i + &quot;: &quot; + map.mapName);
++				if(map.inBound(gotopos)) {
++					list.addItem(i + &quot;: &quot; + map.mapName);
++					inList[i] = true;
++				}
+ 			}
+ 		}
+ 		list.addItem(&quot;--- andere Karten ---&quot;);
+ 		for(int i = 0; i&lt;maps.size();i++){
+ 			map = new MapInfoObject();
+ 			map = (MapInfoObject)maps.get(i);
+-			if(!mapIsInList(i)) list.addItem(i + &quot;: &quot; + map.mapName);
++			if(!inList[i]) list.addItem(i + &quot;: &quot; + map.mapName);
+ 		}
+ 		
+ 		this.addLast(scb = new ScrollBarPanel(list),CellConstants.STRETCH, CellConstants.FILL);
+@@ -751,7 +747,7 @@
+ 		this.addLast(okButton,CellConstants.STRETCH, CellConstants.FILL);
+ 		okButton.setHotKey(0, KeyEvent.getActionKey(true));
+ 	}
+-	private boolean mapIsInList(int mapNr){
++	private boolean mapIsInList(int mapNr){ // it is not used  anymore could be deleted
+ 		String testitem = new String();
+ 		int testitemnr;
+ 		for (int i=0; i&lt;list.countListItems(); i++) {
+
+Modified: trunk/src/CacheWolf/OCXMLImporter.java
+===================================================================
+--- trunk/src/CacheWolf/OCXMLImporter.java	2007-01-07 12:04:41 UTC (rev 354)
++++ trunk/src/CacheWolf/OCXMLImporter.java	2007-01-07 14:17:39 UTC (rev 355)
+@@ -159,6 +159,11 @@
+ 			} else { finalMessage = &quot;IOException: &quot;+e.getMessage(); }
+ 			success = false;
+ 			}
++		}catch (IllegalArgumentException e) {
++			finalMessage=MyLocale.getMsg(1621,&quot;Error parsing update file\n this is likely a bug in opencaching.de\nplease try again later\n, state:&quot;)+&quot; &quot;+state+&quot;, waypoint: &quot;+ holder.wayPoint;
++			success = false;
++			Vm.debug(&quot;Parse error: &quot; + state + &quot; &quot; + holder.wayPoint);
++			e.printStackTrace();
+ 		}catch (Exception e){ // here schould be used the correct exepion
+ 			finalMessage=MyLocale.getMsg(1615,&quot;Error parsing update file, state:&quot;)+&quot; &quot;+state+&quot;, waypoint: &quot;+ holder.wayPoint;
+ 			success = false;
+@@ -263,6 +268,7 @@
+ 		
+ 		if(name.equals(&quot;waypoints&quot;)){
+ 			holder.wayPoint = atts.getValue(&quot;oc&quot;);
++			if (holder.wayPoint.length()==0) throw new IllegalArgumentException(&quot;empty waypointname&quot;); // this should not happen - it is likey a bug in opencaching.de / it happens on 27-12-2006 on cache OC143E
+ 			return;
+ 		}
+ 
+@@ -456,6 +462,7 @@
+ 	
+ 	private void getPic(String fetchURL, String picDesc){
+ 		String fileName = holder.wayPoint + &quot;_&quot; + fetchURL.substring(fetchURL.lastIndexOf(&quot;/&quot;)+1);
++		fileName = Common.ClearForFileName(fileName);
+ 		// add title
+ 		holder.ImagesText.add(picDesc);
+ 		try {
+
+Modified: trunk/src/CacheWolf/TrackOverlay.java
+===================================================================
+--- trunk/src/CacheWolf/TrackOverlay.java	2007-01-07 12:04:41 UTC (rev 354)
++++ trunk/src/CacheWolf/TrackOverlay.java	2007-01-07 14:17:39 UTC (rev 355)
+@@ -1,52 +1,43 @@
+ package CacheWolf;
+ 
++//import java.awt.image.BufferedImage;
++
+ import ewe.fx.Color;
+ import ewe.fx.Graphics;
+ import ewe.fx.Image;
+ import ewe.fx.Pen;
+ import ewe.graphics.AniImage;
+-import ewe.ui.MessageBox;
++import ewe.sys.Convert;
+ import ewe.fx.Point;
+ 
+-import ewe.util.Utils;
+ import ewe.util.Vector;
+-import ewe.io.BufferedWriter;
+-import ewe.io.FileWriter;
+-import ewe.io.IOException;
+-import ewe.io.PrintWriter;
+ 
++
+ public class TrackOverlay extends AniImage {
+ 	TrackPoint topLeft;
+ 	TrackPoint bottomRight;
+ 	Graphics draw;
++	int test;
+ 	MapInfoObject trans; 
+ 	Vector tracks;
++	boolean imageChangesDontShow = false;
++	public Point trackPixels[] = null;
++	public Color trackPixelsColor[] = null;
++	public int numPixels = 0;
+ 	final static Color transparentColor = Color.White;
+ 	public TrackOverlay (TrackPoint topLefti, int widthi, int highti, MapInfoObject transi) {
+ 		topLeft = new TrackPoint(topLefti);
+ 		trans = transi;
+ 		bottomRight = calcLatLonInImage(widthi, highti);
+ 		setImage(new Image(widthi, highti), transparentColor);
+-		//properties = AlwaysOnTop;
++		//properties = AlwaysOnTop; // arrows are above, so dont set it.
+ 		draw = new Graphics(image);
++		draw.setDrawOp(Graphics.DRAW_OVER);
+ 		draw.setColor(transparentColor);
+ 		draw.fillRect(0, 0, widthi, highti);
+ 	}
+-	public void setBottimRightLatLon(double lat, double lon) {
+-		bottomRight = new TrackPoint(lat, lon);
+-	}
+-	public void addTrack(Track tr) {
+-		if (tr == null) return;
+-		if (tracks == null) tracks = new Vector();
+-		tracks.add(tr);
+-	}
+-	public void addTracks(Track[] trs) {
+-		if (trs==null || trs.length == 0) return;
+-		for (int i=0; i&lt;trs.length; i++) {
+-			addTrack(trs[i]);
+-		}
+-		
+-	}
++
++	
+ 	public void paintTracks() {
+ 		if (tracks == null || tracks.size() == 0) return;
+ 		int tri, i;
+@@ -56,15 +47,16 @@
+ 			draw.setPen(new Pen((Color) tr.trackColor,Pen.SOLID,3));
+ 			if (tr.num &gt; 0) {
+ 				for (i=0; i &lt; tr.num; i++) {
+-					paintPoint(tr.TrackPoints[i].latDec, tr.TrackPoints[i].lonDec);
++					paintPoint(tr.trackColor, tr.TrackPoints[i].latDec, tr.TrackPoints[i].lonDec);
+ 				}
+ 			}
+ 		}
+ 	}
+ 
+-	public void paintPoint(double lat, double lon){
++		
++	public void paintPoint(Color f, double lat, double lon){
+ 		if (lat&lt;bottomRight.latDec || lat &gt; topLeft.latDec || lon&lt;topLeft.lonDec || lon&gt;bottomRight.lonDec) return;
+-		ewe.sys.Vm.debug(&quot;showlastaddedpoint, lat: &quot;+lat+&quot;   lon: &quot;+lon);
++		//ewe.sys.Vm.debug(&quot;showlastaddedpoint, lat: &quot;+lat+&quot;   lon: &quot;+lon);
+ 		double b[] = new double[2];
+ 		int x, y;
+ 		b[0] = lat - topLeft.latDec; // see calcXYinImage (TrackPoint p) 
+@@ -73,19 +65,31 @@
+ 		y=(int) (trans.transLatY* b[0] + trans.transLonY*b[1]);
+ 		//draw.drawLine(x, y, x, y);
+ 		ewe.sys.Vm.debug(&quot;showlastaddedpoint, x: &quot;+x+&quot;   y: &quot;+y+&quot;loc.x: &quot;+location.x+&quot;  loc.y:&quot;+location.y);
+-		draw.drawRect(x-1, y-1, 2, 2, 1);
+-	//	draw._g.surfaceData.bufImg.raster.data[y*this.location.width + x] = -65536;
+-		//image._awtImage.raster.data
+-		//image.bufferedImage.raster.data[y*this.location.width + x]=-65536; //was dort steht wird tats&#228;chlich angezeigt, allerdings kann ich es nicht direkt setzen :-(
+-		int[] markPixels = new int[4];
+-		for (int i = 0; i&lt;markPixels.length; i++) { markPixels[i] = -65536; }
+-		image.setPixels(markPixels, 0 , 400, 300, 1, 1, 0);
+-		//draw.flush();
+-		//ewe.ui.PenEvent.refreshTip(draw.surface);
+-		//draw.setPixelRGB(x, y, -65536);
+-		this.changed();
++		draw.fillRect(x-1, y-1, 3, 3);
++		/*	if (image.bufferedImage != null) { // funktioniert gut, allerdings nur in der java-VM wenn ewe.fx.Image.bufferedImage als public definiert
++			int yd;
++			for  (int xd=-1; xd&lt;=1; xd++) {
++				for (yd=-1; yd&lt;=1; yd++) {
++					((BufferedImage)image.bufferedImage).setRGB(x+xd, y+yd, -65536);
++				}
++			} */
++		if (imageChangesDontShow) {
++			try {addPixelIfNeccessary(x, y, f); }
++			catch (IndexOutOfBoundsException e) // thrown when there are more than pixels stored than possible
++			{   
++				draw.drawImage(image,null,Color.DarkBlue,0,0,location.width,location.height); // changing the mask forces graphics to copy from image._awtImage to image.bufferedImage, which is displayed 
++				draw.drawImage(image,null,transparentColor,0,0,location.width,location.height);
++				removeAllPixels();
++			}
++		}
+ 	}
+ 	
++	private void removeAllPixels() {
++		numPixels = 0;
++		trackPixels = null;
++		trackPixelsColor = null;
++	}
++
+ 	public Point calcXYinImage (TrackPoint p) {
+ 		double b[] = new double[2]; // see method paintPoint it should actually call this method but it doesn't because of speed raesons
+ 		int x, y;
+@@ -95,27 +99,113 @@
+ 		y=(int) (trans.transLatY* b[0] + trans.transLonY*b[1]);
+ 		return new Point(x,y);
+ 	}
+-	
++
+ 	public TrackPoint calcLatLonInImage (double x, double y) {
+ 		// see trans.calcLatLon(p);
+-		 TrackPoint ll = new TrackPoint(); 
+-		 ll.latDec = (double)x * trans.affine[0] + (double)y * trans.affine[2] + topLeft.latDec;
+-		 ll.lonDec = (double)x * trans.affine[1] + (double)y * trans.affine[3] + topLeft.lonDec;
+-		 return ll;
++		TrackPoint ll = new TrackPoint(); 
++		ll.latDec = (double)x * trans.affine[0] + (double)y * trans.affine[2] + topLeft.latDec;
++		ll.lonDec = (double)x * trans.affine[1] + (double)y * trans.affine[3] + topLeft.lonDec;
++		return ll;
+ 	}
+-	
+-	public void addTrackPoint(Track tr, double lat, double lon) {
+-	tr.add(lat, lon);
+-	paintPoint(lat, lon);
++
++	public void addPixel(int x, int y, Color f) throws IndexOutOfBoundsException {
++		if (trackPixels==null) { trackPixels = new Point[1]; trackPixelsColor = new Color[1000]; } 
++		trackPixels[numPixels] = new Point(x, y); // IndexOutOfBoundsException is handled in PaintPoint
++		trackPixelsColor[numPixels] = f.getCopy();
++		numPixels++;
+ 	}
+-	
++
++	public void addPixelIfNeccessary(int x, int y, Color f){
++		int ll =(numPixels&lt;50 ? 0 : numPixels-50); // look in the last 50 added Pixels if the same Pixel is already in the list (for performance reasons dont look in the whole list)
++		for (int i=numPixels-1; i&gt;=ll; i--) {
++			if (trackPixels[i].x == x &amp;&amp; trackPixels[i].y == y &amp;&amp; f.equals(trackPixelsColor[i])) return; 
++		}
++		addPixel(x, y, f);
++	}
++
+ 	public void paintLastAddedPoint(Track tr) {
+ 		draw.setPen(new Pen((Color) tr.trackColor,Pen.SOLID,3));
+-		paintPoint(tr.TrackPoints[tr.num-1].latDec, tr.TrackPoints[tr.num-1].lonDec);
++		paintPoint(tr.trackColor, tr.TrackPoints[tr.num-1].latDec, tr.TrackPoints[tr.num-1].lonDec);
+ 	}
++
+ 	public boolean isOnScreen() { // i assume that location.width = screen.width and the same for hight
+ 		if ( (location.x + location.width &gt; 0 &amp;&amp; location.x &lt; location.width) || 
+ 				(location.y + location.height &gt; 0 &amp;&amp; location.y &lt; location.height) ) return true;
+ 		else return false;
+ 	}
++	
++	public void doDraw(Graphics g,int options) { // this is automatically called when the image need to be (re-)drawn on the screen
++		super.doDraw(g, options);
++		imageChangesDontShow = true; // g.drawImage (in super) copies _awtImage into bufferedImage, any later changes to _awtImage dont show up until the mask or the image has changed - unfortunately bufferedImage is not accessable from outside
++		// draw trackpoints which were added after image changes don't show up on the screen
++		if (tracks == null || tracks.size() == 0) return;
++		int i;
++		for (i=0; i&lt;numPixels; i++) {
++			g.setColor(trackPixelsColor[i]);
++			g.fillRect(trackPixels[i].x-1, trackPixels[i].y-1, 3, 3);
++		}
++		g.drawText(Convert.toString(test), 10, 10);
++		g.drawRect(10 + test, 10, 10, 10);
++		//g.setPixelRGB(x, y, rgb);
++		test++;
++	}
+ }
++
++
++/* draw zeichnet auf _awtImage
++ * image.drawImage erzeugt bufferedImage, wenn es vorher null war 
++ * und kopiert den entsprechenden Teil in das &#252;bergebene Surface
++ * Das Problem ist, dass bufferedImage nicht mehr upgedatet wird, wenn
++ * es einmal erzugt wurde. Es wird nur dann upgedatet, wenn das Image ein anderes wird
++ * oder die Maske eine andere. Das Update erfolgt dann &#252;ber doDraw, was doCheckMask aufruft,
++ * das das eigentliche kopieren aus _awtImage vornimmt.
++ * 
++ *  Problem: das kopieren von _awtImage in BufferedImage ist sehr zeitaufw&#228;ndig, weil
++ *  es keine native Routine ist und jedes Pixel einzeln gepr&#252;ft wird.
++ *  Deswegen w&#228;re die beste L&#246;sung, wenn ich bufferedImage direkt updaten k&#246;nnte.
++ *  Aber bufferedImage ist privat, ich kann auch in abgeleiteten Klassen nicht drauf
++ *  zugreifen. 
++ *  
++ *  Zur Not w&#228;re auch denkbar, doDraw zu &#252;berschreiben, um bei jedem Aufruf alle 
++ *  Trackpoints neu zu zeichnen.
++ */
++// was alles nicht funktioniert:
++//drawmask.setDrawOp(Graphics.DRAW_OVER);
++//	drawmask.drawRect(x-1, y-1, 2, 2, 1);
++//this.setImage(image, mask);
++// n&#228;chster Versuch: image.bufferedImage in ewe.fx.Image public definieren !!!
++//image.rgb
++//	draw._g.surfaceData.bufImg.raster.data[y*this.location.width + x] = -65536; := image._awtImage
++//	((Image)image).eImage(colorOrMask)._awtImage.raster.data[0]=0;
++//	image
++//	((BufferedImage)(image).se.^.bufferedImage.raster.data[y*this.location.width + x]=-65536; //was dort steht wird tats&#228;chlich angezeigt, allerdings kann ich es nicht direkt setzen :-(
++//int[] markPixels = new int[4];
++//for (int i = 0; i&lt;markPixels.length; i++) { markPixels[i] = -65536; }
++// image.transparent = null; hilft auhc nicht
++//image.mask = null;
++//image.bufferedImage = null;
++//image.setPixels(markPixels, 0 , x-20, y, 2, 2, 0); // dadrin sollte bufferedImage = null gesetzt werden, wird es aber nicht :-(
++//ewe.fx.mImage mark = new mImage();
++//Image mark = new Image(2,2);
++//new Graphics(mark).drawImage(image, null, transparentColor, x-40, y, 2, 2);
++//mark.draw(draw, x-50, y, Graphics.DRAW_OVER); // options (Graphics.DRAW_OVER) are ignored anyway
++// image.bufferedImage = null; // this solves the problem
++//toCursor(null);
++//this.draw(draw);
++//image=(BufferedImage)this.toNativeImage(transparentColor);
++//(java.awt.Image.b)
++//image.bufferedImage=null;
++//draw.flush();
++//ewe.ui.PenEvent.refreshTip(draw.surface);
++//draw.setPixelRGB(x, y, -65536);
++//this.changed(); hilft auch nicht
++// this.refresh(); // hilft nicht :-(
++//	lastDrawn.x = lastDrawn.x -10; hilft auch nicht
++// imageMayChange = true; // hilft auch nicht :-(
++
++/*
++ * this class is only needed to have a fast access to the list of pixels
++ * which are added but aniimage.draw will not lead to a change on the screen
++ * so that these pixels will be drawn seperately by doDraw
++ * 
++ */
+
+Modified: trunk/src/CacheWolf/TrackPoint.java
+===================================================================
+--- trunk/src/CacheWolf/TrackPoint.java	2007-01-07 12:04:41 UTC (rev 354)
++++ trunk/src/CacheWolf/TrackPoint.java	2007-01-07 14:17:39 UTC (rev 355)
+@@ -42,7 +42,7 @@
+ 	
+ 	public Track(Color f) {
+ 		trackColor = f;
+-		TrackPoints = new TrackPoint[2000];
++		TrackPoints = new TrackPoint[5000];
+ 		num = 0;
+ 	}
+ 	
+@@ -50,7 +50,10 @@
+ 		TrackPoints[num] = new TrackPoint(lat, lon);
+ 		num++;
+ 	}
+-	public void add(TrackPoint t) {
++	/*
++	 * throws IndexOutOfBoundsException when track is full
++	 */
++	public void add(TrackPoint t) { 
+ 		if (TrackPoints == null || t == null) return;
+ 		TrackPoints[num] = new TrackPoint(t);
+ 		num++;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000034.html">[Cachewolf-svn] r354 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000035.html">[Cachewolf-svn] r356 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#39">[ date ]</a>
+              <a href="thread.html#39">[ thread ]</a>
+              <a href="subject.html#39">[ subject ]</a>
+              <a href="author.html#39">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

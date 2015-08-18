@@ -1,0 +1,366 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1283 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-March/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1283%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200803250203.m2P234ct031659%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001176.html">
+   <LINK REL="Next"  HREF="001178.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1283 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1283%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200803250203.m2P234ct031659%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1283 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Tue Mar 25 03:03:04 CET 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001176.html">[Cachewolf-svn] r1282 - trunk
+</A></li>
+        <LI>Next message: <A HREF="001178.html">[Cachewolf-svn] r1284 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1177">[ date ]</a>
+              <a href="thread.html#1177">[ thread ]</a>
+              <a href="subject.html#1177">[ subject ]</a>
+              <a href="author.html#1177">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2008-03-25 03:03:00 +0100 (Tue, 25 Mar 2008)
+New Revision: 1283
+
+Modified:
+   trunk/src/CacheWolf/CacheHolderDetail.java
+   trunk/src/CacheWolf/HttpConnection.java
+   trunk/src/CacheWolf/OCXMLImporter.java
+   trunk/src/CacheWolf/Preferences.java
+   trunk/src/CacheWolf/UrlFetcher.java
+Log:
+Save &lt;cache&gt;.xml: Bug fixed: when ImagesInfo was not set but ImagesText, an ArrayIndexOutOfBoundException prevented saving
+Opencaching-Download: make use of UrlFetchter class
+UrlFetcher: integrated follow redirections
+UrlFetcher: autodect if URL is already encoded
+UrlFetcher: can return the URL of the redirected URL
+
+Modified: trunk/src/CacheWolf/CacheHolderDetail.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolderDetail.java	2008-03-24 23:05:54 UTC (rev 1282)
++++ trunk/src/CacheWolf/CacheHolderDetail.java	2008-03-25 02:03:00 UTC (rev 1283)
+@@ -285,12 +285,13 @@
+ 						stbuf = (String)Images.get(i);
+ 						detfile.print(&quot;    &lt;IMG&gt;&quot;+stbuf+&quot;&lt;/IMG&gt;\n&quot;);
+ 				  }
++				  int iis = ImagesInfo.size();
+ 				  for(int i = 0;i&lt;ImagesText.size();i++){
+ 						stbuf = (String)ImagesText.get(i);
+-						if (ImagesInfo.get(i)==null)
++						if (iis &lt; i &amp;&amp; ImagesInfo.get(i) != null)
++							detfile.print(&quot;    &lt;IMGTEXT&gt;&quot;+stbuf+&quot;&lt;DESC&gt;&quot;+ImagesInfo.get(i)+&quot;&lt;/DESC&gt;&lt;/IMGTEXT&gt;\n&quot;);
++						else 
+ 							detfile.print(&quot;    &lt;IMGTEXT&gt;&quot;+stbuf+&quot;&lt;/IMGTEXT&gt;\n&quot;);
+-						else 
+-							detfile.print(&quot;    &lt;IMGTEXT&gt;&quot;+stbuf+&quot;&lt;DESC&gt;&quot;+ImagesInfo.get(i)+&quot;&lt;/DESC&gt;&lt;/IMGTEXT&gt;\n&quot;);
+ 				  }
+ 
+ 				  for(int i = 0;i&lt;LogImages.size();i++){
+@@ -322,12 +323,12 @@
+ 				  detfile.print(&quot;&lt;/CACHEDETAILS&gt;\n&quot;);
+ 				} // if length
+ 			} catch (Exception e){
+-				Vm.debug(&quot;Problem writing to a details file&quot;);
++				Global.getPref().log(&quot;Problem waypoint &quot; + wayPoint + &quot; writing to a details file: &quot; + e.getMessage());
+ 			}
+ 			try{
+ 			  detfile.close();
+ 			} catch (Exception e){
+-			  //Vm.debug(&quot;Problem closing details file&quot;);
++				Global.getPref().log(&quot;Problem waypoint &quot; + wayPoint + &quot; writing to a details file: &quot; + e.getMessage());
+ 			}
+ 			hasUnsavedChanges = false;
+ 		}
+
+Modified: trunk/src/CacheWolf/HttpConnection.java
+===================================================================
+--- trunk/src/CacheWolf/HttpConnection.java	2008-03-24 23:05:54 UTC (rev 1282)
++++ trunk/src/CacheWolf/HttpConnection.java	2008-03-25 02:03:00 UTC (rev 1283)
+@@ -27,6 +27,8 @@
+ /**
+ Use this class to create an HttpConnection with a Web Server and to read
+ in the data for the connection.&lt;p&gt;
++This a a modified version of XXX. This version automatically makes use of a proxy server
++if once for all proxy is set.
+ To use this do the following:
+ &lt;ol&gt;
+ &lt;li&gt;Create an HttpConnection object with a URL or specify the host, port and document to get.
+
+Modified: trunk/src/CacheWolf/OCXMLImporter.java
+===================================================================
+--- trunk/src/CacheWolf/OCXMLImporter.java	2008-03-24 23:05:54 UTC (rev 1282)
++++ trunk/src/CacheWolf/OCXMLImporter.java	2008-03-25 02:03:00 UTC (rev 1283)
+@@ -226,6 +226,7 @@
+ 		
+ 		picCnt = 0;
+ 		try{
++			chD = null;
+ 			file = fetch(url, &quot;dummy&quot;);
+ 
+ 			//parse
+@@ -451,6 +452,7 @@
+ 				chD.CacheLogs.clear();
+ 				chD.Images.clear();
+ 				chD.ImagesText.clear();
++				chD.ImagesInfo.clear();
+ 			}
+ 
+ 			// save all
+@@ -562,32 +564,44 @@
+ 		}
+ 	}
+ 
+-	private void getPic(String fetchURL, String picDesc){ // TODO handling of relativ URLs
+-		if (!fetchURL.startsWith(&quot;<A HREF="http://">http://</A>&quot;)) fetchURL = &quot;<A HREF="http://">http://</A>&quot; + OPENCACHING_HOST + &quot;/&quot;+fetchURL; // TODO this is not quite correct: actually the &quot;base&quot; URL must be known... but anyway a different baseURL should not happen very often  - it doesn't in my area
++	private String createPicFilename(String fetchURL) {
+ 		String fileName = chD.wayPoint + &quot;_&quot; + fetchURL.substring(fetchURL.lastIndexOf(&quot;/&quot;)+1);
+-		fileName = Common.ClearForFileName(fileName);
+-		// add title
+-		chD.ImagesText.add(picDesc);
++		return Common.ClearForFileName(fileName);
++	}
++	
++	private void getPic(String fetchURL, String picDesc) { // TODO handling of relativ URLs
+ 		try {
+-			File ftest = new File(profile.dataDir + fileName);
+-			if (ftest.exists()){
+-				chD.Images.add(fileName);
+-			}
+-			else {
+-				if (pref.downloadPicsOC) {
+-					chD.Images.add(fetch(fetchURL, fileName));
++			if (!fetchURL.startsWith(&quot;<A HREF="http://">http://</A>&quot;)) fetchURL = new URL(new URL(&quot;<A HREF="http://">http://</A>&quot; + OPENCACHING_HOST+&quot;/&quot;), fetchURL).toString();
++			// if (!fetchURL.startsWith(&quot;<A HREF="http://">http://</A>&quot;)) fetchURL = &quot;<A HREF="http://">http://</A>&quot; + OPENCACHING_HOST + &quot;/&quot; + fetchURL; // TODO use URL.relative or so.. this is not quite correct: actually the &quot;base&quot; URL must be known... but anyway a different baseURL should not happen very often  - it doesn't in my area
++			String fileName = createPicFilename(fetchURL);
++			// add title
++			chD.ImagesText.add(picDesc);
++			chD.ImagesInfo.add(null); // need to stay in sync with ImagesText
++			try {
++				File ftest = new File(profile.dataDir + fileName);
++				if (ftest.exists()){
++					chD.Images.add(fileName);
+ 				}
++				else {
++					if (pref.downloadPicsOC) {
++						chD.Images.add(fetch(fetchURL, fileName));
++					}
++				}
++			} catch (IOException e) {
++				String ErrMessage = new String (MyLocale.getMsg(1618,&quot;Ignoring error in cache: &quot;) + chD.wayPoint + &quot;: ignoring IOException: &quot;+e.getMessage()+ &quot; while downloading picture:&quot;+fileName+&quot; from URL:&quot;+fetchURL); 
++				if (e.getMessage().toLowerCase().equalsIgnoreCase(&quot;could not connect&quot;) ||
++						e.getMessage().equalsIgnoreCase(&quot;unkown host&quot;)) { // is there a better way to find out what happened?
++					ErrMessage = MyLocale.getMsg(1618,&quot;Ignoring error in cache: &quot;)+chD.CacheName + &quot; (&quot;+chD.wayPoint+&quot;)&quot;+MyLocale.getMsg(1619,&quot;: could not download image from URL: &quot;)+fetchURL;
++				} 
++				inf.addWarning(&quot;\n&quot;+ErrMessage);
++				//(new MessageBox(MyLocale.getMsg(144, &quot;Warning&quot;), ErrMessage, MessageBox.OKB)).exec();
++				pref.log(ErrMessage);
++				e.printStackTrace();
+ 			}
+-		} catch (IOException e) {
+-			String ErrMessage = new String (MyLocale.getMsg(1618,&quot;Ignoring error in cache: &quot;) + chD.wayPoint + &quot;: ignoring IOException: &quot;+e.getMessage()+ &quot; while downloading picture:&quot;+fileName+&quot; from URL:&quot;+fetchURL); 
+-			if (e.getMessage().toLowerCase().equalsIgnoreCase(&quot;could not connect&quot;) ||
+-					e.getMessage().equalsIgnoreCase(&quot;unkown host&quot;)) { // is there a better way to find out what happened?
+-				ErrMessage = MyLocale.getMsg(1618,&quot;Ignoring error in cache: &quot;)+chD.CacheName + &quot; (&quot;+chD.wayPoint+&quot;)&quot;+MyLocale.getMsg(1619,&quot;: could not download image from URL: &quot;)+fetchURL;
+-			} 
++		} catch (MalformedURLException e) {
++			String ErrMessage = new String (MyLocale.getMsg(1618,&quot;Ignoring error in cache: &quot;) + chD.wayPoint + &quot;: ignoring MalformedUrlException: &quot; + e.getMessage()+ &quot; while downloading from URL:&quot; + fetchURL); 
+ 			inf.addWarning(&quot;\n&quot;+ErrMessage);
+-			//(new MessageBox(MyLocale.getMsg(144, &quot;Warning&quot;), ErrMessage, MessageBox.OKB)).exec();
+-			Vm.debug(&quot;Could not load Image &quot; + fetchURL);
+-			e.printStackTrace();
++			pref.log(ErrMessage);
+ 		}
+ 
+ 	}
+@@ -658,28 +672,12 @@
+ 
+ 	private String fetch(String addr, String fileName ) throws IOException
+ 	{
+-		final int maxRedirections = 5;
+-		//Vm.debug(address);
+-		HttpConnection conn = null;
+-		Socket sock = null;
+-		int i=-1;
+-		String address = new String(addr);
+-		while (address != null &amp;&amp; i &lt;= maxRedirections ) { // allow max 5 redirections (http 302 location)
+-			i++;
+-			conn = new HttpConnection(address);
+-			conn.setRequestorProperty(&quot;USER_AGENT&quot;, &quot;Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.7.5) Gecko/20041107 Firefox/1.0&quot;);
+-			conn.setRequestorProperty(&quot;Connection&quot;, &quot;close&quot;);
+-			conn.documentIsEncoded = true;
+-			sock = conn.connect(); // TODO I guess here an IOException ocurs when a proxy is used
+-			address = conn.getRedirectTo();
+-			if (address != null){
+-				if (chD != null) fileName = chD.wayPoint + &quot;_&quot; + Common.ClearForFileName(address.substring(address.lastIndexOf(&quot;/&quot;)+1));
+-				else fileName = Common.ClearForFileName(address.substring(address.lastIndexOf(&quot;/&quot;)+1));
+-			}
+-		}
+-		if (i &gt; maxRedirections) throw new IOException(&quot;too many http redirections while trying to fetch: &quot;+addr + &quot; only &quot;+maxRedirections+&quot; are allowed&quot;);
+ 		//Vm.debug(&quot;Redirect: &quot; + redirect);
+-		ByteArray daten = conn.readData(sock);
++		CharArray realurl = new CharArray();
++		ByteArray daten = UrlFetcher.fetchByteArray(addr, realurl);
++		String address = realurl.toString();
++		if (chD != null) fileName = chD.wayPoint + &quot;_&quot; + Common.ClearForFileName(address.substring(address.lastIndexOf(&quot;/&quot;)+1));
++		// else fileName = Common.ClearForFileName(address.substring(address.lastIndexOf(&quot;/&quot;)+1));
+ 
+ 		//save file
+ 		//Vm.debug(&quot;Save: &quot; + myPref.mydatadir + fileName);
+@@ -687,7 +685,6 @@
+ 		FileOutputStream outp =  new FileOutputStream(profile.dataDir + fileName);
+ 		outp.write(daten.toBytes());
+ 		outp.close();
+-		sock.close();
+ 		return fileName;
+ 	}
+ 
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2008-03-24 23:05:54 UTC (rev 1282)
++++ trunk/src/CacheWolf/Preferences.java	2008-03-25 02:03:00 UTC (rev 1283)
+@@ -598,6 +598,7 @@
+ 		try{
+ 			strout = logFile.toWritableStream(true);
+ 			strout.write(text.getBytes());
++			Vm.debug(text);
+ 		}catch(Exception ex){
+ 			Vm.debug(&quot;Error writing to log file!&quot;);
+ 		}finally{
+
+Modified: trunk/src/CacheWolf/UrlFetcher.java
+===================================================================
+--- trunk/src/CacheWolf/UrlFetcher.java	2008-03-24 23:05:54 UTC (rev 1282)
++++ trunk/src/CacheWolf/UrlFetcher.java	2008-03-25 02:03:00 UTC (rev 1283)
+@@ -1,5 +1,7 @@
+ package CacheWolf;
+ 
++import com.stevesoft.ewe_pat.wrap.CharArrayBufferWrap;
++
+ import ewe.data.PropertyList;
+ import ewe.io.ByteArrayInputStream;
+ import ewe.io.IOException;
+@@ -10,30 +12,69 @@
+ import ewe.util.Properties;
+ 
+ public class UrlFetcher {
+-	public static String fetchString(String address) throws IOException // TODO follow http-redirections
++	public static String fetchString(String address) throws IOException
+ 	{
+-		ByteArray daten = fetchByteArray(address);
++		ByteArray daten = fetchByteArray(address, null);
+ 		JavaUtf8Codec codec = new JavaUtf8Codec();
+ 		CharArray c_data = codec.decodeText(daten.data, 0, daten.length, true, null);
+ 		return c_data.toString();
+ 	}
+ 
+ 	public static Properties fetchPropertyList(String url) throws IOException {
+-		ByteArray doc = fetchByteArray(url);
++		CharArray t = new CharArray();
++		ByteArray doc = fetchByteArray(url, t);
+ 		Properties props = new Properties();
+ 		props.load(new ByteArrayInputStream(doc));
+ 		return props; 
+ 	}
+-	public static ByteArray fetchByteArray(String url) throws IOException {	
+-		HttpConnection conn;
+-		conn = new HttpConnection(url);
+-		conn.setRequestorProperty(&quot;USER_AGENT&quot;, &quot;Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.7.5) Gecko/20041107 Firefox/1.0&quot;);
+-		conn.setRequestorProperty(&quot;Connection&quot;, &quot;close&quot;);
+-		conn.documentIsEncoded = true;
+-		Socket sock = conn.connect();
+-		if (conn.responseCode &gt;= 400) throw new IOException(&quot;URL: &quot;+ url + &quot;\nhttp response code: &quot; + conn.responseCode);
++	
++	
++	/**
++	 * @param url - if url-not-allowed chars are contained, they will be automatically encoded
++	 * @param if non null, realurl will be filled with the real url, which can differ from the given url, in case url returns a http-redirect
++	 * @return
++	 * @throws IOException
++	 */
++	public static ByteArray fetchByteArray(String url, CharArray realurl) throws IOException {	
++		final int maxRedirections = 5;
++		HttpConnection conn = null;
++		Socket sock = null;
++		int i=-1;
++		String urltmp = new String(url);
++		while (urltmp != null &amp;&amp; i &lt;= maxRedirections ) { // allow max 5 redirections (http 302 location)
++			if (realurl != null) realurl.copyFrom(new String(urltmp));
++			i++;
++			conn = new HttpConnection(urltmp);
++			conn.setRequestorProperty(&quot;USER_AGENT&quot;, &quot;Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.7.5) Gecko/20041107 Firefox/1.0&quot;);
++			conn.setRequestorProperty(&quot;Connection&quot;, &quot;close&quot;);
++			conn.documentIsEncoded = isUrlEncoded(urltmp);
++			sock = conn.connect();
++			if (conn.responseCode &gt;= 400) throw new IOException(&quot;URL: &quot;+ urltmp + &quot;\nhttp response code: &quot; + conn.responseCode);
++			urltmp = conn.getRedirectTo();
++		}
++		if (i &gt; maxRedirections) throw new IOException(&quot;too many http redirections while trying to fetch: &quot;+url + &quot; only &quot;+maxRedirections+&quot; are allowed&quot;);
+ 		ByteArray daten = conn.readData(sock);
+ 		sock.close();
+ 		return daten;
+ 	}
++	
++	/**
++	 * @param url
++	 * @return true, if the string seems to be already URL encoded (that is, it contains only url-allowd chars), false otherwise
++	 */
++	public static boolean isUrlEncoded(String url) {
++		final String allowed = new String (&quot;-_.~!*'();:@&amp;=+$,/?%#[]&quot;);
++		char [] src = ewe.sys.Vm.getStringChars(url);
++		char c;
++		for (int i = 0; i&lt;src.length; i++){
++			c = src[i];
++			if (       (c &gt;= 'A' &amp;&amp; c &lt;= 'Z') 
++					|| (c &gt;= 'a' &amp;&amp; c &lt;= 'z') 
++					|| (c &gt;= '0' &amp;&amp; c &lt;= '9')
++					|| (allowed.indexOf(c) &gt;= 0)
++			) continue;
++			else return false;
++		}
++		return true;
++	}
+ }
+\ No newline at end of file
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001176.html">[Cachewolf-svn] r1282 - trunk
+</A></li>
+	<LI>Next message: <A HREF="001178.html">[Cachewolf-svn] r1284 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1177">[ date ]</a>
+              <a href="thread.html#1177">[ thread ]</a>
+              <a href="subject.html#1177">[ subject ]</a>
+              <a href="author.html#1177">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

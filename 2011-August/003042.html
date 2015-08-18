@@ -1,0 +1,237 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r3051 - trunk/src/CacheWolf/navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2011-August/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r3051%20-%20trunk/src/CacheWolf/navi&In-Reply-To=%3C20110807235401.6FEAA481261%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003041.html">
+   <LINK REL="Next"  HREF="003043.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r3051 - trunk/src/CacheWolf/navi</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r3051%20-%20trunk/src/CacheWolf/navi&In-Reply-To=%3C20110807235401.6FEAA481261%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r3051 - trunk/src/CacheWolf/navi">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Mon Aug  8 01:54:01 CEST 2011</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003041.html">[Cachewolf-svn] r3050 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="003043.html">[Cachewolf-svn] r3052 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3042">[ date ]</a>
+              <a href="thread.html#3042">[ thread ]</a>
+              <a href="subject.html#3042">[ subject ]</a>
+              <a href="author.html#3042">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2011-08-08 01:54:01 +0200 (Mon, 08 Aug 2011)
+New Revision: 3051
+
+Modified:
+   trunk/src/CacheWolf/navi/MapLoader.java
+Log:
+MapLoader: Calculate the distance between tiles more exactly (using the WGS84-ellipsoid instead of assuming a sphere). This is still not exact, because the wg84-ellipsoid is used, but ellipsoid which is used for the projection would be really correct.
+
+Modified: trunk/src/CacheWolf/navi/MapLoader.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MapLoader.java	2011-08-07 08:05:03 UTC (rev 3050)
++++ trunk/src/CacheWolf/navi/MapLoader.java	2011-08-07 23:54:01 UTC (rev 3051)
+@@ -57,7 +57,7 @@
+ import ewe.util.mString;
+ 
+ /**
+- * 
++ *
+  * start offset for language file: 4800
+  */
+ 
+@@ -82,7 +82,7 @@
+ 	boolean fetchOnlyMapWithCache = false;
+ 
+ 	/**
+-	 * 
++	 *
+ 	 * @param prxy
+ 	 * @param prt
+ 	 * @param wmspath
+@@ -146,7 +146,7 @@
+ 
+ 	/**
+ 	 * calculates the Expedia Alti = scale which fits in distance to its edges
+-	 * 
++	 *
+ 	 * @param center
+ 	 * @param distance
+ 	 *            in meters
+@@ -164,7 +164,7 @@
+ 	/**
+ 	 * download maps from expedia at zoomlevel alti and save the maps and the .wfl
+ 	 * in path
+-	 * 
++	 *
+ 	 * @param center
+ 	 *            centre of all tiles
+ 	 * @param radius
+@@ -177,7 +177,7 @@
+ 	 *            in pixels
+ 	 * @param path
+ 	 *            without &quot;/&quot; at the end
+-	 * 
++	 *
+ 	 */
+ 	public void setTiles(CWPoint center, float radius, float scale, Point size, int overlapping) {
+ 		double metersPerLat = (1000 * (new CWPoint(0, 0)).getDistance(new CWPoint(1, 0)));
+@@ -192,8 +192,15 @@
+ 		// if (toplefti.latDec &lt;= bottomrighti.latDec || toplefti.lonDec &gt;= toplefti.lonDec) throw new IllegalArgumentException(&quot;topleft must be left and above bottom right&quot;);
+ 		topleft = new CWPoint(toplefti);
+ 		bottomright = new CWPoint(bottomrighti);
+-		double metersPerLat = (1000.0 * (new CWPoint(0, 0)).getDistance(new CWPoint(1, 0)));
+-		double metersPerLon = metersPerLat * java.lang.Math.cos((toplefti.latDec + bottomright.latDec) / 2 / 180 * java.lang.Math.PI);
++		// veraltet: Berechnung auf Kugel: double metersPerLat = (1000.0 * (new CWPoint(0, 0)).getDistance(new CWPoint(1, 0)));
++		// veraltet: Berechnung auf Kugel: double metersPerLon = metersPerLat * java.lang.Math.cos((toplefti.latDec + bottomright.latDec) / 2 / 180 * java.lang.Math.PI);
++
++		CWPoint center = new CWPoint((topleft.latDec + bottomright.latDec)/2, (toplefti.lonDec + bottomrighti.lonDec)/2);
++		CWPoint centerleft = new CWPoint((topleft.latDec + bottomright.latDec)/2, toplefti.lonDec);
++		CWPoint centerbottom = new CWPoint(bottomright.latDec, (toplefti.lonDec + bottomrighti.lonDec)/2);
++		double metersPerLat = 1000.0 * center.getDistance(centerbottom)/(center.latDec - centerbottom.latDec);
++		double metersPerLon = 1000.0 * center.getDistance(centerleft  )/(center.lonDec - centerleft.lonDec);
++
+ 		double metersperpixel = currentOnlineMapService.getMetersPerPixel(scale);
+ 		double pixelsPerLat = metersPerLat / metersperpixel;
+ 		double pixelsPerLon = metersPerLon / metersperpixel;
+@@ -282,7 +289,7 @@
+ 	}
+ 
+ 	/**
+-	 * 
++	 *
+ 	 * @param center
+ 	 * @param scale
+ 	 * @param pixelsize
+@@ -568,7 +575,7 @@
+ 	 * This method is used in case the online map service provides only certain steps of
+ 	 * zoomlevels. In this case the scale in meters per pixel must be returned, which
+ 	 * will be used instead of the wished scale.
+-	 * 
++	 *
+ 	 * @param scale
+ 	 * @return
+ 	 */
+@@ -582,7 +589,7 @@
+ 
+ 	/**
+ 	 * Overlaod this to integrate name of layers
+-	 * 
++	 *
+ 	 * @return friendly service name
+ 	 */
+ 	public String getName() {
+@@ -593,7 +600,7 @@
+ 	 * This method is called to get a name of the
+ 	 * online map service which will be part of the filename
+ 	 * used for the downloaded image
+-	 * 
++	 *
+ 	 * @return friendly service name
+ 	 */
+ 	public String getNameForFileSystem() {
+@@ -608,7 +615,7 @@
+ 	 * Overload this and return the URL to the map image, don't call super
+ 	 * Alternatively overload getUrlForBoundingBoxInternal
+ 	 * You must overload either this method or getUrlForBoundingBox
+-	 * 
++	 *
+ 	 * @param center
+ 	 * @param scale
+ 	 * @param pixelsize
+@@ -624,7 +631,7 @@
+ 	 * This is made protected and named &quot;...Internal&quot; because a lot of services
+ 	 * don't work correctly when a map is requested, that is not exactly quadratic
+ 	 * --&gt; alway use getUrlForCenter...
+-	 * 
++	 *
+ 	 * @param surArea
+ 	 * @param pixelsize
+ 	 * @return
+@@ -636,7 +643,7 @@
+ 	/**
+ 	 * overload this if your map service uses a special projection
+ 	 * an return an Area that is quadratic in that projection
+-	 * 
++	 *
+ 	 * @param center
+ 	 * @param scale
+ 	 * @param pixelsize
+@@ -656,7 +663,7 @@
+ 
+ 	/**
+ 	 * Overload this (don't call super()) or alternatively overload getMapInfoObjectInternal
+-	 * 
++	 *
+ 	 * @param center
+ 	 * @param scale
+ 	 * @param pixelsize
+@@ -684,7 +691,7 @@
+ 	double maxscaleWMS;
+ 
+ 	/**
+-	 * 
++	 *
+ 	 * @param filename
+ 	 *            without file extension
+ 	 * @throws IOException
+@@ -782,7 +789,7 @@
+ 	private static final int BOTTOMLEFT_INDEX = 3;
+ 
+ 	/**
+-	 * 
++	 *
+ 	 * @param maparea
+ 	 * @return [0] = topleft, [1] = bottomright, [2] = topright, [3] = bottomleft
+ 	 */
+@@ -875,7 +882,7 @@
+ 	 * a) if only one is in the array 0 is returned
+ 	 * b) if there are more, find out which one matches the correct zone (e.g. Gau&#223;-K&#252;ger stripe)
+ 	 * Call this routine with center of the area (use Area.getcenter())
+-	 * 
++	 *
+ 	 * @param p
+ 	 *            Point for which the epsg code is searched for
+ 	 * @return
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003041.html">[Cachewolf-svn] r3050 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="003043.html">[Cachewolf-svn] r3052 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3042">[ date ]</a>
+              <a href="thread.html#3042">[ thread ]</a>
+              <a href="subject.html#3042">[ subject ]</a>
+              <a href="author.html#3042">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

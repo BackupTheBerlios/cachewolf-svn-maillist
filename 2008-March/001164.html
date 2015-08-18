@@ -1,0 +1,287 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1270 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-March/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1270%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200803180053.m2I0r2bp017613%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001163.html">
+   <LINK REL="Next"  HREF="001165.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1270 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1270%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200803180053.m2I0r2bp017613%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1270 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Tue Mar 18 01:53:02 CET 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001163.html">[Cachewolf-svn] r1269 - trunk/docs/CacheWolf Doku
+</A></li>
+        <LI>Next message: <A HREF="001165.html">[Cachewolf-svn] r1271 - trunk/src/exp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1164">[ date ]</a>
+              <a href="thread.html#1164">[ thread ]</a>
+              <a href="subject.html#1164">[ subject ]</a>
+              <a href="author.html#1164">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2008-03-18 01:52:59 +0100 (Tue, 18 Mar 2008)
+New Revision: 1270
+
+Modified:
+   trunk/src/CacheWolf/ImageDetailForm.java
+   trunk/src/CacheWolf/ImageInteractivePanel.java
+   trunk/src/CacheWolf/ImagePanel.java
+Log:
+ImagePanels: Bug fixed: memory was not freed, see <A HREF="http://www.geoclub.de/ftopic22148.html">http://www.geoclub.de/ftopic22148.html</A>
+ImagePanels: ScrollBars not shown, when not necessary
+ImagePanels: Image size now fits to windows size, instead of application window size
+
+Modified: trunk/src/CacheWolf/ImageDetailForm.java
+===================================================================
+--- trunk/src/CacheWolf/ImageDetailForm.java	2008-03-17 21:14:33 UTC (rev 1269)
++++ trunk/src/CacheWolf/ImageDetailForm.java	2008-03-18 00:52:59 UTC (rev 1270)
+@@ -10,58 +10,17 @@
+ * the available app size.
+ */
+ public class ImageDetailForm extends Form{
+-	String location = new String();
+-	int origH, origW;
+-	int state = 0; // 0 = nothing, -1 = scaled to app, 1 = scaled to original size
+-	int scaleX = 0, scaleY = 0;
+-	Preferences pref;
+ 	ImageInteractivePanel ipp = new ImageInteractivePanel();
+-	AniImage ai;
+ 	ScrollBarPanel scp;
+ 	
+ 	public ImageDetailForm(String imgLoc, Preferences p){
+ 		scp = new MyScrollBarPanel(ipp);
+-		setUp(imgLoc, p);
++		ipp.setImage(imgLoc);
+ 		this.title = &quot;Image&quot;;
+-		this.setPreferredSize(pref.myAppWidth, pref.myAppHeight);
+-		this.addLast(scp.getScrollablePanel(), CellConstants.STRETCH, CellConstants.FILL);
++		this.setPreferredSize(p.myAppWidth, p.myAppHeight);
++		this.addLast(scp, CellConstants.STRETCH, CellConstants.FILL);
+ 	}
+ 	
+-	public ImageDetailForm(){
+-	}
+-
+-	/**
+-	 * Display Image.
+-	 * @param imgLoc path to the image file
+-	 * @param p Preferences.
+-	 * @throws IllegalArgumentException if file not found getcause() gives the name and path of the missing file.
+-	 */
+-	public void setUp(String imgLoc, Preferences p) throws IllegalArgumentException {
+-		pref = p;	
+-		location = imgLoc;
+-		try {
+-			mImage mI = new mImage(imgLoc);
+-			double scaleFactorX = 1, scaleFactorY = 1, scaleFactor = 1;
+-			origH = mI.getHeight();
+-			origW = mI.getWidth();
+-			if(origW &gt;= pref.myAppWidth) scaleFactorX = pref.myAppWidth/(double)origW;
+-			if(origH &gt;= pref.myAppHeight) scaleFactorY = pref.myAppHeight/(double)origH;
+-			if(scaleFactorX &gt;= scaleFactorY) scaleFactor = scaleFactorY;
+-			if(scaleFactorY &gt;= scaleFactorX) scaleFactor = scaleFactorX;
+-			state = -1;
+-			scaleX = (int)(origW*scaleFactor);
+-			scaleY = (int)(origH*scaleFactor);
+-			mI = mI.scale(scaleX, scaleY, null, 0);
+-			ai = new AniImage(mI);
+-			ai.setLocation(0,0);
+-			ipp.addImage(ai);
+-			ipp.setPreferredSize(origW, origH);
+-			ipp.setParams(state, scaleX, scaleY, origH, origW, scp, imgLoc);
+-		} catch (IllegalArgumentException e) {
+-			IllegalArgumentException t = new IllegalArgumentException(imgLoc);
+-			throw(t);
+-		}
+-	}
+ 	public void onEvent(Event ev) {
+ 		if (ev instanceof ControlEvent &amp;&amp; ev.type==ControlEvent.EXITED) {
+ 			ev.consumed=true;
+
+Modified: trunk/src/CacheWolf/ImageInteractivePanel.java
+===================================================================
+--- trunk/src/CacheWolf/ImageInteractivePanel.java	2008-03-17 21:14:33 UTC (rev 1269)
++++ trunk/src/CacheWolf/ImageInteractivePanel.java	2008-03-18 00:52:59 UTC (rev 1270)
+@@ -9,48 +9,72 @@
+ *	This class handles the resizing im images
+ */
+ public class ImageInteractivePanel extends InteractivePanel{
+-	int origH, origW;
+-	int state = 0; // 0 = nothing, -1 = scaled to app, 1 = scaled to original size
+-	int scaleX = 0, scaleY = 0;
++	int state = -1; // 0 = nothing, -1 = scaled to window, 1 = scaled to original size
+ 	ScrollBarPanel scp;
+ 	String imgLoc = new String();
++	AniImage pic = null;
+ 	private Menu mClose = new Menu(new String[]{
+ 			&quot;Close&quot;},&quot;&quot;);
++	public ImageInteractivePanel() {
++		super();
++		this.setMenu(mClose);
++	}
+ 	
+-	public void setParams(int state, int scaleX, int scaleY, int origH, int origW, ScrollBarPanel sp, String loc){
+-		imgLoc = loc;
+-		this.state = state;
+-		this.scaleX = scaleX;
+-		this.scaleY = scaleY;
+-		this.origH = origH;
+-		this.origW = origW;
+-		scp = sp;
+-		setMenu(mClose);
++	public void resizeTo(int w, int h) {
++		this.width = w;
++		this.height = h;
++		if (state == -1) fitImageToWindow();
++		virtualSize = new Rect(0, 0, java.lang.Math.max(w, pic.getWidth()), java.lang.Math.max(h, pic.getHeight()));
++		checkScrolls();
++		super.resizeTo(w, h);
+ 	}
+ 	
++	public void setImage(String filename) {
++		imgLoc = filename;
++		mImage mI = new mImage(imgLoc);
++		if (pic != null) {
++			this.removeImage(pic);
++			pic.freeSource();
++			pic.free();
++		}
++		pic = new AniImage(mI);
++		pic.setLocation(0, 0);
++		mI.freeSource();
++		// mI.free(); this works in the java-VM, but it will delete the image in the ewe-vm --&gt; leave it commeted out
++		this.addImage(pic);
++		virtualSize = new Rect(pic.getSize(null));
++		checkScrolls();
++	}
++	
++	public void fitImageToWindow() {
++		Rect s = this.parent.getRect();
++		int ww = pic.getWidth();
++		int wh = pic.getHeight();
++		double scale =  java.lang.Math.max((double)ww/(double)s.width, (double)wh/(double)s.height);
++		if (scale != 1){
++			this.removeImage(pic);
++			AniImage tmp = new AniImage(pic.scale((int)(ww/scale), (int)(wh/scale),null,0));
++			pic.freeSource();
++			pic.free();
++			pic = tmp;
++			pic.setLocation(0, 0);
++			this.addImage(pic);
++			virtualSize = new Rect(pic.getSize(null));
++			checkScrolls();
++		}
++		
++	}
++	
+ 	public void imageClicked(AniImage which, Point pos){
+-		if(state == -1){
+-			//Vm.debug(&quot;Hit and state -1!&quot;);
+-			this.removeImage(which);
+-			mImage mI = new mImage(imgLoc);
+-			//this.refresh();
+-			which = new AniImage(mI);
+-			this.addImage(which);
+-			//this.setPreferredSize(origW, origH);
++		state = -state;
++		if(state == 1){
++			setImage(imgLoc);
+ 			this.repaintNow();
+-			scp.repaintNow();
+ 		}
+-		if(state == 1){
+-			//Vm.debug(&quot;Hit and state 1!&quot;);
+-			this.removeImage(which);
+-			//this.refresh();
+-			which = new AniImage(which.scale(scaleX,scaleY,null,0));
+-			this.addImage(which);
+-			//this.setPreferredSize(b,h);
++		if(state == -1){
++			fitImageToWindow();
+ 			this.repaintNow();
+-			scp.repaintNow();
+ 		}
+-		state = -state;
+ 	}
+ 	public void penRightReleased(Point p){
+ 			menuState.doShowMenu(p,true,null); // direct call (not through doMenu) is neccesary because it will exclude the whole table
+@@ -61,4 +85,12 @@
+ 	public void popupMenuEvent(Object selectedItem){
+ 		postEvent(new ControlEvent(ControlEvent.EXITED,this));
+ 	}
++	public void formClosing() {
++		super.formClosing();
++		if (pic != null) {
++			pic.freeSource();
++			pic.free();
++		}
++		
++	}
+ }
+
+Modified: trunk/src/CacheWolf/ImagePanel.java
+===================================================================
+--- trunk/src/CacheWolf/ImagePanel.java	2008-03-17 21:14:33 UTC (rev 1269)
++++ trunk/src/CacheWolf/ImagePanel.java	2008-03-18 00:52:59 UTC (rev 1270)
+@@ -52,7 +52,7 @@
+ 			thumb_size = thumb_size - padding;
+ 			int rowCounter = cache.Images.size() + cache.UserImages.size();
+ 			rowCounter = (int)(rowCounter/3)+1;
+-			Rect r = new Rect(new Dimension(pref.myAppWidth,rowCounter*thumb_size+rowCounter*padding+padding));
++			Rect r = new Rect(0, 0, pref.myAppWidth, rowCounter*thumb_size+rowCounter*padding+padding);
+ 			this.virtualSize = r;
+ 			//this.setPreferredSize(pref.myAppWidth, rowCounter*thumb_size+rowCounter*padding+40);
+ 			this.checkScrolls();
+@@ -159,7 +159,10 @@
+ 					scaleY = mI.getHeight();
+ 				}
+ 				mI = mI.scale(scaleX,scaleY,null,0);
++				mI.freeSource();
+ 				ipi = new ImagePanelImage(mI);
++				ipi.freeSource();
++				//mI.free(); --&gt; this only works in java-VM, in ewe it will delete the image, so leave it commented out
+ 				ipi.fileName = location; // this is set only to easily identify the filename of the image clicked
+ 				ipi.setLocation(locX, locY);
+ 				addImage(ipi);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001163.html">[Cachewolf-svn] r1269 - trunk/docs/CacheWolf Doku
+</A></li>
+	<LI>Next message: <A HREF="001165.html">[Cachewolf-svn] r1271 - trunk/src/exp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1164">[ date ]</a>
+              <a href="thread.html#1164">[ thread ]</a>
+              <a href="subject.html#1164">[ subject ]</a>
+              <a href="author.html#1164">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

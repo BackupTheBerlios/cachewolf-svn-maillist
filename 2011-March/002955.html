@@ -1,0 +1,119 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2964 - trunk/src/CacheWolf/navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2011-March/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2964%20-%20trunk/src/CacheWolf/navi&In-Reply-To=%3C20110326122426.9FFCB4807E1%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002954.html">
+   <LINK REL="Next"  HREF="002957.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2964 - trunk/src/CacheWolf/navi</H1>
+    <B>apreisser at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2964%20-%20trunk/src/CacheWolf/navi&In-Reply-To=%3C20110326122426.9FFCB4807E1%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2964 - trunk/src/CacheWolf/navi">apreisser at mail.berlios.de
+       </A><BR>
+    <I>Sat Mar 26 01:24:26 CET 2011</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002954.html">[Cachewolf-svn] r2963 - trunk/src/CacheWolf/navi
+</A></li>
+        <LI>Next message: <A HREF="002957.html">[Cachewolf-svn] r2966 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2955">[ date ]</a>
+              <a href="thread.html#2955">[ thread ]</a>
+              <a href="subject.html#2955">[ subject ]</a>
+              <a href="author.html#2955">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: apreisser
+Date: 2011-03-26 13:24:26 +0100 (Sat, 26 Mar 2011)
+New Revision: 2964
+
+Modified:
+   trunk/src/CacheWolf/navi/Track.java
+Log:
+Track: loadTrack and saveTrack didn't work after changing to ringbuffer, but these methods are still declared to be untestet!
+
+Modified: trunk/src/CacheWolf/navi/Track.java
+===================================================================
+--- trunk/src/CacheWolf/navi/Track.java	2011-03-21 18:43:58 UTC (rev 2963)
++++ trunk/src/CacheWolf/navi/Track.java	2011-03-26 12:24:26 UTC (rev 2964)
+@@ -5,6 +5,7 @@
+ import ewe.io.FileWriter;
+ import ewe.io.IOException;
+ import ewe.io.PrintWriter;
++import ewe.sys.Vm;
+ import ewe.ui.MessageBox;
+ import ewe.util.Utils;
+ 
+@@ -64,23 +65,23 @@
+         }
+ 
+ 	public void loadTrack(String filename){ // TODO untested!
+-		byte [] all = ewe.sys.Vm.readResource(null,filename);
++		byte [] all = Vm.readResource(null,filename);
+ 		if (all == null) return; // TODO error handling
+-		num = Utils.readInt(all, 0, 4);
+-		for (int i=0; i&lt;=num; i++){
+-			trackPoints[i].latDec = Double.longBitsToDouble(Utils.readLong(all, (i*2)*8 + 4));
+-			trackPoints[i].lonDec = Double.longBitsToDouble(Utils.readLong(all, (i*2+1)*8 + 4));
++		int numOfPoints = Utils.readInt(all, 0, 4);
++		for (int i=0; i&lt;=numOfPoints; i++){
++			TrackPoint point = new TrackPoint();
++			point.latDec = Double.longBitsToDouble(Utils.readLong(all, (i*2)*8 + 4));
++			point.lonDec = Double.longBitsToDouble(Utils.readLong(all, (i*2+1)*8 + 4));
++			add (point);
+ 		}
+ 	}
+ 	
+ 	public void saveTrack(String filename) { // TODO untested!
+-		// ByteArray ba=new ByteArray();
+-		byte[] ba = new byte[8 * 2 * num + 4]; // 8 bytes is one double int has
+-												// size 4
+-		Utils.writeInt(num, ba, 0, 4);
+-		for (int i = 0; i &lt;= num; i++) {
+-			Utils.writeLong(Double.doubleToLongBits(trackPoints[i].latDec), ba, (i * 2) * 8 + 4);
+-			Utils.writeLong(Double.doubleToLongBits(trackPoints[i].lonDec), ba, (i * 2 + 1) * 8 + 4);
++		byte[] ba = new byte[8 * 2 * size() + 4]; // 8 bytes is one double int has size 4
++		Utils.writeInt(size(), ba, 0, 4);
++		for (int i = 0; i &lt;= size(); i++) {
++			Utils.writeLong(Double.doubleToLongBits(get(i).latDec), ba, (i * 2) * 8 + 4);
++			Utils.writeLong(Double.doubleToLongBits(get(i).lonDec), ba, (i * 2 + 1) * 8 + 4);
+ 		}
+ 		try {
+ 			PrintWriter outp = new PrintWriter(new BufferedWriter(new FileWriter(filename)));
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002954.html">[Cachewolf-svn] r2963 - trunk/src/CacheWolf/navi
+</A></li>
+	<LI>Next message: <A HREF="002957.html">[Cachewolf-svn] r2966 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2955">[ date ]</a>
+              <a href="thread.html#2955">[ thread ]</a>
+              <a href="subject.html#2955">[ subject ]</a>
+              <a href="author.html#2955">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

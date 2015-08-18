@@ -1,0 +1,220 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r986 - trunk/src/CacheWolf/navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-October/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r986%20-%20trunk/src/CacheWolf/navi&In-Reply-To=%3C200710211749.l9LHnLxB000061%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000878.html">
+   <LINK REL="Next"  HREF="000880.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r986 - trunk/src/CacheWolf/navi</H1>
+    <B>mik77 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r986%20-%20trunk/src/CacheWolf/navi&In-Reply-To=%3C200710211749.l9LHnLxB000061%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r986 - trunk/src/CacheWolf/navi">mik77 at mail.berlios.de
+       </A><BR>
+    <I>Sun Oct 21 19:49:21 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000878.html">[Cachewolf-svn] r985 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000880.html">[Cachewolf-svn] r987 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#879">[ date ]</a>
+              <a href="thread.html#879">[ thread ]</a>
+              <a href="subject.html#879">[ subject ]</a>
+              <a href="author.html#879">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mik77
+Date: 2007-10-21 19:49:09 +0200 (Sun, 21 Oct 2007)
+New Revision: 986
+
+Modified:
+   trunk/src/CacheWolf/navi/CWGPSPoint.java
+   trunk/src/CacheWolf/navi/GotoPanel.java
+Log:
+Satellites in view added to GotoPanel
+
+Modified: trunk/src/CacheWolf/navi/CWGPSPoint.java
+===================================================================
+--- trunk/src/CacheWolf/navi/CWGPSPoint.java	2007-10-21 16:37:15 UTC (rev 985)
++++ trunk/src/CacheWolf/navi/CWGPSPoint.java	2007-10-21 17:49:09 UTC (rev 986)
+@@ -31,6 +31,7 @@
+ 	public String Date;
+ 	public int Fix; //Fix
+ 	public int numSat; //Satellites in use, -1 indicates no data, -2 that data could not be interpreted
++	public int numSatsInView; //Satellites in view
+ 	public double HDOP; // Horizontal dilution of precision
+ 	public double Alt; //Altitude
+ 
+@@ -52,6 +53,7 @@
+ 		this.Date=&quot;&quot;;
+ 		this.Fix = 0;
+ 		this.numSat = 0;
++		this.numSatsInView = 0;
+ 		this.Alt = 0;
+ 		this.HDOP = 0;
+ 	}
+@@ -78,6 +80,7 @@
+ 	public void noData(){
+ 		this.Fix = 0;
+ 		this.numSat = 0;
++		this.HDOP = 0;
+ 	}
+ 
+ 	/**
+@@ -86,6 +89,7 @@
+ 	public void noDataError(){
+ 		this.Fix = -1;
+ 		this.numSat = -1;
++		this.HDOP = -1;
+ 	}
+ 
+ 	/**
+@@ -94,6 +98,7 @@
+ 	public void noInterpretableData(){
+ 		this.Fix = -2;
+ 		this.numSat = -2;
++		this.HDOP = -2;
+ 	}
+ 
+ 	public void ticked(int timerId, int elapsed){
+@@ -150,6 +155,10 @@
+ 		return this.numSat;
+ 	}
+ 
++	public int getSatsInView(){
++		return this.numSatsInView;
++	}
++
+ 	public double getAlt(){
+ 		return this.Alt;
+ 	}
+@@ -292,6 +301,21 @@
+ 								lonEW, lonDeg, lonMin, &quot;0&quot;, CWPoint.DMM);				
+ 					}
+ 				} // if
++
++				if (currToken.equals(&quot;$GPGSV&quot;)){
++					//Vm.debug(&quot;In $$GPGSV&quot;);
++					i = 0;
++					while(ex.endOfSearch() != true){
++						currToken = ex.findNext();
++						i++;
++						if (currToken.length()==0) continue; // sometimes there are 2 colons directly one after the other like &quot;,,&quot; (e.g. loox)
++						switch (i){
++						case 3: this.numSatsInView = Convert.toInt(currToken); interpreted = true; break;
++						} // switch
++					} // while
++					if (Fix &gt; 0) this.set(latNS, latDeg, latMin, &quot;0&quot;, lonEW, lonDeg, lonMin, &quot;0&quot;, CWPoint.DMM);
++				} // if
++				
+ 				//Vm.debug(&quot;End of examine&quot;);
+ 			} //while
+ 		} catch (Exception e) {
+@@ -321,15 +345,16 @@
+ 
+ 
+ 	public void printAll(){
+-		Vm.debug(&quot;Latitude:  &quot; + this.getLatDeg(DD));
+-		Vm.debug(&quot;Longitude: &quot; + this.getLonDeg(DD));
+-		Vm.debug(&quot;Speed:     &quot; + this.Speed);
+-		Vm.debug(&quot;Bearing:   &quot; + this.Bear);
+-		Vm.debug(&quot;Time:      &quot; + this.Time);
+-		Vm.debug(&quot;Fix:       &quot; + this.Fix);
+-		Vm.debug(&quot;Sats:      &quot; + this.numSat);
+-		Vm.debug(&quot;HDOP:      &quot; + this.HDOP);
+-		Vm.debug(&quot;Alt:       &quot; + this.Alt);
++		Vm.debug(&quot;Latitude:     &quot; + this.getLatDeg(DD));
++		Vm.debug(&quot;Longitude:    &quot; + this.getLonDeg(DD));
++		Vm.debug(&quot;Speed:        &quot; + this.Speed);
++		Vm.debug(&quot;Bearing:      &quot; + this.Bear);
++		Vm.debug(&quot;Time:         &quot; + this.Time);
++		Vm.debug(&quot;Fix:          &quot; + this.Fix);
++		Vm.debug(&quot;Sats:         &quot; + this.numSat);
++		Vm.debug(&quot;Sats in view: &quot; + this.numSatsInView);
++		Vm.debug(&quot;HDOP:         &quot; + this.HDOP);
++		Vm.debug(&quot;Alt:          &quot; + this.Alt);
+ 		Vm.debug(&quot;----------------&quot;);
+ 	}
+ }
+
+Modified: trunk/src/CacheWolf/navi/GotoPanel.java
+===================================================================
+--- trunk/src/CacheWolf/navi/GotoPanel.java	2007-10-21 16:37:15 UTC (rev 985)
++++ trunk/src/CacheWolf/navi/GotoPanel.java	2007-10-21 17:49:09 UTC (rev 986)
+@@ -237,7 +237,7 @@
+ 		Double speed = new Double();
+ 		Double sunAzimut = new Double();
+ 		//Vm.debug(&quot;ticked: before&quot;);
+-		compassRose.setGpsStatus(fix, myNavigation.gpsPos.getSats(), myNavigation.gpsPos.getHDOP());
++		compassRose.setGpsStatus(fix, myNavigation.gpsPos.getSats(), myNavigation.gpsPos.getSatsInView(), myNavigation.gpsPos.getHDOP());
+ 		if ((fix &gt; 0) &amp;&amp; (myNavigation.gpsPos.getSats()&gt;= 0)) {
+ 			// display values only, if signal good
+ 			//Vm.debug(&quot;currTrack.add: nachher&quot;);
+@@ -415,6 +415,7 @@
+ 	
+ 	int m_fix = -1;
+ 	int m_sats = -1;
++	int m_satsInView = 0;
+ 	double m_hdop = -1;
+ 	float m_speed = -1;
+ 	
+@@ -455,9 +456,10 @@
+ 		refresh();
+ 	}
+ 	
+-	public void setGpsStatus(int fix, int sats, double hdop) {
++	public void setGpsStatus(int fix, int sats, int satsInView, double hdop) {
+ 		m_fix = fix;
+ 		m_sats = sats;
++		m_satsInView = satsInView;
+ 		m_hdop = hdop;
+ 		refresh();
+ 	}
+@@ -594,7 +596,9 @@
+ 		}
+ 
+ 		String strSats = &quot;Sats: -&quot;;
+-		if (m_sats &gt;= 0) strSats = &quot;Sats: &quot; + Convert.toString(m_sats);
++		if (m_sats &gt;= 0) {
++			strSats = &quot;Sats: &quot; + Convert.toString(m_sats) + &quot;/&quot; + Convert.toString(m_satsInView);
++		}
+ 		String strHdop = &quot;HDOP: -&quot;;
+ 		if (m_hdop &gt;= 0) strHdop = &quot;HDOP: &quot; + Convert.toString(m_hdop);
+ 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000878.html">[Cachewolf-svn] r985 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000880.html">[Cachewolf-svn] r987 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#879">[ date ]</a>
+              <a href="thread.html#879">[ thread ]</a>
+              <a href="subject.html#879">[ subject ]</a>
+              <a href="author.html#879">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

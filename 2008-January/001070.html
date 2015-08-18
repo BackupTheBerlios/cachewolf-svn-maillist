@@ -1,0 +1,233 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1177 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1177%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200801061741.m06HfDDE032629%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001069.html">
+   <LINK REL="Next"  HREF="001071.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1177 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1177%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200801061741.m06HfDDE032629%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1177 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sun Jan  6 18:41:13 CET 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001069.html">[Cachewolf-svn] r1176 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001071.html">[Cachewolf-svn] r1178 - in trunk: res_noewe/languages src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1070">[ date ]</a>
+              <a href="thread.html#1070">[ thread ]</a>
+              <a href="subject.html#1070">[ subject ]</a>
+              <a href="author.html#1070">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2008-01-06 18:41:00 +0100 (Sun, 06 Jan 2008)
+New Revision: 1177
+
+Modified:
+   trunk/src/CacheWolf/DescriptionPanel.java
+   trunk/src/CacheWolf/Preferences.java
+   trunk/src/CacheWolf/PreferencesScreen.java
+Log:
+Feature: DescriptionPanel can now display images. As this may take some time on PDAs, the feature can be disabled in the preferences.
+
+Modified: trunk/src/CacheWolf/DescriptionPanel.java
+===================================================================
+--- trunk/src/CacheWolf/DescriptionPanel.java	2008-01-06 14:44:32 UTC (rev 1176)
++++ trunk/src/CacheWolf/DescriptionPanel.java	2008-01-06 17:41:00 UTC (rev 1177)
+@@ -1,5 +1,7 @@
+ package CacheWolf;
+ 
++import com.stevesoft.ewe_pat.Regex;
++
+ import ewe.ui.*;
+ import ewe.fx.*;
+ import ewe.sys.*;
+@@ -15,10 +17,12 @@
+ 	CellPanel buttonP = new CellPanel();
+ 	CellPanel descP = new CellPanel();
+ 	
++	private String desc;
++
+ 	public DescriptionPanel(){
+ 		buttonP.addNext(btnPlus = new mButton(&quot;+&quot;),CellConstants.HSTRETCH, (CellConstants.HFILL));
+ 		buttonP.addLast(btnMinus = new mButton(&quot;-&quot;),CellConstants.HSTRETCH, (CellConstants.HFILL));
+-		ScrollBarPanel sbp = new ScrollBarPanel(disp, ScrollBarPanel.NeverShowHorizontalScrollers);
++		ScrollBarPanel sbp = new ScrollBarPanel(disp, 0);
+ 		descP.addLast(sbp);
+ 		this.addLast(descP);
+ 		this.addLast(buttonP,CellConstants.HSTRETCH,CellConstants.HFILL);
+@@ -33,7 +37,6 @@
+ 		if (currCache == cache) return;
+ 		int scrollto = 0;
+ 		if (cache.hasSameMainCache(currCache)) scrollto = disp.getTopLine();
+-		String desc;
+ 		if (cache == null) desc = &quot;&quot;;
+ 		else {
+ 			if (cache.isAddiWpt()) {
+@@ -45,9 +48,40 @@
+ 				desc = cache.LongDescription;
+ 		}
+ 		if (!desc.equals(description)) {
++			//disp.getDecoderProperties().setBoolean(&quot;allowImages&quot;,true);
+ 			Vm.showWait(true); 
+-			if (cache.is_HTML)	disp.setHtml(desc);
+-			else				disp.setPlainText(desc);
++			if (cache.is_HTML) {
++				if (Global.getPref().descShowImg) {
++					StringBuffer s=new StringBuffer(desc.length()+cache.Images.size()*100);
++					int start=0;
++					int pos;
++					int imageNo=0;
++					Regex imgRex = new Regex(&quot;src=(?:\\s*[^\&quot;|']*?)(?:\&quot;|')(.*?)(?:\&quot;|')&quot;);
++					while (start&gt;=0 &amp;&amp; (pos=desc.indexOf(&quot;&lt;img&quot;,start))&gt;0) {
++						s.append(desc.substring(start,pos));
++						imgRex.searchFrom(desc,pos);
++						String imgUrl=imgRex.stringMatched(1);
++						//Vm.debug(&quot;imgUrl &quot;+imgUrl);
++						if (imgUrl.lastIndexOf('.')&gt;0 &amp;&amp; imgUrl.toLowerCase().startsWith(&quot;http&quot;)) {
++							String imgType = (imgUrl.substring(imgUrl.lastIndexOf(&quot;.&quot;)).toLowerCase()+&quot;    &quot;).substring(0,4).trim();
++							// If we have an image which we stored when spidering, we can display it
++							if(!imgType.startsWith(&quot;.com&quot;) &amp;&amp; !imgType.startsWith(&quot;.php&quot;) &amp;&amp; !imgType.startsWith(&quot;.exe&quot;)){
++								s.append(&quot;&lt;img src=\&quot;&quot;+
++								   Global.getProfile().dataDir+cache.Images.get(imageNo)+&quot;\&quot;&gt;&quot;);
++								imageNo++;
++							}
++						}
++						start=desc.indexOf(&quot;&gt;&quot;,pos);
++						if (start&gt;=0) start++;
++						if (imageNo &gt;= cache.Images.getCount())break;
++					}
++					if (start&gt;=0) s.append(desc.substring(start));
++					desc=s.toString();
++				}
++				disp.setHtml(desc);
++			}
++			else
++				disp.setPlainText(desc);
+ 			disp.scrollTo(scrollto,false);
+ 			description = desc;
+ 			Vm.showWait(false);
+@@ -60,7 +94,7 @@
+ 
+ 		Vm.showWait(true);
+ 		currLine = disp.getTopLine();
+-		if (currCache.is_HTML)	disp.setHtml(currCache.LongDescription);
++		if (currCache.is_HTML)	disp.setHtml(desc);
+ 		else				disp.setPlainText(currCache.LongDescription);
+ 		disp.scrollTo(currLine,false);
+ 		Vm.showWait(false);
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2008-01-06 14:44:32 UTC (rev 1176)
++++ trunk/src/CacheWolf/Preferences.java	2008-01-06 17:41:00 UTC (rev 1177)
+@@ -124,6 +124,8 @@
+ 	public boolean solverIgnoreCase=true;
+ 	/** True if the solver expects arguments for trigonometric functions in degrees */
+ 	public boolean solverDegMode=true;
++	/** True if the description panel should show images */
++	public boolean descShowImg=true;
+ 	/** The type of connection which GPSBABEL uses: com1 OR usb. */
+ 	public String garminConn=&quot;com1&quot;;  
+ 	/** Additional options for GPSBabel, i.e. -s to synthethise short names */
+@@ -262,6 +264,9 @@
+ 		else if (name.equals(&quot;imagepanel&quot;)) {
+ 			showDeletedImages = Boolean.valueOf(atts.getValue(&quot;showdeletedimages&quot;)).booleanValue();
+ 		}
++		else if (name.equals(&quot;descpanel&quot;)) {
++			descShowImg = Boolean.valueOf(atts.getValue(&quot;showimages&quot;)).booleanValue();
++		} 
+ 		else if (name.equals(&quot;screen&quot;)) {
+ 			menuAtTop=Boolean.valueOf(atts.getValue(&quot;menuattop&quot;)).booleanValue();
+ 			tabsAtTop=Boolean.valueOf(atts.getValue(&quot;tabsattop&quot;)).booleanValue();
+@@ -353,6 +358,7 @@
+ 			outp.print(&quot;    &lt;fixedsip state = \&quot;&quot;+fixSIP+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;listview colmap=\&quot;&quot;+listColMap+&quot;\&quot; colwidths=\&quot;&quot;+listColWidth+&quot;\&quot; /&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;travelbugs colmap=\&quot;&quot;+travelbugColMap+&quot;\&quot; colwidths=\&quot;&quot;+travelbugColWidth+&quot;\&quot; shownonlogged=\&quot;&quot;+travelbugShowOnlyNonLogged+&quot;\&quot; /&gt;\n&quot;);
++			outp.print(&quot;    &lt;descpanel showimages=\&quot;&quot;+descShowImg+&quot;\&quot; /&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;imagepanel showdeletedimages=\&quot;&quot;+showDeletedImages+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;hintlogpanel logsperpage=\&quot;&quot;+logsPerPage+&quot;\&quot; initialhintheight=\&quot;&quot;+initialHintHeight+&quot;\&quot;  maxspiderlogs=\&quot;&quot;+maxLogsToSpider+&quot;\&quot; /&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;solver ignorevariablecase=\&quot;&quot;+solverIgnoreCase+&quot;\&quot; degMode=\&quot;&quot;+solverDegMode+&quot;\&quot; /&gt;\n&quot;);
+
+Modified: trunk/src/CacheWolf/PreferencesScreen.java
+===================================================================
+--- trunk/src/CacheWolf/PreferencesScreen.java	2008-01-06 14:44:32 UTC (rev 1176)
++++ trunk/src/CacheWolf/PreferencesScreen.java	2008-01-06 17:41:00 UTC (rev 1177)
+@@ -18,7 +18,7 @@
+ 	mInput NSDeg, NSm, EWDeg, EWm, DataDir, Proxy, ProxyPort, Alias, nLogs, Browser, fontSize, inpGPS, 
+ 	       inpLogsPerPage,inpMaxLogsToSpider,inpPassword,inpLanguage;
+ 	mCheckBox dif, ter, loc, own, hid, stat, dist, bear, chkAutoLoad, chkShowDeletedImg, chkMenuAtTop, 
+-	          chkTabsAtTop, chkShowStatus,chkHasCloseButton,chkSynthShort,chkProxyActive;
++	          chkTabsAtTop, chkShowStatus,chkHasCloseButton,chkSynthShort,chkProxyActive, chkDescShowImg;
+ 	mTabbedPanel mTab;
+ 	mChoice chcGarminPort;
+ 	mLabel lblGarmin;
+@@ -129,10 +129,16 @@
+ 		
+ 		Frame frmImages=new Frame();
+ 		frmImages.borderStyle=CellPanel.BDR_RAISEDOUTER|CellPanel.BDR_SUNKENINNER|CellPanel.BF_TOP|CellPanel.BF_BOTTOM;
+-		frmImages.addNext(new mLabel(MyLocale.getMsg(623,&quot;Images:&quot;)),CellConstants.VSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		frmImages.addLast(chkShowDeletedImg = new mCheckBox(MyLocale.getMsg(624,&quot;Show deleted images&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.EAST));
+-		chkShowDeletedImg.setTag(INSETS,new Insets(0,0,2,0));
++		//frmImages.addNext(new mLabel(MyLocale.getMsg(623,&quot;Images:&quot;)),CellConstants.VSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		frmImages.addLast(chkShowDeletedImg = new mCheckBox(MyLocale.getMsg(624,&quot;Show deleted images&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		chkShowDeletedImg.setTag(INSETS,new Insets(2,0,0,0));
+ 		if (pref.showDeletedImages) chkShowDeletedImg.setState(true);
++		//mLabel dummy;
++		//frmImages.addNext(dummy=new mLabel(&quot;&quot;),CellConstants.VSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST|CellConstants.NORTH));
++		//dummy.setTag(INSETS,new Insets(0,0,2,0));
++		frmImages.addLast(chkDescShowImg = new mCheckBox(&quot;Bilder in Beschreibung anzeigen&quot;),CellConstants.VSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST|CellConstants.NORTH));
++		chkDescShowImg.setTag(INSETS,new Insets(0,0,2,0));
++		if (pref.descShowImg) chkDescShowImg.setState(true);
+ 		pnlDisplay.addLast(frmImages,CellConstants.STRETCH,CellConstants.FILL);
+ 
+ 		Frame frmHintLog=new Frame();
+@@ -257,6 +263,7 @@
+ 				pref.hasCloseButton=chkHasCloseButton.getState();
+ 				pref.travelbugColMap=tccBugs.getSelectedCols();
+ 				pref.listColMap=tccList.getSelectedCols();
++				pref.descShowImg=chkDescShowImg.getState();
+ 				Global.mainTab.tbP.myMod.setColumnNamesAndWidths();
+ 				pref.savePreferences();
+ 				pref.dirty = true; // Need to update table in case columns were enabled/disabled
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001069.html">[Cachewolf-svn] r1176 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001071.html">[Cachewolf-svn] r1178 - in trunk: res_noewe/languages src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1070">[ date ]</a>
+              <a href="thread.html#1070">[ thread ]</a>
+              <a href="subject.html#1070">[ subject ]</a>
+              <a href="author.html#1070">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

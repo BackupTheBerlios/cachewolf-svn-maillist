@@ -1,0 +1,124 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1149 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-December/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1149%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200712160048.lBG0mj0I009084%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001041.html">
+   <LINK REL="Next"  HREF="001043.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1149 - trunk/src/CacheWolf</H1>
+    <B>mik77 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1149%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200712160048.lBG0mj0I009084%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1149 - trunk/src/CacheWolf">mik77 at mail.berlios.de
+       </A><BR>
+    <I>Sun Dec 16 01:48:45 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001041.html">[Cachewolf-svn] r1148 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001043.html">[Cachewolf-svn] r1150 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1042">[ date ]</a>
+              <a href="thread.html#1042">[ thread ]</a>
+              <a href="subject.html#1042">[ subject ]</a>
+              <a href="author.html#1042">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mik77
+Date: 2007-12-16 01:48:38 +0100 (Sun, 16 Dec 2007)
+New Revision: 1149
+
+Modified:
+   trunk/src/CacheWolf/CalcPanel.java
+Log:
+CalcPanel updated:
+ - GK Coords selection
+ - make automatic AddiWP
+ - correct selection of default meter
+
+Modified: trunk/src/CacheWolf/CalcPanel.java
+===================================================================
+--- trunk/src/CacheWolf/CalcPanel.java	2007-12-15 20:28:34 UTC (rev 1148)
++++ trunk/src/CacheWolf/CalcPanel.java	2007-12-16 00:48:38 UTC (rev 1149)
+@@ -32,7 +32,7 @@
+ 
+ public class CalcPanel extends CellPanel {
+ 
+-	mCheckBox chkDMM, chkDMS, chkDD, chkUTM;
++	mCheckBox chkDMM, chkDMS, chkDD, chkUTM, chkGK;
+ 	CheckBoxGroup chkFormat = new CheckBoxGroup();
+ 	mChoice chcDistUnit;
+ 	mInput inpBearing, inpDistance, inpText;
+@@ -64,15 +64,17 @@
+ 		TopP.addNext(chkDD =new mCheckBox(&quot;d.d&#176;&quot;),CellConstants.DONTSTRETCH, CellConstants.WEST);
+ 		TopP.addNext(chkDMM =new mCheckBox(&quot;d&#176;m.m\'&quot;),CellConstants.DONTSTRETCH, CellConstants.WEST);
+ 		TopP.addNext(chkDMS =new mCheckBox(&quot;d&#176;m\'s\&quot;&quot;),CellConstants.DONTSTRETCH,CellConstants.WEST);
+-		TopP.addLast(chkUTM =new mCheckBox(&quot;UTM&quot;),CellConstants.DONTSTRETCH, CellConstants.WEST);
++		TopP.addNext(chkUTM =new mCheckBox(&quot;UTM&quot;),CellConstants.DONTSTRETCH, CellConstants.WEST);
++		TopP.addLast(chkGK =new mCheckBox(&quot;GK&quot;),CellConstants.DONTSTRETCH, CellConstants.WEST);
+ 
+ 		chkDD.setGroup(chkFormat);
+ 		chkDMM.setGroup(chkFormat);
+ 		chkDMS.setGroup(chkFormat);
+ 		chkUTM.setGroup(chkFormat);
++		chkGK.setGroup(chkFormat);
+ 		chkFormat.setInt(CWPoint.DMM);
+ 		btnChangeLatLon=new mButton();
+-		TopP.addLast(btnChangeLatLon.setTag(SPAN,new Dimension(4,1)),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
++		TopP.addLast(btnChangeLatLon,CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 		//inpBearing and direction, unit for inpDistance
+ 		BottomP.addNext(new mLabel(MyLocale.getMsg(1403,&quot;Bearing&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		BottomP.addLast(new mLabel(MyLocale.getMsg(1404,&quot;Distance&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+@@ -132,7 +134,7 @@
+ 		chkFormat.selectIndex(format);
+ 		inpBearing.setText(&quot;0&quot;);
+ 		inpDistance.setText(&quot;0&quot;);
+-		chcDistUnit.setInt(1);
++		chcDistUnit.setInt(0);
+ 	}
+ 
+ 
+@@ -160,6 +162,7 @@
+ 				coordOut = coordInp.project(bd.degrees, bd.distance);
+ 				ch.LatLon = coordOut.toString();
+ 				ch.pos.set(coordOut);
++				ch.type = &quot;51&quot;; // see CacheType.GC_AW_STAGE_OF_MULTI // TODO unfertig
+ 				mainT.newWaypoint(ch);
+ 			}
+ 			
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001041.html">[Cachewolf-svn] r1148 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001043.html">[Cachewolf-svn] r1150 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1042">[ date ]</a>
+              <a href="thread.html#1042">[ thread ]</a>
+              <a href="subject.html#1042">[ subject ]</a>
+              <a href="author.html#1042">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

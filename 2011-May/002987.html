@@ -1,0 +1,258 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2996 - in trunk: res_noewe src/CacheWolf	src/CacheWolf/imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2011-May/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2996%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf%0A%09src/CacheWolf/imp&In-Reply-To=%3C20110508113044.7679748129D%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002986.html">
+   <LINK REL="Next"  HREF="002988.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2996 - in trunk: res_noewe src/CacheWolf	src/CacheWolf/imp</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2996%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf%0A%09src/CacheWolf/imp&In-Reply-To=%3C20110508113044.7679748129D%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2996 - in trunk: res_noewe src/CacheWolf	src/CacheWolf/imp">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Sun May  8 01:30:44 CEST 2011</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002986.html">[Cachewolf-svn] r2995 - in trunk: res_noewe src/CacheWolf	src/CacheWolf/imp src/CacheWolf/navi
+</A></li>
+        <LI>Next message: <A HREF="002988.html">[Cachewolf-svn] r2997 - in trunk: res_noewe/attributes	res_noewe/languages src/CacheWolf src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2987">[ date ]</a>
+              <a href="thread.html#2987">[ thread ]</a>
+              <a href="subject.html#2987">[ subject ]</a>
+              <a href="author.html#2987">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2011-05-08 13:30:44 +0200 (Sun, 08 May 2011)
+New Revision: 2996
+
+Modified:
+   trunk/res_noewe/spider.def
+   trunk/src/CacheWolf/UrlFetcher.java
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+
+
+Modified: trunk/res_noewe/spider.def
+===================================================================
+--- trunk/res_noewe/spider.def	2011-05-06 15:11:39 UTC (rev 2995)
++++ trunk/res_noewe/spider.def	2011-05-08 11:30:44 UTC (rev 2996)
+@@ -70,7 +70,7 @@
+ # Regex to search for cachenames
+ listBlockRex       = &lt;table\ class=&quot;SearchResultsTable\ Table&quot;&gt;((?s).*?)&lt;/table&gt;
+ lineRex            = Data\ BorderTop&quot;&gt;((?s).*?)&lt;/tr&gt;
+-logDateRex         = &lt;td valign=&quot;top&quot;&gt;\\s*(.*?)&lt;br\ /&gt;
++logDateRex         = &lt;/span&gt;\\s+&lt;/td&gt;\\s+&lt;td\ valign=&quot;top&quot;\ width=&quot;70&quot;&gt;\\s+&lt;span\ class=&quot;small&quot;&gt;\\s+(.*?)&lt;br\ /&gt;
+ availableRex       = class=&quot;lnk\ \ Strike&quot;&gt;
+ archivedRex        = class=&quot;lnk\ OldWarning\ Strike\ Strike&quot;&gt;
+ PMRex              = small_profile.gif
+@@ -80,7 +80,7 @@
+ DTSRex             = v=(.*?)&quot;
+ DTSCodeKey         = hbM9fjmrxy7z42LFD58BkKgPGdHscvCqNnw3ptO6lJ
+ waypointRex        = \\|\\s+GC(.*?)\\s+
+-TypeRex            = www.geocaching.com/images/wpttypes/sm/(.*?)\\.gif
++TypeRex            = www.geocaching.com/images/wpttypes/(.*?)\\.gif
+ found              = class=&quot;Success&quot;
+ own                = /WptTypes/name_tag.gif
+ TBRex              = /wpttypes/([0-9]+).gif&quot; alt=&quot;(.*?)&quot;
+
+Modified: trunk/src/CacheWolf/UrlFetcher.java
+===================================================================
+--- trunk/src/CacheWolf/UrlFetcher.java	2011-05-06 15:11:39 UTC (rev 2995)
++++ trunk/src/CacheWolf/UrlFetcher.java	2011-05-08 11:30:44 UTC (rev 2996)
+@@ -236,7 +236,7 @@
+ 			char c = what[i];
+ 			if (spaceToPlus &amp;&amp; c == ' ')
+ 				c = '+';
+-			else if (c &lt;= ' ' || c &gt;= 127 || c == '+' || c == '&amp;' || c == '%' || c == '=' || c == '|' || c == '{' || c == '}') {
++			else if (c &lt;= '/' || c &gt;= 127 || c == '+' || c == '&amp;' || c == '%' || c == '=' || c == '|' || c == '{' || c == '}') {
+ 				dest[d++] = '%';
+ 				dest[d++] = hex.charAt((c &gt;&gt; 4) &amp; 0xf);
+ 				dest[d++] = hex.charAt(c &amp; 0xf);
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2011-05-06 15:11:39 UTC (rev 2995)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2011-05-08 11:30:44 UTC (rev 2996)
+@@ -862,13 +862,8 @@
+ 		}
+ 		final int startSize = cExpectedForUpdate.size(); // for save reasons
+ 
+-		final Hashtable cFoundForUpdate = new Hashtable(cacheDB.size()); // for
+-																			// don't
+-																			// loose
+-																			// the
+-																			// already
+-																			// done
+-																			// work
++		// for don't loose the already done work
++		final Hashtable cFoundForUpdate = new Hashtable(cacheDB.size());
+ 		page_number = 1;
+ 		int found_on_page = 0;
+ 		try {
+@@ -1135,7 +1130,7 @@
+ 			if (loggedIn)
+ 				return FormBase.IDOK;
+ 			else {
+-				(new MessageBox(&quot;Login&quot;, &quot;Check UserID in preferences| Einstellungen.&quot;, FormBase.OKB)).execute();
++				(new MessageBox(&quot;Login&quot;, &quot;Check UserID in preferences | Einstellungen, or check GC-Language. Must be English.&quot;, FormBase.OKB)).execute();
+ 				return ERR_LOGIN;
+ 			}
+ 		} else {
+@@ -1295,9 +1290,9 @@
+ 
+ 	private boolean switchToEnglish() {
+ 		// change language to EN , further operations relay on English
+-		String url = &quot;<A HREF="http://www.geocaching.com/my/default.aspx">http://www.geocaching.com/my/default.aspx</A>&quot;;
++		String url = &quot;<A HREF="http://www.geocaching.com/">http://www.geocaching.com/</A>&quot;;
+ 		String page = &quot;&quot;;
+-		String loggedInEnglish = &quot;Sign Out&quot;;
++		String loggedInEnglish = &quot;&gt;Sign Out&lt;&quot;;
+ 		String userID = &quot;userid=&quot; + pref.userID;
+ 		try {
+ 			UrlFetcher.setPermanentRequestorProperty(&quot;Cookie&quot;, userID);
+@@ -1307,7 +1302,7 @@
+ 		} catch (final Exception ex) {
+ 			return false;
+ 		}
+-		final PropertyList pl = UrlFetcher.getDocumentProperties();
++		PropertyList pl = UrlFetcher.getDocumentProperties();
+ 		String docprops = &quot;&quot;;
+ 		for (int i = 0; i &lt; pl.size(); i++) {
+ 			final Property p = (Property) pl.get(i);
+@@ -1336,7 +1331,7 @@
+ 			return true;
+ 		}
+ 		// todo next doesn't work correct don't know why
+-		// switch to english now goes into profile (is permanent, must be reset)
++		// switch to english now goes into gc account Display Preferences (is permanent, must be reset)
+ 		final Regex rexViewstate = new Regex(&quot;id=\&quot;__VIEWSTATE\&quot; value=\&quot;(.*?)\&quot; /&gt;&quot;);
+ 		String viewstate = &quot;&quot;;
+ 		rexViewstate.search(page);
+@@ -1348,16 +1343,21 @@
+ 		final String postStr = &quot;__EVENTTARGET=&quot; + UrlFetcher.encodeURL(strEnglishPage, false) + &quot;&amp;__EVENTARGUMENT=&quot; + &quot;&amp;__VIEWSTATE=&quot; + UrlFetcher.encodeURL(viewstate, false);
+ 		try {
+ 			UrlFetcher.setpostData(postStr);
++			/*
++			 * UrlFetcher.setRequestorProperty(&quot;Referer&quot;, url); UrlFetcher.setRequestorProperty(&quot;Origin&quot;, &quot;<A HREF="http://www.geocaching.com">http://www.geocaching.com</A>&quot;); UrlFetcher.setRequestorProperty(&quot;Cache-Control&quot;, &quot;max-age=0&quot;); UrlFetcher.setRequestorProperty(&quot;Accept-Charset&quot;,
++			 * &quot;ISO-8859-1,utf-8;q=0.7,*;q=0.3&quot;); UrlFetcher.setRequestorProperty(&quot;Accept-Language&quot;, &quot;de-DE,de;q=0.8,en-US;q=0.6,en;q=0.4&quot;); cookie =
++			 * &quot;company_history=%5B%5B%22http%3A//feedback.geocaching.com/geocaching%22%2C%22Geocaching%22%5D%5D; Send2GPS=garmin; __qca=P0-675333427-1299837942815; &quot; + cookie; UrlFetcher.setPermanentRequestorProperty(&quot;Cookie&quot;, cookie);
++			 */
+ 			page = UrlFetcher.fetch(url);
+ 			if (page.indexOf(loggedInEnglish) &gt; -1) {
+ 				pref.log(&quot;Switched to English&quot;);
+ 				return true;
+ 			} else {
+-				pref.log(page, null);
++				pref.log(&quot;couldn't switch to english&quot;, null);
+ 				return false;
+ 			}
+ 		} catch (final Exception ex) {
+-			pref.log(&quot;Error switching to English: check/n&quot; + url + &quot;/n&quot; + postStr, ex);
++			pref.log(&quot;Error switching to English: check &quot; + url + &quot; : &quot; + postStr, ex);
+ 			return false;
+ 		}
+ 
+@@ -2246,14 +2246,58 @@
+ 		} else {
+ 			final String monthNames[] = { &quot;January&quot;, &quot;February&quot;, &quot;March&quot;, &quot;April&quot;, &quot;May&quot;, &quot;June&quot;, &quot;July&quot;, &quot;August&quot;, &quot;September&quot;, &quot;October&quot;, &quot;November&quot;, &quot;December&quot; };
+ 			SDate = mString.split(stmp, ' ');
+-			lastLogGC.day = Common.parseInt(SDate[0]);
+-			for (int m = 0; m &lt; 12; m++) {
+-				if (monthNames[m].startsWith(SDate[1])) {
+-					lastLogGC.month = m + 1;
+-					m = 12;
++			if (SDate.length == 1) {
++				SDate = mString.split(stmp, '/');
++				// trying to determine Dateformat
++				int v0 = Common.parseInt(SDate[0]);
++				int v1 = Common.parseInt(SDate[1]);
++				int v2 = Common.parseInt(SDate[2]);
++				int dd, mm, yy;
++				if (v0 &gt; 31) {
++					// yyyy mm dd
++					yy = v0;
++					mm = v1;
++					dd = v2;
++				} else {
++					yy = v2;
++					if ((v0 == 0) || (v1 == 0)) {
++						// month as text
++						String month;
++						if (v0 == 0) {
++							month = SDate[0];
++							dd = v1;
++						} else {
++							month = SDate[1];
++							dd = v0;
++						}
++						mm = 12;
++						for (int m = 0; m &lt; 12; m++) {
++							if (monthNames[m].startsWith(month)) {
++								mm = m + 1;
++								m = 12;
++							}
++						}
++					} else {
++						// mm dd yyyy
++						mm = v0;
++						dd = v1;
++					}
++
+ 				}
++				lastLogGC.month = mm;
++				lastLogGC.day = dd;
++				lastLogGC.year = yy;
++			} else {
++				// Format till may 2011
++				lastLogGC.day = Common.parseInt(SDate[0]);
++				for (int m = 0; m &lt; 12; m++) {
++					if (monthNames[m].startsWith(SDate[1])) {
++						lastLogGC.month = m + 1;
++						m = 12;
++					}
++				}
++				lastLogGC.year = 2000 + Common.parseInt(SDate[2].substring(0, 2));
+ 			}
+-			lastLogGC.year = 2000 + Common.parseInt(SDate[2].substring(0, 2));
+ 		}
+ 		final boolean ret = lastLogCW.compareTo(lastLogGC) &lt; 0;
+ 		return ret;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002986.html">[Cachewolf-svn] r2995 - in trunk: res_noewe src/CacheWolf	src/CacheWolf/imp src/CacheWolf/navi
+</A></li>
+	<LI>Next message: <A HREF="002988.html">[Cachewolf-svn] r2997 - in trunk: res_noewe/attributes	res_noewe/languages src/CacheWolf src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2987">[ date ]</a>
+              <a href="thread.html#2987">[ thread ]</a>
+              <a href="subject.html#2987">[ subject ]</a>
+              <a href="author.html#2987">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

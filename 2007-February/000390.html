@@ -1,0 +1,169 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r579 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r579%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702132326.l1DNQGCO005907%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000389.html">
+   <LINK REL="Next"  HREF="000391.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r579 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r579%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702132326.l1DNQGCO005907%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r579 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Wed Feb 14 00:26:16 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000389.html">[Cachewolf-svn] r578 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000391.html">[Cachewolf-svn] r580 - trunk
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#390">[ date ]</a>
+              <a href="thread.html#390">[ thread ]</a>
+              <a href="subject.html#390">[ subject ]</a>
+              <a href="author.html#390">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-02-14 00:26:13 +0100 (Wed, 14 Feb 2007)
+New Revision: 579
+
+Modified:
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/Navigate.java
+Log:
+MovingMap: zus?\195?\164tzliche Fehlermeldung, wenn MovingMap start nicht klappt
+Profil laden: zeigt Wartesymbol beim Laden
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2007-02-13 20:48:03 UTC (rev 578)
++++ trunk/src/CacheWolf/MainMenu.java	2007-02-13 23:26:13 UTC (rev 579)
+@@ -208,7 +208,9 @@
+ 						InfoBox infB = new InfoBox(&quot;CacheWolf&quot;,MyLocale.getMsg(5000,&quot;Loading Cache-List&quot;));
+ 						infB.exec();
+ 						infB.waitUntilPainted(1000);
++						Vm.showWait(infB, true);
+ 						profile.readIndex();
++						Vm.showWait(infB, false);
+ 						pref.curCentrePt.set(profile.centre);
+ 						filtBlack.modifiers&amp;=~MenuItem.Checked;
+ 						Filter.showBlacklisted=false;
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2007-02-13 20:48:03 UTC (rev 578)
++++ trunk/src/CacheWolf/MainTab.java	2007-02-13 23:26:13 UTC (rev 579)
+@@ -214,34 +214,39 @@
+ 	 * @param forceCenter
+ 	 */
+ 	public void SwitchToMovingMap(CWPoint centerTo, boolean forceCenter) {
+-		if (!centerTo.isValid()) {
+-			(new MessageBox(&quot;Error&quot;, &quot;No valid coordinates&quot;, MessageBox.OKB)).execute();
+-			return;
+-		}
+-		if (mm == null) {
+-			mm = new MovingMap(nav, profile.cacheDB);
+-			nav.setMovingMap(mm);
+-			if (nav.gpsRunning) mm.gpsStarted();
+-		} 
+-		if (forceCenter) mm.setGpsStatus(MovingMap.noGPS); // disconnect movingMap from GPS TODO only if GPS-pos is not on the screen
+-		mm.updatePosition(centerTo.latDec, centerTo.lonDec);
+-		mm.myExec();
+-		if (forceCenter) {
+-			try {
+-				int i = 0;
+-				while (MapImage.screenDim.width == 0 &amp;&amp; i &lt; 10*60) { i++; ewe.sys.mThread.sleep(100);} // wait until the window size of the moving map is known note: ewe.sys.sleep() will pause the whole vm - no other thread will run
+-				if (i &gt;= 10*60) {(new MessageBox(&quot;Error&quot;, &quot;MovingMap cannot be displaed - this is most likely a bug - plaese report it on www.geoclub.de&quot;, MessageBox.OKB)).execute(); return;}
+-				mm.setCenterOfScreen(centerTo, false); // this can only be executed if mm knows its window size that's why myExec must be executed before
+-				mm.updatePosition(centerTo.latDec, centerTo.lonDec);
+-				/*			if(!mm.posCircle.isOnScreen()) { // TODO this doesn't work because lat lon is set to the wished pos and not to gps anymore
++		try {
++			if (!centerTo.isValid()) {
++				(new MessageBox(&quot;Error&quot;, &quot;No valid coordinates&quot;, MessageBox.OKB)).execute();
++				return;
++			}
++			if (mm == null) {
++				mm = new MovingMap(nav, profile.cacheDB);
++				nav.setMovingMap(mm);
++			} 
++			if (forceCenter) mm.setGpsStatus(MovingMap.noGPS); // disconnect movingMap from GPS TODO only if GPS-pos is not on the screen
++			mm.updatePosition(centerTo.latDec, centerTo.lonDec);
++			mm.myExec();
++			if (forceCenter) {
++				try {
++					int i = 0;
++					while (MapImage.screenDim.width == 0 &amp;&amp; i &lt; 10*60) { i++; ewe.sys.mThread.sleep(100);} // wait until the window size of the moving map is known note: ewe.sys.sleep() will pause the whole vm - no other thread will run
++					if (i &gt;= 10*60) {(new MessageBox(&quot;Error&quot;, &quot;MovingMap cannot be displaed - this is most likely a bug - plaese report it on www.geoclub.de&quot;, MessageBox.OKB)).execute(); return;}
++					mm.setCenterOfScreen(centerTo, false); // this can only be executed if mm knows its window size that's why myExec must be executed before
++					mm.updatePosition(centerTo.latDec, centerTo.lonDec);
++					/*			if(!mm.posCircle.isOnScreen()) { // TODO this doesn't work because lat lon is set to the wished pos and not to gps anymore
+ 				mm.setGpsStatus(MovingMap.noGPS); // disconnect movingMap from GPS if GPS-pos is not on the screen
+ 				mm.setResModus(MovingMap.HIGHEST_RESOLUTION);
+ 				mm.updatePosition(centerTo.latDec, centerTo.lonDec);
+ 				mm.setCenterOfScreen(centerTo, true); 
+ 			}
+-				 */			//TODO what to do, if there is a map at centerTo, but it is not loaded because of mapSwitchMode == dest &amp; cuurpos und daf&#252;r gibt es keine Karte 
+-			}catch (InterruptedException e) { (new MessageBox(&quot;Error&quot;, &quot;This must not happen please report to pfeffer how to produce this error message&quot;, MessageBox.OKB)).execute(); } 
+-		}
++					 */			//TODO what to do, if there is a map at centerTo, but it is not loaded because of mapSwitchMode == dest &amp; cuurpos und daf&#252;r gibt es keine Karte 
++				}catch (InterruptedException e) {
++					Global.getPref().log(&quot;Error starting mavoing map (1): &quot; + e.getMessage(), e, true);
++					(new MessageBox(&quot;Error&quot;, &quot;This must not happen please report to pfeffer how to produce this error message&quot;, MessageBox.OKB)).execute(); } 
++			}
++		} catch (Exception e) { 
++			Global.getPref().log(&quot;Error starting mavoing map (2): &quot; + e.getMessage(), e, true);
++			(new MessageBox(&quot;Error&quot;, &quot;Error starting mavoing map: &quot; + e.getMessage(), MessageBox.OKB)).execute(); }
+ 	}
+ 
+ 	/** Save any changes from DetailsPanel before operating on the database */
+
+Modified: trunk/src/CacheWolf/Navigate.java
+===================================================================
+--- trunk/src/CacheWolf/Navigate.java	2007-02-13 20:48:03 UTC (rev 578)
++++ trunk/src/CacheWolf/Navigate.java	2007-02-13 23:26:13 UTC (rev 579)
+@@ -31,6 +31,7 @@
+ 	}
+ 	public void setMovingMap (MovingMap mm) {
+ 		movingMap = mm;
++		if (gpsRunning) mm.gpsStarted();
+ 	}
+ 
+ 	public void startGps() {
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000389.html">[Cachewolf-svn] r578 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000391.html">[Cachewolf-svn] r580 - trunk
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#390">[ date ]</a>
+              <a href="thread.html#390">[ thread ]</a>
+              <a href="subject.html#390">[ subject ]</a>
+              <a href="author.html#390">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

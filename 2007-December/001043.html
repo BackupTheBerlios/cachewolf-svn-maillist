@@ -1,0 +1,166 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1150 - trunk/src/CacheWolf/navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-December/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1150%20-%20trunk/src/CacheWolf/navi&In-Reply-To=%3C200712161654.lBGGsrJ1005374%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001042.html">
+   <LINK REL="Next"  HREF="001044.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1150 - trunk/src/CacheWolf/navi</H1>
+    <B>mik77 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1150%20-%20trunk/src/CacheWolf/navi&In-Reply-To=%3C200712161654.lBGGsrJ1005374%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1150 - trunk/src/CacheWolf/navi">mik77 at mail.berlios.de
+       </A><BR>
+    <I>Sun Dec 16 17:54:53 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001042.html">[Cachewolf-svn] r1149 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001044.html">[Cachewolf-svn] r1151 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1043">[ date ]</a>
+              <a href="thread.html#1043">[ thread ]</a>
+              <a href="subject.html#1043">[ subject ]</a>
+              <a href="author.html#1043">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mik77
+Date: 2007-12-16 17:54:48 +0100 (Sun, 16 Dec 2007)
+New Revision: 1150
+
+Modified:
+   trunk/src/CacheWolf/navi/MovingMap.java
+Log:
+Prevent double generation of track overlays when scaling
+
+Modified: trunk/src/CacheWolf/navi/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MovingMap.java	2007-12-16 00:48:38 UTC (rev 1149)
++++ trunk/src/CacheWolf/navi/MovingMap.java	2007-12-16 16:54:48 UTC (rev 1150)
+@@ -162,7 +162,7 @@
+ 		ScaleImage.setLocation(w - ScaleImage.getWidth(), h - ScaleImage.getHeight());
+ 		if (mmp.mapImage != null) mmp.mapImage.screenDimChanged(); 
+ 		if (posCircle != null) posCircle.screenDimChanged();
+-		if (tracks != null) addOverlaySet();
++		if (tracks != null) rebuildOverlaySet();
+ 		for (int i = symbols.size() -1; i &gt;= 0; i-- ) {
+ 			((MapSymbol)symbols.get(i)).screenDimChanged();
+ 		}
+@@ -308,7 +308,7 @@
+ 		setMarkedCache(mainT.ch);
+ 		addTrack(myNavigation.curTrack);
+ 		if (tracks != null &amp;&amp; tracks.size() &gt; 0 &amp;&amp; ((Track)tracks.get(0)).num &gt; 0) 
+-			addOverlaySet(); // show points which where added when MavingMap was not running
++			rebuildOverlaySet(); // show points which where added when MavingMap was not running
+ 		destChanged(myNavigation.destination);
+ 		FormFrame ret = exec();
+ 		return ret;
+@@ -334,7 +334,7 @@
+ 		if (tracks == null) tracks = new Vector();
+ 		if (tracks.find(tr) &gt;= 0 ) return; // track already in list
+ 		tracks.add(tr);
+-		addOverlaySet();
++		rebuildOverlaySet();
+ 	}
+ 
+ 	public void addTracks(Track[] trs) {
+@@ -342,7 +342,7 @@
+ 		for (int i=0; i&lt;trs.length; i++) {
+ 			addTrack(trs[i]);
+ 		}
+-		addOverlaySet();
++		rebuildOverlaySet();
+ 	}
+ 
+ 	/**
+@@ -352,7 +352,6 @@
+ 	 */
+ 
+ 	public void addOverlaySet() {
+-		destroyOverlaySet();
+ 		if (tracks == null) return; // no tracks
+ 		try {
+ 			TrackOverlaySetCenterTopLeft = ScreenXY2LatLon(100, 100);
+@@ -369,6 +368,10 @@
+ 		Vm.gc();
+ 	}
+ 
++	public void rebuildOverlaySet() {
++		destroyOverlaySet();
++		addOverlaySet();
++	}
+ 
+ 	public void addMissingOverlays() {
+ 		if (currentMap == null || (!posCircle.where.isValid()) || width == 0 || height == 0) return; // height == 0 happens if this is called before the form ist displayed on the screen
+@@ -1103,7 +1106,7 @@
+ 			mmp.mapImage.move(0,0);
+ 			mmp.addImage(mmp.mapImage);
+ 			mmp.images.moveToBack(mmp.mapImage);
+-			addOverlaySet();
++			rebuildOverlaySet();
+ 			forceMapLoad = true; // forces updateOnlyPosition to redraw
+ 			updateOnlyPosition(where, false);
+ 			forceMapLoad = false;
+@@ -1118,7 +1121,7 @@
+ 				mmp.mapImage.free();
+ 				mmp.mapImage = null; mapImage1to1 = mmp.mapImage;
+ 			}
+-			addOverlaySet();
++			rebuildOverlaySet();
+ 			updateOnlyPosition(where, false);
+ 			inf.close(0);
+ 			Vm.showWait(false);
+@@ -1130,7 +1133,7 @@
+ 				mmp.mapImage.free();
+ 				mmp.mapImage = null; mapImage1to1 = mmp.mapImage;
+ 			}
+-			addOverlaySet();
++			rebuildOverlaySet();
+ 			updateOnlyPosition(where, false);
+ 			inf.close(0);
+ 			Vm.showWait(false);
+@@ -1142,7 +1145,7 @@
+ 				mmp.mapImage.free();
+ 				mmp.mapImage = null; mapImage1to1 = mmp.mapImage;
+ 			}
+-			addOverlaySet();
++			rebuildOverlaySet();
+ 			updateOnlyPosition(where, false); // TODO this doesn't work correctly if the resolution changed, I guess because the pixels of PosCircle will be interpreted from the new resolution, but should be interpreted using the old resolution to test: select a map with a much greater value of m per pixel manually 
+ 			inf.close(0);
+ 			Vm.showWait(false);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001042.html">[Cachewolf-svn] r1149 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001044.html">[Cachewolf-svn] r1151 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1043">[ date ]</a>
+              <a href="thread.html#1043">[ thread ]</a>
+              <a href="subject.html#1043">[ subject ]</a>
+              <a href="author.html#1043">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

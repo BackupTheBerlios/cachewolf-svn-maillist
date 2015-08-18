@@ -1,0 +1,288 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1278 - in trunk: res_noewe src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-March/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1278%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf&In-Reply-To=%3C200803222229.m2MMTdGh027107%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001171.html">
+   <LINK REL="Next"  HREF="001173.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1278 - in trunk: res_noewe src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1278%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf&In-Reply-To=%3C200803222229.m2MMTdGh027107%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1278 - in trunk: res_noewe src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sat Mar 22 23:29:39 CET 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001171.html">[Cachewolf-svn] r1277 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001173.html">[Cachewolf-svn] r1279 - in trunk/docs/CacheWolf Doku: . pics
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1172">[ date ]</a>
+              <a href="thread.html#1172">[ thread ]</a>
+              <a href="subject.html#1172">[ subject ]</a>
+              <a href="author.html#1172">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2008-03-22 23:29:36 +0100 (Sat, 22 Mar 2008)
+New Revision: 1278
+
+Modified:
+   trunk/res_noewe/spider.def
+   trunk/src/CacheWolf/CacheHolderDetail.java
+   trunk/src/CacheWolf/DescriptionPanel.java
+   trunk/src/CacheWolf/SpiderGC.java
+Log:
+Added hints to pictures
+See  <A HREF="http://www.geoclub.de/ftopic22490.html">http://www.geoclub.de/ftopic22490.html</A> 
+
+Modified: trunk/res_noewe/spider.def
+===================================================================
+--- trunk/res_noewe/spider.def	2008-03-22 19:58:00 UTC (rev 1277)
++++ trunk/res_noewe/spider.def	2008-03-22 22:29:36 UTC (rev 1278)
+@@ -17,6 +17,7 @@
+ # Version 3.1 - 20071013 Use the given prefix for addi waypoints
+ # Version 3.2 - 20071024 longer end sequence for longDescRex
+ # Version 3.3 - 20080316 get travelbug name by tracking number
++# Version 3.4 - 20080227 Image comments added
+ #============================================================
+ # A suffix of Rex indicates a regular expression
+ # A suffix of ExStart indicates the start of an Extractor search pattern
+@@ -123,6 +124,8 @@
+ imgNameExEnd       = &lt;/a&gt;&lt;br/&gt;
+ imgSrcExStart      = &lt;A\ HREF='<A HREF="http://">http://</A>
+ imgSrcExEnd        = '\ rel='lightbox'
++imgCommentExStart  = &lt;/a&gt;&lt;br/&gt;
++imgCommentExEnd    = &lt;A\ HREF
+ 
+ #--------------------------------------
+ #Section2d: Additional waypoints
+
+Modified: trunk/src/CacheWolf/CacheHolderDetail.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolderDetail.java	2008-03-22 19:58:00 UTC (rev 1277)
++++ trunk/src/CacheWolf/CacheHolderDetail.java	2008-03-22 22:29:36 UTC (rev 1278)
+@@ -19,6 +19,7 @@
+ 	  public String CacheNotes = EMPTY;
+ 	  public Vector Images = new Vector();
+ 	  public Vector ImagesText = new Vector();
++	  public Vector ImagesInfo = new Vector();
+ 	  public Vector LogImages = new Vector();
+ 	  public Vector LogImagesText = new Vector();
+ 	  public Vector UserImages = new Vector();
+@@ -174,7 +175,14 @@
+ 			ex = new Extractor(text, &quot;&lt;IMGTEXT&gt;&quot;, &quot;&lt;/IMGTEXT&gt;&quot;, 0, true);
+ 			dummy = ex.findNext();
+ 			while(ex.endOfSearch() == false){
+-				ImagesText.add(dummy);
++				int pos=dummy.indexOf(&quot;&lt;DESC&gt;&quot;);
++				if (pos&gt;0) {
++					ImagesText.add(dummy.substring(0,pos));
++					ImagesInfo.add(dummy.substring(pos+6,dummy.indexOf(&quot;&lt;/DESC&gt;&quot;)));
++				} else {
++					ImagesText.add(dummy);
++					ImagesInfo.add(null);
++				}
+ 				dummy = ex.findNext();
+ 			}
+ 			// Logimages
+@@ -271,7 +279,7 @@
+ 				  detfile.print(&quot;&lt;/LOGS&gt;\r\n&quot;);
+ 			
+ 				  detfile.print(&quot;&lt;NOTES&gt;&lt;![CDATA[&quot;+CacheNotes+&quot;]]&gt;&lt;/NOTES&gt;\n&quot;);
+-				  detfile.print(&quot;&lt;IMAGES&gt;&quot;);
++				  detfile.print(&quot;&lt;IMAGES&gt;\n&quot;);
+ 				  String stbuf = new String();
+ 				  for(int i = 0;i&lt;Images.size();i++){
+ 						stbuf = (String)Images.get(i);
+@@ -279,7 +287,10 @@
+ 				  }
+ 				  for(int i = 0;i&lt;ImagesText.size();i++){
+ 						stbuf = (String)ImagesText.get(i);
+-						detfile.print(&quot;    &lt;IMGTEXT&gt;&quot;+stbuf+&quot;&lt;/IMGTEXT&gt;\n&quot;);
++						if (ImagesInfo.get(i)==null)
++							detfile.print(&quot;    &lt;IMGTEXT&gt;&quot;+stbuf+&quot;&lt;/IMGTEXT&gt;\n&quot;);
++						else 
++							detfile.print(&quot;    &lt;IMGTEXT&gt;&quot;+stbuf+&quot;&lt;DESC&gt;&quot;+ImagesInfo.get(i)+&quot;&lt;/DESC&gt;&lt;/IMGTEXT&gt;\n&quot;);
+ 				  }
+ 
+ 				  for(int i = 0;i&lt;LogImages.size();i++){
+@@ -337,6 +348,15 @@
+ 			return this.wayPoint.endsWith(ch.wayPoint.substring(2));
+ 		}
+ 		
++		/**
++		 * Return true if this cache has additional info for some pictures
++		 * @return true if cache has additional info, false otherwise
++		 */
++		public boolean hasImageInfo() {
++			for (int i=ImagesInfo.size()-1; i&gt;=0; i--)
++				if (ImagesInfo.get(i)!=null) return true;
++			return false;
++		}
+ 
+ //	   public void finalize() {
+ //		   super.finalize();
+
+Modified: trunk/src/CacheWolf/DescriptionPanel.java
+===================================================================
+--- trunk/src/CacheWolf/DescriptionPanel.java	2008-03-22 19:58:00 UTC (rev 1277)
++++ trunk/src/CacheWolf/DescriptionPanel.java	2008-03-22 22:29:36 UTC (rev 1278)
+@@ -56,6 +56,7 @@
+ 			//disp.getDecoderProperties().setBoolean(&quot;allowImages&quot;,true);
+ 			Vm.showWait(true); 
+ 			if (isHtml) {
++				int imageNo=0;
+ 				if (Global.getPref().descShowImg) {
+ 					Vector Images;
+ 					if (cache.isAddiWpt()) {
+@@ -66,7 +67,6 @@
+ 					StringBuffer s=new StringBuffer(desc.length()+Images.size()*100);
+ 					int start=0;
+ 					int pos;
+-					int imageNo=0;
+ 					Regex imgRex = new Regex(&quot;src=(?:\\s*[^\&quot;|']*?)(?:\&quot;|')(.*?)(?:\&quot;|')&quot;);
+ 					if (Images.getCount() &gt; 0) {
+ 						while (start&gt;=0 &amp;&amp; (pos=desc.indexOf(&quot;&lt;img&quot;,start))&gt;0) {
+@@ -92,6 +92,9 @@
+ 					if (start&gt;=0) s.append(desc.substring(start));
+ 					desc=s.toString();
+ 				}
++				if (cache.hasImageInfo()) {
++					desc+=getPicDesc(imageNo,cache);
++				}
+ 				//disp.setHtml(desc);
+ 				disp.startHtml();
+ 				disp.getDecoderProperties().set(&quot;documentroot&quot;,Global.getProfile().dataDir);
+@@ -111,6 +114,26 @@
+ 		currCache = cache;
+ 	}
+ 	
++	/**
++	 * Get the descriptions for the pictures (if they exist)
++	 * @param imagesShown images already shown as part of long description (don't show again)
++	 * @param chD
++	 */
++	private String getPicDesc(int imagesShown,CacheHolderDetail chD) {
++		StringBuffer sb=new StringBuffer(1000);
++		sb.append(&quot;&lt;hr&gt;&lt;font size=\&quot;+1\&quot; color=\&quot;red\&quot;&gt;&quot;).append(MyLocale.getMsg(202,&quot;IMAGES&quot;).toUpperCase()).append(&quot;&lt;/font&gt;&quot;);
++		sb.append(&quot;&lt;br&gt;&lt;br&gt;&quot;);
++		for (int i=imagesShown; i&lt;chD.ImagesInfo.size(); i++) {
++			sb.append(chD.ImagesText.get(i)).append(&quot;&lt;br&gt;&quot;);
++			// Show the additional text if there is one
++			if (chD.ImagesInfo.get(i)!=null) sb.append(&quot;&lt;font color='blue'&gt;&quot;).append(chD.ImagesInfo.get(i)).append(&quot;&lt;/font&gt;&quot;);
++			// Only show the image if images are enabled
++			if (Global.getPref().descShowImg) sb.append(&quot;&lt;img src=\&quot;&quot;+chD.Images.get(i)+&quot;\&quot;&gt;&lt;br&gt;&quot;);
++			sb.append(&quot;&lt;br&gt;&lt;br&gt;&lt;hr&gt;&quot;);
++		}
++		return sb.toString();
++	}
++	
+ 	public void clear() {
+ 		disp.setPlainText(&quot;loading ...&quot;);
+ 	}
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2008-03-22 19:58:00 UTC (rev 1277)
++++ trunk/src/CacheWolf/SpiderGC.java	2008-03-22 22:29:36 UTC (rev 1278)
+@@ -507,6 +507,7 @@
+ 					chD.addiWpts.clear();
+ 					chD.Images.clear();
+ 					chD.ImagesText.clear();
++					chD.ImagesInfo.clear();
+ 	
+ 					if(completeWebPage.indexOf(p.getProp(&quot;cacheUnavailable&quot;)) &gt;= 0) chD.is_available = false;
+ 					if(completeWebPage.indexOf(p.getProp(&quot;cacheArchived&quot;)) &gt;= 0) chD.is_archived = true;
+@@ -894,9 +895,9 @@
+ 	 */
+ 	public void getImages(String doc, CacheHolderDetail chD){
+ 		int imgCounter = 0;
+-		String imgName, oldImgName, imgType, imgUrl;
++		String imgName, oldImgName, imgType, imgUrl, imgComment;
+ 		Vector spideredUrls=new Vector(15);
+-		Extractor exImgBlock;
++		Extractor exImgBlock,exImgComment;
+ 		int idxUrl; // Index of already spidered Url in list of spideredUrls
+ 		//========
+ 		//In the long description
+@@ -942,6 +943,7 @@
+ 							chD.Images.add(oldImgName+imgType); // Store name of old image as image to load
+ 						}
+ 						chD.ImagesText.add(imgName); // Keep the image name
++						chD.ImagesInfo.add(null); // Need to stay in synch with ImagesText
+ 						imgCounter++;
+ 					}
+ 				} catch (IndexOutOfBoundsException e) {
+@@ -960,11 +962,13 @@
+ 			tst = spanBlock.findNext();
+ 			exImgName = new Extractor(tst,p.getProp(&quot;imgNameExStart&quot;),p.getProp(&quot;imgNameExEnd&quot;), 0 , true);
+ 			exImgSrc = new Extractor(tst,p.getProp(&quot;imgSrcExStart&quot;),p.getProp(&quot;imgSrcExEnd&quot;), 0, true);
++			exImgComment = new Extractor(tst,p.getProp(&quot;imgCommentExStart&quot;),p.getProp(&quot;imgCommentExEnd&quot;), 0, true);
+ 		} catch (Exception ex) { // Missing property in spider .def
+ 			return;
+ 		}
+ 		while(exImgSrc.endOfSearch() == false){
+ 			imgUrl = exImgSrc.findNext();
++			imgComment = exImgComment.findNext(); 
+ 			//Vm.debug(&quot;Img Url: &quot; +imgUrl);
+ 			if(imgUrl.length()&gt;0){
+ 				imgUrl = &quot;<A HREF="http://">http://</A>&quot; + imgUrl;
+@@ -986,6 +990,12 @@
+ 							chD.Images.add(oldImgName+imgType); // Store name of old image as image to load
+ 						}
+ 						chD.ImagesText.add(exImgName.findNext()); // Keep the image description
++						while (imgComment.startsWith(&quot;&lt;br&gt;&quot;)) imgComment=imgComment.substring(4);
++						while (imgComment.endsWith(&quot;&lt;BR&gt;&quot;)) imgComment=imgComment.substring(0,imgComment.length()-4);
++						if (imgComment.length()==0)
++							chD.ImagesInfo.add(null);
++						else
++							chD.ImagesInfo.add(imgComment);
+ 						imgCounter++;
+ 					}
+ 				} catch (IndexOutOfBoundsException e) {
+@@ -1015,6 +1025,7 @@
+ 							chD.Images.add(imgName+imgType);
+ 							spideredUrls.add(imgUrl);
+ 							chD.ImagesText.add(imgName); // Keep the image name
++							chD.ImagesInfo.add(null);
+ 							imgCounter++;
+ 						}
+ 					}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001171.html">[Cachewolf-svn] r1277 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001173.html">[Cachewolf-svn] r1279 - in trunk/docs/CacheWolf Doku: . pics
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1172">[ date ]</a>
+              <a href="thread.html#1172">[ thread ]</a>
+              <a href="subject.html#1172">[ subject ]</a>
+              <a href="author.html#1172">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

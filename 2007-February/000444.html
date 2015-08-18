@@ -1,0 +1,174 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r626 - in trunk: resources src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r626%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200702241710.l1OHASBE031952%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000443.html">
+   <LINK REL="Next"  HREF="000445.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r626 - in trunk: resources src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r626%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200702241710.l1OHASBE031952%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r626 - in trunk: resources src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sat Feb 24 18:10:28 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000443.html">[Cachewolf-svn] r625 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000445.html">[Cachewolf-svn] r627 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#444">[ date ]</a>
+              <a href="thread.html#444">[ thread ]</a>
+              <a href="subject.html#444">[ subject ]</a>
+              <a href="author.html#444">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-02-24 18:10:22 +0100 (Sat, 24 Feb 2007)
+New Revision: 626
+
+Modified:
+   trunk/resources/wolflang.html
+   trunk/src/CacheWolf/Parser.java
+Log:
+Parser: Neuer Befehl skeleton erzeugt einen Rahmen fuer Multis
+(im Beispiel auf cachewolf.de erklaert)
+
+Modified: trunk/resources/wolflang.html
+===================================================================
+--- trunk/resources/wolflang.html	2007-02-24 16:42:39 UTC (rev 625)
++++ trunk/resources/wolflang.html	2007-02-24 17:10:22 UTC (rev 626)
+@@ -10,6 +10,8 @@
+ &lt;i&gt; Example: a = 2&lt;/i&gt;&lt;br&gt;
+ &lt;i&gt; Example: $a = 2; b=&quot;abc&quot;&lt;/i&gt;&lt;br&gt;
+ $a is global variable.&lt;br&gt;
++Format numerical expression:&lt;br&gt;
++Example: 3.14159:000.00:&lt;br&gt;
+ &lt;br&gt;
+ &lt;u&gt;&lt;b&gt; Showing values&lt;/b&gt;&lt;/u&gt;&lt;br&gt;
+  &quot;some text&quot; &quot; more text&quot;:&lt;br&gt;
+@@ -48,6 +50,8 @@
+ project(coordinate,angle,distance)&lt;br&gt;
+ goto(coordinate)&lt;br&gt;
+ goto(coordinate,waypointname)&lt;br&gt;&lt;br&gt;
++&lt;b&gt;&lt;u&gt;Generate program for Multis&lt;/u&gt;&lt;/b&gt;&lt;br&gt;
++skeleton(waypointname)&lt;br&gt;&lt;br&gt;
+ &lt;b&gt;&lt;u&gt;IF THEN ENDIF&lt;/u&gt;&lt;/b&gt;&lt;br&gt;
+ IF condition THEN statement; statement .... ENDIF&lt;br&gt;&lt;br&gt;
+ &lt;/font&gt;
+
+Modified: trunk/src/CacheWolf/Parser.java
+===================================================================
+--- trunk/src/CacheWolf/Parser.java	2007-02-24 16:42:39 UTC (rev 625)
++++ trunk/src/CacheWolf/Parser.java	2007-02-24 17:10:22 UTC (rev 626)
+@@ -123,6 +123,7 @@
+     	new fnType(&quot;rot13&quot;,&quot;rot13&quot;,2),
+     	new fnType(&quot;show&quot;,&quot;show&quot;,2),
+     	new fnType(&quot;sin&quot;,&quot;sin&quot;,2),
++    	new fnType(&quot;skeleton&quot;,&quot;skeleton&quot;,2),
+     	new fnType(&quot;sqrt&quot;,&quot;sqrt&quot;,2),
+     	new fnType(&quot;sval&quot;,&quot;sval&quot;,2),
+     	new fnType(&quot;tolowercase&quot;,&quot;lc&quot;,2),
+@@ -557,6 +558,36 @@
+     	return res;
+     }
+     
++    /** Create a skeleton for multis */
++    private void funcSkeleton(String waypointName) throws Exception {
++   		int i=Global.getProfile().getCacheIndex(waypointName);
++		if (i&lt;0) err(MyLocale.getMsg(1714,&quot;Goto: Waypoint does not exist: &quot;)+waypointName);
++   	    CacheHolder ch=(CacheHolder)Global.getProfile().cacheDB.get(i);
++		CacheHolder addiWpt;
++		StringBuffer op=new StringBuffer(1000);
++   	    if (ch.hasAddiWpt()){
++			for (int j=0; j&lt;ch.addiWpts.getCount();j++){
++				addiWpt = (CacheHolder)ch.addiWpts.get(j);
++				op.append(&quot;IF $&quot;);
++				op.append(addiWpt.wayPoint);
++				op.append(&quot;=\&quot;\&quot; THEN\n   $&quot;);
++				op.append(addiWpt.wayPoint);
++				op.append(&quot;=\&quot;\&quot; # Pos=&quot;);
++				op.append(addiWpt.pos.toString());
++				op.append(&quot;\n   \&quot;Punkt &quot;);
++				op.append(addiWpt.wayPoint.substring(0,2));
++				op.append(&quot; [&quot;);
++				op.append(addiWpt.CacheName);
++				op.append(&quot;] = \&quot; $&quot;);
++				op.append(addiWpt.wayPoint);
++				op.append(&quot;\n   goto($&quot;);
++				op.append(addiWpt.wayPoint);
++				op.append(&quot;); STOP\nENDIF\n&quot;);
++			}
++			Global.mainTab.solverP.mText.appendText(op.toString(),true);
++		}// if hasAddiWpt
++    }
++    
+     private double funcSqrt() throws Exception {
+     	double a=popCalcStackAsNumber(0);
+     	if (a&lt;0) err(MyLocale.getMsg(1720,&quot;Cannot calculate square root of a negative number&quot;));
+@@ -604,7 +635,6 @@
+ 			else 
+ 				parseSimpleCommand();
+ 			checkNextSymIs(&quot;;&quot;);
+-			while (calcStack.size()&gt;0) messageStack.add(popCalcStackAsString());
+ 		}
+ 	}
+ 
+@@ -618,8 +648,10 @@
+ 			getToken();
+ 		} else if (thisToken.tt==TokenObj.TT_VARIABLE &amp;&amp; lookAheadToken().tt==TokenObj.TT_EQ) 
+ 			parseAssign();
+-		else 
+-			parseStringExp();		
++		else {
++			parseStringExp();
++			while (calcStack.size()&gt;0) messageStack.add(popCalcStackAsString());
++		}
+ 	}
+ 	
+ 	private void parseIf() throws Exception{
+@@ -860,6 +892,7 @@
+ //	    else if (funcDef.alias.equals(&quot;rs&quot;)) funcRequireSemicolon(nargs);
+ 	    else if (funcDef.alias.equals(&quot;show&quot;));
+ 	    else if (funcDef.alias.equals(&quot;sin&quot;)) calcStack.add(new java.lang.Double(java.lang.Math.sin(popCalcStackAsNumber(0))));
++	    else if (funcDef.alias.equals(&quot;skeleton&quot;)) funcSkeleton(popCalcStackAsString());
+ 	    else if (funcDef.alias.equals(&quot;sqrt&quot;)) calcStack.add(new java.lang.Double(funcSqrt())); 
+ 	    else if (funcDef.alias.equals(&quot;sval&quot;)) calcStack.add(funcSval(popCalcStackAsString()));
+ 	    else if (funcDef.alias.equals(&quot;tan&quot;)) calcStack.add(new java.lang.Double(java.lang.Math.tan(popCalcStackAsNumber(0))));
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000443.html">[Cachewolf-svn] r625 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000445.html">[Cachewolf-svn] r627 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#444">[ date ]</a>
+              <a href="thread.html#444">[ thread ]</a>
+              <a href="subject.html#444">[ subject ]</a>
+              <a href="author.html#444">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

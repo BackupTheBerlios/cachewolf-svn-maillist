@@ -1,0 +1,175 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1313 - in trunk: . src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-March/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1313%20-%20in%20trunk%3A%20.%20src/CacheWolf&In-Reply-To=%3C200803300249.m2U2nLQ3020269%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001206.html">
+   <LINK REL="Next"  HREF="001208.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1313 - in trunk: . src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1313%20-%20in%20trunk%3A%20.%20src/CacheWolf&In-Reply-To=%3C200803300249.m2U2nLQ3020269%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1313 - in trunk: . src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Sun Mar 30 04:49:21 CEST 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001206.html">[Cachewolf-svn] r1312 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001208.html">[Cachewolf-svn] r1314 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1207">[ date ]</a>
+              <a href="thread.html#1207">[ thread ]</a>
+              <a href="subject.html#1207">[ subject ]</a>
+              <a href="author.html#1207">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2008-03-30 04:49:19 +0200 (Sun, 30 Mar 2008)
+New Revision: 1313
+
+Modified:
+   trunk/currentversions.txt
+   trunk/src/CacheWolf/Version.java
+Log:
+version checking: made more flexible in order to be compatible with unknown changes in the future (first test)
+
+Modified: trunk/currentversions.txt
+===================================================================
+--- trunk/currentversions.txt	2008-03-30 01:40:33 UTC (rev 1312)
++++ trunk/currentversions.txt	2008-03-30 02:49:19 UTC (rev 1313)
+@@ -16,7 +16,7 @@
+ # InDevelopmentNewest
+ T3VersionMajor: 0
+ T3VersionMinor: 9
+-T3SvnRevision: <A HREF="http://flyingfish.freewrt.org:8180/job/Cachewolf/lastBuild/">http://flyingfish.freewrt.org:8180/job/Cachewolf/lastBuild/</A>
++T3SvnRevision: <A HREF="http://flyingfish.freewrt.org:8180/job/Cachewolf/lastBuild/">http://flyingfish.freewrt.org:8180/job/Cachewolf/lastBuild/</A> (?i)Revision[\\s]*[:=][\\s]*[\\\\r]*[\\\\n]*[\\s]*([0-9]*)
+ 
+ RecommendedType: 3
+ 
+
+Modified: trunk/src/CacheWolf/Version.java
+===================================================================
+--- trunk/src/CacheWolf/Version.java	2008-03-30 01:40:33 UTC (rev 1312)
++++ trunk/src/CacheWolf/Version.java	2008-03-30 02:49:19 UTC (rev 1313)
+@@ -25,7 +25,9 @@
+ 	};
+ 	
+ 	/** only valid after calling checkForUpdates() */
+-	static int[] updateavailabe = {0,0,0,0,0}; 
++	static int[] updateavailabe = {0,0,0,0,0};
++	/** only valid after calling checkForUpdates() */
++	static String[] versionnumbers;
+ 
+ 	public static String getRelease() {
+ 		return Convert.toString(VER_MAJOR) + &quot;.&quot; + Convert.toString(VER_MINOR);
+@@ -44,8 +46,9 @@
+ 	 */
+ 	public static void checkForUpdates() throws IOException {
+ 		Properties curvers = UrlFetcher.fetchPropertyList(&quot;<A HREF="http://www.cachewolf.org/currentversions.txt">http://www.cachewolf.org/currentversions.txt</A>&quot;);
++		versionnumbers = new String[updateavailabe.length];
+ 		for (int i = updateavailabe.length-1; i &gt;=1; i--) {
+-			updateavailabe[i] = (checkVersion(curvers, &quot;T&quot;+(i-1))); 
++			updateavailabe[i] = checkVersion(curvers, &quot;T&quot;+(i-1), i); // this also sets versionnumber[i]
+ 		}
+ 		updateavailabe[0] = Convert.toInt(curvers.getProperty(&quot;RecommendedType&quot;, &quot;0&quot;));
+ 	}
+@@ -59,6 +62,7 @@
+ 		for (int i=1; i &lt;= updateavailabe.length -1; i++) {
+ 			if (updateavailabe[i] != 2 || i-1 == VERSION_TYPE) {
+ 				ret.append(MyLocale.getMsg(7000+i-1, VERSION_TYPES[i-1]));
++				if (versionnumbers[i] != null) ret.append(&quot; &quot;).append(versionnumbers[i]);
+ 				if (i == updateavailabe[0]) ret.append(&quot;*&quot;);
+ 				if (i-1 == VERSION_TYPE ) ret.append(&quot;+&quot;);
+ 				ret.append(&quot;: &quot;);
+@@ -67,7 +71,8 @@
+ 			}
+ 		}
+ 		ret.append(&quot;* = &quot;).append(MyLocale.getMsg(7020, &quot;Recommended version type&quot;));
+-		ret.append(&quot;\n+ = &quot;).append(MyLocale.getMsg(7021, &quot;This version type&quot;));
++		ret.append(&quot;\n+ = &quot;).append(MyLocale.getMsg(7021, &quot;This version type&quot;)).append(&quot;\n&quot;);
++		ret.append(getReleaseDetailed());
+ 		return ret.toString();
+ 	}
+ 
+@@ -85,27 +90,33 @@
+ 	 * @return: 1 = newer Version available, 0 = this is up to date, 3 = check failed
+ 	 */
+ 
+-	private static int checkVersion(Properties curvers, String prefix) {
++	private static int checkVersion(Properties curvers, String prefix, int t) {
+ 		try {
+-			int curv = Convert.toInt(curvers.getProperty(prefix + &quot;VersionMajor&quot;, &quot;0&quot;)); 
+-			if (curv &gt; VER_MAJOR) return 1;
+-			if (curv &lt; VER_MAJOR) return 0;
+-			curv = Convert.toInt(curvers.getProperty(prefix + &quot;VersionMinor&quot;, &quot;0&quot;));
+-			if (curv &gt; VER_MINOR) return 1;
+-			if (curv &lt; VER_MINOR) return 0;
++			int curvmaj = Convert.toInt(curvers.getProperty(prefix + &quot;VersionMajor&quot;, &quot;0&quot;)); 
++			int curvmin = Convert.toInt(curvers.getProperty(prefix + &quot;VersionMinor&quot;, &quot;0&quot;));
+ 			String svnRString = curvers.getProperty(prefix + &quot;SvnRevision&quot;,&quot;0&quot;);
+ 			if (svnRString.startsWith(&quot;http&quot;)) {
+-				String tmp = UrlFetcher.fetchString(svnRString);
+-				Regex s = new Regex(&quot;(?i)Revision[\\s]*[:=][\\s]*[\\\\r]*[\\\\n]*[\\s]*([0-9]*)&quot;);
++				String tmp;
++				Regex s;
++				int i = svnRString.indexOf(' '); 
++				if (i &gt; 0) {
++					tmp = UrlFetcher.fetchString(svnRString.substring(0, i));
++					s = new Regex (svnRString.substring(i+1, svnRString.length()-i-1)); // flyingfish works 3/2008 with (&quot;(?i)Revision[\\s]*[:=][\\s]*[\\\\r]*[\\\\n]*[\\s]*([0-9]*)&quot;);
++				} else { versionnumbers[t] = &quot;error: no RegEx&quot;; return 3; } 
+ 				s.search(tmp);
+-				if (!s.didMatch()) return 3;
++				if (!s.didMatch()) { versionnumbers[t] = &quot;error: RegEx didnot match&quot;; return 3; }
+ 				svnRString = s.stringMatched(1); 
+ 			}
++			versionnumbers[t] = curvmaj + &quot;.&quot; + curvmin + &quot;.&quot; + svnRString;
++			if (curvmaj &gt; VER_MAJOR) return 1;
++			if (curvmaj &lt; VER_MAJOR) return 0;
++			if (curvmin &gt; VER_MINOR) return 1;
++			if (curvmin &lt; VER_MINOR) return 0;
+ 			if (Convert.toInt(svnRString) &gt; SVN_REVISION) return 1;
+ 			return 0;
+ 		} catch (IOException e) {
++			versionnumbers[t] = &quot;IO-error&quot;; 
+ 			return 3;
+ 		}
+ 	}
+-
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001206.html">[Cachewolf-svn] r1312 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001208.html">[Cachewolf-svn] r1314 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1207">[ date ]</a>
+              <a href="thread.html#1207">[ thread ]</a>
+              <a href="subject.html#1207">[ subject ]</a>
+              <a href="author.html#1207">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

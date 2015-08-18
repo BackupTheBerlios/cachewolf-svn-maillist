@@ -1,0 +1,169 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2438 - trunk/src/CacheWolf/exp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2438%20-%20trunk/src/CacheWolf/exp&In-Reply-To=%3C201001291358.o0TDwXpe018056%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002362.html">
+   <LINK REL="Next"  HREF="002364.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2438 - trunk/src/CacheWolf/exp</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2438%20-%20trunk/src/CacheWolf/exp&In-Reply-To=%3C201001291358.o0TDwXpe018056%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2438 - trunk/src/CacheWolf/exp">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Fri Jan 29 14:58:33 CET 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002362.html">[Cachewolf-svn] r2437 - trunk/resources
+</A></li>
+        <LI>Next message: <A HREF="002364.html">[Cachewolf-svn] r2439 - in trunk: res_noewe res_noewe/languages	src/CacheWolf src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2363">[ date ]</a>
+              <a href="thread.html#2363">[ thread ]</a>
+              <a href="subject.html#2363">[ subject ]</a>
+              <a href="author.html#2363">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2010-01-29 14:58:31 +0100 (Fri, 29 Jan 2010)
+New Revision: 2438
+
+Modified:
+   trunk/src/CacheWolf/exp/GpxExportNg.java
+Log:
+doing MyFinds with stored ownLog/ID instead of checking all logs.
+
+Modified: trunk/src/CacheWolf/exp/GpxExportNg.java
+===================================================================
+--- trunk/src/CacheWolf/exp/GpxExportNg.java	2010-01-29 12:05:16 UTC (rev 2437)
++++ trunk/src/CacheWolf/exp/GpxExportNg.java	2010-01-29 13:58:31 UTC (rev 2438)
+@@ -438,7 +438,7 @@
+ 					h.changed();
+ 				}
+ 
+-				if (Global.getPref().debug) Vm.debug(&quot;stop: &quot;+new Time().getTime());
++				Global.getPref().log(&quot;stop: &quot;+new Time().getTime());
+ 
+ 				pbf.exit(0);
+ 
+@@ -682,58 +682,38 @@
+ 	public String formatLogs(CacheHolder ch) {
+ 		LogList logs = ch.getFreshDetails().CacheLogs;
+ 		StringBuffer ret = new StringBuffer();
+-		String fid = &quot;&quot;;
+-
+-		if (exportStyle == STYLE_GPX_MYFINDS)
+-			fid = finderid;
+-
+-		if (0 == logs.size())
+-			return &quot;&quot;;
+-
+ 		int exportlogs;
+-
+-		if (exportStyle == STYLE_GPX_PQLIKE &amp;&amp; maxLogs &lt; logs.size()) {
+-			exportlogs = maxLogs;
+-		} else {
+-			exportlogs = logs.size();
++		if (exportStyle == STYLE_GPX_PQLIKE &amp;&amp; maxLogs &lt; logs.size())
++			{exportlogs = maxLogs;}
++		else {exportlogs = logs.size();}
++		if (exportStyle == STYLE_GPX_MYFINDS) {
++			// only own log
++			if (ch.details.OwnLogId.equals(&quot;&quot;)) 
++				return &quot;&quot;;
++			if(ch.details.OwnLog == null) 
++				return &quot;&quot;;
++			addLog(ch.details.OwnLogId, ch.details.OwnLog, finderid ,ret);
+ 		}
+-
+-		boolean logexported=false;
+-		for (int i = 0; i &lt; exportlogs; i++) {
+-			String logId = Integer.toString(i);
+-			Log log = logs.getLog(i);
+-
+-			if (exportStyle == STYLE_GPX_MYFINDS) {
+-				if (!log.isOwnLog()) { continue; }
+-				else {if (!log.isFoundLog()) { continue; } }
++		else {
++			for (int i = 0; i &lt; exportlogs; i++) {
++				addLog(Integer.toString(i), logs.getLog(i),&quot;&quot; ,ret);
+ 			}
+-			Transformer trans = new Transformer(true);
+-			trans.add(new Regex(&quot;@@LOGID@@&quot;, logId));
+-			trans.add(new Regex(&quot;@@LOGDATE@@&quot;, log.getDate()));
+-			trans.add(new Regex(&quot;@@LOGTYPE@@&quot;, image2TypeText(log.getIcon())));
+-			trans.add(new Regex(&quot;@@LOGFINDERID@@&quot;, fid));
+-			trans.add(new Regex(&quot;@@LOGFINDER@@&quot;, SafeXML.cleanGPX(log.getLogger())));
+-			trans.add(new Regex(&quot;@@LOGENCODE@@&quot;, &quot;&quot;));
+-			trans.add(new Regex(&quot;@@LOGTEXT@@&quot;, SafeXML.cleanGPX(log.getMessage())));
+-			ret.append(trans.replaceAll(GPXLOG));
+-			if (exportStyle == STYLE_GPX_MYFINDS ) {logexported = true; break;}
+ 		}
+-		if (exportStyle == STYLE_GPX_MYFINDS &amp;&amp; !logexported) {
+-			// own log is not within the saved logs
+-			Transformer trans = new Transformer(true);
+-			trans.add(new Regex(&quot;@@LOGID@@&quot;, &quot;0&quot;));
+-			trans.add(new Regex(&quot;@@LOGDATE@@&quot;, ch.GetStatusDate()+&quot;T&quot;+ch.GetStatusTime()+&quot;:00&quot;));
+-			trans.add(new Regex(&quot;@@LOGTYPE@@&quot;, &quot;Found it&quot;));
+-			trans.add(new Regex(&quot;@@LOGFINDERID@@&quot;, fid));
+-			trans.add(new Regex(&quot;@@LOGFINDER@@&quot;, SafeXML.cleanGPX(Global.getPref().myAlias)));
+-			trans.add(new Regex(&quot;@@LOGENCODE@@&quot;, &quot;&quot;));
+-			// trans.add(new Regex(&quot;@@LOGTEXT@@&quot;,ch.details == null ? &quot;&quot; : ch.details.OwnLog == null ? &quot;&quot; : SafeXML.cleanGPX(ch.details.OwnLog.getMessage())));
+-			trans.add(new Regex(&quot;@@LOGTEXT@@&quot;,&quot;&quot;)); // who cares about the text ?
+-			ret.append(trans.replaceAll(GPXLOG));
+-		}
+-
+ 		return ret.toString();
+ 	}
++	
++	private StringBuffer addLog(String logId, Log log, String FinderID, StringBuffer ret) {
++		Transformer trans = new Transformer(true);
++		trans.add(new Regex(&quot;@@LOGID@@&quot;, logId));
++		trans.add(new Regex(&quot;@@LOGDATE@@&quot;, log.getDate()));
++		trans.add(new Regex(&quot;@@LOGTYPE@@&quot;, image2TypeText(log.getIcon())));
++		trans.add(new Regex(&quot;@@LOGFINDERID@@&quot;, FinderID));
++		trans.add(new Regex(&quot;@@LOGFINDER@@&quot;, SafeXML.cleanGPX(log.getLogger())));
++		trans.add(new Regex(&quot;@@LOGENCODE@@&quot;, &quot;&quot;));
++		trans.add(new Regex(&quot;@@LOGTEXT@@&quot;, SafeXML.cleanGPX(log.getMessage())));
++		ret.append(trans.replaceAll(GPXLOG));
++		return ret;
++	}
+ 
+ 	/**
+ 	 * format the header of the GPX file
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002362.html">[Cachewolf-svn] r2437 - trunk/resources
+</A></li>
+	<LI>Next message: <A HREF="002364.html">[Cachewolf-svn] r2439 - in trunk: res_noewe res_noewe/languages	src/CacheWolf src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2363">[ date ]</a>
+              <a href="thread.html#2363">[ thread ]</a>
+              <a href="subject.html#2363">[ subject ]</a>
+              <a href="author.html#2363">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

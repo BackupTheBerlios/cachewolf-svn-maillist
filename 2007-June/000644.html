@@ -1,0 +1,291 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r760 - in trunk/src: CacheWolf exp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-June/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r760%20-%20in%20trunk/src%3A%20CacheWolf%20exp&In-Reply-To=%3C200706281824.l5SIO2Rj012987%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000643.html">
+   <LINK REL="Next"  HREF="000645.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r760 - in trunk/src: CacheWolf exp</H1>
+    <B>kalli at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r760%20-%20in%20trunk/src%3A%20CacheWolf%20exp&In-Reply-To=%3C200706281824.l5SIO2Rj012987%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r760 - in trunk/src: CacheWolf exp">kalli at mail.berlios.de
+       </A><BR>
+    <I>Thu Jun 28 20:24:02 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000643.html">[Cachewolf-svn] r759 - trunk/resources
+</A></li>
+        <LI>Next message: <A HREF="000645.html">[Cachewolf-svn] [Feature #3062] MovingMap: Kartendownload von	Expedia
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#644">[ date ]</a>
+              <a href="thread.html#644">[ thread ]</a>
+              <a href="subject.html#644">[ subject ]</a>
+              <a href="author.html#644">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: kalli
+Date: 2007-06-28 20:23:55 +0200 (Thu, 28 Jun 2007)
+New Revision: 760
+
+Modified:
+   trunk/src/CacheWolf/Preferences.java
+   trunk/src/exp/Exporter.java
+   trunk/src/exp/HTMLExporter.java
+   trunk/src/exp/TPLExporter.java
+   trunk/src/exp/TomTomExporter.java
+Log:
+Letzter Exportpfad wird in der pref.xml gespeichert
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2007-06-24 10:16:20 UTC (rev 759)
++++ trunk/src/CacheWolf/Preferences.java	2007-06-28 18:23:55 UTC (rev 760)
+@@ -6,6 +6,8 @@
+ import ewesoft.xml.*;
+ import ewesoft.xml.sax.*;
+ import ewe.filechooser.*;
++import ewe.util.*;
++import ewe.util.Map.MapEntry;
+ 
+ /**
+  *	A class to hold the preferences that were loaded upon start up of CacheWolf.
+@@ -85,6 +87,8 @@
+ 	//public String mydatadir = new String();  //Redundant ??
+ 	/** The centre as read from the profile */
+ 
++	// Hashtable for storing the last export path
++	private Hashtable exporterPaths = new Hashtable();
+ 	/**
+ 	 * Singleton pattern - return reference to Preferences
+ 	 * @return Singleton Preferences object
+@@ -417,6 +421,10 @@
+ 			customMapsPath=atts.getValue(&quot;dir&quot;);
+ 		}
+ 		if (name.equals(&quot;debug&quot;)) debug=Boolean.valueOf(atts.getValue(&quot;value&quot;)).booleanValue();
++		
++		if (name.equals(&quot;expPath&quot;)){
++			exporterPaths.put(atts.getValue(&quot;key&quot;),atts.getValue(&quot;value&quot;));
++		}
+ 	}
+ 
+ 	public void characters( char ch[], int start, int length )
+@@ -489,6 +497,13 @@
+ 			outp.print(&quot;	&lt;location lat = \&quot;&quot;+curCentrePt.getLatDeg(CWPoint.DD)+&quot;\&quot; long = \&quot;&quot;+curCentrePt.getLonDeg(CWPoint.DD)+&quot;\&quot;/&gt;\n&quot;);
+ 			if (customMapsPath!=null) outp.print(&quot;	&lt;mapspath dir = \&quot;&quot;+ customMapsPath +&quot;\&quot;/&gt;\n&quot;);
+ 			if (debug) outp.print(&quot;    &lt;debug value=\&quot;true\&quot; /&gt;\n&quot;); // Keep the debug switch if it is set
++			// save last path of different exporters
++			Iterator itPath = exporterPaths.entries();
++			MapEntry entry;
++			while(itPath.hasNext()){
++				entry = (MapEntry) itPath.next();
++				outp.print(&quot;    &lt;expPath key = \&quot;&quot; + entry.getKey().toString() + &quot;\&quot; value = \&quot;&quot; + entry.getValue().toString().replace('\\', '/') + &quot;\&quot;/&gt;\n&quot;);
++			}
+ 			outp.print(&quot;&lt;/preferences&gt;&quot;);
+ 			outp.close();
+ 		} catch (Exception e) {
+@@ -564,4 +579,21 @@
+ 		log (message,e,false);
+ 	}
+ 		
++	public void setExportPath(String exporter,String path){
++		exporterPaths.put(exporter, path);
++	}
++
++	public void setExportPathFromFileName(String exporter,String filename){
++		File tmpfile = new File (filename);
++		exporterPaths.put(exporter, tmpfile.getPath());
++	}
++
++	public String getExportPath(String exporter){
++		String dir = (String) exporterPaths.get(exporter);
++		if (dir == null){
++			dir = Global.getProfile().dataDir;
++		}
++		return dir;
++	}
++
+ }
+
+Modified: trunk/src/exp/Exporter.java
+===================================================================
+--- trunk/src/exp/Exporter.java	2007-06-24 10:16:20 UTC (rev 759)
++++ trunk/src/exp/Exporter.java	2007-06-28 18:23:55 UTC (rev 760)
+@@ -46,11 +46,17 @@
+ 	// selection, which method should be called
+ 	int howManyParams = 0;
+ 	
++	//name of exporter for saving pathname
++	String expName;
++	
+ 	public Exporter() {
+ 		profile = Global.getProfile();
+ 		pref = Global.getPref();
+ 		cacheDB = profile.cacheDB;
+ 		howManyParams = LAT_LON;
++		expName = this.getClass().getName(); 
++		// remove package
++		expName = expName.substring(expName.indexOf(&quot;.&quot;) + 1);
+ 	}
+ 	
+ 	public void doIt(){
+@@ -190,11 +196,14 @@
+ 	 * @return
+ 	 */
+ 	public File getOutputFile (){
+-		FileChooser fc = new FileChooser(FileChooser.SAVE, profile.dataDir);
++		File file;
++		FileChooser fc = new FileChooser(FileChooser.SAVE, pref.getExportPath(expName));
+ 		fc.setTitle(&quot;Select target file:&quot;);
+ 		fc.addMask(mask);
+ 		if(fc.execute() != FileChooser.IDCANCEL){
+-			return  fc.getChosenFile();
++			file = fc.getChosenFile();
++			pref.setExportPath(expName, file.getPath());
++			return file;
+ 		} else {
+ 			return null;
+ 		}
+
+Modified: trunk/src/exp/HTMLExporter.java
+===================================================================
+--- trunk/src/exp/HTMLExporter.java	2007-06-24 10:16:20 UTC (rev 759)
++++ trunk/src/exp/HTMLExporter.java	2007-06-28 18:23:55 UTC (rev 760)
+@@ -29,6 +29,8 @@
+ 	 		&quot;case_sensitive&quot;, &quot;true&quot;,
+ 	 		&quot;max_includes&quot;,   &quot;5&quot;
+ 	 	};
++	public final static String expName = &quot;HTML&quot;;
++
+ 	public HTMLExporter(Preferences p, Profile prof){
+ 		pref = p;
+ 		profile=prof;
+@@ -43,11 +45,12 @@
+ 
+ 		//need directory only!!!!
+ 		String dummy = new String();
+-		FileChooser fc = new FileChooser(FileChooser.DIRECTORY_SELECT, profile.dataDir);
++		FileChooser fc = new FileChooser(FileChooser.DIRECTORY_SELECT, pref.getExportPath(expName));
+ 		fc.setTitle(&quot;Select target directory:&quot;);
+ 		String targetDir;
+ 		if(fc.execute() != FileChooser.IDCANCEL){
+ 			targetDir = fc.getChosen() + &quot;/&quot;;
++			pref.setExportPath(expName, targetDir);
+ 			Vector cache_index = new Vector();
+ 			Vector cacheImg = new Vector();
+ 			Vector logImg = new Vector();
+
+Modified: trunk/src/exp/TPLExporter.java
+===================================================================
+--- trunk/src/exp/TPLExporter.java	2007-06-24 10:16:20 UTC (rev 759)
++++ trunk/src/exp/TPLExporter.java	2007-06-28 18:23:55 UTC (rev 760)
+@@ -130,12 +130,16 @@
+ 	Preferences pref;
+ 	Profile profile;
+ 	String tplFile;
++	String expName;
+ 
+ 	public TPLExporter(Preferences p, Profile prof, String tpl){
+ 		pref = p;
+ 		profile=prof;
+ 		cacheDB = profile.cacheDB;
+ 		tplFile = tpl;
++		File tmpFile = new File(tpl);
++		expName = tmpFile.getName();
++		expName = expName.substring(0, expName.indexOf(&quot;.&quot;));
+ 	}
+ 	
+ 	public void doIt(){
+@@ -144,11 +148,11 @@
+ 		ProgressBarForm pbf = new ProgressBarForm();
+ 		ewe.sys.Handle h = new ewe.sys.Handle();
+ 
+-		FileChooser fc = new FileChooser(FileChooser.SAVE, profile.dataDir);
++		FileChooser fc = new FileChooser(FileChooser.SAVE, pref.getExportPath(expName));
+ 		fc.setTitle(&quot;Select target file:&quot;);
+ 		if(fc.execute() == FileChooser.IDCANCEL) return;
+ 		File saveTo = fc.getChosenFile();
+-		
++		pref.setExportPath(expName, saveTo.getPath());
+ 		int counter = 0;
+ 		for(int i = 0; i&lt;cacheDB.size();i++){
+ 			ch = (CacheHolder)cacheDB.get(i);
+
+Modified: trunk/src/exp/TomTomExporter.java
+===================================================================
+--- trunk/src/exp/TomTomExporter.java	2007-06-24 10:16:20 UTC (rev 759)
++++ trunk/src/exp/TomTomExporter.java	2007-06-28 18:23:55 UTC (rev 760)
+@@ -14,6 +14,7 @@
+ 	public final static int TT_OV2 = 1;
+ 	public final static int TT_WPT_TEXT = 0;
+ 	public final static int TT_WPT_NUM = 1;
++	public final static String expName = &quot;TomTom&quot;;
+ 
+ 	Vector cacheDB;
+ 	Preferences pref;
+@@ -44,16 +45,19 @@
+ 		TomTomExporterScreen infoScreen = new TomTomExporterScreen(&quot;TomTomExport&quot;);
+ 		if (infoScreen.execute() == Form.IDCANCEL) return;
+ 		fileFormat = infoScreen.getFormat();
++
++		dirName = pref.getExportPath(expName);
+ 		
+ 		if (infoScreen.oneFilePerType()==true){
+-			FileChooser fc = new FileChooser(FileChooser.DIRECTORY_SELECT, profile.dataDir);
++			FileChooser fc = new FileChooser(FileChooser.DIRECTORY_SELECT, dirName);
+ 			fc.setTitle(&quot;Select target dir:&quot;);
+ 			if(fc.execute() == FileChooser.IDCANCEL) return;
+ 			dirName = fc.getChosen();
++			pref.setExportPath(expName, dirName);
+ 			prefix = infoScreen.getPrefix();
+ 			writeOneFilePerType(fileFormat, dirName, prefix);
+ 		} else{
+-			FileChooser fc = new FileChooser(FileChooser.SAVE, profile.dataDir);
++			FileChooser fc = new FileChooser(FileChooser.SAVE, dirName);
+ 			fc.setTitle(&quot;Select target file:&quot;);
+ 	
+ 			if (fileFormat == TT_ASC) fc.addMask(&quot;*.asc&quot;);
+@@ -61,6 +65,7 @@
+ 			
+ 			if(fc.execute() == FileChooser.IDCANCEL) return;
+ 			fileName = fc.getChosen();
++			pref.setExportPathFromFileName(expName, fileName);
+ 			writeSingleFile(fileFormat, fileName);
+ 		}
+ 	}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000643.html">[Cachewolf-svn] r759 - trunk/resources
+</A></li>
+	<LI>Next message: <A HREF="000645.html">[Cachewolf-svn] [Feature #3062] MovingMap: Kartendownload von	Expedia
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#644">[ date ]</a>
+              <a href="thread.html#644">[ thread ]</a>
+              <a href="subject.html#644">[ subject ]</a>
+              <a href="author.html#644">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

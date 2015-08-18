@@ -1,0 +1,1567 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r990 - in trunk/src/CacheWolf: . navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-October/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r990%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C200710251205.l9PC5cuQ029390%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000882.html">
+   <LINK REL="Next"  HREF="000884.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r990 - in trunk/src/CacheWolf: . navi</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r990%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C200710251205.l9PC5cuQ029390%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r990 - in trunk/src/CacheWolf: . navi">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Thu Oct 25 14:05:38 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000882.html">[Cachewolf-svn] r989 - trunk/resources
+</A></li>
+        <LI>Next message: <A HREF="000884.html">[Cachewolf-svn] r991 - in trunk/src/CacheWolf: . navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#883">[ date ]</a>
+              <a href="thread.html#883">[ thread ]</a>
+              <a href="subject.html#883">[ subject ]</a>
+              <a href="author.html#883">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-10-25 14:05:23 +0200 (Thu, 25 Oct 2007)
+New Revision: 990
+
+Modified:
+   trunk/src/CacheWolf/CacheHolder.java
+   trunk/src/CacheWolf/CalcPanel.java
+   trunk/src/CacheWolf/Common.java
+   trunk/src/CacheWolf/DescriptionPanel.java
+   trunk/src/CacheWolf/DetailsPanel.java
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/NotesScreen.java
+   trunk/src/CacheWolf/Profile.java
+   trunk/src/CacheWolf/myTableControl.java
+   trunk/src/CacheWolf/navi/Area.java
+   trunk/src/CacheWolf/navi/GotoPanel.java
+   trunk/src/CacheWolf/navi/MapInfoObject.java
+   trunk/src/CacheWolf/navi/MapLoader.java
+   trunk/src/CacheWolf/navi/MapsList.java
+   trunk/src/CacheWolf/navi/MovingMap.java
+Log:
+MovingMap: much faster loading of the list of maps by renaming the files
+DetailsPanel/List: new addi-Wpts are now displayed directly under the main cache
+DescriptionPanel: for Addi-Wpts the description is joined with the respective main Waypoint
+CacheHolder: new method getCacheDetails returns the respective CacheDetails either loaded from disc or when already in RAM a pointer there. This routine automatically keeps track in RAM of the last 50 cacheholderdetails. This is done to speed some things. Maybe in a later stage writing of the respective .xml can also be postponed (this could speed up import from opencaching significantly)
+Notes: new cancel Button and safty questeions
+
+Modified: trunk/src/CacheWolf/CacheHolder.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolder.java	2007-10-24 20:58:35 UTC (rev 989)
++++ trunk/src/CacheWolf/CacheHolder.java	2007-10-25 12:05:23 UTC (rev 990)
+@@ -1,6 +1,8 @@
+ package CacheWolf;
++import ewe.io.IOException;
+ import ewe.sys.Convert;
+ import ewe.sys.Vm;
++import ewe.ui.MessageBox;
+ import ewe.util.Vector;
+ 
+ /**
+@@ -86,6 +88,7 @@
+ public CacheHolder mainCache;
+ /** The date this cache was last synced with OC in format yyyyMMddHHmmss */
+ public String lastSyncOC = EMPTY;
++public CacheHolderDetail details = null;
+ /** When sorting the cacheDB this field is used. The relevant field is copied here and
+  *  the sort is always done on this field to speed up the sorting process 
+  */
+@@ -233,6 +236,69 @@
+ 		   }
+ 	   }
+    }
++   
++   /**
++    * True if ch and this belong to the same main cache. 
++    * @param ch
++    * @return
++    */
++   public boolean hasSameMainCache(CacheHolder ch) {
++	   if (this == ch) return true;
++	   if (ch == null) return false;
++	   if ((!this.isAddiWpt()) &amp;&amp; (!ch.isAddiWpt())) return false;
++	   CacheHolder main1, main2;
++	   if (this.isAddiWpt()) main1 = this.mainCache;  else main1 = this;
++	   if (ch.isAddiWpt()) main2 = ch.mainCache; else main2 = ch; 
++	   return main1 == main2;
++   }
++   
++   /** 
++    * Call this method to get the long-description and so on.
++    * If the according .xml-file is already read, it will return
++    * that one, otherwise it will be loaded.
++    * To avoid memory problems this routine loads not for more caches than maxDetails
++    * the details. If maxdetails is reached, it will remove from RAM the details 
++    * of the 5 caches that were loaded most long ago.
++    * 
++    * @return the respective CacheHolderDetail, null if according xml-file could not be read
++    */
++   
++   public CacheHolderDetail getCacheDetails(boolean maybenew) {
++	   if (details != null) {
++		   details.update(this);
++		   return details;
++	   }
++	   if (cachesWithLoadedDetails.size() &gt;= maxDetails) removeOldestDetails();
++	   details = new CacheHolderDetail(this);
++	   try {
++		   details.readCache(Global.getProfile().dataDir);
++	   } catch (IOException e) {
++		   if (maybenew) details.update(this);
++		   else {
++			   (new MessageBox(&quot;Error&quot;, &quot;Could not read cache details for cache: &quot;+this.wayPoint, MessageBox.OKB)).execute();
++			   return null;
++		   } 
++	   }
++	   cachesWithLoadedDetails.add(this);
++	   return details;
++   }
++   
++   public void releaseCacheDetails() {
++	   details = null;
++	   cachesWithLoadedDetails.remove(this);
++   }
++   
++   final static int maxDetails = 50; 
++   static Vector cachesWithLoadedDetails = new Vector(maxDetails);
++   
++   public static void removeOldestDetails() { // TODO save changes if requested?
++	   ((CacheHolder)(cachesWithLoadedDetails.get(0))).releaseCacheDetails();
++	   ((CacheHolder)(cachesWithLoadedDetails.get(0))).releaseCacheDetails();
++	   ((CacheHolder)(cachesWithLoadedDetails.get(0))).releaseCacheDetails();
++	   ((CacheHolder)(cachesWithLoadedDetails.get(0))).releaseCacheDetails();
++	   ((CacheHolder)(cachesWithLoadedDetails.get(0))).releaseCacheDetails();
++   }
++   
+ /*
+ public void finalize() {nObjects--;
+    Vm.debug(&quot;Destroying CacheHolder &quot;+wayPoint);
+
+Modified: trunk/src/CacheWolf/CalcPanel.java
+===================================================================
+--- trunk/src/CacheWolf/CalcPanel.java	2007-10-24 20:58:35 UTC (rev 989)
++++ trunk/src/CacheWolf/CalcPanel.java	2007-10-25 12:05:23 UTC (rev 990)
+@@ -166,7 +166,7 @@
+ 			if (ev.target == btnGoto){
+ 				readFields(coordInp, bd, currFormat);
+ 				coordOut = coordInp.project(bd.degrees, bd.distance);
+-				mainT.gotoPoint(coordOut.toString());
++				mainT.gotoPoint(coordOut);
+ 			}
+ 			if (ev.target == btnChangeLatLon){
+ 				CoordsScreen cs = new CoordsScreen();
+
+Modified: trunk/src/CacheWolf/Common.java
+===================================================================
+--- trunk/src/CacheWolf/Common.java	2007-10-24 20:58:35 UTC (rev 989)
++++ trunk/src/CacheWolf/Common.java	2007-10-25 12:05:23 UTC (rev 990)
+@@ -8,34 +8,14 @@
+ 	private static char digSep=MyLocale.getDigSeparator().charAt(0);
+ 	private static char notDigSep=MyLocale.getDigSeparator().charAt(0)=='.'?',':'.';
+ 	
++	/**
++	 * get double value from string. It interpretes &quot;.&quot; and &quot;,&quot; as decimal separator
++	 * when the string cannot be interpreted, return 0.
++	 * @param value
++	 * @return
++	 */
+ 	public static double parseDouble(String value){
+-
+-/*		The following code is EXTREMELY inefficient.
+-        ============================================
+- 		String a = new String();
+-		String b = new String();
+-		char separator = '.';
+-		double aDbl, bDbl;
+-		
+-		
+-		if (value.indexOf('.') &lt; 0) {
+-			if (value.indexOf(',') &lt; 0) value = value + &quot;.0&quot;; // no separartor
+-			else separator = ',';
+-		}
+-		else separator = '.';
+-		
+-		a = value.substring(0, value.indexOf(separator));
+-		aDbl = Convert.toDouble(a);
+-
+-		
+-		b = value.substring(value.indexOf(separator)+1);
+-		bDbl = Convert.toDouble(b);
+-		// Calc Minutes
+-		bDbl = bDbl / java.lang.Math.pow((double)10,(double)b.length()); // Using pow is BAD NEWS!!!
+-		
+-		return aDbl&gt;=0?aDbl + bDbl:aDbl - bDbl;
+-*/      
+-		// This is at least a factor of 3 faster (returns 0 for invalid arguments)
++		// returns 0 for invalid arguments
+ 		try {
+ 			return java.lang.Double.parseDouble(value.replace(notDigSep,digSep));
+ 		} catch (Exception e) {
+@@ -150,4 +130,16 @@
+ 		else fileName = name+t[i];
+ 		return fileName;
+ 	}
++	/** get the extension of a filename, including &quot;.&quot;
++	 * remark: ewe.io.File.getFileExtension return name + extension
++	 * @param fn
++	 * @return
++	 */
++	public static String getFilenameExtension (String fn) {
++		if (fn == null || fn.length() == 0) return &quot;&quot;;
++		int dot = fn.lastIndexOf(&quot;.&quot;);
++		if (dot &lt; 0) return &quot;&quot;;
++		return fn.substring(dot, fn.length());
++	}
++
+ }
+
+Modified: trunk/src/CacheWolf/DescriptionPanel.java
+===================================================================
+--- trunk/src/CacheWolf/DescriptionPanel.java	2007-10-24 20:58:35 UTC (rev 989)
++++ trunk/src/CacheWolf/DescriptionPanel.java	2007-10-25 12:05:23 UTC (rev 990)
+@@ -28,15 +28,31 @@
+ 	/**
+ 	*	Set the text to display. Text should be HTML formated.
+ 	*/
++	String description = null;
+ 	public void setText(CacheHolderDetail cache){
+-		if (currCache != cache){
+-			Vm.showWait(true);
+-			if (cache.is_HTML)	disp.setHtml(cache.LongDescription);
+-			else				disp.setPlainText(cache.LongDescription);
+-			disp.scrollTo(0,false);
++		if (currCache == cache) return;
++		int scrollto = 0;
++		if (cache.hasSameMainCache(currCache)) scrollto = disp.getTopLine();
++		String desc;
++		if (cache == null) desc = &quot;&quot;;
++		else {
++			if (cache.isAddiWpt()) {
++				if (cache.LongDescription != null &amp;&amp; cache.LongDescription.length() &gt; 0)
++					 desc = cache.LongDescription + &quot;&lt;br&gt;\n&quot;+cache.mainCache.getCacheDetails(true).LongDescription;
++				else desc = cache.mainCache.getCacheDetails(true).LongDescription;
++
++			} else // not an addi-wpt
++				desc = cache.LongDescription;
++		}
++		if (!desc.equals(description)) {
++			Vm.showWait(true); 
++			if (cache.is_HTML)	disp.setHtml(desc);
++			else				disp.setPlainText(desc);
++			disp.scrollTo(scrollto,false);
++			description = desc;
+ 			Vm.showWait(false);
+-			currCache = cache;
+ 		}
++		currCache = cache;
+ 	}
+ 	
+ 	private void redraw() {
+
+Modified: trunk/src/CacheWolf/DetailsPanel.java
+===================================================================
+--- trunk/src/CacheWolf/DetailsPanel.java	2007-10-24 20:58:35 UTC (rev 989)
++++ trunk/src/CacheWolf/DetailsPanel.java	2007-10-25 12:05:23 UTC (rev 990)
+@@ -25,7 +25,8 @@
+ 	mButton btnNewWpt, btnShowBug, btnShowMap, btnGoto, btnAddPicture, btnBlack, btnNotes, btnSave, btnCancel;
+ 	mButton btnFoundDate,btnHiddenDate;
+ 	Vector cacheDB;
+-	CacheHolderDetail thisCache;
++	CacheHolder thisCache;
++	int dbIndex = -1;
+ 	CellPanel pnlTools = new CellPanel(); 
+ 	AttributesViewer attV;
+ 	
+@@ -146,34 +147,35 @@
+ 	
+ 	
+ 	/**
+-	*	Set the values to display.
++	* @param chD details of the cache to display
++	* @param dbindex index in cacheDB, in which changes will be saved
+ 	*/
+-	public void setDetails(CacheHolderDetail chD){
+-		thisCache = chD;
++	public void setDetails(CacheHolder ch){
++		thisCache = ch;
+ 		dirty_notes = false;
+ 		dirty_details = false;
+-		inpWaypoint.setText(chD.wayPoint);
+-		inpName.setText(chD.CacheName);
+-	    btnWayLoc.setText(chD.pos.toString());
+-		inpHidden.setText(chD.DateHidden);
+-		inpOwner.setText(chD.CacheOwner);
+-		if (chD.CacheStatus.length()&gt;=10 &amp;&amp; chD.CacheStatus.charAt(4)=='-')
+-			chcStatus.setText(MyLocale.getMsg(318,&quot;Found&quot;)+&quot; &quot;+chD.CacheStatus);
++		inpWaypoint.setText(ch.wayPoint);
++		inpName.setText(ch.CacheName);
++	    btnWayLoc.setText(ch.pos.toString());
++		inpHidden.setText(ch.DateHidden);
++		inpOwner.setText(ch.CacheOwner);
++		if (ch.CacheStatus.length()&gt;=10 &amp;&amp; ch.CacheStatus.charAt(4)=='-')
++			chcStatus.setText(MyLocale.getMsg(318,&quot;Found&quot;)+&quot; &quot;+ch.CacheStatus);
+ 		else {
+-			chcStatus.setText(chD.CacheStatus);
++			chcStatus.setText(ch.CacheStatus);
+ 			// If the cache status contains a date, do not overwrite it with 'found' message
+-			if(chD.is_found == true) chcStatus.setText(MyLocale.getMsg(318,&quot;Found&quot;));
++			if(ch.is_found == true) chcStatus.setText(MyLocale.getMsg(318,&quot;Found&quot;));
+ 		}
+-		chcType.setInt(transType(chD.type));
+-		if(chD.is_black){
++		chcType.setInt(transType(ch.type));
++		if(ch.is_black){
+ 			btnBlack.image = imgBlack;
+ 		} else {
+ 			btnBlack.image = imgBlackNo;
+ 		}
+-		blackStatus=chD.is_black; 
++		blackStatus=ch.is_black; 
+ 		blackStatusChanged=false;
+ 		btnBlack.repaintNow();
+-		if(chD.has_bug == true) {
++		if(ch.has_bug == true) {
+ 			//btnShowBug.modify(Control.Disabled,1);
+ 			btnShowBug.image = imgShowBug;
+ 		} else {
+@@ -181,17 +183,17 @@
+ 			btnShowBug.image = imgShowBugNo;
+ 		}
+ 		btnShowBug.repaintNow();
+-		if(chD.CacheSize.equals(&quot;Micro&quot;)) chcSize.setInt(1);
+-		if(chD.CacheSize.equals(&quot;Small&quot;)) chcSize.setInt(2);
+-		if(chD.CacheSize.equals(&quot;Regular&quot;)) chcSize.setInt(3);
+-		if(chD.CacheSize.equals(&quot;Large&quot;)) chcSize.setInt(4);
+-		if(chD.CacheSize.equals(&quot;Other&quot;)) chcSize.setInt(5);
+-		if(chD.CacheSize.equals(&quot;Very Large&quot;)) chcSize.setInt(6);
+-		if(chD.CacheSize.equals(&quot;None&quot;)) chcSize.setInt(7);
+-		if(chD.CacheSize.equals(&quot;Not chosen&quot;)) chcSize.setInt(7);
+-		attV.showImages(chD.attributes);
+-		lblTerr.setText((chD.terrain.length()&gt;0) ? (MyLocale.getMsg(1001,&quot;T&quot;)+&quot;: &quot;+chD.terrain) : &quot;&quot;);
+-		lblDiff.setText((chD.hard.length()&gt;0)    ? (MyLocale.getMsg(1000,&quot;D&quot;)+&quot;: &quot;+chD.hard) : &quot;&quot;); 
++		if(ch.CacheSize.equals(&quot;Micro&quot;)) chcSize.setInt(1);
++		if(ch.CacheSize.equals(&quot;Small&quot;)) chcSize.setInt(2);
++		if(ch.CacheSize.equals(&quot;Regular&quot;)) chcSize.setInt(3);
++		if(ch.CacheSize.equals(&quot;Large&quot;)) chcSize.setInt(4);
++		if(ch.CacheSize.equals(&quot;Other&quot;)) chcSize.setInt(5);
++		if(ch.CacheSize.equals(&quot;Very Large&quot;)) chcSize.setInt(6);
++		if(ch.CacheSize.equals(&quot;None&quot;)) chcSize.setInt(7);
++		if(ch.CacheSize.equals(&quot;Not chosen&quot;)) chcSize.setInt(7);
++		attV.showImages(ch.getCacheDetails(true).attributes);
++		lblTerr.setText((ch.terrain.length()&gt;0) ? (MyLocale.getMsg(1001,&quot;T&quot;)+&quot;: &quot;+ch.terrain) : &quot;&quot;);
++		lblDiff.setText((ch.hard.length()&gt;0)    ? (MyLocale.getMsg(1000,&quot;D&quot;)+&quot;: &quot;+ch.hard) : &quot;&quot;); 
+ 	}
+ 	
+ 	
+@@ -265,6 +267,25 @@
+ 	}
+ 	
+ 	/**
++	 * if is addi -&gt; returns the respective AddiWpt
++	 * if is main -&gt; returns the respective MainWpt 
++	 *
++	 */
++	public void createWptName() {
++		String wpt = inpWaypoint.getText();
++		if (CacheType.isAddiWpt(transSelect(chcType.getInt())) &amp;&amp; 
++				(Global.mainTab.mainCache.startsWith(&quot;GC&quot;)||Global.mainTab.mainCache.startsWith(&quot;OC&quot;)||Global.mainTab.mainCache.startsWith(&quot;CW&quot;)) &amp;&amp;
++				wpt.startsWith(&quot;CW&quot;)) {
++			// for what was this?: Global.mainTab.lastselected=Global.mainTab.mainCache;
++			inpWaypoint.setText(Global.getProfile().getNewAddiWayPointName(Global.mainTab.mainCache));
++		} 
++		if (!CacheType.isAddiWpt(transSelect(chcType.getInt())) &amp;&amp; !(wpt.startsWith(&quot;GC&quot;) 
++				|| wpt.startsWith(&quot;OC&quot;) || wpt.startsWith(&quot;CW&quot;)) ) {
++			inpWaypoint.setText(Global.getProfile().getNewWayPointName());
++		}
++	}
++	
++	/**
+ 	*	Method to react to a user input.
+ 	*/
+ 	public void onEvent(Event ev){
+@@ -272,23 +293,13 @@
+ 			dirty_details = true;
+ 			profile.hasUnsavedChanges=true;
+ 			if (ev.target==chcType) {
+-				if (CacheType.isAddiWpt(transSelect(chcType.getInt())) &amp;&amp; 
+-					(Global.mainTab.mainCache.startsWith(&quot;GC&quot;)||Global.mainTab.mainCache.startsWith(&quot;OC&quot;)) &amp;&amp;
+-					inpWaypoint.getText().startsWith(&quot;CW&quot;)) {
+-						Global.mainTab.lastselected=Global.mainTab.mainCache;
+-						int wptNo=-1;
+-						String waypoint;
+-						do {
+-							waypoint=MyLocale.formatLong(++wptNo,&quot;00&quot;)+Global.mainTab.mainCache.substring(2);
+-						} while (Global.getProfile().getCacheIndex(waypoint)&gt;=0);
+-						inpWaypoint.setText(waypoint);
+-				}
++				createWptName();
+ 			}
+ 		}
+ 		if(ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.PRESSED){
+ 			if(ev.target == btnNotes){
+ 				dirty_notes=true;
+-				NotesScreen nsc = new NotesScreen(thisCache);
++				NotesScreen nsc = new NotesScreen(thisCache.getCacheDetails(true));
+ 				nsc.execute(this.getFrame(), Gui.CENTER_FRAME);
+ 			}
+ 			else if(ev.target == btnShowMap){
+@@ -304,7 +315,7 @@
+ 			else if(ev.target == btnShowBug){
+ 				//InfoScreen is = new InfoScreen(thisCache.Travelbugs.toHtml(), &quot;Travelbugs&quot;, false, pref);
+ 				//is.execute();
+-				TravelbugInCacheScreen ts = new TravelbugInCacheScreen(thisCache.Travelbugs.toHtml(), &quot;Travelbugs&quot;);
++				TravelbugInCacheScreen ts = new TravelbugInCacheScreen(thisCache.getCacheDetails(true).Travelbugs.toHtml(), &quot;Travelbugs&quot;);
+ 				ts.execute(this.getFrame(), Gui.CENTER_FRAME);
+ 			}
+ 			else if (ev.target == btnCenter){
+@@ -319,18 +330,18 @@
+ 			}
+ 			else if (ev.target == btnAddDateTime){
+ 				dirty_notes=true;
+-				String note = thisCache.CacheNotes;
++				String note = thisCache.getCacheDetails(true).CacheNotes;
+ 				Time dtm = new Time();
+ 				dtm.getTime();
+ 				dtm.setFormat(&quot;E dd.MM.yyyy '/' HH:mm&quot;);
+ 				if(note.length() &gt; 0)	note = note + &quot;\n&quot; + dtm.toString();
+ 				else 	note = note + dtm.toString();
+ 				note = note + &quot;\n&quot;;
+-				thisCache.CacheNotes = note;
+-				thisCache.saveCacheDetails( Global.getProfile().dataDir);
++				thisCache.getCacheDetails(true).CacheNotes = note;
++				thisCache.getCacheDetails(true).saveCacheDetails( Global.getProfile().dataDir);
+ 			}
+ 			else if (ev.target == btnAddPicture){
+-				thisCache.addUserImage(profile);
++				thisCache.getCacheDetails(true).addUserImage(profile);
+ 			}
+ 			else if(ev.target == btnBlack){
+ 				if(thisCache.is_black) {
+@@ -352,7 +363,7 @@
+ 			}
+ 			else if (ev.target == btnGoto){
+ 				// TODO if something changed saveWpt();
+-				Global.mainTab.gotoPoint(thisCache.LatLon);
++				Global.mainTab.gotoPoint(thisCache.pos);
+ 			}
+ 			else if (ev.target == btnWayLoc){
+ 				CWPoint coords = new CWPoint(btnWayLoc.getText(),CWPoint.CW);
+@@ -444,11 +455,13 @@
+ 		  thisCache.CacheName = inpName.getText().trim();
+ 		  thisCache.LatLon = thisCache.pos.toString();
+ 		  thisCache.DateHidden = inpHidden.getText().trim();
++		  String oldType=thisCache.type;
+ 		  thisCache.type = transSelect(chcType.getInt());
+-		  thisCache.saveCacheDetails(profile.dataDir);
++		 // thisCache.saveCacheDetails(profile.dataDir); // this is redundant, because all changes affecting the details are immediately saved
+ 		  // Now update the table
+-		  CacheHolder ch = (CacheHolder)cacheDB.get(Global.mainTab.tbP.getSelectedCache());
+-		  ch.CacheStatus=thisCache.CacheStatus;
++		  CacheHolder ch = thisCache; //(CacheHolder)cacheDB.get(dbIndex);
++		  
++	/*	  ch.CacheStatus=thisCache.CacheStatus;
+ 		  ch.is_found=thisCache.is_found;
+ 		  ch.is_owned=thisCache.is_owned;
+ 		  ch.is_black=thisCache.is_black;
+@@ -460,9 +473,8 @@
+ 		  ch.DateHidden=thisCache.DateHidden;
+ 		  ch.CacheOwner=thisCache.CacheOwner;
+ 		  ch.has_bug=thisCache.has_bug;
+-		  String oldType=ch.type;
+ 		  ch.type=thisCache.type;
+-		  // If the type has changed from/to an addi waypoint, rebuild the references
++*/		  // If the type has changed from/to an addi waypoint, rebuild the references
+ 		  if (CacheType.isAddiWpt(ch.type)!=CacheType.isAddiWpt(oldType)) {
+ 			  // If we changed the type to addi, check that a parent exists
+ 			  if (CacheType.isAddiWpt(ch.type)) {
+@@ -472,11 +484,12 @@
+ 				  else {
+ 					  idx=profile.getCacheIndex(&quot;GC&quot;+ ch.wayPoint.substring(ch.wayPoint.length() == 5?1:2));
+ 					  if (idx&lt;0) idx=profile.getCacheIndex(&quot;OC&quot;+ ch.wayPoint.substring(ch.wayPoint.length() == 5?1:2));
++					  if (idx&lt;0) idx=profile.getCacheIndex(&quot;CW&quot;+ ch.wayPoint.substring(ch.wayPoint.length() == 5?1:2));
+ 					  if (idx&lt;0) (new MessageBox(MyLocale.getMsg(144,&quot;Warning&quot;),
+ 							  MyLocale.getMsg(734,&quot;No main cache found for addi waypoint &quot;)+&quot; &quot;+ch.wayPoint+
+ 							  &quot;\n&quot;+MyLocale.getMsg(735,&quot;Addi Waypoints must have the format xxYYYY, where xx are any 2 chars and YYYY are the main cache's chars after the GC&quot;),FormBase.OKB)).execute();
+ 				  }
+-				  profile.buildReferences();
++				  profile.buildReferences(); // TODO this takes quite long -&gt; use profile.setAddiRef instead
+ 			  }
+ 		  }
+ 		  // set status also on addi wpts
+@@ -484,7 +497,7 @@
+ 		  dirty_notes=false;
+ 		  dirty_details=false;
+ 		  
+-		  Global.mainTab.tbP.refreshTable();
++		  // Global.mainTab.tbP.refreshTable(); this is done in mainTab.onLeavingPanel
+ 		  ////Vm.debug(&quot;New status updated!&quot;);
+ 	}
+ 
+@@ -531,7 +544,7 @@
+ 			}
+ 			public void popupMenuEvent(Object selectedItem){
+ 				if (selectedItem==mnuPickupTB) { 
+-					Travelbug tb=TravelbugPickup.pickupTravelbug(thisCache.Travelbugs);	
++					Travelbug tb=TravelbugPickup.pickupTravelbug(thisCache.getCacheDetails(true).Travelbugs);	
+ 					if (tb!=null) {
+ 						dirty_details=true;
+ 						// Get the list of my travelbugs
+@@ -541,9 +554,9 @@
+ 						tbjList.addTbPickup(tb,Global.getProfile().name,thisCache.wayPoint);
+ 						tbjList.saveTravelbugsFile();
+ 						tbjList=null;
+-						setHtml(thisCache.Travelbugs.toHtml());
++						setHtml(thisCache.getCacheDetails(true).Travelbugs.toHtml());
+ 						repaint();
+-						thisCache.has_bug=thisCache.Travelbugs.size()&gt;0;						
++						thisCache.has_bug=thisCache.getCacheDetails(true).Travelbugs.size()&gt;0;						
+ 					}
+ 				} else if (selectedItem==mnuDropTB) {
+ 					tbjList=new TravelbugJourneyList();
+@@ -553,13 +566,13 @@
+ 					tbs.execute();
+ 					if (tbs.selectedItem&gt;=0) {
+ 						Travelbug tb=tbl.getTB(tbs.selectedItem);
+-						thisCache.Travelbugs.add(tb);
++						thisCache.getCacheDetails(true).Travelbugs.add(tb);
+ 						tbjList.addTbDrop(tb,Global.getProfile().name,thisCache.wayPoint);
+ 					}
+ 					tbjList.saveTravelbugsFile();
+ 					tbjList=null;
+-					thisCache.has_bug=thisCache.Travelbugs.size()&gt;0;
+-					setHtml(thisCache.Travelbugs.toHtml());
++					thisCache.has_bug=thisCache.getCacheDetails(true).Travelbugs.size()&gt;0;
++					setHtml(thisCache.getCacheDetails(true).Travelbugs.toHtml());
+ 					repaint();
+ 					dirty_details=true;
+ 				} else 
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2007-10-24 20:58:35 UTC (rev 989)
++++ trunk/src/CacheWolf/MainTab.java	2007-10-25 12:05:23 UTC (rev 990)
+@@ -36,7 +36,7 @@
+ 	StatusBar statBar;
+ 	public MovingMap mm;
+ 	Navigate nav;
+-	String mainCache=&quot;&quot;;
++	public String mainCache=&quot;&quot;;
+ 	int oldCard=0;
+ 	boolean cacheDirty=false;
+ 	
+@@ -128,8 +128,9 @@
+ 				ch = (CacheHolder)cacheDB.get(tbP.getSelectedCache());
+ 				lastselected=ch.wayPoint;  // Used in Parser.Skeleton
+ 				try {
+-					chD=new CacheHolderDetail(ch);
+-					chD.readCache(profile.dataDir);//Vm.debug(&quot;MainTab:readCache &quot;+chD.wayPoint+&quot;/S:&quot;+chD.Solver);
++					chD = ch.getCacheDetails(true);
++					//chD=new CacheHolderDetail(ch);
++					//chD.readCache(profile.dataDir);//Vm.debug(&quot;MainTab:readCache &quot;+chD.wayPoint+&quot;/S:&quot;+chD.Solver);
+ 				} catch(Exception e){
+ 					//Vm.debug(&quot;Error loading: &quot;+ch.wayPoint);
+ 				}
+@@ -140,6 +141,9 @@
+ 			if(detP.isDirty()) {
+ 				cacheDirty=true;
+ 				detP.saveDirtyWaypoint();
++				tbP.myMod.updateRows();
++				tbP.selectRow(profile.getCacheIndex(detP.thisCache.wayPoint));
++				tbP.refreshTable();
+ 			}
+ 		}
+ 		if (panelNo==5) { // Leaving the Solver Panel
+@@ -178,13 +182,11 @@
+ 				newWaypoint(chD=new CacheHolderDetail()); 
+ 			}
+ 			MyLocale.setSIPButton();
+-			detP.setDetails(chD);
++			detP.setDetails(ch);
+ 			break;
+ 		case 2: // Description Panel
+-			if (chD!=null) {
+ 				MyLocale.setSIPOff();
+ 				descP.setText(chD);
+-			}
+ 			break;
+ 		case 3: // Picture Panel
+ 			if (chD!=null) {
+@@ -205,7 +207,7 @@
+ 					chMain=new CacheHolderDetail(chD.mainCache);
+ 					try {
+ 						chMain.readCache(profile.dataDir); //Vm.debug(&quot;mainT:readCache &quot;+chD.wayPoint+&quot;=&gt;Main=&gt;&quot;+chMain.wayPoint+&quot;/S:&quot;+chMain.Solver);
+-					} catch(Exception e){pref.log(&quot;Error reading cache&quot;,e);}
++					} catch(Exception e){pref.log(&quot;Error reading cache .xml&quot;,e);}
+ 					solverP.setInstructions(chMain.Solver);
+ 				} else {
+ 					//Vm.debug(&quot;mainT: Waypoint:&quot;+chD.wayPoint);
+@@ -233,15 +235,17 @@
+ 	/** Update the distances of all caches to the centre and display a message 
+ 	 */
+ 	public void updateBearDist(){// Called from DetailsPanel, GotoPanel and myTableControl
++		MessageBox info = new MessageBox(MyLocale.getMsg(327,&quot;Information&quot;), MyLocale.getMsg(1024,&quot;Entfernungen in der Listenansicht \n werden neu berechnet...&quot;).replace('~','\n'), 0);
++		info.exec();
+ 		tbP.pref = pref;
+ 		profile.updateBearingDistance();
+ 		//tbP.refreshTable();
++		info.close(0);
+ 		tbP.tc.repaint();
+-		//(new MessageBox(MyLocale.getMsg(327,&quot;Information&quot;), MyLocale.getMsg(1024,&quot;Entfernungen in der Listenansicht \nvom aktuellen Standpunkt aus \nneu berechnet&quot;).replace('~','\n'), MessageBox.OKB)).execute();
+ 	}
+ 
+-	public void gotoPoint(String LatLon) { // TODO &#252;bergabe nicht als String
+-		gotoP.setDestinationAndSwitch(LatLon); 
++	public void gotoPoint(CWPoint where) { 
++		gotoP.setDestinationAndSwitch(where); 
+ 	}
+ 
+ 	public void openDescriptionPanel(CacheHolder chi) {
+@@ -268,7 +272,7 @@
+ 	 */
+ 	public void newWaypoint(CacheHolder ch){
+ 		onLeavingPanel(oldCard);
+-		onEnteringPanel(0); oldCard=0;
++		updatePendingChanges(); // was: onEnteringPanel(0); oldCard=0;
+ 		mainCache=lastselected;
+ 		int selectedIndex = profile.getCacheIndex( lastselected );
+ 		if (selectedIndex &gt;= 0) {
+@@ -279,19 +283,21 @@
+ 		}
+ 		//if (detP.isDirty()) detP.saveDirtyWaypoint();
+ 		Global.getProfile().hasUnsavedChanges=true;
+-		String waypoint= ch.wayPoint = profile.getNewWayPointName();
+-		ch.type = &quot;0&quot;;
++		ch.wayPoint = profile.getNewWayPointName();
++		if (ch.type == null || ch.type == &quot;&quot;) ch.type = &quot;0&quot;;
+ 		ch.CacheSize = &quot;None&quot;;
++		chD = ch.getCacheDetails(true);
++		this.ch = ch;
+ 		cacheDB.add(ch);
+-		tbP.myMod.updateRows();
+-		tbP.selectRow(profile.getCacheIndex(waypoint));
++		//tbP.myMod.updateRows();
++		//tbP.selectRow(profile.getCacheIndex(waypoint));
+ 		//Global.mainTab.tbP.refreshTable();
+ 		if (this.cardPanel.selectedItem==1) { // Detailpanel already selected
+ 			postEvent(new MultiPanelEvent(MultiPanelEvent.SELECTED,detP,1));
+ 		} else	
+ 			select(detP);
+-		solverP.setInstructions(&quot;&quot;);
+-		tbP.refreshTable();
++		solverP.setInstructions(&quot;&quot;); // TODO save them first, don't delete them when the new one is an addi
++		//tbP.refreshTable(); // moved this instruction to onLeavingPanel
+ 
+ 	}
+ 
+
+Modified: trunk/src/CacheWolf/NotesScreen.java
+===================================================================
+--- trunk/src/CacheWolf/NotesScreen.java	2007-10-24 20:58:35 UTC (rev 989)
++++ trunk/src/CacheWolf/NotesScreen.java	2007-10-25 12:05:23 UTC (rev 990)
+@@ -16,6 +16,7 @@
+ 	CacheHolderDetail thisCache = null;
+ 	mButton addDateTime = new mButton((IImage)new mImage(&quot;date_time.png&quot;));
+ 	mButton btSave = new mButton(MyLocale.getMsg(127,&quot;Save&quot;));
++	mButton cancelBtn = new mButton(&quot;Cancel&quot;);
+ 	ScrollBarPanel sbp = new ScrollBarPanel(wayNotes);
+ 	
+ 	public NotesScreen(CacheHolderDetail ch){
+@@ -27,6 +28,7 @@
+ 		addLast(sbp.setTag(Control.SPAN, new Dimension(3,1)),CellConstants.STRETCH, (CellConstants.FILL|CellConstants.WEST));
+ 		titleControls=new CellPanel();
+ 		titleControls.addNext(addDateTime,CellConstants.HSTRETCH,CellConstants.HFILL);
++		titleControls.addNext(cancelBtn,CellConstants.HSTRETCH,CellConstants.HFILL);
+ 		titleControls.addLast(btSave,CellConstants.HSTRETCH,CellConstants.HFILL);
+ 	}
+ 	
+@@ -47,6 +49,23 @@
+ 				thisCache.saveCacheDetails( Global.getProfile().dataDir);
+ 				this.close(0);
+ 			}
++			if(ev.target == cancelBtn){
++				if ( (!thisCache.CacheNotes.equals(wayNotes.getText())) ) {
++					if ( (new MessageBox(&quot;Warning&quot;, &quot;You will loose any changes made to the notes. Do you want to continue?&quot;
++							, MessageBox.YESB|MessageBox.NOB)).execute() == MessageBox.IDYES) {
++						this.close(0);
++					}
++				} else this.close(0); // no changes -&gt; exit without asking
++			} 
++			if(ev.target == titleOK){
++				if ( (!thisCache.CacheNotes.equals(wayNotes.getText())) ) {
++					if ( (new MessageBox(&quot;Warning&quot;, &quot;Save changes made to the notes?&quot;
++							, MessageBox.YESB|MessageBox.NOB)).execute() == MessageBox.IDYES) {
++						thisCache.CacheNotes = wayNotes.getText();
++						thisCache.saveCacheDetails( Global.getProfile().dataDir);
++					}
++				}
++			}
+ 		}
+ 		super.onEvent(ev);
+ 	}
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2007-10-24 20:58:35 UTC (rev 989)
++++ trunk/src/CacheWolf/Profile.java	2007-10-25 12:05:23 UTC (rev 990)
+@@ -344,10 +344,11 @@
+ 	public String getNewWayPointName(){
+ 		String strWp=null;
+ 		long  lgWp=1;
+-		if (cacheDB.size()==0 )
++		int s = cacheDB.size(); 
++		if (s ==0 )
+ 			return &quot;CW0000&quot;;
+ 		//Create new waypoint,look if not in db
+-		for(int i = 0;i &lt; cacheDB.size();i++){
++		for(int i = 0;i &lt; s;i++){
+ 			strWp = &quot;CW&quot; + MyLocale.formatLong(lgWp, &quot;0000&quot;);
+ 			if(((CacheHolder)cacheDB.get(i)).wayPoint.indexOf(strWp) &gt;=0 ){
+ 				//waypoint exists in database
+@@ -357,7 +358,32 @@
+ 		}
+ 		return strWp;
+ 	}
++	
++	public String getNewAddiWayPointName(String forcache) {
++		int wptNo=-1;
++		String waypoint;
++		do {
++			waypoint=MyLocale.formatLong(++wptNo,&quot;00&quot;)+forcache.substring(2);
++		} while (Global.getProfile().getCacheIndex(waypoint)&gt;=0);
++		return waypoint;
++	}
+ 
++	/**
++	 * Call this after getNewAddiWayPointName to set the references between main and addi correctly
++	 * @param ch
++	 */
++	public void setAddiRef(CacheHolder ch) {
++		String mainwpt = ch.wayPoint.substring(ch.wayPoint.length()-4);
++		int mainindex = getCacheIndex(&quot;GC&quot;+mainwpt);
++		if (mainindex &lt; 0) mainindex = getCacheIndex(&quot;OC&quot;+mainwpt);
++		if (mainindex &lt; 0) mainindex = getCacheIndex(&quot;CW&quot;+mainwpt);
++		if (mainindex &lt; 0) throw new IllegalArgumentException(&quot;no main cache found for: &quot; + ch.wayPoint);
++		CacheHolder mainch = (CacheHolder)cacheDB.get(mainindex);
++		mainch.addiWpts.add(ch);
++		ch.mainCache = mainch;
++	}
++
++
+ 	public String toString() {
+ 		return &quot;Profile: Name=&quot;+name+&quot;\nCentre=&quot;+centre.toString()+&quot;\ndataDir=&quot;+dataDir+&quot;\nlastSyncOC=&quot;+
+ 		last_sync_opencaching+&quot;\ndistOC=&quot;+distOC;
+@@ -452,20 +478,12 @@
+ 			ch = (CacheHolder)cacheDB.get(i);
+ 			if (ch.isAddiWpt()) {
+ 				//search main cache
+-				if (ch.wayPoint.length() == 5){
+-					index = (Integer) dbIndex.get(&quot;GC&quot;+ ch.wayPoint.substring(1));
+-				} 
+-				else {
+-					index = (Integer) dbIndex.get(&quot;GC&quot;+ ch.wayPoint.substring(2));
+-				}
+-				if (index == null) { // TODO save the source (GC or OC or Custom) of the maincache somewhere else to avoid ambiguity of addi-wpt-names
+-					if (ch.wayPoint.length() == 5){
+-						index = (Integer) dbIndex.get(&quot;OC&quot;+ ch.wayPoint.substring(1));
+-					} 
+-					else {
+-						index = (Integer) dbIndex.get(&quot;OC&quot;+ ch.wayPoint.substring(2));
+-					}
+-				}
++				index = (Integer) dbIndex.get(&quot;GC&quot;+ ch.wayPoint.substring(ch.wayPoint.length()-4));
++				if (index == null)  // TODO save the source (GC or OC or Custom) of the maincache somewhere else to avoid ambiguity of addi-wpt-names
++					index = (Integer) dbIndex.get(&quot;OC&quot;+ ch.wayPoint.substring(ch.wayPoint.length()-4));
++				if (index == null)  // TODO save the source (GC or OC or Custom) of the maincache somewhere else to avoid ambiguity of addi-wpt-names
++					index = (Integer) dbIndex.get(&quot;CW&quot;+ ch.wayPoint.substring(ch.wayPoint.length()-4));
++				
+ 				if (index != null) {
+ 					mainCh = (CacheHolder) cacheDB.get(index.intValue());
+ 					mainCh.addiWpts.add(ch);
+@@ -489,7 +507,8 @@
+ 		}
+ 
+ 	}
+-
++	
++	
+ 	/** Ensure that all filters have the proper length so that the 'charAt' access in the filter
+ 	 * do not cause nullPointer Exceptions
+ 	 */
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2007-10-24 20:58:35 UTC (rev 989)
++++ trunk/src/CacheWolf/myTableControl.java	2007-10-25 12:05:23 UTC (rev 990)
+@@ -235,7 +235,7 @@
+ 
+ 		if (selectedItem.toString().equals(MyLocale.getMsg(1010,&quot;Goto&quot;))){
+ 			ch = (CacheHolder)cacheDB.get(tbp.getSelectedCache());
+-			Global.mainTab.gotoPoint(ch.LatLon);
++			Global.mainTab.gotoPoint(ch.pos);
+ 		}
+ 		if (selectedItem.toString().equalsIgnoreCase(MyLocale.getMsg(1020,&quot;Open online in Browser&quot;))){
+ 			ch = (CacheHolder)cacheDB.get(tbp.getSelectedCache());
+
+Modified: trunk/src/CacheWolf/navi/Area.java
+===================================================================
+--- trunk/src/CacheWolf/navi/Area.java	2007-10-24 20:58:35 UTC (rev 989)
++++ trunk/src/CacheWolf/navi/Area.java	2007-10-25 12:05:23 UTC (rev 990)
+@@ -1,5 +1,6 @@
+ package CacheWolf.navi;
+ 
++import ewe.util.CharArray;
+ import CacheWolf.CWPoint;
+ 
+ public class Area {
+@@ -86,52 +87,51 @@
+ 				 return AT_LEFT_EDGE;
+ 			 return NOT_ON_EDGE;
+ 	 }
+-	 /*
++	 
++	 /**
++	  * get an easy find string for this area
++	  * @return
++	  */
+ 	 public String getEasyFindString() {
+-		 String ul = getEasyFindString(topleft, 60);
+-		 String br = getEasyFindString(buttomright, 60);
++		 String ul = getEasyFindString(topleft, 30);
++		 String br = getEasyFindString(buttomright, 30);
+ 		 int i;
+ 		 for (i=0; i&lt;br.length(); i++ ) {
+ 			 if (ul.charAt(i) != br.charAt(i)) break;
+ 		 }
+-		 ewe.sys.Vm.debug(ul+&quot;\n&quot;+br+&quot;\n i:&quot;+i);
++		 //ewe.sys.Vm.debug(ul+&quot;\n&quot;+br+&quot;\n i:&quot;+i);
+ 		 return ul.substring(0, i);
+ 	 }
+-	 */
++	 
+ 	 /**
+-	  * 
+-	  * @param prec number of digits to return, min 2, max: 63
++	  * get an easy find string for a given point with precision prec
++	  * @param prec number of digits to return, min 2, max: 30
+ 	  * @return
+ 	  */
+-	 /*
+ 	 public static String getEasyFindString(CWPoint p, int prec) {
+ 		 double longinrange = p.lonDec;
+ 		 if (longinrange &gt; 180) longinrange -= 180;
+-		 Double kw = new Double(((p.latDec+90)/180) * (double) (1l &lt;&lt; (prec)));
+-		 long lat = new Double(((p.latDec+90)/180) * (double) (1l &lt;&lt; (prec))).longValue(); // TODO handle negative values
+-		 lat = kw.longValue();
+-		 kw = (double) (1l &lt;&lt; (prec));
++		 Double kw = new Double(((p.latDec+90)/180) * (double) (1 &lt;&lt; (prec)));
++		 int lat = new Double(((p.latDec+90)/180) * (double) (1 &lt;&lt; (prec))).intValue(); // TODO handle negative values
++		 lat = kw.intValue();
++		 //kw = (double) (1 &lt;&lt; (prec));
+ 		 
+ 		 kw = new Double(((longinrange+180)/360) * (2 ^ (prec -1)));
+-		 long lon = new Double(((longinrange+180)/360) * (double) (1l &lt;&lt; (prec))).longValue(); // 180 = 10110100
++		 int lon = new Double(((longinrange+180)/360) * (double) (1 &lt;&lt; (prec))).intValue(); // 180 = 10110100
+ 		 String ret = &quot;&quot;;
+-		 Long tmp;
++		 int tmp;
+ 		 for (int i=prec-1; i&gt;=0;  i--) {
+-			 tmp = (1l &lt;&lt; i);
+-			 tmp = (lat &amp; (1l &lt;&lt; i));
+-			 tmp = ((lat &amp; (1l &lt;&lt; i)) &gt;&gt; i);
+-			 tmp = ((lon &amp; (1l &lt;&lt; i)) &gt;&gt; i) + (((lat &amp; (1l &lt;&lt; i) ) &lt;&lt; 1) &gt;&gt; i);
+-			 ret += tmp.toString();
++			 tmp = (1 &lt;&lt; i);
++			 tmp = (lat &amp; (1 &lt;&lt; i));
++			 tmp = ((lat &amp; (1 &lt;&lt; i)) &gt;&gt; i);
++			 tmp = ((lon &amp; (1 &lt;&lt; i)) &gt;&gt; i) + (((lat &amp; (1 &lt;&lt; i) ) &lt;&lt; 1) &gt;&gt; i);
++			 ret += Integer.toString(tmp);
+ 		 }
+-/*		 Area cmp = new Area(new CWPoint (90,0), new CWPoint(-90,180));
+-		 if (cmp.isInBound(this)) ret += &quot;0&quot;;
+-		 else ret += &quot;1&quot;;
+-		 int i;
+-		 while (true) {
+-			 for (i=0) 
+-			 break;
+-		 }
+-	*/	/* return ret;
++		 return ret;
+ 	 }
+-*/
++	 
++	 static public boolean containsRoughly(String boundingbox, String q) {
++		 if (boundingbox.length() &lt;= q.length() ) return q.startsWith(boundingbox);
++		 else return boundingbox.startsWith(q);
++	 }
+ }
+\ No newline at end of file
+
+Modified: trunk/src/CacheWolf/navi/GotoPanel.java
+===================================================================
+--- trunk/src/CacheWolf/navi/GotoPanel.java	2007-10-24 20:58:35 UTC (rev 989)
++++ trunk/src/CacheWolf/navi/GotoPanel.java	2007-10-25 12:05:23 UTC (rev 990)
+@@ -2,6 +2,7 @@
+ 
+ import CacheWolf.CWPoint;
+ import CacheWolf.CacheHolder;
++import CacheWolf.CacheType;
+ import CacheWolf.CoordsScreen;
+ import CacheWolf.DetailsPanel;
+ import CacheWolf.Global;
+@@ -210,8 +211,8 @@
+ 	 * set the coords of the destination and switch to gotoPanel  
+ 	 * @param LatLon destination
+ 	 */ 
+-	public void setDestinationAndSwitch(String LatLon) {
+-		myNavigation.setDestination(LatLon);
++	public void setDestinationAndSwitch(CWPoint where) {
++		myNavigation.setDestination(where);
+ 		mainT.select(this);
+ 	}
+ 	
+@@ -389,6 +390,7 @@
+ 				CacheHolder ch = new CacheHolder();
+ 				ch.LatLon = myNavigation.gpsPos.toString();
+ 				ch.pos = new CWPoint(myNavigation.gpsPos);
++			//	ch.type = &quot;51&quot;; // see CacheType.GC_AW_STAGE_OF_MULTI // TODO unfertig
+ 				mainT.newWaypoint(ch);
+ 			}
+ 			// change destination waypoint
+
+Modified: trunk/src/CacheWolf/navi/MapInfoObject.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MapInfoObject.java	2007-10-24 20:58:35 UTC (rev 989)
++++ trunk/src/CacheWolf/navi/MapInfoObject.java	2007-10-25 12:05:23 UTC (rev 990)
+@@ -385,6 +385,16 @@
+ 		return calcLatLon(p.x, p.y);
+ 	}
+ 	
++	/**
++	 * Get the prefix used for easy and fast finding of the best map
++	 * The filname of the .wfl and respective image should start with this
++	 * prefix in order to make finding the best map much faster 
++	 * @return
++	 */
++	public String getFfPrefix() {
++		return &quot;FF1&quot;+getEasyFindString()+&quot;E-&quot;;
++	}
++	
+ /*	public Area getArea(){
+ 		return new Area(new CWPoint(topleft), new CWPoint(buttomright));
+ 	} */
+
+Modified: trunk/src/CacheWolf/navi/MapLoader.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MapLoader.java	2007-10-24 20:58:35 UTC (rev 989)
++++ trunk/src/CacheWolf/navi/MapLoader.java	2007-10-25 12:05:23 UTC (rev 990)
+@@ -168,6 +168,17 @@
+ 		ByteArray daten;
+ 		String quelle = new String();
+ 		String zone;
++		// prepare MapInfoObject and get fileprefix
++		File dateiF = new File(datei); // change!!!
++		String tmp = dateiF.getName(); // contains the name and the extension
++		String name = tmp.substring(0, tmp.lastIndexOf(&quot;.&quot;));
++		float metersPerPixel = (float) (alti)*EXPEDIA_METERS_PER_PIXEL;
++		MapInfoObject cal = new MapInfoObject(metersPerPixel, new CWPoint(lat,lon),  PixelWidth, PixelHeight, name);
++		String pref = cal.getFfPrefix();
++		cal.mapName = pref + cal.mapName;
++		cal.fileNameWFL = pref + cal.fileNameWFL;
++		datei = dateiF.getPath()+&quot;/&quot;+ pref + tmp;
++		// download image
+ 		if (lon &lt;= -10) zone = &quot;USA0409&quot;;
+ 		else zone = &quot;EUR0809&quot;;
+ 
+@@ -200,7 +211,7 @@
+ 		connImg.setRequestorProperty(&quot;Cookie&quot;, &quot;jscript=1; path=/;&quot;);
+ 		connImg.documentIsEncoded = true;
+ 		try{
+-			File dateiF = new File(datei);
++			dateiF = new File(datei);
+ 			if(!dateiF.exists()){
+ 				int i=0;
+ 				quelle = null;
+@@ -232,13 +243,8 @@
+ 		}catch(IOException e){
+ 			(new MessageBox(&quot;Error&quot;, &quot;Error while downloading or saving map:\n&quot;+e.getMessage(), MessageBox.OKB)).exec();
+ 		}
+-		File dateiF = new File(datei); // change!!!
+-		String tmp = dateiF.getName(); // contains the name and the extension
+-		String name = tmp.substring(0, tmp.lastIndexOf(&quot;.&quot;));
+-		float metersPerPixel = (float) (alti)*EXPEDIA_METERS_PER_PIXEL;
+-		MapInfoObject cal = new MapInfoObject(metersPerPixel, new CWPoint(lat,lon),  PixelWidth, PixelHeight, dateiF.getPath()+&quot;/&quot;+name);
+ 		try {
+-		cal.saveWFL(dateiF.getDrivePath(), name);
++		cal.saveWFL(dateiF.getDrivePath(), cal.fileNameWFL);
+ 		} catch (IOException e) {
+ 			(new MessageBox(&quot;Error&quot;, &quot;Error saving calibration file:\n&quot;+e.getMessage(), MessageBox.OKB)).exec();
+ 		}
+
+Modified: trunk/src/CacheWolf/navi/MapsList.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MapsList.java	2007-10-24 20:58:35 UTC (rev 989)
++++ trunk/src/CacheWolf/navi/MapsList.java	2007-10-25 12:05:23 UTC (rev 990)
+@@ -1,12 +1,19 @@
+ package CacheWolf.navi;
+ 
+ import CacheWolf.CWPoint;
++import CacheWolf.Common;
++import CacheWolf.InfoBox;
+ import utils.FileBugfix;
++import ewe.io.CompressedRandomStream;
+ import ewe.io.File;
+ import ewe.io.IOException;
+ import ewe.sys.Double;
++import ewe.sys.Time;
+ import ewe.ui.MessageBox;
++import ewe.util.Comparable;
++import ewe.util.Comparer;
+ import ewe.util.Hashtable;
++import ewe.util.StandardComparer;
+ import ewe.util.Vector;
+ import ewe.fx.*;
+ /**
+@@ -18,7 +25,6 @@
+  */
+ public class MapsList extends Vector {
+ 	public static float scaleTolerance = 1.15f; // absolute deviations from this factor are seen to have the same scale
+-	public Hashtable scales2Area;
+ 
+ 	/**
+ 	 * loads alle the maps in mapsPath in all subDirs but not recursive, only one level 
+@@ -35,8 +41,11 @@
+ 		if (dirstmp != null) dirs = new Vector(dirstmp);
+ 		else dirs = new Vector();
+ 		dirs.add(&quot;.&quot;); // include the mapsPath itself
+-		MapInfoObject tempMIO;
+-		MessageBox f = null;
++		MapListEntry tempMIO;
++		MessageBox f = null; 
++		// sort(new StandardComparer(), false);
++
++		
+ 		for (int j = dirs.size()-1; j &gt;= 0; j--) {
+ 			files = new FileBugfix(mapsPath+&quot;/&quot;+dirs.get(j));
+ 			//ewe.sys.Vm.debug(&quot;mapd-Dirs:&quot;+files);
+@@ -46,48 +55,57 @@
+ 				rawFileName = dateien[i].substring(0, dateien[i].lastIndexOf(&quot;.&quot;));
+ 				try {
+ 					if (dirs.get(j).equals(&quot;.&quot;)) // the notation dir/./filename doesn't work on all platforms anyhow
+-						tempMIO = new MapInfoObject(mapsPath+&quot;/&quot;, rawFileName);
+-					else tempMIO = new MapInfoObject(mapsPath+&quot;/&quot;+dirs.get(j)+&quot;/&quot;, rawFileName);
++						tempMIO = new MapListEntry(mapsPath+&quot;/&quot;, rawFileName);
++					else tempMIO = new MapListEntry(mapsPath+&quot;/&quot;+dirs.get(j)+&quot;/&quot;, rawFileName);
+ 					add(tempMIO);
+-			//		ewe.sys.Vm.debug(tempMIO.getEasyFindString() + tempMIO.mapName);
+-				}catch(IOException ex){ 
++					//ewe.sys.Vm.debug(tempMIO.getEasyFindString() + tempMIO.mapName);
++				}catch(Exception ex){ // TODO exception ist, glaub ich evtl &#252;berfl&#252;ssig 
+ 					if (f == null) (f=new MessageBox(&quot;Warning&quot;, &quot;Ignoring error while \n reading calibration file \n&quot;+ex.toString(), MessageBox.OKB)).exec();
+-				}catch(ArithmeticException ex){ // affine contain not allowed values 
++				} /* catch(ArithmeticException ex){ // affine contain not allowed values 
+ 					if (f == null) (f=new MessageBox(&quot;Warning&quot;, &quot;Ignoring error while \n reading calibration file \n&quot;+ex.toString(), MessageBox.OKB)).exec();
+-				} 
++				} */
+ 			}
+ 		}
++		if (MapListEntry.rename == 1) MapListEntry.loadingFinished();
+ 	}
+ 
+ 	public void addEmptyMaps(double lat) {
+-		MapInfoObject tempMIO;
+-		tempMIO = new MapInfoObject(1.0, lat);
++		MapListEntry tempMIO; 
++		tempMIO = new MapListEntry(1.0, lat);
+ 		add(tempMIO);
+-		tempMIO = new MapInfoObject(5.0, lat);
++		tempMIO = new MapListEntry(5.0, lat);
+ 		add(tempMIO);
+-		tempMIO = new MapInfoObject(50.0, lat);
++		tempMIO = new MapListEntry(50.0, lat);
+ 		add(tempMIO);
+-		tempMIO = new MapInfoObject(250.0, lat);
++		tempMIO = new MapListEntry(250.0, lat);
+ 		add(tempMIO);
+-		tempMIO = new MapInfoObject(1000.0, lat);
++		tempMIO = new MapListEntry(1000.0, lat);
+ 		add(tempMIO);
+ 	}
+-
++     
++	/* diese Routine wird gegenw&#228;rtig f&#252;r 3 ZWecke verwendet:
++	 * a) normal - keep given resolution --&gt; L&#246;sung: &#252;bergebene scale nutzen f&#252;r screen
++	 * b) highest res: Ziel: Karte mit h&#246;chster Aufl&#246;sung, die im screen ist und m&#246;glichst nah an lat/lon -&gt; ich muss aufl&#246;sung noch in Dateinamen schreiben
++	 * c) gegenteil von b)
++	 */
+ 	/**
+ 	 * find the best map for lat/lon in the list of maps
+-	 * currently the best map is the one, whose centre is nearest to lat/lon
++	 * @param lat a point to be inside the map
++	 * @param lon
++	 * @param screen: width, height of the screen. The map must overlap the screen. xy: where is lat/lon on screen
++	 * @param scale scale wanted
++	 * currently the best map is the one, whose center is nearest to lat/lon
+ 	 * and in Area with its scale nearest to scale.
+-	 * it always returns a map (if the list is not empty) 
+-	 * even if the map is not inbound
+-	 * lat/lon
+-	 * @param lat
+-	 * @param lon
++	 * it always returns a map (if the list is not empty) as long as it overlaps the screen
+ 	 * @param forceScale: when true, return null if no map with specified scale could be found
+-	 * @return
+ 	 */
+ 	public MapInfoObject getBestMap(double lat, double lon, Rect screen, float scale, boolean forceScale) {
+ 		if (size() == 0) return null;
+-		if (scales2Area != null) scales2Area.clear();
++		long start = new Time().getTime();
++		InfoBox progressBox = null;
++		boolean showprogress = false;
++		String cmp = &quot;FF1&quot;+Area.getEasyFindString(new CWPoint(lat, lon), 30);
++		MapListEntry ml;
+ 		MapInfoObject mi;
+ 		MapInfoObject bestMap = null; // = (MapInfoObject)get(0);
+ 		double minDistLat = 1000000000000000000000000000000000000000000000.0;
+@@ -96,9 +114,22 @@
+ 		boolean better = false;
+ 		Area screenArea = null; // getAreaForScreen(screen, lat, lon, bestMap.scale, bestMap);
+ 		float lastscale = -1;
+-		for (int i=size()-1; i &gt;= 0 ;i--) { 
++		int testkw = 0;
++		for (int i=size()-1; i &gt;= 0 ;i--) {
++			if (!showprogress &amp;&amp; ((i &amp; 31) == 0) &amp;&amp; (new Time().getTime()-start  &gt; 100) ) { // reason for (i &amp; 7 == 0): test time only after i is incremented 15 times
++				showprogress = true;      
++				progressBox = new InfoBox(&quot;Info&quot;, &quot;Searching for best map&quot;);
++				progressBox.exec(); 
++				progressBox.waitUntilPainted(100);
++				ewe.sys.Vm.showWait(true);
++			}
++			ml = (MapListEntry)get(i);
++			try {
++				if (!Area.containsRoughly(ml.sortEntryBBox, cmp)) continue; // TODO if no map available
++				else { mi = ml.getMap(); testkw++;}
++			} catch (IOException ex) {continue; } // could not read .wfl-file
+ 			better = false;
+-			mi = (MapInfoObject)get(i);
++//			mi = (MapInfoObject)get(i);
+ 			if (screenArea == null || !scaleEquals(lastscale, mi) ) {
+ 				screenArea = getAreaForScreen(screen, lat, lon, mi.scale, mi);
+ 				lastscale = mi.scale;
+@@ -128,40 +159,60 @@
+ 				}
+ 			}
+ 		}
++		if (progressBox != null) {
++			progressBox.close(0);
++			ewe.sys.Vm.showWait(false);
++		}
+ 		if (bestMap == null) return null;
+ 		return new MapInfoObject(bestMap); // return a copy of the MapInfoObject so that zooming won't change the MapInfoObject in the list 
+ 	}
+ 	/*
+-	public MapInfoObject getBestMapNotStrictScale(double lat, double lon, Area screen, float scale) {
++	public MapInfoObject getBestMapNotStrictSciale(double lat, double lon, Area screen, float scale) {
+ 		MapInfoObject ret = getBestMap(lat, lon, screen, scale, true);
+ 		if (ret == null) ret = getBestMap(lat, lon, screen, scale, false);
+ 		return ret;
+ 	}
+-	 */
++	 */ 
+ 	/**
+ 	 * @return a map which includs topleft and bottomright, 
+ 	 * if no map includes both it returns null
+ 	 * @param if more than one map includes topleft and bottomright than the one will
+-	 * be returned which has its centre nearest to topleft. If you have gps-pos and goto-pos
++	 * be returned which has its center nearest to topleft. If you have gps-pos and goto-pos
+ 	 * as topleft and buttomright use gps as topleft.
+ 	 * if topleft is really topleft or if it is buttomright is not relevant.  
+ 	 */
+-	
++
+ 	public MapInfoObject getMapForArea(CWPoint topleft, CWPoint bottomright){
++		long start = new Time().getTime();
++		InfoBox progressBox = null;
++		boolean showprogress = false;
++		MapListEntry ml;
+ 		MapInfoObject mi;
++		String cmp = &quot;FF1&quot;+(new Area(topleft, bottomright)).getEasyFindString();
+ 		MapInfoObject fittingmap = null;
+ 		boolean latNearer, lonNearer;
+ 		boolean better;
+ 		double minDistLat = 10000000000000000000000.0;
+ 		double minDistLon = 10000000000000000000000.0;
+ 		for (int i=size() -1; i&gt;=0 ;i--) {
++			if (!showprogress &amp;&amp; ((i &amp; 31) == 0) &amp;&amp; (new Time().getTime()-start  &gt; 100) ) { // reason for (i &amp; 7 == 0): test time only after i is incremented 15 times
++				showprogress = true;      
++				progressBox = new InfoBox(&quot;Info&quot;, &quot;Searching for best map&quot;);
++				progressBox.exec(); 
++				progressBox.waitUntilPainted(100);
++				ewe.sys.Vm.showWait(true);
++			}
++			ml = (MapListEntry)get(i);
++			try {
++				if (!Area.containsRoughly(ml.sortEntryBBox, cmp)) continue; // TODO if no map available
++				else { mi = ml.getMap();}
++			} catch (IOException ex) {continue; } // could not read .wfl-file
+ 			better = false;
+-			mi = (MapInfoObject)get(i);
+ 			if (mi.isInBound(topleft) &amp;&amp; mi.isInBound(bottomright)) { // both points are inside the map
+ 				if (fittingmap == null || fittingmap.scale &gt; mi.scale * scaleTolerance) {
+ 					better = true; // mi map has a better (lower) scale than the last knwon good map
+ 				} else {
+-					if (fittingmap != null &amp;&amp; scaleEquals(mi, fittingmap)) { // same scale as bestmap till now -&gt; test if its centre is nearer to the gps-point = topleft
++					if (fittingmap != null &amp;&amp; scaleEquals(mi, fittingmap)) { // same scale as bestmap till now -&gt; test if its center is nearer to the gps-point = topleft
+ 						latNearer = java.lang.Math.abs(topleft.latDec- mi.center.latDec)/mi.sizeKm &lt; minDistLat ;
+ 						lonNearer = java.lang.Math.abs(topleft.lonDec - mi.center.lonDec)/mi.sizeKm &lt; minDistLon;
+ 						if ( latNearer &amp;&amp; lonNearer) better = true; // for faster processing: if lat and lon are nearer then the distancance doesn't need to be calculated
+@@ -180,6 +231,10 @@
+ 				}
+ 			}
+ 		} // for
++		if (progressBox != null) {
++			progressBox.close(0);
++			ewe.sys.Vm.showWait(false);
++		}
+ 		if (fittingmap == null) return null;
+ 		return new MapInfoObject(fittingmap);
+ 	}
+@@ -195,7 +250,10 @@
+ 	 */
+ 	public MapInfoObject getMapChangeResolution(double lat, double lon, Rect screen, float curScale, boolean moreDetails){
+ 		if (size() == 0) return null;
+-		if (scales2Area != null) scales2Area.clear();
++		long start = new Time().getTime();
++		InfoBox progressBox = null;
++		boolean showprogress = false;
++		MapListEntry ml;
+ 		MapInfoObject mi;
+ 		MapInfoObject bestMap = null; // = (MapInfoObject)get(0);
+ 		double minDistLat = 1000000000000000000000000000000000000000000000.0;
+@@ -204,9 +262,21 @@
+ 		boolean better = false;
+ 		Area screenArea = null; // getAreaForScreen(screen, lat, lon, bestMap.scale, bestMap);
+ 		float lastscale = -1;
++		String cmp = &quot;FF1&quot;+Area.getEasyFindString(new CWPoint(lat, lon), 30);
+ 		for (int i=size()-1; i &gt;= 0 ;i--) { 
++			if (!showprogress &amp;&amp; ((i &amp; 31) == 0) &amp;&amp; (new Time().getTime()-start  &gt; 100) ) { // reason for (i &amp; 7 == 0): test time only after i is incremented 15 times
++				showprogress = true;      
++				progressBox = new InfoBox(&quot;Info&quot;, &quot;Searching for best map&quot;);
++				progressBox.exec(); 
++				progressBox.waitUntilPainted(100);
++				ewe.sys.Vm.showWait(true);
++			}
+ 			better = false;
+-			mi = (MapInfoObject)get(i);
++			ml = (MapListEntry)get(i);
++			try {
++				if (!Area.containsRoughly(ml.sortEntryBBox, cmp)) continue; // TODO if no map available
++				else { mi = ml.getMap();}
++			} catch (IOException ex) {continue; } // could not read .wfl-file
+ 			if (mi.fileNameWFL == &quot;&quot;) continue; // exclude &quot;maps&quot; without image // TODO make this a boolean in MapInfoObject
+ 			if (screenArea == null || !scaleEquals(lastscale, mi)) {
+ 				screenArea = getAreaForScreen(screen, lat, lon, mi.scale, mi);
+@@ -236,6 +306,10 @@
+ 				}
+ 			}
+ 		}
++		if (progressBox != null) {
++			progressBox.close(0);
++			ewe.sys.Vm.showWait(false);
++		}
+ 		if (bestMap == null) return null;
+ 		return new MapInfoObject(bestMap);
+ 	}
+@@ -250,14 +324,9 @@
+ 	 */
+ 	private Area getAreaForScreen(Rect a, double lat, double lon, float scale, MapInfoObject map) {
+ 		Area ret = null;
+-/*		if (scales2Area == null) scales2Area = new Hashtable();
+-		else ret = (Area)scales2Area.get(scale);
+-		if (ret != null) return ret;
+-	*/	// calculate screen Area
+ 		Point xy = map.calcMapXY(lat, lon);
+ 		Point topleft = new Point(xy.x - a.x, xy.y - a.y);
+ 		ret = new Area(map.calcLatLon(topleft), map.calcLatLon(topleft.x+a.width, topleft.y+a.height));
+-		//scales2Area.put(new Float(scale), ret);
+ 		return ret; 
+ 	}
+ 	public static boolean scaleEquals(MapInfoObject a, MapInfoObject b) {
+@@ -270,7 +339,7 @@
+ 		if (s &gt; b.scale) return s / b.scale &lt; scaleTolerance;
+ 		else return b.scale / s &lt; scaleTolerance;
+ 	}
+-	
++
+ 	/**
+ 	 * 
+ 	 * @param test
+@@ -315,7 +384,21 @@
+ 		}
+ 		return testa/wanta &lt; olda/wantb * scaleTolerance ; 
+ 	}
+-
++	
++	/* may be the following code is used same time later to further enhance the speed of finding the best map
++	public int getQuickMap(String search){
++		boolean found = false; // TODO unfertig
++		int upperbound = 0;
++		int downbound = size();
++		int test;
++		while (!found) {
++			test = (upperbound + downbound)/2;
++			if ( ((Comparable)(get(test))).compareTo(search) &lt; 0) downbound = test;
++			else upperbound = test;
++		}
++		return 1;
++	}
++*/
+ 	/** for determining if a new map should be downloaded
+ 	public boolean isInAmap(CWPoint topleft, CWPoint buttomright) {
+ 		if (!latRangeList.isInRange(topleft.latDec) || !latRangeList.isInRange(buttomright.latDec)) ||
+@@ -324,3 +407,91 @@
+ 	}
+ 	 */
+ }
++
++class MapListEntry /*implements Comparable */ {
++	String sortEntryBBox;
++	//String sortEntry;
++	String filename;
++	String path;
++	MapInfoObject map;
++	static int rename = 0;
++	static int renameCounter = 0;
++	static InfoBox renameProgressInfoB = null;
++
++	public MapListEntry (String pathi, String filenamei) {
++		filename = new String(filenamei);
++		path = new String(pathi);
++		sortEntryBBox = null;
++		map = null;
++		/*
++		try {map = new MapInfoObject(path, filename); } catch (Exception e) {
++			// TODO: handle exception
++		}
++		
++		ewe.sys.Vm.debug(&quot;centerID: &quot;+map.getCenterID());
++		ewe.sys.Vm.debug(&quot;PxID: &quot;+map.getPxSizeID());
++		ewe.sys.Vm.debug(&quot;scaleID: &quot;+map.getScaleID()+&quot;scale: &quot;+map.scale);
++		*/
++		try {
++			if (filenamei.startsWith(&quot;FF1&quot;)) sortEntryBBox = filenamei.substring(0, filenamei.indexOf(&quot;E-&quot;));
++		} catch (IndexOutOfBoundsException ex) { }
++		if (sortEntryBBox == null ) { //|| sortEntryScaleCenterPx.length() &lt; 16) {
++			try {
++				map = new MapInfoObject(path, filename);
++				sortEntryBBox = &quot;FF1&quot;+map.getEasyFindString();
++				ewe.sys.Vm.debug(sortEntryBBox + &quot;: &quot;+filename);
++				if (rename == 0) { // never asked before
++					if ( (new MessageBox(&quot;Optmisiation&quot;, &quot;Cachewolf can make loading maps much faster by adding a identification mark to the filename. Do you want me to do this now?\n It can take several minutes&quot;, 
++							MessageBox.YESB | MessageBox.NOB)).execute() == MessageBox.IDYES)
++					{
++						renameProgressInfoB = new InfoBox(&quot;Info&quot;, &quot;\nRenaming file:    \n&quot;);
++						renameProgressInfoB.exec();
++						renameProgressInfoB.waitUntilPainted(100);
++						rename = 1; // rename
++					} else rename = 2; // don't rename
++				}
++				if (rename == 1) {
++					renameCounter++;
++					renameProgressInfoB.setInfo(&quot;\nRenaming file: &quot; + renameCounter+&quot;\n&quot;);
++					String f = path+filename+&quot;.wfl&quot;;
++					String to = sortEntryBBox+&quot;E-&quot;+filename+&quot;.wfl&quot;;
++					if (!new File(f).rename(to))
++						(new MessageBox(&quot;Error&quot;, &quot;Failed to rename:\n&quot;+f+&quot;.wfl&quot;+&quot;\nto:\n&quot;+to, MessageBox.OKB)).exec();
++					f = Common.getImageName(path+filename);
++					to = sortEntryBBox+&quot;E-&quot;+filename+Common.getFilenameExtension(f);
++					if (!new File(f).rename(to)) 
++						(new MessageBox(&quot;Error&quot;, &quot;Failed to rename:\n&quot;+f+&quot;.wfl&quot;+&quot;\nto:\n&quot;+to, MessageBox.OKB)).exec();
++					filename = sortEntryBBox+&quot;E-&quot;+filename;
++					map.mapName = sortEntryBBox+&quot;E-&quot;+map.mapName;
++					map.fileNameWFL = path + filename + &quot;.wfl&quot;;
++				}
++			} catch (IOException ioex) { // this should not happen
++				(new MessageBox(&quot;Error&quot;, &quot;Error while reading: &quot;+path+filename+&quot;: &quot;+ ioex.getMessage(), MessageBox.OKB)).exec();
++			}
++		}
++	}
++	
++	public MapListEntry(double scale, double lat) {
++		map = new MapInfoObject(scale, lat);
++		filename = map.mapName;
++		sortEntryBBox = &quot;FF1&quot;;
++	}
++	
++	public MapInfoObject getMap() throws IOException {
++		if (map == null) map = new MapInfoObject(path, filename);
++		return map;
++	}
++	
++	public static void loadingFinished() {
++		if (renameProgressInfoB != null) renameProgressInfoB.close(0);
++		renameProgressInfoB = null;
++	}
++	
++	/*
++	// this maybe needed some time later to further enhance the speed of finding the best map
++	public int compareTo(Object other) {
++		if (other == null) return 1;
++		return this.sortEntryBBox.compareTo(((MapListEntry)other).sortEntryBBox);
++	} */
++}
++
+
+Modified: trunk/src/CacheWolf/navi/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MovingMap.java	2007-10-24 20:58:35 UTC (rev 989)
++++ trunk/src/CacheWolf/navi/MovingMap.java	2007-10-25 12:05:23 UTC (rev 990)
+@@ -1093,11 +1093,12 @@
+ 			String ImageFilename = currentMap.getImageFilename(); 
+ 			if (ImageFilename == null ) {
+ 				mmp.mapImage = new MapImage();
++				maps.remove(currentMap);
+ 				(new MessageBox(&quot;Error&quot;, &quot;Could not find image associated with: \n&quot;+currentMap.fileNameWFL, MessageBox.OKB)).execute();
+ 			}
+ 			else { 
+ 				if (ImageFilename.length() &gt; 0) mmp.mapImage = new MapImage(ImageFilename); // attention: when running in native java-vm, no exception will be thrown, not even OutOfMemeoryError
+-				else mmp.mapImage = new MapImage();
++				else mmp.mapImage = new MapImage(); // no image associated with the calibration info (&quot;empty map&quot;)
+ 			}
+ 			mapImage1to1 = mmp.mapImage;
+ 			mmp.mapImage.properties = mmp.mapImage.properties | AniImage.IsMoveable;
+@@ -1145,7 +1146,7 @@
+ 				mmp.mapImage = null; mapImage1to1 = mmp.mapImage;
+ 			}
+ 			addOverlaySet();
+-			updateOnlyPosition(lat, lon, false);
++			updateOnlyPosition(lat, lon, false); // TODO this doesn't work correctly if the resolution changed, I guess because the pixels of PosCircle will be interpreted from the new resolution, but should be interpreted using the old resolution to test: select a map with a much greater value of m per pixel manually 
+ 			inf.close(0);
+ 			Vm.showWait(false);
+ 			(new MessageBox(&quot;Error&quot;, &quot;Not enough ressources to load map: &quot;+ newmap.getImageFilename()+&quot;\nYou can try to close\n all prgrams and \nrestart CacheWolf&quot;, MessageBox.OKB)).execute();
+@@ -1755,6 +1756,8 @@
+ 		this.setPreferredSize(java.lang.Math.max(MyLocale.getScreenWidth()*3/4, java.lang.Math.min(240, MyLocale.getScreenWidth()) ), MyLocale.getScreenHeight()*3/4);
+ 		this.maps = maps;
+ 		MapInfoObject map;
++		MapListEntry ml;
++		String cmp;
+ 		ScrollBarPanel scb;
+ 		int oldmap = -1;
+ 		boolean curMapFound = false;
+@@ -1764,8 +1767,13 @@
+ 		if (gotopos != null &amp;&amp; Gps != null) {
+ 			list.addItem(&quot;--- Karten von akt. Position und Ziel ---&quot;);
+ 			row++;
++			cmp = &quot;FF1&quot;+(new Area(new CWPoint(Gps.latDec, Gps.lonDec), gotopos)).getEasyFindString();
+ 			for(int i = 0; i&lt;maps.size();i++){
+-				map = new MapInfoObject((MapInfoObject)maps.get(i));
++				ml = (MapListEntry)maps.get(i);
++				try {
++					if (!Area.containsRoughly(ml.sortEntryBBox, cmp)) continue; // TODO if no map available
++					else { map = ml.getMap();}
++				} catch (IOException ex) {continue; } // could not read .wfl-file
+ 				if( map.isInBound(Gps.latDec, Gps.lonDec) &amp;&amp; map.isInBound(gotopos) ) 
+ 				{
+ 					list.addItem(i + &quot;: &quot; + map.mapName);
+@@ -1778,9 +1786,13 @@
+ 		if (Gps != null) {
+ 			list.addItem(&quot;--- Karten der aktuellen Position ---&quot;);
+ 			row++;
++			cmp = &quot;FF1&quot;+Area.getEasyFindString(new CWPoint(Gps.latDec, Gps.lonDec), 30);
+ 			for(int i = 0; i&lt;maps.size();i++){
+-				map = new MapInfoObject((MapInfoObject)maps.get(i));
+-				if (map.isInBound(Gps.latDec, Gps.lonDec) == true) 
++				ml = (MapListEntry)maps.get(i);
++				try {
++					if (!Area.containsRoughly(ml.sortEntryBBox, cmp)) continue; // TODO if no map available
++					else { map = ml.getMap();}
++				} catch (IOException ex) {continue; } // could not read .wfl-file
+ 				{
+ 					list.addItem(i + &quot;: &quot; + map.mapName);
+ 					row++;
+@@ -1792,8 +1804,13 @@
+ 		if (gotopos != null) {
+ 			list.addItem(&quot;--- Karten des Ziels ---&quot;);
+ 			row++;
++			cmp = &quot;FF1&quot;+Area.getEasyFindString(gotopos, 30);
+ 			for(int i = 0; i&lt;maps.size();i++){
+-				map = new MapInfoObject((MapInfoObject)maps.get(i));
++				ml = (MapListEntry)maps.get(i);
++				try {
++					if (!Area.containsRoughly(ml.sortEntryBBox, cmp)) continue; // TODO if no map available
++					else { map = ml.getMap();}
++				} catch (IOException ex) {continue; } // could not read .wfl-file
+ 				if(map.isInBound(gotopos)) {
+ 					list.addItem(i + &quot;: &quot; + map.mapName);
+ 					row++;
+@@ -1805,11 +1822,11 @@
+ 		list.addItem(&quot;--- andere Karten ---&quot;);
+ 		row++;
+ 		for(int i = 0; i&lt;maps.size();i++){
+-			map = new MapInfoObject((MapInfoObject)maps.get(i));
++			ml = (MapListEntry)maps.get(i);
+ 			if(!inList[i]) {
+-				list.addItem(i + &quot;: &quot; + map.mapName);
++				list.addItem(i + &quot;: &quot; + ml.filename);
+ 				row++;
+-				if (!curMapFound  &amp;&amp; map.mapName.equals(curMap.mapName)) { oldmap = row; curMapFound = true; }
++				if (!curMapFound &amp;&amp; ml.filename.equals(curMap.mapName)) { oldmap = row; curMapFound = true; }
+ 			}
+ 		}
+ 		list.selectItem(oldmap, true);
+@@ -1846,9 +1863,13 @@
+ 				it = it.substring(0,it.indexOf(':'));
+ 				mapNum = Convert.toInt(it);
+ 				//	Vm.debug(&quot;Kartennummer: &quot; + mapNum);
+-				selectedMap = (MapInfoObject)maps.get(mapNum);
++				try {
++				selectedMap = ((MapListEntry)maps.get(mapNum)).getMap();
+ 				selected = true;
+ 				this.close(FormBase.IDOK);
++				} catch (IOException e) {
++					(new MessageBox(&quot;Error&quot;, &quot;Cannot load wfl-file: \n&quot; + ((MapListEntry)maps.get(mapNum)).filename, MessageBox.OKB)).execute();
++				}
+ 			}
+ 			else {
+ 				selected = false;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000882.html">[Cachewolf-svn] r989 - trunk/resources
+</A></li>
+	<LI>Next message: <A HREF="000884.html">[Cachewolf-svn] r991 - in trunk/src/CacheWolf: . navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#883">[ date ]</a>
+              <a href="thread.html#883">[ thread ]</a>
+              <a href="subject.html#883">[ subject ]</a>
+              <a href="author.html#883">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

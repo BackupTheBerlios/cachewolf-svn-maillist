@@ -1,0 +1,231 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1248 - in trunk/src/CacheWolf: . navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-March/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1248%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C200803161607.m2GG7Psk002122%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001141.html">
+   <LINK REL="Next"  HREF="001143.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1248 - in trunk/src/CacheWolf: . navi</H1>
+    <B>mik77 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1248%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C200803161607.m2GG7Psk002122%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1248 - in trunk/src/CacheWolf: . navi">mik77 at mail.berlios.de
+       </A><BR>
+    <I>Sun Mar 16 17:07:25 CET 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001141.html">[Cachewolf-svn] r1247 - in trunk/docs/CacheWolf Doku: . pics
+</A></li>
+        <LI>Next message: <A HREF="001143.html">[Cachewolf-svn] r1249 - in trunk: res_noewe res_noewe/languages	src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1142">[ date ]</a>
+              <a href="thread.html#1142">[ thread ]</a>
+              <a href="subject.html#1142">[ subject ]</a>
+              <a href="author.html#1142">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mik77
+Date: 2008-03-16 17:07:20 +0100 (Sun, 16 Mar 2008)
+New Revision: 1248
+
+Modified:
+   trunk/src/CacheWolf/OCXMLImporter.java
+   trunk/src/CacheWolf/OCXMLImporterScreen.java
+   trunk/src/CacheWolf/Profile.java
+   trunk/src/CacheWolf/SpiderGC.java
+   trunk/src/CacheWolf/navi/MapLoaderGui.java
+Log:
+OC download now always converts decimal separator of distance to &quot;.&quot;
+Last used GC spider distance is now saved per profile. (Fallback to OC distance and vice versa)
+
+Modified: trunk/src/CacheWolf/OCXMLImporter.java
+===================================================================
+--- trunk/src/CacheWolf/OCXMLImporter.java	2008-03-16 12:19:19 UTC (rev 1247)
++++ trunk/src/CacheWolf/OCXMLImporter.java	2008-03-16 16:07:20 UTC (rev 1248)
+@@ -163,7 +163,7 @@
+ 		
+ 		Double distDouble = new Double();
+ 		distDouble.value = Common.parseDouble(dist);
+-		dist = distDouble.toString(0, 3, 0);
++		dist = distDouble.toString(0, 1, 0).replace(',', '.');
+ 		//check, if distance is greater than before
+ 		if (Convert.toInt(dist) &gt; Convert.toInt(profile.distOC) ||
+ 				pref.downloadmissingOC  ){
+
+Modified: trunk/src/CacheWolf/OCXMLImporterScreen.java
+===================================================================
+--- trunk/src/CacheWolf/OCXMLImporterScreen.java	2008-03-16 12:19:19 UTC (rev 1247)
++++ trunk/src/CacheWolf/OCXMLImporterScreen.java	2008-03-16 16:07:20 UTC (rev 1248)
+@@ -23,6 +23,7 @@
+ 	static int IMAGES = 2;
+ 	static int ALL = 4;
+ 	static int INCLUDEFOUND = 8;
++	static int ISGC = 16;
+ 
+ 	
+ 	public OCXMLImporterScreen(String title, int options) {
+@@ -33,7 +34,19 @@
+ 		if ((options &amp; DIST) &gt; 0) {
+ 			this.addNext(distLbl = new mLabel(MyLocale.getMsg(1601,&quot;Distance:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 			distanceInput = new mInput();
+-			distanceInput.setText(Global.getProfile().distOC);
++			String dist1;
++			String dist2;
++			if ((options &amp; ISGC) &gt; 0) {
++				dist1 = Global.getProfile().distGC;
++				dist2 = Global.getProfile().distOC;
++			} else {
++				dist1 = Global.getProfile().distOC;
++				dist2 = Global.getProfile().distGC;
++			}
++			if ( dist1.equals(&quot;&quot;) || dist1.equals(&quot;0&quot;) || dist1.equals(&quot;0.0&quot;) ) {
++				dist1 = dist2;
++			}
++			distanceInput.setText(dist1);
+ 			this.addNext(distanceInput,CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 			this.addLast(distUnit = new mLabel(&quot; km&quot;),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		}
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2008-03-16 12:19:19 UTC (rev 1247)
++++ trunk/src/CacheWolf/Profile.java	2008-03-16 16:07:20 UTC (rev 1248)
+@@ -39,6 +39,8 @@
+ 	public String last_sync_opencaching = new String();
+ 	/** Distance for opencaching caches */
+ 	public String distOC = new String();
++	/** Distance for geocaching caches */
++	public String distGC = new String();
+ 
+ 	public final static boolean SHOW_PROGRESS_BAR = true;
+ 	public final static boolean NO_SHOW_PROGRESS_BAR = false;
+@@ -90,6 +92,7 @@
+ 		dataDir=&quot;&quot;;  
+ 		last_sync_opencaching = &quot;&quot;;
+ 		distOC = &quot;&quot;;
++		distGC = &quot;&quot;;
+ 		hasUnsavedChanges=false;
+ 	}
+ 
+@@ -147,14 +150,18 @@
+ 				last_sync_opencaching = &quot;20050801000000&quot;;
+ 			}
+ 			if(distOC == null || distOC.endsWith(&quot;null&quot;) || distOC.equals(&quot;&quot;)){
+-				distOC = &quot;0&quot;;
++				distOC = &quot;0.0&quot;;
+ 			}
++			if(distGC == null || distGC.endsWith(&quot;null&quot;) || distGC.equals(&quot;&quot;)){
++				distGC = &quot;0.0&quot;;
++			}
+ 
+ 			detfile.print(&quot;    &lt;FILTER status = \&quot;&quot;+filterActive+(filterInverted?&quot;T&quot;:&quot;F&quot;)+ 
+ 					&quot;\&quot; rose = \&quot;&quot;+filterRose+&quot;\&quot; type = \&quot;&quot;+filterType+
+ 					&quot;\&quot; var = \&quot;&quot;+filterVar+&quot;\&quot; dist = \&quot;&quot;+filterDist.replace('&quot;',' ')+&quot;\&quot; diff = \&quot;&quot;+
+ 					filterDiff+&quot;\&quot; terr = \&quot;&quot;+filterTerr+&quot;\&quot; size = \&quot;&quot;+filterSize+&quot;\&quot; attributesYes = \&quot;&quot;+filterAttrYes+&quot;\&quot; attributesNo = \&quot;&quot;+filterAttrNo+&quot;\&quot; attributesChoice = \&quot;&quot;+filterAttrChoice+&quot;\&quot; /&gt;\n&quot;);
+ 			detfile.print(&quot;    &lt;SYNCOC date = \&quot;&quot;+last_sync_opencaching+&quot;\&quot; dist = \&quot;&quot;+distOC+&quot;\&quot;/&gt;\n&quot;);
++			detfile.print(&quot;    &lt;SPIDERGC dist = \&quot;&quot;+distGC+&quot;\&quot;/&gt;\n&quot;);
+ 			int size=cacheDB.size();
+ 			for(int i = 0; i&lt;size;i++){
+ 				if(showprogress){
+@@ -227,6 +234,9 @@
+ 					last_sync_opencaching=text.substring(start,text.indexOf(&quot;\&quot;&quot;,start));
+ 					start=text.indexOf(&quot;dist = \&quot;&quot;)+8;
+ 					distOC=text.substring(start,text.indexOf(&quot;\&quot;&quot;,start));
++				} else if (text.indexOf(&quot;&lt;SPIDERGC&quot;)&gt;=0) {
++					int start=text.indexOf(&quot;dist = \&quot;&quot;)+8;
++					distGC=text.substring(start,text.indexOf(&quot;\&quot;&quot;,start));
+ 				} else if (text.indexOf(&quot;&lt;FILTER&quot;)&gt;=0){
+ 					ex.setSource(text);
+ 					String temp=ex.findNext(); // Filter status is now first, need to deal with old versions which don't have filter status
+@@ -361,7 +371,7 @@
+ 
+ 	public String toString() {
+ 		return &quot;Profile: Name=&quot;+name+&quot;\nCentre=&quot;+centre.toString()+&quot;\ndataDir=&quot;+dataDir+&quot;\nlastSyncOC=&quot;+
+-		last_sync_opencaching+&quot;\ndistOC=&quot;+distOC;
++		last_sync_opencaching+&quot;\ndistOC=&quot;+distOC+&quot;\ndistGC=&quot;+distGC;
+ 	}
+ 
+ 	public void setSelectForAll(boolean selectStatus) {
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2008-03-16 12:19:19 UTC (rev 1247)
++++ trunk/src/CacheWolf/SpiderGC.java	2008-03-16 16:07:20 UTC (rev 1248)
+@@ -27,6 +27,7 @@
+ import ewe.net.*;
+ import ewe.io.*;
+ import ewe.sys.*;
++import ewe.sys.Double;
+ import ewe.util.*;
+ import com.stevesoft.ewe_pat.*;
+ import ewe.ui.*;
+@@ -299,12 +300,18 @@
+ 			if(login() != Form.IDOK) return;
+ 		}
+ 
+-		OCXMLImporterScreen options = new OCXMLImporterScreen(MyLocale.getMsg(5510,&quot;Spider Options&quot;),	OCXMLImporterScreen.INCLUDEFOUND | OCXMLImporterScreen.DIST| OCXMLImporterScreen.IMAGES);
+-		options.distanceInput.setText(&quot;&quot;);
++		OCXMLImporterScreen options = new OCXMLImporterScreen(MyLocale.getMsg(5510,&quot;Spider Options&quot;),	OCXMLImporterScreen.INCLUDEFOUND | OCXMLImporterScreen.DIST| OCXMLImporterScreen.IMAGES| OCXMLImporterScreen.ISGC);
+ 		if (options.execute() == OCXMLImporterScreen.IDCANCEL) {return; }
+ 		String dist = options.distanceInput.getText();
+ 		if (dist.length()== 0) return;
+ 		distance = Common.parseDouble(dist);
++		
++		//save last radius to profile
++		Double distDouble = new Double();
++		distDouble.value = distance;
++		dist = distDouble.toString(0, 1, 0).replace(',', '.');
++		profile.distGC = dist;
++
+ 		boolean doNotgetFound = options.foundCheckBox.getState();
+ 		boolean getImages = options.imagesCheckBox.getState();
+ 		options.close(0);
+
+Modified: trunk/src/CacheWolf/navi/MapLoaderGui.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MapLoaderGui.java	2008-03-16 12:19:19 UTC (rev 1247)
++++ trunk/src/CacheWolf/navi/MapLoaderGui.java	2008-03-16 16:07:20 UTC (rev 1248)
+@@ -85,6 +85,7 @@
+ 		pnlTiles.addNext(distLbl = new mLabel(MyLocale.getMsg(1810,&quot;Within a rectangle of:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		distanceInput = new mInput();
+ 		int tmp = Convert.toInt((Global.getProfile().distOC));
++		tmp = java.lang.Math.max(tmp, Convert.toInt((Global.getProfile().distGC)));
+ 		distanceInput.setText(Convert.toString((tmp &gt; 0 ? tmp : 15)));
+ 		pnlTiles.addNext(distanceInput,CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		pnlTiles.addLast(km);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001141.html">[Cachewolf-svn] r1247 - in trunk/docs/CacheWolf Doku: . pics
+</A></li>
+	<LI>Next message: <A HREF="001143.html">[Cachewolf-svn] r1249 - in trunk: res_noewe res_noewe/languages	src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1142">[ date ]</a>
+              <a href="thread.html#1142">[ thread ]</a>
+              <a href="subject.html#1142">[ subject ]</a>
+              <a href="author.html#1142">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,155 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r3073 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2011-August/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r3073%20-%20trunk/src/CacheWolf&In-Reply-To=%3C20110828082232.4FC67481168%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003060.html">
+   
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r3073 - trunk/src/CacheWolf</H1>
+    <B>engywuck at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r3073%20-%20trunk/src/CacheWolf&In-Reply-To=%3C20110828082232.4FC67481168%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r3073 - trunk/src/CacheWolf">engywuck at mail.berlios.de
+       </A><BR>
+    <I>Sun Aug 28 10:22:32 CEST 2011</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003060.html">[Cachewolf-svn] r3069 - trunk/src/CacheWolf/imp
+</A></li>
+        
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3064">[ date ]</a>
+              <a href="thread.html#3064">[ thread ]</a>
+              <a href="subject.html#3064">[ subject ]</a>
+              <a href="author.html#3064">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: engywuck
+Date: 2011-08-28 10:22:31 +0200 (Sun, 28 Aug 2011)
+New Revision: 3073
+
+Modified:
+   trunk/src/CacheWolf/myTableModel.java
+Log:
+Implementing a more sensible logic of toggling selected caches.
+
+Modified: trunk/src/CacheWolf/myTableModel.java
+===================================================================
+--- trunk/src/CacheWolf/myTableModel.java	2011-08-27 19:54:58 UTC (rev 3072)
++++ trunk/src/CacheWolf/myTableModel.java	2011-08-28 08:22:31 UTC (rev 3073)
+@@ -561,7 +561,9 @@
+ 	}
+ 
+ 	/**
+-	 * Toggle the select status for a group of caches If from==to, the addi Waypoints are also toggled if the cache is a main waypoint If from!=to, each cache is toggled irrespective of its type (main or addi)
++	 * Toggle the select status for a group of caches. Addi waypoints are set to the same state
++	 * as their main cache. (Exception: Their main cache is not in the range of toggled caches,
++	 * then they are toggled independently.)
+ 	 * 
+ 	 * @param from
+ 	 *            index of first cache to toggle
+@@ -574,34 +576,53 @@
+ 		CacheHolder ch;
+ 		boolean singleRow = from == to;
+ 		for (int j = from; j &lt;= to; j++) {
++			boolean checkAddiWpts = false;
+ 			ch = cacheDB.get(j);
+-			ch.is_Checked = !ch.is_Checked;
++			if (singleRow) {
++				// If its a single row click, then toggle the cache. Remember to 
++				// toggle addis too, if there are.
++				ch.is_Checked = !ch.is_Checked;
++				checkAddiWpts = true;
++			} else {
++				// If not a single row click...
++				if (ch.isAddiWpt()) {
++					// Only toggle addis, if their main cache is not within the
++					// range that will be toggled
++					int mainIdx = cacheDB.getIndex(ch.mainCache);
++					if (mainIdx &lt; from-1 || mainIdx &gt; to) {
++						ch.is_Checked = !ch.is_Checked;
++					} else {
++						// Otherwise the addis will be toggled along with their 
++						// main caches, so nothing is to do here.
++					}
++				} else {
++					// If its a main cache, then toggle it and remember to 
++					// toggle the addis, too.
++					ch.is_Checked = !ch.is_Checked;
++					checkAddiWpts = true;
++				}
++			}
+ 			tcControl.repaintCell(j, x);
+-			// set the ceckbox also for addi wpts
+-			if (ch.hasAddiWpt()) {
++			// Now look for addi wpts.
++			if (checkAddiWpts) {
+ 				CacheHolder addiWpt;
+ 				int addiCount = ch.addiWpts.getCount();
+ 				for (int i = 0; i &lt; addiCount; i++) {
++					// This code will only run when the main cache
++					// has been toggled.
+ 					addiWpt = (CacheHolder) ch.addiWpts.get(i);
+-					int addiIdx = cacheDB.getIndex(addiWpt);
+-					// Change check state of addi wpt only if
+-					// it is outside the selected range and not visible
+-					// - otherwise it will be touched by this 
+-					// algorithm
+-					// Exception: If just one cache is clicked, then check all
+-					// addi wpts it has, regardless of their position.
+-					if ((! addiWpt.isVisible() &amp;&amp; (addiIdx &gt; to || addiIdx &lt; from))
+-							|| singleRow){
+-						addiWpt.is_Checked = ch.is_Checked;
+-						if (addiWpt.isVisible()) {
+-							tcControl.repaintCell(cacheDB.getIndex(addiWpt), x);
+-						}
++					// Set all addi check states to the state of the 
++					// main cache. 
++					addiWpt.is_Checked = ch.is_Checked;
++					if (addiWpt.isVisible()) {
++						tcControl.repaintCell(cacheDB.getIndex(addiWpt), x);
+ 					}
+ 				}
++			}
+ 
+-			}
+ 		}
+ 	}
++	
+ 
+ 	public void select(int row, int col, boolean selectOn) {
+ 		// super.select(row, col, selectOn);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003060.html">[Cachewolf-svn] r3069 - trunk/src/CacheWolf/imp
+</A></li>
+	
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3064">[ date ]</a>
+              <a href="thread.html#3064">[ thread ]</a>
+              <a href="subject.html#3064">[ subject ]</a>
+              <a href="author.html#3064">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,135 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1241 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-March/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1241%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200803150908.m2F986fJ006652%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001134.html">
+   <LINK REL="Next"  HREF="001136.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1241 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1241%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200803150908.m2F986fJ006652%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1241 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sat Mar 15 10:08:06 CET 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001134.html">[Cachewolf-svn] r1240 - in trunk: res_noewe/languages src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001136.html">[Cachewolf-svn] r1242 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1135">[ date ]</a>
+              <a href="thread.html#1135">[ thread ]</a>
+              <a href="subject.html#1135">[ subject ]</a>
+              <a href="author.html#1135">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2008-03-15 10:08:03 +0100 (Sat, 15 Mar 2008)
+New Revision: 1241
+
+Modified:
+   trunk/src/CacheWolf/DetailsPanel.java
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/myInteractivePanel.java
+   trunk/src/CacheWolf/myTableControl.java
+Log:
+Bugfix: Sometimes the description was not displayed
+See also <A HREF="http://www.geoclub.de/ftopic23011.html,">http://www.geoclub.de/ftopic23011.html,</A> <A HREF="http://www.geoclub.de/ftopic23008.html">http://www.geoclub.de/ftopic23008.html</A>
+
+Modified: trunk/src/CacheWolf/DetailsPanel.java
+===================================================================
+--- trunk/src/CacheWolf/DetailsPanel.java	2008-03-12 22:37:02 UTC (rev 1240)
++++ trunk/src/CacheWolf/DetailsPanel.java	2008-03-15 09:08:03 UTC (rev 1241)
+@@ -150,6 +150,10 @@
+ 		isNewWpt = isnew;
+ 	}
+ 	
++	public boolean isNew() {
++		return isNewWpt;
++	}
++	
+ 	public boolean isDirty() {
+ 		return dirty_notes || dirty_details || isNewWpt;
+ 	}
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2008-03-12 22:37:02 UTC (rev 1240)
++++ trunk/src/CacheWolf/MainTab.java	2008-03-15 09:08:03 UTC (rev 1241)
+@@ -156,8 +156,10 @@
+ 			if(detP.isDirty()) {
+ 				cacheDirty=true;
+ 				detP.saveDirtyWaypoint();
+-				tbP.myMod.updateRows();// This sorts the waypoint (if it is new) into the right position
+-				tbP.selectRow(profile.getCacheIndex(detP.thisCache.wayPoint));
++				if (detP.isNew()) {
++					tbP.myMod.updateRows();// This sorts the waypoint (if it is new) into the right position
++					tbP.selectRow(profile.getCacheIndex(detP.thisCache.wayPoint));
++				}
+ 				//was tbP.refreshTable();
+ 				tbP.tc.update(true); // Update and repaint
+ 				if (statBar!=null) statBar.updateDisplay();
+
+Modified: trunk/src/CacheWolf/myInteractivePanel.java
+===================================================================
+--- trunk/src/CacheWolf/myInteractivePanel.java	2008-03-12 22:37:02 UTC (rev 1240)
++++ trunk/src/CacheWolf/myInteractivePanel.java	2008-03-15 09:08:03 UTC (rev 1241)
+@@ -40,6 +40,7 @@
+ 			String fn = new String();
+ 			if(which instanceof RadarPanelImage){
+ 				RadarPanelImage ich = (RadarPanelImage)which;
++				Global.mainTab.clearDetails();				
+ 				mt.selectAndActive(ich.rownum);
+ 			}
+ 		} else {
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2008-03-12 22:37:02 UTC (rev 1240)
++++ trunk/src/CacheWolf/myTableControl.java	2008-03-15 09:08:03 UTC (rev 1241)
+@@ -192,8 +192,6 @@
+ 	}
+ 	
+ 	public void onEvent(Event ev) {
+-		// If we changed the cache (e.g. via radar panel, we have to clear the details */
+-		if (ev instanceof TableEvent) Global.mainTab.clearDetails();
+ 		if (ev instanceof PenEvent &amp;&amp; (ev.type == PenEvent.PEN_DOWN) ){
+ 			Global.mainTab.tbP.myMod.penEventModifiers=((PenEvent)ev).modifiers;
+ 	    } 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001134.html">[Cachewolf-svn] r1240 - in trunk: res_noewe/languages src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001136.html">[Cachewolf-svn] r1242 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1135">[ date ]</a>
+              <a href="thread.html#1135">[ thread ]</a>
+              <a href="subject.html#1135">[ subject ]</a>
+              <a href="author.html#1135">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

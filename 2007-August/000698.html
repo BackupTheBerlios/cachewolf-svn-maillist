@@ -1,0 +1,233 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r808 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-August/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r808%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200708140014.l7E0E3SC001567%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000697.html">
+   <LINK REL="Next"  HREF="000699.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r808 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r808%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200708140014.l7E0E3SC001567%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r808 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Tue Aug 14 02:14:03 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000697.html">[Cachewolf-svn] r807 - in trunk: resources src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000699.html">[Cachewolf-svn] r809 - trunk/src/utils
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#698">[ date ]</a>
+              <a href="thread.html#698">[ thread ]</a>
+              <a href="subject.html#698">[ subject ]</a>
+              <a href="author.html#698">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-08-14 02:13:58 +0200 (Tue, 14 Aug 2007)
+New Revision: 808
+
+Modified:
+   trunk/src/CacheWolf/DataMover.java
+   trunk/src/CacheWolf/Map.java
+   trunk/src/CacheWolf/MapsList.java
+   trunk/src/CacheWolf/Preferences.java
+   trunk/src/CacheWolf/ProfilesForm.java
+Log:
+File.list has on some systems (linux, but also Windows Mobile 2003) a bug in ewe 1.49: 
+when filenames contain more than one &quot;.&quot;, then the mask matches on hese systems the first in spite of the last &quot;.&quot; File.listmultiple doesn't have this bug. see <A HREF="http://www.geoclub.de/ftopic15291-0-asc-0.html">http://www.geoclub.de/ftopic15291-0-asc-0.html</A>
+
+Modified: trunk/src/CacheWolf/DataMover.java
+===================================================================
+--- trunk/src/CacheWolf/DataMover.java	2007-08-11 12:22:43 UTC (rev 807)
++++ trunk/src/CacheWolf/DataMover.java	2007-08-14 00:13:58 UTC (rev 808)
+@@ -1,5 +1,6 @@
+ package CacheWolf;
+ 
++import utils.FileBugfix;
+ import ewe.filechooser.FileChooser;
+ import ewe.io.*;
+ import ewe.ui.*;
+@@ -142,7 +143,7 @@
+ 
+ 	public void deleteCacheFiles(String wpt, String dir){
+ 		// delete files in dstDir to clean up trash
+-		String tmp[] = new File(dir).list(wpt + &quot;*.*&quot;, ewe.io.FileBase.LIST_FILES_ONLY);
++		String tmp[] = new FileBugfix(dir).list(wpt + &quot;*.*&quot;, ewe.io.FileBase.LIST_FILES_ONLY);
+ 		for (int i=0; i &lt; tmp.length;i++){
+ 			File tmpFile = new File(dir + tmp[i]);
+ 			tmpFile.delete();
+@@ -150,7 +151,7 @@
+ 	}
+ 
+ 	public void moveCacheFiles(String wpt, String srcDir, String dstDir){
+-		String srcFiles[] = new File(srcDir).list(wpt + &quot;*.*&quot;, ewe.io.FileBase.LIST_FILES_ONLY);
++		String srcFiles[] = new FileBugfix(srcDir).list(wpt + &quot;*.*&quot;, ewe.io.FileBase.LIST_FILES_ONLY);
+ 		for (int i=0; i &lt; srcFiles.length;i++){
+ 			File srcFile = new File(srcDir + srcFiles[i]);
+ 			File dstFile = new File(dstDir + srcFiles[i]);
+@@ -159,7 +160,7 @@
+ 	}
+ 
+ 	public void copyCacheFiles(String wpt, String srcDir, String dstDir){
+-		String srcFiles[] = new File(srcDir).list(wpt + &quot;*.*&quot;, ewe.io.FileBase.LIST_FILES_ONLY);
++		String srcFiles[] = new FileBugfix(srcDir).list(wpt + &quot;*.*&quot;, ewe.io.FileBase.LIST_FILES_ONLY);
+ 		for (int i=0; i &lt; srcFiles.length;i++){
+ 			copy(srcDir + srcFiles[i],dstDir + srcFiles[i]);
+ 		}
+
+Modified: trunk/src/CacheWolf/Map.java
+===================================================================
+--- trunk/src/CacheWolf/Map.java	2007-08-11 12:22:43 UTC (rev 807)
++++ trunk/src/CacheWolf/Map.java	2007-08-14 00:13:58 UTC (rev 808)
+@@ -210,8 +210,6 @@
+ 		//at the same time try to find associated .map files!
+ 		//These are georeference files targeted for OziExplorer.
+ 		//So lets check if we have more than 1 png file:
+-		Vector files;
+-		String [] filestemp;
+ 		String line = new String();
+ 		InputStream in = null;
+ 		OutputStream out = null;
+@@ -219,21 +217,14 @@
+ 		byte[] buf;
+ 		int len;
+ 		String[] parts;
+-		filestemp = inDir.list(&quot;*.png&quot;, File.LIST_FILES_ONLY); // TODO listmultiple verwenden
+-		files = new Vector(filestemp);
+-		filestemp = inDir.list(&quot;*.jpg&quot;, File.LIST_FILES_ONLY);
+-		files.addAll(filestemp);
+-		filestemp = inDir.list(&quot;*.gif&quot;, File.LIST_FILES_ONLY);
+-		files.addAll(filestemp);
+-		filestemp = inDir.list(&quot;*.bmp&quot;, File.LIST_FILES_ONLY);
+-		files.addAll(filestemp);
++		String [] files = inDir.listMultiple(&quot;*.png,*.jpg,*.gif,*.bmp&quot;, File.LIST_FILES_ONLY);
+ 
+ 		String currfile = null;
+ 		String curInFullPath;
+ 		String curOutFullPath;
+-		int num = files.size();
++		int num = files.length;
+ 		for(int i =  num -1 ; i &gt;= 0;i--){
+-			currfile = (String) files.get(i);
++			currfile = (String) files[i];
+ 			inf.setInfo(MyLocale.getMsg(4110,&quot;Loading: &quot;)+ &quot;\n&quot; + currfile + &quot;\n(&quot;+(num-i)+&quot;/&quot;+num+&quot;)&quot;);
+ 			//Copy the file
+ 			//Vm.debug(&quot;Copy: &quot; + inDir.getFullPath() + &quot;/&quot; +files[i]);
+
+Modified: trunk/src/CacheWolf/MapsList.java
+===================================================================
+--- trunk/src/CacheWolf/MapsList.java	2007-08-11 12:22:43 UTC (rev 807)
++++ trunk/src/CacheWolf/MapsList.java	2007-08-14 00:13:58 UTC (rev 808)
+@@ -1,5 +1,6 @@
+ package CacheWolf;
+ 
++import utils.FileBugfix;
+ import ewe.io.File;
+ import ewe.io.IOException;
+ import ewe.sys.Double;
+@@ -26,9 +27,9 @@
+ 		super(); // forget already loaded maps
+ 		//if (mmp.mapImage != null) 
+ 		String dateien[];
+-		File files = new File(mapsPath);
++		File files = new FileBugfix(mapsPath);
+ 		String rawFileName = new String();
+-		String[] dirstmp = files.list(&quot;*.wfl&quot;, File.LIST_ALWAYS_INCLUDE_DIRECTORIES | File.LIST_DIRECTORIES_ONLY);
++		String[] dirstmp = files.list(null, File.LIST_DIRECTORIES_ONLY);
+ 		Vector dirs;
+ 		if (dirstmp != null) dirs = new Vector(dirstmp);
+ 		else dirs = new Vector();
+@@ -36,10 +37,11 @@
+ 		MapInfoObject tempMIO;
+ 		MessageBox f = null;
+ 		for (int j = dirs.size()-1; j &gt;= 0; j--) {
+-			files = new File(mapsPath+&quot;/&quot;+dirs.get(j));
++			files = new FileBugfix(mapsPath+&quot;/&quot;+dirs.get(j));
+ 			//ewe.sys.Vm.debug(&quot;mapd-Dirs:&quot;+files);
+-			dateien = files.list(&quot;*.wfl&quot;, File.LIST_FILES_ONLY);
++			dateien = files.listMultiple(&quot;*.wfl,892z3rihugkdfhgflhldghoeighoig8&quot;, File.LIST_FILES_ONLY); //&quot;*.xyz&quot; doesn't work on some systems and &quot;*&quot; doesn't on others -&gt; use null (for all files) and filter yourself
+ 			for(int i = 0; i &lt; dateien.length;i++){
++				// if (!dateien[i].endsWith(&quot;.wfl&quot;)) continue;
+ 				rawFileName = dateien[i].substring(0, dateien[i].lastIndexOf(&quot;.&quot;));
+ 				try {
+ 					tempMIO = new MapInfoObject();
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2007-08-11 12:22:43 UTC (rev 807)
++++ trunk/src/CacheWolf/Preferences.java	2007-08-14 00:13:58 UTC (rev 808)
+@@ -1,5 +1,6 @@
+ package CacheWolf;
+ 
++import utils.FileBugfix;
+ import ewe.io.*;
+ import ewe.sys.*;
+ import ewe.ui.*;
+@@ -147,7 +148,7 @@
+ 	public String getMapLoadPath() {
+ 		// here could also a list of map-types displayed...
+ 		// standard dir
+-		File t = new File(getMapManuallySavePath(false));
++		File t = new FileBugfix(getMapManuallySavePath(false));
+ 		String[] f = t.list(&quot;*.wfl&quot;, File.LIST_ALWAYS_INCLUDE_DIRECTORIES | File.LIST_FILES_ONLY);
+ 		if (f != null &amp;&amp; f.length &gt; 0) return  baseDir + mapsPath;
+ 		f = t.list(&quot;*.wfl&quot;, File.LIST_DIRECTORIES_ONLY | File.LIST_ALWAYS_INCLUDE_DIRECTORIES);
+
+Modified: trunk/src/CacheWolf/ProfilesForm.java
+===================================================================
+--- trunk/src/CacheWolf/ProfilesForm.java	2007-08-11 12:22:43 UTC (rev 807)
++++ trunk/src/CacheWolf/ProfilesForm.java	2007-08-14 00:13:58 UTC (rev 808)
+@@ -1,5 +1,6 @@
+ package CacheWolf;
+ 
++import utils.FileBugfix;
+ import ewe.ui.*;
+ import ewe.io.*;
+ import ewesoft.xml.*;
+@@ -71,7 +72,7 @@
+ 		
+ 		choice=new MyList();
+ 		// Get all subdirectories in the base directory
+-		File fileBaseDir=new File(baseDir);
++		File fileBaseDir=new FileBugfix(baseDir);
+ 		String[] existingProfiles=fileBaseDir.list(&quot;*&quot;,FileBase.LIST_DIRECTORIES_ONLY);
+         // Now add these subdirectories to the list of profiles but
+         // exclude the &quot;maps&quot; directory which will contain the moving maps
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000697.html">[Cachewolf-svn] r807 - in trunk: resources src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000699.html">[Cachewolf-svn] r809 - trunk/src/utils
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#698">[ date ]</a>
+              <a href="thread.html#698">[ thread ]</a>
+              <a href="subject.html#698">[ subject ]</a>
+              <a href="author.html#698">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

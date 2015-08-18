@@ -1,0 +1,180 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2903 - in branches/r1.2: res_noewe	src/CacheWolf/imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2011-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2903%20-%20in%20branches/r1.2%3A%20res_noewe%0A%09src/CacheWolf/imp&In-Reply-To=%3C20110107131047.ECB48480A97%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002891.html">
+   <LINK REL="Next"  HREF="002895.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2903 - in branches/r1.2: res_noewe	src/CacheWolf/imp</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2903%20-%20in%20branches/r1.2%3A%20res_noewe%0A%09src/CacheWolf/imp&In-Reply-To=%3C20110107131047.ECB48480A97%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2903 - in branches/r1.2: res_noewe	src/CacheWolf/imp">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Fri Jan  7 02:10:47 CET 2011</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002891.html">[Cachewolf-svn] r2902 - branches/r1.2/docs
+</A></li>
+        <LI>Next message: <A HREF="002895.html">[Cachewolf-svn] r2906 - in trunk/src/CacheWolf: . imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2892">[ date ]</a>
+              <a href="thread.html#2892">[ thread ]</a>
+              <a href="subject.html#2892">[ subject ]</a>
+              <a href="author.html#2892">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2011-01-07 14:10:47 +0100 (Fri, 07 Jan 2011)
+New Revision: 2903
+
+Modified:
+   branches/r1.2/res_noewe/spider.def
+   branches/r1.2/src/CacheWolf/imp/SpiderGC.java
+Log:
+adaption to newly gc update (2010-01-06)
+
+Modified: branches/r1.2/res_noewe/spider.def
+===================================================================
+--- branches/r1.2/res_noewe/spider.def	2011-01-06 20:57:54 UTC (rev 2902)
++++ branches/r1.2/res_noewe/spider.def	2011-01-07 13:10:47 UTC (rev 2903)
+@@ -74,8 +74,8 @@
+ archivedRex        = class=&quot;lnk\ OldWarning\ Strike\ Strike&quot;&gt;
+ PMRex              = small_profile.gif
+ distCodeRex        = k=(.*?)&quot;\ style=
+-distCodeKey        = groundspeak
+-distRex            = (.*?)(?:km|mi)
++distCodeKey        = signalthefrog
++distRex            = \\|(.*?)(?:km|mi)
+ DTSRex             = v=(.*?)&quot;\ style=
+ DTSCodeKey         = hbM9fjmrxy7z42LFD58BkKgPGdHscvCqNnw3ptO6lJ
+ waypointRex        = \\(GC(.*?)\\)&lt;br\ /&gt;
+
+Modified: branches/r1.2/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- branches/r1.2/src/CacheWolf/imp/SpiderGC.java	2011-01-06 20:57:54 UTC (rev 2902)
++++ branches/r1.2/src/CacheWolf/imp/SpiderGC.java	2011-01-07 13:10:47 UTC (rev 2903)
+@@ -1730,7 +1730,8 @@
+ 			return &quot;&quot;;
+ 		}
+ 		String stmp = ewe.net.URL.decodeURL(RexPropDistanceCode.stringMatched(1));
+-		return decodeXor( stmp, DistanceCodeKey);
++		String ret = decodeXor( stmp, DistanceCodeKey);
++		return ret;
+ 	}
+ 	/**
+ 	 * Get the Distance to the centre
+@@ -1747,7 +1748,10 @@
+ 						.replace('.', ','));
+ 			return Convert.toDouble(RexPropDistance.stringMatched(1));
+ 		}
+-		return 0;
++		else {
++			pref.log(&quot;(gc Code change ?) check distCodeKey in spider.def&quot; + Preferences.NEWLINE + doc);
++			return 0;			
++		}
+ 	}
+ 
+ 	/**
+@@ -1760,8 +1764,7 @@
+ 	private String getWP(String doc) throws Exception {
+ 		RexPropWaypoint.search(doc);
+ 		if (!RexPropWaypoint.didMatch()) {
+-			pref.log(&quot;check waypointRex in spider.def&quot; 
+-					+ Preferences.NEWLINE + doc);
++			pref.log(&quot;check waypointRex in spider.def&quot; + Preferences.NEWLINE + doc);
+ 			return &quot;???&quot;;
+ 		}
+ 		return &quot;GC&quot; + RexPropWaypoint.stringMatched(1);
+@@ -1807,11 +1810,11 @@
+ 		RexPropDTS.search(toCheck);
+ 		if (RexPropDTS.didMatch()) {
+ 			String code=RexPropDTS.stringMatched(1);
+-			/*
++			/* */
+ 			String url = &quot;<A HREF="http://www.geocaching.com/ImgGen/seek/CacheInfo.ashx?v=">http://www.geocaching.com/ImgGen/seek/CacheInfo.ashx?v=</A>&quot;+code;
+ 			ByteArray doc=fetch(url);
+ 			Image idoc = new Image(doc,0,null,0,0);
+-			/
++			/*
+ 			FileOutputStream fos;
+ 			try {
+ 				fos = new FileOutputStream(new File(&quot;temp.png&quot;));
+@@ -1821,10 +1824,11 @@
+ 			}
+ 			finally {
+ 			}
+-			/
++			*/
+ 			return getDTfromImage(idoc) + &quot;/&quot; + getSizeFromImage(idoc);
+-			*/
++			//*/
+ 
++			/*
+ 			int decoded = 0;
+ 			int pwr = 1;
+ 			for (int i = code.length()-1 ; i &gt;= 0; i--) {
+@@ -1856,6 +1860,7 @@
+ 				difficulty = &quot;5&quot;;
+ 			}
+ 			return difficulty+&quot;/&quot;+terrain+&quot;/&quot;+size;
++			*/
+ 		}
+ 		pref.log(&quot;check DTSRex in spider.def&quot; + Preferences.NEWLINE + toCheck);
+ 		return &quot;&quot;;
+@@ -2030,7 +2035,18 @@
+ 	 * @return direction String (degree)
+ 	 */
+ 	private String getDirection(String doc) throws Exception {
+-		return mString.split(mString.split(doc, '|')[1],'.')[0];		
++		String ret;
++		String r=&quot;&quot;;
++		if (doc.indexOf('|') &gt;- 1) {
++			r=mString.split(doc, '|')[2];
++		}
++		if (r.indexOf('.') &gt; -1) {
++			ret=mString.split(r,'.')[0];
++		}
++		else {
++			ret=&quot;&quot;;
++		}
++		return ret;		
+ 	}
+ 
+ 	/*
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002891.html">[Cachewolf-svn] r2902 - branches/r1.2/docs
+</A></li>
+	<LI>Next message: <A HREF="002895.html">[Cachewolf-svn] r2906 - in trunk/src/CacheWolf: . imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2892">[ date ]</a>
+              <a href="thread.html#2892">[ thread ]</a>
+              <a href="subject.html#2892">[ subject ]</a>
+              <a href="author.html#2892">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

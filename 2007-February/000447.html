@@ -1,0 +1,234 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r629 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r629%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702251314.l1PDE2nS021752%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000446.html">
+   <LINK REL="Next"  HREF="000448.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r629 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r629%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702251314.l1PDE2nS021752%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r629 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Sun Feb 25 14:14:02 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000446.html">[Cachewolf-svn] r628 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000448.html">[Cachewolf-svn] r630 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#447">[ date ]</a>
+              <a href="thread.html#447">[ thread ]</a>
+              <a href="subject.html#447">[ subject ]</a>
+              <a href="author.html#447">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-02-25 14:13:58 +0100 (Sun, 25 Feb 2007)
+New Revision: 629
+
+Modified:
+   trunk/src/CacheWolf/InfoBox.java
+   trunk/src/CacheWolf/Map.java
+   trunk/src/CacheWolf/TrackOverlay.java
+Log:
+MapImport: Groesse der Bilddatei aus der Bilddatei selbst auslesen und ordentliche Fehlerausgabe beim Map-Import
+
+Modified: trunk/src/CacheWolf/InfoBox.java
+===================================================================
+--- trunk/src/CacheWolf/InfoBox.java	2007-02-25 09:22:37 UTC (rev 628)
++++ trunk/src/CacheWolf/InfoBox.java	2007-02-25 13:13:58 UTC (rev 629)
+@@ -100,7 +100,10 @@
+ 		msgArea.setText(info);
+ 		this.repaintNow();
+ 	}
+-
++	
++	public void setInfoHeight(int heighti) {
++		msgArea.setPreferredSize(getPreferredSize(null).width, heighti);
++	}
+ 	public String getInfo(){
+ 		return msgArea.getText();
+ 	}
+
+Modified: trunk/src/CacheWolf/Map.java
+===================================================================
+--- trunk/src/CacheWolf/Map.java	2007-02-25 09:22:37 UTC (rev 628)
++++ trunk/src/CacheWolf/Map.java	2007-02-25 13:13:58 UTC (rev 629)
+@@ -7,6 +7,7 @@
+ import ewe.ui.*;
+ import ewe.graphics.*;
+ import ewe.fx.*;
++
+ import com.stevesoft.ewe_pat.*;
+ 
+ /**
+@@ -197,7 +198,10 @@
+ 		if(tmp != FileChooser.IDYES) return Form.IDCANCEL;
+ 		File inDir = fc.getChosenFile();
+ 		File mapFile;
+-		InfoBox inf = new InfoBox(&quot;Info&quot;, MyLocale.getMsg(4109,&quot;Loading maps...            \n&quot;)); 
++		InfoBox inf = new InfoBox(&quot;Info&quot;, MyLocale.getMsg(4109,&quot;Loading maps...            \n&quot;), InfoBox.PROGRESS_WITH_WARNINGS, false); 
++		inf.setPreferredSize(220, 300);
++		inf.setInfoHeight(100);
++		inf.relayout(false);
+ 		Vm.showWait(this, true);
+ 		inf.exec();
+ 
+@@ -209,8 +213,8 @@
+ 		Vector files;
+ 		String [] filestemp;
+ 		String line = new String();
+-		InputStream in;
+-		OutputStream out;
++		InputStream in = null;
++		OutputStream out = null;
+ 		FileReader inMap;
+ 		byte[] buf;
+ 		int len;
+@@ -225,29 +229,50 @@
+ 		files.addAll(filestemp);
+ 
+ 		String currfile = null;
+-		for(int i = files.size() -1 ; i &gt;= 0;i--){
++		String curInFullPath;
++		String curOutFullPath;
++		int num = files.size();
++		for(int i =  num -1 ; i &gt;= 0;i--){
+ 			currfile = (String) files.get(i);
+-			inf.setInfo(MyLocale.getMsg(4110,&quot;Loading:\n&quot;)+ &quot; &quot; + currfile);
++			inf.setInfo(MyLocale.getMsg(4110,&quot;Loading: &quot;)+ &quot;\n&quot; + currfile + &quot;\n(&quot;+(num-i)+&quot;/&quot;+num+&quot;)&quot;);
+ 			//Copy the file
+ 			//Vm.debug(&quot;Copy: &quot; + inDir.getFullPath() + &quot;/&quot; +files[i]);
+ 			//Vm.debug(&quot;to: &quot; + mapsPath + files[i]);
++			curInFullPath = inDir.getFullPath() + &quot;/&quot; +currfile;
++			curOutFullPath = mapsPath + currfile;
++			boolean imageerror = false;
+ 			try {
+-				in = new FileInputStream(inDir.getFullPath() + &quot;/&quot; +currfile);
+-				out = new FileOutputStream(mapsPath + currfile);
+-				buf = new byte[1024];
++				in = new FileInputStream(curInFullPath);
++				buf = new byte[1024*10];
++				boolean first = true;
++				ByteArray header = new ByteArray(buf);
+ 				while ((len = in.read(buf)) &gt; 0) {
++					if (first) {
++						first = false;
++						header.copyFrom(buf, 0, len);
++						ImageInfo tmpII = Image.getImageInfo(header,null);
++						imageWidth = tmpII.width;
++						imageHeight = tmpII.height;
++						out = new FileOutputStream(curOutFullPath); // only create outfile if geImageInfo didn't throw an exception so do it only here not directly after opening input stream
++					}
+ 					out.write(buf, 0, len);
+ 				}
+-				in.close();
+-				out.close();
+ 			} catch(IOException ex){
+-				inf.addText(&quot;: IO-Error while copying image \n&quot; + ex.getMessage());
++				imageerror = true;
++				inf.addWarning(&quot;\nIO-Error while copying image from: &quot; + curInFullPath + &quot; to: &quot; + curOutFullPath + &quot; error: &quot; + ex.getMessage());
++			} catch (IllegalArgumentException e) { // thrown from Image.getImageInfo when it could not interprete the header (e.g. bmp with 32 bits per pixel)
++				imageerror = true;
++				inf.addWarning(&quot;\nError: could not decode image: &quot; + curInFullPath + &quot; - image not copied&quot;);
++			} finally {
++				try {
++					if (in != null) in.close();
++					if (out  != null) out.close(); 
++				} catch (Throwable e) {}
+ 			}
+-
+ 			//Check for a .map file
+ 			rawFileName = currfile.substring(0, currfile.lastIndexOf(&quot;.&quot;));
+ 			mapFile = new File(inDir.getFullPath() + &quot;/&quot; + rawFileName + &quot;.map&quot;);
+-			if(mapFile.exists()){
++			if(!imageerror &amp;&amp; mapFile.exists()){
+ 				GCPoint gcp1 = new GCPoint();
+ 				GCPoint gcp2 = new GCPoint();
+ 				GCPoint gcp3 = new GCPoint();
+@@ -351,14 +376,17 @@
+ 					} // while
+ 					if (inMap != null)	inMap.close();
+ 				} catch(IllegalArgumentException ex){ // is thrown from Convert.toDouble and saveWFL if affine[0-5]==0 NumberFormatException is a subclass of IllegalArgumentExepction
+-					inf.addText(&quot;\nError while importing .map-file: &quot;+ex.getMessage());
++					inf.addWarning(&quot;\nError while importing .map-file: &quot;+ex.getMessage());
+ 				} catch(IOException ex){
+-					inf.addText(&quot;IO-Error while reading or writing calibration file\n&quot; + ex.getMessage());
++					inf.addWarning(&quot;\nIO-Error while reading or writing calibration file\n&quot; + ex.getMessage());
+ 				} 
+-			} // if map file.exists
++			} else { // if map file.exists
++				if (!imageerror) inf.addWarning(&quot;\nNo calibration file found for: &quot; + currfile + &quot; - you can calibrate it manually&quot;);
++			}
+ 		} // for file
+ 		Vm.showWait(this, false);
+ 		inf.addText(&quot;\ndone.&quot;);
++		inf.addOkButton();
+ 		//inf.addOkButton(); doesn't work
+ 		if(Global.mainTab.mm != null) Global.mainTab.mm.mapsloaded = false; 
+ 		return Form.IDOK;
+
+Modified: trunk/src/CacheWolf/TrackOverlay.java
+===================================================================
+--- trunk/src/CacheWolf/TrackOverlay.java	2007-02-25 09:22:37 UTC (rev 628)
++++ trunk/src/CacheWolf/TrackOverlay.java	2007-02-25 13:13:58 UTC (rev 629)
+@@ -266,6 +266,21 @@
+ // imageMayChange = true; // hilft auch nicht :-(
+ 
+ /*
++ * In der ewe-VM f&#252;r PocketPC-ARM funktioniert die Festlegung einer 
++ * transparenten Farbe nicht (Hintergrund wird wei&#223; statt durchsichtig)
++ * deswegen (und weil in ewe-VM effizienter) Umstellung auf Transparenzmaske
++ * statt transparenter Farbe
++ * TODO Dies ist in Java-VM allerdings extrem Speicher fressend -&gt; evtl abfragen 
++static int fixMask(WObject image,WObject col,int isMask):
++	in Maske: 0 an durchsichtiger Stelle, sonst ff
++	in Image: ffffff an durchsichtiger Stelle
++
++	in java-VM
++	in Maske: ffffffff in image.mask, wenn nicht durchsichtig
++	          ff000000 an durchsichtiger Stelle
++	image.doCheckMask erzeugt ein Image mit 0 an den durchsichtigen Stellen, die dadurch definiert sind, dass im image 0xffffff und in (mask &amp; 0xffffff == 0) steht.
++*/
++/*
+  * this class is only needed to have a fast access to the list of pixels
+  * which are added but aniimage.draw will not lead to a change on the screen
+  * so that these pixels will be drawn seperately by doDraw
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000446.html">[Cachewolf-svn] r628 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000448.html">[Cachewolf-svn] r630 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#447">[ date ]</a>
+              <a href="thread.html#447">[ thread ]</a>
+              <a href="subject.html#447">[ subject ]</a>
+              <a href="author.html#447">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

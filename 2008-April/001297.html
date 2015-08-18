@@ -1,0 +1,170 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1403 - trunk/src/CacheWolf/navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-April/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1403%20-%20trunk/src/CacheWolf/navi&In-Reply-To=%3C200804232159.m3NLxr7u011229%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001296.html">
+   <LINK REL="Next"  HREF="001298.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1403 - trunk/src/CacheWolf/navi</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1403%20-%20trunk/src/CacheWolf/navi&In-Reply-To=%3C200804232159.m3NLxr7u011229%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1403 - trunk/src/CacheWolf/navi">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Wed Apr 23 23:59:53 CEST 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001296.html">[Cachewolf-svn] r1402 - trunk/src/CacheWolf/navi
+</A></li>
+        <LI>Next message: <A HREF="001298.html">[Cachewolf-svn] r1404 - in trunk: res_noewe/languages src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1297">[ date ]</a>
+              <a href="thread.html#1297">[ thread ]</a>
+              <a href="subject.html#1297">[ subject ]</a>
+              <a href="author.html#1297">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2008-04-23 23:59:51 +0200 (Wed, 23 Apr 2008)
+New Revision: 1403
+
+Modified:
+   trunk/src/CacheWolf/navi/CWGPSPoint.java
+Log:
+GPS interpreter: Bug fixed: don't beleave the GPSr if it indicates a fix but doesn't provide lat/lon correctly -&gt; indicate no fix to higher API
+
+Modified: trunk/src/CacheWolf/navi/CWGPSPoint.java
+===================================================================
+--- trunk/src/CacheWolf/navi/CWGPSPoint.java	2008-04-23 20:48:35 UTC (rev 1402)
++++ trunk/src/CacheWolf/navi/CWGPSPoint.java	2008-04-23 21:59:51 UTC (rev 1403)
+@@ -69,6 +69,9 @@
+ 		return this.Time;
+ 	}
+ 
++	/**
++	 * @return &gt; 0: fixed &lt;br&gt; 0: not fixed &lt;br&gt; -1: no data from serial port &lt;br&gt; -2 data from serial port could not be interpreted
++	 */
+ 	public int getFix(){
+ 		return this.Fix;
+ 	}
+@@ -214,23 +217,35 @@
+ 					//Vm.debug(&quot;In $GPGGA&quot;);
+ 					i = 0;
+ 					while(ex.endOfSearch() != true){
++						boolean latlonerror = false; // indicate that some error occured in the data -&gt; in this case frace fix to non-fixed in order to avoid invalid coordinates when a fix is indicated to the higher level API
+ 						currToken = ex.findNext();
+ 						i++;
+-						if (currToken.length()==0) continue; // sometimes there are 2 colons directly one after the other like &quot;,,&quot; (e.g. loox)
++						if (currToken.length()==0) {
++							if (i &gt;= 2 &amp;&amp; i &lt;= 5) latlonerror = true; // force non-fix if lat-lon not contained
++							continue; // sometimes there are 2 colons directly one after the other like &quot;,,&quot; (e.g. loox)
++						}
+ 						switch (i){
+ 						case 1: this.Time = currToken; break;
+-						case 2: try {latDeg = currToken.substring(0,2); interpreted = true;} catch (IndexOutOfBoundsException e) {}
+-						try {latMin = currToken.substring(2,currToken.length()); interpreted = true;} catch (IndexOutOfBoundsException e) {}
++						case 2: try {latDeg = currToken.substring(0,2); interpreted = true;} catch (IndexOutOfBoundsException e) {latlonerror = true;}
++						try {latMin = currToken.substring(2,currToken.length()); interpreted = true;} catch (IndexOutOfBoundsException e) {latlonerror = true;}
+ 						break;
+ 						case 3: latNS = currToken;
+ 						break;
+ 
+-						case 4: try {lonDeg = currToken.substring(0,3); interpreted = true;} catch (IndexOutOfBoundsException e) {}
+-						try {lonMin = currToken.substring(3,currToken.length()); interpreted = true; } catch (IndexOutOfBoundsException e) {}
++						case 4: try {lonDeg = currToken.substring(0,3); interpreted = true;} catch (IndexOutOfBoundsException e) {latlonerror = true;}
++						try {lonMin = currToken.substring(3,currToken.length()); interpreted = true; } catch (IndexOutOfBoundsException e) {latlonerror = true;}
+ 						break;
+ 						case 5: lonEW = currToken;
+ 						break;
+-						case 6: this.Fix = Convert.toInt(currToken); interpreted = true; break;
++						case 6: 
++							if (!latlonerror) {
++								this.Fix = Convert.toInt(currToken); 
++								interpreted = true; 
++								break;
++							} else {
++								this.Fix = 0; 
++								break;
++							}
+ 						case 7: this.numSat = Convert.toInt(currToken); interpreted = true; break;
+ 						case 8: try {this.HDOP = Common.parseDouble(currToken); interpreted = true; } catch (NumberFormatException e) {} break;
+ 						case 9: try {this.Alt = Common.parseDouble(currToken); interpreted = true; } catch (NumberFormatException e) {} break;
+@@ -260,9 +275,14 @@
+ 					//Vm.debug(&quot;In $GPRMC&quot;);
+ 					i = 0;
+ 					String status = &quot;V&quot;;
++					boolean latlonerror = false;
+ 					while(ex.endOfSearch() != true){
+ 						currToken = ex.findNext();
+ 						i++;
++						if (currToken.length()==0) {
++							if (i &gt;= 2 &amp;&amp; i &lt;= 6) latlonerror = true; // force non-fix if lat-lon not contained
++							continue; // sometimes there are 2 colons directly one after the other like &quot;,,&quot; (e.g. loox)
++						}
+ 						if (currToken.length()==0) continue;
+ 						//Vm.debug(&quot;zz: &quot; + i);
+ 						//Vm.debug(currToken);
+@@ -274,9 +294,9 @@
+ 						interpreted = true;
+ 						break;
+ 						case 3: 	//Vm.debug(&quot;Here---&gt;&quot;);
+-							try {latDeg = currToken.substring(0,2); interpreted = true;} catch (IndexOutOfBoundsException e) {}
++							try {latDeg = currToken.substring(0,2); interpreted = true;} catch (IndexOutOfBoundsException e) {latlonerror = true;}
+ 							//Vm.debug(&quot;:&quot; + latDeg);
+-							try {latMin = currToken.substring(2,currToken.length()); interpreted = true;} catch (IndexOutOfBoundsException e) {}
++							try {latMin = currToken.substring(2,currToken.length()); interpreted = true;} catch (IndexOutOfBoundsException e) {latlonerror = true;}
+ 							//Vm.debug(&quot;:&quot; + latMin);
+ 							break;
+ 						case 4: latNS = currToken; interpreted = true;
+@@ -304,9 +324,12 @@
+ 						break;
+ 						} // switch
+ 					} // while
+-					if (status.equals(&quot;A&quot;)){
+-						this.set(latNS, latDeg, latMin, &quot;0&quot;,
+-								lonEW, lonDeg, lonMin, &quot;0&quot;, CWPoint.DMM);				
++					if (latlonerror) this.Fix = 0;
++					else {
++						if (status.equals(&quot;A&quot;)){
++							this.set(latNS, latDeg, latMin, &quot;0&quot;,
++									lonEW, lonDeg, lonMin, &quot;0&quot;, CWPoint.DMM);				
++						}
+ 					}
+ 				} // if
+ 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001296.html">[Cachewolf-svn] r1402 - trunk/src/CacheWolf/navi
+</A></li>
+	<LI>Next message: <A HREF="001298.html">[Cachewolf-svn] r1404 - in trunk: res_noewe/languages src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1297">[ date ]</a>
+              <a href="thread.html#1297">[ thread ]</a>
+              <a href="subject.html#1297">[ subject ]</a>
+              <a href="author.html#1297">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,119 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1855 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-May/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1855%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200905261742.n4QHgbgL023562%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001772.html">
+   <LINK REL="Next"  HREF="001774.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1855 - trunk/src/CacheWolf</H1>
+    <B>engywuck at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1855%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200905261742.n4QHgbgL023562%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1855 - trunk/src/CacheWolf">engywuck at mail.berlios.de
+       </A><BR>
+    <I>Tue May 26 19:42:37 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001772.html">[Cachewolf-svn] r1854 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001774.html">[Cachewolf-svn] r1856 - in trunk: res_noewe/languages src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1773">[ date ]</a>
+              <a href="thread.html#1773">[ thread ]</a>
+              <a href="subject.html#1773">[ subject ]</a>
+              <a href="author.html#1773">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: engywuck
+Date: 2009-05-26 19:42:35 +0200 (Tue, 26 May 2009)
+New Revision: 1855
+
+Modified:
+   trunk/src/CacheWolf/CacheHolder.java
+   trunk/src/CacheWolf/OCXMLImporter.java
+Log:
+Fixing some issues:
+-- Invalid difficulty, terrain and size values for addis or custom wp from v2 profiles are replaced by reasonable values, as they don't have their own or can't be updated to remove incomplete flag
+-- Typo for terrain check fixed
+-- Removing incomplete flag when OC update of cache is finished
+
+Modified: trunk/src/CacheWolf/CacheHolder.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolder.java	2009-05-26 16:45:55 UTC (rev 1854)
++++ trunk/src/CacheWolf/CacheHolder.java	2009-05-26 17:42:35 UTC (rev 1855)
+@@ -926,14 +926,19 @@
+ 		} catch (IllegalArgumentException ex) {
+ 			setType(CacheType.CW_TYPE_UNKNOWN);
+ 		}
+-		try {
+-			setCacheSize(byteFromLong(value, 4));
+-		} catch (IllegalArgumentException ex) {
+-			setCacheSize(CacheSize.CW_SIZE_ERROR);
+-		}
++		setCacheSize(byteFromLong(value, 4));
+ 		setNoFindLogs((byteFromLong(value, 5)));
+-		if (getHard() == -1 || getTerrain() == 1) {
+-			setIncomplete(true);
++		if (getHard() == -1 || getTerrain() == -1 || getCacheSize() == -1) {
++			if (this.isAddiWpt() || this.getType()==CacheType.CW_TYPE_CUSTOM) {
++				// Addis don't have their own values for difficulty, terrain and size
++				// Custom waypoints can't be updated to remove incomplete flag, so we 
++				// have to set reasonable values.
++				if (getHard() == -1) setHard(CacheTerrDiff.CW_DT_ADDITIONAL);
++				if (getTerrain() == -1) setTerrain(CacheTerrDiff.CW_DT_ADDITIONAL);
++				if (getCacheSize() == -1) setCacheSize(CacheSize.CW_SIZE_NONE);
++			} else {
++				setIncomplete(true);
++			}
+ 		}
+ 	}
+ 
+
+Modified: trunk/src/CacheWolf/OCXMLImporter.java
+===================================================================
+--- trunk/src/CacheWolf/OCXMLImporter.java	2009-05-26 16:45:55 UTC (rev 1854)
++++ trunk/src/CacheWolf/OCXMLImporter.java	2009-05-26 17:42:35 UTC (rev 1855)
+@@ -438,6 +438,7 @@
+ 			// update (overwrite) data
+ 			else {
+ 				holder.setNew(false);
++				holder.setIncomplete(false);
+ 				cacheDB.get(index).update(holder);
+ 				// save ocCacheID, in case, the previous data is from GPX
+ 				DBindexID.put(holder.getOcCacheID(), new Integer(index));
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001772.html">[Cachewolf-svn] r1854 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001774.html">[Cachewolf-svn] r1856 - in trunk: res_noewe/languages src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1773">[ date ]</a>
+              <a href="thread.html#1773">[ thread ]</a>
+              <a href="subject.html#1773">[ subject ]</a>
+              <a href="author.html#1773">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

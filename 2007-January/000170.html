@@ -1,0 +1,194 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r415 - in trunk: resources src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r415%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200701202124.l0KLOpX1003085%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000169.html">
+   <LINK REL="Next"  HREF="000171.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r415 - in trunk: resources src/CacheWolf</H1>
+    <B>bilbowolf at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r415%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200701202124.l0KLOpX1003085%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r415 - in trunk: resources src/CacheWolf">bilbowolf at mail.berlios.de
+       </A><BR>
+    <I>Sat Jan 20 22:24:51 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000169.html">[Cachewolf-svn] r414 - in trunk: resources src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000171.html">[Cachewolf-svn] r416 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#170">[ date ]</a>
+              <a href="thread.html#170">[ thread ]</a>
+              <a href="subject.html#170">[ subject ]</a>
+              <a href="author.html#170">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: bilbowolf
+Date: 2007-01-20 22:24:43 +0100 (Sat, 20 Jan 2007)
+New Revision: 415
+
+Modified:
+   trunk/resources/cachewolf.Languages.cfg
+   trunk/src/CacheWolf/DetailsPanel.java
+   trunk/src/CacheWolf/FilterScreen.java
+   trunk/src/CacheWolf/Profile.java
+Log:
+Filter auf positiv umgestellt und wird je profil gespeichert
+
+Modified: trunk/resources/cachewolf.Languages.cfg
+===================================================================
+--- trunk/resources/cachewolf.Languages.cfg	2007-01-20 21:15:30 UTC (rev 414)
++++ trunk/resources/cachewolf.Languages.cfg	2007-01-20 21:24:43 UTC (rev 415)
+@@ -142,6 +142,7 @@
+ 		710=Archiviert
+ 		711=Nicht suchbar
+ 		712=Route Datei waehlen
++		713=Speicher Filter
+ 		800=Erstelle Liste
+ 		801=suche...
+ 		802=Caches identifiziert. Suche weiter...
+
+Modified: trunk/src/CacheWolf/DetailsPanel.java
+===================================================================
+--- trunk/src/CacheWolf/DetailsPanel.java	2007-01-20 21:15:30 UTC (rev 414)
++++ trunk/src/CacheWolf/DetailsPanel.java	2007-01-20 21:24:43 UTC (rev 415)
+@@ -267,6 +267,9 @@
+ 	*	Method to react to a user input.
+ 	*/
+ 	public void onEvent(Event ev){
++		if(ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.FOCUS_OUT){
++			dirty_status = true;
++		}
+ 		/**
+ 		*	User changed status.
+ 		*/
+@@ -276,17 +279,11 @@
+ 		*	Also possible: the user created a custom waypoint.
+ 		*/
+ 		if(ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.PRESSED){
++			
+ 			if(ev.target == btNotes){
+ 				NotesScreen nsc = new NotesScreen(thisCache, profile);
+ 				nsc.execute(this.getFrame(), Gui.CENTER_FRAME);
+ 			}
+-			if (ev.target == btnDelete){
+-				//Vm.debug(thisCache.CacheName);
+-//TODO This does not work. e.g. if we do a sort we get an indexOutOfBounds exception
+-// therefore temporarily disabled.  skg 20061226
+-				//cacheDB.remove(thisCache);  
+-				//dirty_newOrDelete = true;
+-			}
+ 			if(ev.target == showMap){
+ 				try {
+ 					MapDetailForm mdf = new MapDetailForm(thisCache.wayPoint, pref, profile);
+
+Modified: trunk/src/CacheWolf/FilterScreen.java
+===================================================================
+--- trunk/src/CacheWolf/FilterScreen.java	2007-01-20 21:15:30 UTC (rev 414)
++++ trunk/src/CacheWolf/FilterScreen.java	2007-01-20 21:24:43 UTC (rev 415)
+@@ -213,7 +213,6 @@
+ 								(letterChk.getState() == true ? &quot;1&quot; : &quot;0&quot;) +
+ 								(eventChk.getState() == true ? &quot;1&quot; : &quot;0&quot;)+ 
+ 								(webcamChk.getState() == true ? &quot;1&quot; : &quot;0&quot;)+
+-								(multiChk.getState() == true ? &quot;1&quot; : &quot;0&quot;) +
+ 								(mysteryChk.getState() == true ? &quot;1&quot; : &quot;0&quot;)+
+ 								(earthChk.getState() == true ? &quot;1&quot; : &quot;0&quot;)+
+ 								(loclessChk.getState() == true ? &quot;1&quot; : &quot;0&quot;)+
+@@ -238,8 +237,31 @@
+ 				if(NNW.getState()) roseMatchPattern |= Filter.NNW;
+ 				if(S.getState()) roseMatchPattern |= Filter.S;
+ 				flt.roseMatchPattern = roseMatchPattern;
+-				filterRose = &quot;&quot;;
+-				
++				filterRose = (N.getState() == true ? &quot;1&quot;:&quot;0&quot;)+
++							 (NNE.getState() == true ? &quot;1&quot;:&quot;0&quot;)+
++							 (NE.getState() == true ? &quot;1&quot;:&quot;0&quot;)+
++							 (ENE.getState() == true ? &quot;1&quot;:&quot;0&quot;)+
++							 (E.getState() == true ? &quot;1&quot;:&quot;0&quot;)+
++							 (ESE.getState() == true ? &quot;1&quot;:&quot;0&quot;)+
++							 (SE.getState() == true ? &quot;1&quot;:&quot;0&quot;)+
++							 (SSE.getState() == true ? &quot;1&quot;:&quot;0&quot;)+
++							 (SSW.getState() == true ? &quot;1&quot;:&quot;0&quot;)+
++							 (SW.getState() == true ? &quot;1&quot;:&quot;0&quot;)+
++							 (WSW.getState() == true ? &quot;1&quot;:&quot;0&quot;)+
++							 (W.getState() == true ? &quot;1&quot;:&quot;0&quot;)+
++							 (WNW.getState() == true ? &quot;1&quot;:&quot;0&quot;)+
++							 (NW.getState() == true ? &quot;1&quot;:&quot;0&quot;)+
++							 (NNW.getState() == true ? &quot;1&quot;:&quot;0&quot;)+
++							 (S.getState() == true ? &quot;1&quot;:&quot;0&quot;);
++				Vm.showWait(true);
++				InfoBox infB = new InfoBox(&quot;Info&quot;,MyLocale.getMsg(713,&quot;Saving filter&quot;));
++				infB.exec();
++				Profile pfl = Global.getProfile();
++				pfl.filterRose = filterRose;
++				pfl.filterType = filterType;
++				pfl.saveIndex(Global.getPref());
++				infB.close(0);
++				Vm.showWait(false);
+ 				if(distChc.selectedIndex == 1) flt.distdirec = Filter.SMALLER;
+ 				else flt.distdirec = Filter.GREATER;
+ 				if(difChc.selectedIndex == 1) flt.diffdirec = Filter.SMALLER;
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2007-01-20 21:15:30 UTC (rev 414)
++++ trunk/src/CacheWolf/Profile.java	2007-01-20 21:24:43 UTC (rev 415)
+@@ -91,8 +91,7 @@
+ 				distOC = &quot;0&quot;;
+ 			}
+ 			
+-			// Bilbowolf: detfile.print(&quot;    &lt;FILTER ....
+-			
++			detfile.print(&quot;    &lt;FILTER rose = \&quot;&quot;+filterRose+&quot;\&quot; type = \&quot;&quot;+filterType+&quot;\&quot;/&gt;\n&quot;);
+ 			detfile.print(&quot;    &lt;SYNCOC date = \&quot;&quot;+last_sync_opencaching+&quot;\&quot; dist = \&quot;&quot;+distOC+&quot;\&quot;/&gt;\n&quot;);
+ 			for(int i = 0; i&lt;cacheDB.size();i++){
+ 				ch = (CacheHolder)cacheDB.get(i);
+@@ -171,6 +170,11 @@
+ 					start=text.indexOf(&quot;dist = \&quot;&quot;)+8;
+ 					distOC=text.substring(start,text.indexOf(&quot;\&quot;&quot;,start));
+ 				} else if (text.indexOf(&quot;&lt;FILTER&quot;)&gt;=0){
++					ex.setSource(text);
++					filterRose = ex.findNext();
++					filterType = ex.findNext();
++					Vm.debug(&quot;F1:&quot; +filterType);
++					Vm.debug(&quot;F2: &quot;+filterRose);
+ //					 Bilbowolf: Pattern for storing filter &lt;FILTER type=&quot;01001101&quot; rose = &quot;010010101&quot; var = &quot;0101&quot; dist = &quot;&lt;12&quot; diff = &quot;&gt;13&quot; terr = &quot;&lt;1&quot;/&gt;
+ 				}
+ 			}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000169.html">[Cachewolf-svn] r414 - in trunk: resources src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000171.html">[Cachewolf-svn] r416 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#170">[ date ]</a>
+              <a href="thread.html#170">[ thread ]</a>
+              <a href="subject.html#170">[ subject ]</a>
+              <a href="author.html#170">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

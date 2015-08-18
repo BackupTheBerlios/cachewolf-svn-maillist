@@ -1,0 +1,676 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r928 - trunk/src/CacheWolf/navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-September/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r928%20-%20trunk/src/CacheWolf/navi&In-Reply-To=%3C200709181704.l8IH45NM010145%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000820.html">
+   <LINK REL="Next"  HREF="000822.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r928 - trunk/src/CacheWolf/navi</H1>
+    <B>mik77 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r928%20-%20trunk/src/CacheWolf/navi&In-Reply-To=%3C200709181704.l8IH45NM010145%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r928 - trunk/src/CacheWolf/navi">mik77 at mail.berlios.de
+       </A><BR>
+    <I>Tue Sep 18 19:04:05 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000820.html">[Cachewolf-svn] r927 - trunk/resources/attributes-big
+</A></li>
+        <LI>Next message: <A HREF="000822.html">[Cachewolf-svn] r929 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#821">[ date ]</a>
+              <a href="thread.html#821">[ thread ]</a>
+              <a href="subject.html#821">[ subject ]</a>
+              <a href="author.html#821">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mik77
+Date: 2007-09-18 19:03:52 +0200 (Tue, 18 Sep 2007)
+New Revision: 928
+
+Removed:
+   trunk/src/CacheWolf/navi/MapImporter.java
+Modified:
+   trunk/src/CacheWolf/navi/Map.java
+Log:
+first step of correct renaming Map.java -&gt; MapImporter.java
+
+Modified: trunk/src/CacheWolf/navi/Map.java
+===================================================================
+--- trunk/src/CacheWolf/navi/Map.java	2007-09-18 10:19:23 UTC (rev 927)
++++ trunk/src/CacheWolf/navi/Map.java	2007-09-18 17:03:52 UTC (rev 928)
+@@ -13,20 +13,14 @@
+ import CacheWolf.CoordsScreen;
+ import CacheWolf.Global;
+ import CacheWolf.InfoBox;
+-import CacheWolf.Matrix;
+ import CacheWolf.MyLocale;
+ import CacheWolf.Preferences;
+ 
+-import com.stevesoft.ewe_pat.*;
+-
+ /**
+- *	This class is the main class for mapping,
+- *	 (moving map, georeferencing maps, etc)
+- *	in CacheWolf.
+- *	It also provides a class for importing maps
+- *	This class id=4100
++ *	This class is for importing and manually georeferencing maps
++ *	This class id=4100 for cachewolf-languages
+  */
+-public class Map extends Form {
++public class MapImporter extends Form {
+ 	Preferences pref;
+ 	String mapsPath = new String();
+ 	String thisMap = new String();
+@@ -43,7 +37,7 @@
+ 	/**
+ 	 *	This constructor should be used when importing maps
+ 	 */
+-	public Map(Preferences pref){
++	public MapImporter(Preferences pref){
+ 		this.pref = pref;
+ 		mapsPath = pref.getMapManuallySavePath(true)+&quot;/&quot;; //File.getProgramDirectory() + &quot;/maps/&quot;;
+ 	}
+@@ -55,12 +49,8 @@
+ 	 *	It helps to identify how good the georeferencing works based on the set GCPs.
+ 	 */
+ 	public void updatePosition(int x, int y){
+-		if(GCPs.size()&gt;=3  || (wfl.affine[4] &gt; 0 &amp;&amp; wfl.affine[5] &gt; 0)){
+-			double x_ = 0;
+-			double y_ = 0;
+-			x_ = wfl.affine[0]*x + wfl.affine[2]*y + wfl.affine[4];
+-			y_ = wfl.affine[1]*x + wfl.affine[3]*y + wfl.affine[5];
+-			CWPoint p = new CWPoint(x_ , y_);
++		if(GCPs.size()&gt;=3  || (wfl.topleft.isValid())){
++			CWPoint p = wfl.calcLatLon(x,y);
+ 			infLabel.setText(&quot;--&gt; &quot; + p.getLatDeg(CWPoint.DMS) + &quot; &quot; +p.getLatMin(CWPoint.DMM) + &quot; / &quot; + p.getLonDeg(CWPoint.DMS) + &quot; &quot; + p.getLonMin(CWPoint.DMM));
+ 		}
+ 	}
+@@ -68,7 +58,7 @@
+ 	/**
+ 	 *	This is the correct constructor for georeferencing maps.
+ 	 */
+-	public Map(Preferences pref, String mapToLoad, boolean worldfileexists){
++	public MapImporter(Preferences pref, String mapToLoad, boolean worldfileexists){
+ 		this.pref = pref;
+ 		this.title = MyLocale.getMsg(4106,&quot;Calibrate map:&quot;) + &quot; &quot; + mapToLoad;
+ 		this.resizable = true;
+@@ -116,81 +106,12 @@
+ 		if (GCP.latDec&gt;90 || GCP.latDec&lt;-90 || GCP.lonDec&gt;360 || GCP.lonDec&lt;-180) throw new IllegalArgumentException(&quot;lat/lon out of range: &quot;+GCP.toString());
+ 		GCPs.add(GCP);
+ 		if(GCPs.size() &gt;= 3){
+-			evalGCP();
++			wfl.evalGCP(GCPs, imageWidth, imageHeight);
+ 		}
+ 	}
+ 
+-	/**
+-	 *	Returns the number of ground control points in the list. (Vector GCPs)
+-	 */
+-	public int getGCPCount(){
+-		return GCPs.size();
+-	}
+ 
+ 	/**
+-	 *	Actuall method to evaluate the ground control points and identify the parameters
+-	 *	for thew affine transformation
+-	 */
+-	private void evalGCP(){
+-		//N 48 16.000 E 11 32.000
+-		//N 48 16.000 E 11 50.000
+-		//N 48 9.000 E 11 32.000
+-		GCPoint gcp = new GCPoint();
+-		//Calculate parameters for latitutde affine transformation (affine 0,2,4)
+-		Matrix X = new Matrix(GCPs.size(),3);
+-		Matrix trg = new Matrix(GCPs.size(),1);
+-		for(int i = 0; i &lt; GCPs.size();i++){
+-			gcp = (GCPoint)GCPs.get(i);
+-			X.matrix[i][0] = 1; X.matrix[i][1] = gcp.bitMapX; X.matrix[i][2] = gcp.bitMapY;
+-			trg.matrix[i][0] = gcp.latDec;
+-		}
+-		Matrix Xtran = new Matrix(X);
+-		Xtran.Transpose();
+-		Matrix XtranX = new Matrix(Xtran);
+-		XtranX.Multiply(X);
+-		Matrix XtranXinv = new Matrix(XtranX);
+-		XtranXinv.Inverse();
+-		Matrix beta = new Matrix(XtranXinv);
+-		beta.Multiply(Xtran);
+-		beta.Multiply(trg);
+-		wfl.affine[0] = beta.matrix[1][0];
+-		wfl.affine[2] = beta.matrix[2][0];
+-		wfl.affine[4] = beta.matrix[0][0];
+-
+-		//Calculate parameters for longitude affine transformation (affine 1,3,5)
+-		X = new Matrix(GCPs.size(),3);
+-		trg = new Matrix(GCPs.size(),1);
+-		for(int i = 0; i &lt; GCPs.size();i++){
+-			gcp = (GCPoint)GCPs.get(i);
+-			X.matrix[i][0] = 1;
+-			X.matrix[i][1] = gcp.bitMapX;
+-			X.matrix[i][2] = gcp.bitMapY;
+-			trg.matrix[i][0] = gcp.lonDec;
+-		}
+-		Xtran = new Matrix(X);
+-		Xtran.Transpose();
+-		XtranX = new Matrix(Xtran);
+-		XtranX.Multiply(X);
+-		XtranXinv = new Matrix(XtranX);
+-		XtranXinv.Inverse();
+-		beta = new Matrix(XtranXinv);
+-		beta.Multiply(Xtran);
+-		beta.Multiply(trg);
+-		wfl.affine[1] = beta.matrix[1][0];
+-		wfl.affine[3] = beta.matrix[2][0];
+-		wfl.affine[5] = beta.matrix[0][0];
+-		double x_ = 0;
+-		double y_ = 0;
+-		x_ = wfl.affine[0]*imageWidth+ wfl.affine[2]*imageHeight + wfl.affine[4];
+-		y_ = wfl.affine[1]*imageWidth + wfl.affine[3]*imageHeight + wfl.affine[5];
+-		CWPoint p = new CWPoint(x_ , y_);
+-		wfl.lowlon = p.lonDec;
+-		wfl.lowlat = p.latDec;
+-		//Vm.debug(&quot;A B C&quot; + affine[0] + &quot; &quot; + affine[2] + &quot; &quot; + affine[4]);
+-		//Vm.debug(&quot;D E F&quot; + affine[1] + &quot; &quot; + affine[3] + &quot; &quot; + affine[5]);
+-	}
+-
+-	/**
+ 	 *	Method to copy (&quot;import&quot;) a png based map
+ 	 *	into the maps folder in the CacheWolf base directory.
+ 	 *	
+@@ -367,7 +288,7 @@
+ 								}
+ 							}
+ 							 */
+-							evalGCP();
++							wfl.evalGCP(GCPs, imageWidth, imageHeight);
+ 							//Vm.debug(&quot;Saving .map file to: &quot; + mapsPath + &quot;/&quot; + rawFileName + &quot;.wfl&quot;);
+ 							wfl.saveWFL(mapsPath, rawFileName);
+ 							GCPs.clear();
+@@ -430,10 +351,10 @@
+  *	The data is stored as a ground control point in the calling class: Map
+  */
+ class mapInteractivePanel extends InteractivePanel{
+-	Map f;
++	MapImporter f;
+ 	Locale l = Vm.getLocale();
+ 	LocalResource lr = l.getLocalResource(&quot;cachewolf.Languages&quot;,true);
+-	public mapInteractivePanel(Map f){
++	public mapInteractivePanel(MapImporter f){
+ 		this.f = f;
+ 	}
+ 
+@@ -464,37 +385,7 @@
+ 			GCPoint gcp = new GCPoint(cooS.getCoords());
+ 			gcp.bitMapX = pos.x;
+ 			gcp.bitMapY = pos.y;
+-			f.addGCP(gcp); // throws IllegalArgumentException in case of lon/lat out of range
+-//			} catch (IllegalArgumentException e) { // NumberFormatException is a subclass of IllagalArgumentException
+-//			coosInputFormat();
+-//			this.removeImage(aImg);
++			f.addGCP(gcp); 
+ 		} else this.removeImage(aImg); // CANCEL pressed
+ 	}
+-
+-	private void coosInputFormat () {
+-		MessageBox tmpMB = new MessageBox((String)lr.get(312,&quot;Error&quot;), (String)lr.get(4111,&quot;Coordinates must be entered in the format N DD MM.MMM E DDD MM.MMM&quot;), MessageBox.OKB);
+-		tmpMB.exec();
+-
+-	}
+ }
+-/**
+- *	Class based on CWPoint but intended to handle bitmap x and y
+- *	Used for georeferencing bitmaps.
+- */
+-class GCPoint extends CWPoint{
+-	public int bitMapX = 0;
+-	public int bitMapY = 0;
+-
+-	public GCPoint(){
+-	}
+-
+-	public GCPoint(CWPoint p) {
+-		super(p);
+-	}
+-
+-	public GCPoint(double lat, double lon){
+-		this.latDec = lat;
+-		this.lonDec = lon;
+-		this.utmValid = false;
+-	}
+-}
+\ No newline at end of file
+
+Deleted: trunk/src/CacheWolf/navi/MapImporter.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MapImporter.java	2007-09-18 10:19:23 UTC (rev 927)
++++ trunk/src/CacheWolf/navi/MapImporter.java	2007-09-18 17:03:52 UTC (rev 928)
+@@ -1,391 +0,0 @@
+-package CacheWolf.navi;
+-
+-import ewe.util.*;
+-import ewe.io.*;
+-import ewe.filechooser.*;
+-import ewe.sys.*;
+-import ewe.ui.*;
+-import ewe.graphics.*;
+-import ewe.fx.*;
+-
+-import CacheWolf.CWPoint;
+-import CacheWolf.Common;
+-import CacheWolf.CoordsScreen;
+-import CacheWolf.Global;
+-import CacheWolf.InfoBox;
+-import CacheWolf.MyLocale;
+-import CacheWolf.Preferences;
+-
+-/**
+- *	This class is for importing and manually georeferencing maps
+- *	This class id=4100 for cachewolf-languages
+- */
+-public class MapImporter extends Form {
+-	Preferences pref;
+-	String mapsPath = new String();
+-	String thisMap = new String();
+-	public String selectedMap = new String();
+-	CellPanel infPanel;
+-	mLabel infLabel = new mLabel(&quot;                          &quot;);
+-	Vector GCPs = new Vector();
+-	MapInfoObject wfl = new MapInfoObject();
+-	mButton infButton;
+-	ScrollBarPanel scp;
+-	AniImage mapImg;
+-	int imageWidth, imageHeight = 0;
+-
+-	/**
+-	 *	This constructor should be used when importing maps
+-	 */
+-	public MapImporter(Preferences pref){
+-		this.pref = pref;
+-		mapsPath = pref.getMapManuallySavePath(true)+&quot;/&quot;; //File.getProgramDirectory() + &quot;/maps/&quot;;
+-	}
+-
+-	/**
+-	 *	When a user clicks on the map and more than three ground control points exist
+-	 *	then the calculated coordinate based on the affine transformation is displayed in the
+-	 *	info panel below the map.
+-	 *	It helps to identify how good the georeferencing works based on the set GCPs.
+-	 */
+-	public void updatePosition(int x, int y){
+-		if(GCPs.size()&gt;=3  || (wfl.topleft.isValid())){
+-			CWPoint p = wfl.calcLatLon(x,y);
+-			infLabel.setText(&quot;--&gt; &quot; + p.getLatDeg(CWPoint.DMS) + &quot; &quot; +p.getLatMin(CWPoint.DMM) + &quot; / &quot; + p.getLonDeg(CWPoint.DMS) + &quot; &quot; + p.getLonMin(CWPoint.DMM));
+-		}
+-	}
+-
+-	/**
+-	 *	This is the correct constructor for georeferencing maps.
+-	 */
+-	public MapImporter(Preferences pref, String mapToLoad, boolean worldfileexists){
+-		this.pref = pref;
+-		this.title = MyLocale.getMsg(4106,&quot;Calibrate map:&quot;) + &quot; &quot; + mapToLoad;
+-		this.resizable = true;
+-		this.moveable = true;
+-		//this.windowFlagsToSet = Window.FLAG_MAXIMIZE;
+-		this.setPreferredSize(pref.myAppWidth, pref.myAppHeight);
+-		thisMap = mapToLoad;
+-		mapsPath = pref.getMapManuallySavePath(true)+&quot;/&quot;; //File.getProgramDirectory() + &quot;/maps/&quot;; // TDO veraltet
+-		try {
+-			wfl.loadwfl(mapsPath, thisMap);
+-		}catch(FileNotFoundException ex){
+-			//	Vm.debug(&quot;Cannot load world file!&quot;);
+-		}catch (IOException ex) { // is thrown if lat/lon out of range
+-			MessageBox tmpMB=new MessageBox(MyLocale.getMsg(312, &quot;Error&quot;), ex.getMessage(), MessageBox.OKB);
+-			tmpMB.execute();
+-			Vm.debug(&quot;Cannot load world file!&quot;);
+-		}
+-		mapInteractivePanel pane = new mapInteractivePanel(this);
+-		scp = new ScrollBarPanel(pane);
+-		Image img = new Image(Common.getImageName(mapsPath + thisMap));
+-		PixelBuffer pB = new PixelBuffer(img);
+-		//pB = pB.scale((int)(pref.myAppWidth*0.98),(int)(pref.myAppHeight*0.98));
+-		mapImg = new AniImage(pB.toDrawableImage());
+-		pane.addImage(mapImg);
+-		scp.setPreferredSize(mapImg.getWidth(),mapImg.getHeight());
+-		imageWidth = mapImg.getWidth();
+-		imageHeight = mapImg.getHeight();
+-		this.addLast(scp.getScrollablePanel(), CellConstants.STRETCH, CellConstants.FILL);
+-		infPanel = new CellPanel();
+-		infPanel.addNext(infLabel,CellConstants.STRETCH, CellConstants.FILL);
+-		infButton = new mButton(MyLocale.getMsg(4107,&quot;Done!&quot;));
+-		infPanel.addLast(infButton,CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		this.addLast(infPanel, CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		//scp.repaintNow();
+-		//this.repaintNow();
+-	}
+-
+-	/**
+-	 *	Add a ground control point to the list
+-	 *	If the list is longer than 3 GCPs these will be evaluated
+-	 *	to obtain the required parameters for the affine
+-	 *	transformation.
+-	 */
+-	public void addGCP(GCPoint GCP){
+-		if (GCP.latDec&gt;90 || GCP.latDec&lt;-90 || GCP.lonDec&gt;360 || GCP.lonDec&lt;-180) throw new IllegalArgumentException(&quot;lat/lon out of range: &quot;+GCP.toString());
+-		GCPs.add(GCP);
+-		if(GCPs.size() &gt;= 3){
+-			wfl.evalGCP(GCPs, imageWidth, imageHeight);
+-		}
+-	}
+-
+-
+-	/**
+-	 *	Method to copy (&quot;import&quot;) a png based map
+-	 *	into the maps folder in the CacheWolf base directory.
+-	 *	
+-	 *	If the maps directory does not exist it will create it.
+-	 *	If it finds .map files it will assume these are oziexplorer calibration files.
+-	 *	It will use these files to automatically georeference the files during import.
+-	 */
+-	public int importMap(){
+-		String rawFileName = new String();
+-		FileChooser fc = new FileChooser(FileChooser.DIRECTORY_SELECT, Global.getPref().baseDir);
+-		fc.addMask(&quot;*.png,*.gif,*.bmp,*.jpg&quot;);
+-		fc.setTitle((String)MyLocale.getMsg(4100,&quot;Select Directory:&quot;));
+-		int tmp = fc.execute() ; 
+-		if(tmp != FileChooser.IDYES) return Form.IDCANCEL;
+-		File inDir = fc.getChosenFile();
+-		File mapFile;
+-		InfoBox inf = new InfoBox(&quot;Info&quot;, MyLocale.getMsg(4109,&quot;Loading maps...            \n&quot;), InfoBox.PROGRESS_WITH_WARNINGS, false); 
+-		inf.setPreferredSize(220, 300);
+-		inf.setInfoHeight(100);
+-		inf.relayout(false);
+-		Vm.showWait(this, true);
+-		inf.exec();
+-
+-		//User selected a map, but maybe there are more png(s)
+-		//copy all of them!
+-		//at the same time try to find associated .map files!
+-		//These are georeference files targeted for OziExplorer.
+-		//So lets check if we have more than 1 png file:
+-		String line = new String();
+-		InputStream in = null;
+-		OutputStream out = null;
+-		FileReader inMap;
+-		byte[] buf;
+-		int len;
+-		String[] parts;
+-		String [] files = inDir.listMultiple(&quot;*.png,*.jpg,*.gif,*.bmp&quot;, File.LIST_FILES_ONLY);
+-
+-		String currfile = null;
+-		String curInFullPath;
+-		String curOutFullPath;
+-		int num = files.length;
+-		for(int i =  num -1 ; i &gt;= 0;i--){
+-			currfile = (String) files[i];
+-			inf.setInfo(MyLocale.getMsg(4110,&quot;Loading: &quot;)+ &quot;\n&quot; + currfile + &quot;\n(&quot;+(num-i)+&quot;/&quot;+num+&quot;)&quot;);
+-			//Copy the file
+-			//Vm.debug(&quot;Copy: &quot; + inDir.getFullPath() + &quot;/&quot; +files[i]);
+-			//Vm.debug(&quot;to: &quot; + mapsPath + files[i]);
+-			curInFullPath = inDir.getFullPath() + &quot;/&quot; +currfile;
+-			curOutFullPath = mapsPath + currfile;
+-			boolean imageerror = false;
+-			try {
+-				in = new FileInputStream(curInFullPath);
+-				buf = new byte[1024*10];
+-				boolean first = true;
+-				ByteArray header = new ByteArray(buf);
+-				while ((len = in.read(buf)) &gt; 0) {
+-					if (first) {
+-						first = false;
+-						header.copyFrom(buf, 0, len);
+-						ImageInfo tmpII = Image.getImageInfo(header,null);
+-						imageWidth = tmpII.width;
+-						imageHeight = tmpII.height;
+-						out = new FileOutputStream(curOutFullPath); // only create outfile if geImageInfo didn't throw an exception so do it only here not directly after opening input stream
+-					}
+-					out.write(buf, 0, len);
+-				}
+-			} catch(IOException ex){
+-				imageerror = true;
+-				inf.addWarning(&quot;\nIO-Error while copying image from: &quot; + curInFullPath + &quot; to: &quot; + curOutFullPath + &quot; error: &quot; + ex.getMessage());
+-			} catch (IllegalArgumentException e) { // thrown from Image.getImageInfo when it could not interprete the header (e.g. bmp with 32 bits per pixel)
+-				imageerror = true;
+-				inf.addWarning(&quot;\nError: could not decode image: &quot; + curInFullPath + &quot; - image not copied&quot;);
+-			} finally {
+-				try {
+-					if (in != null) in.close();
+-					if (out  != null) out.close(); 
+-				} catch (Throwable e) {}
+-			}
+-			//Check for a .map file
+-			rawFileName = currfile.substring(0, currfile.lastIndexOf(&quot;.&quot;));
+-			mapFile = new File(inDir.getFullPath() + &quot;/&quot; + rawFileName + &quot;.map&quot;);
+-			if(!imageerror &amp;&amp; mapFile.exists()){
+-				GCPoint gcp1 = new GCPoint();
+-				GCPoint gcp2 = new GCPoint();
+-				GCPoint gcp3 = new GCPoint();
+-				GCPoint gcp4 = new GCPoint();
+-				GCPoint gcpG = new GCPoint();
+-				//Vm.debug(&quot;Found file: &quot; + inDir.getFullPath() + &quot;/&quot; + rawFileName + &quot;.map&quot;);
+-				try {
+-					inMap = new FileReader(inDir.getFullPath() + &quot;/&quot; + rawFileName + &quot;.map&quot;);
+-					while((line = inMap.readLine()) != null){
+-						if(line.equals(&quot;MMPNUM,4&quot;)){
+-
+-							line = inMap.readLine();
+-							parts = mString.split(line, ',');
+-							gcp1.bitMapX = Convert.toInt(parts[2]);
+-							gcp1.bitMapY = Convert.toInt(parts[3]);
+-							if(gcp1.bitMapX == 0) gcp1.bitMapX = 1;
+-							if(gcp1.bitMapY == 0) gcp1.bitMapY = 1;
+-
+-							line = inMap.readLine();
+-							parts = mString.split(line, ',');
+-							gcp2.bitMapX = Convert.toInt(parts[2]);
+-							gcp2.bitMapY = Convert.toInt(parts[3]);
+-							if(gcp2.bitMapX == 0) gcp2.bitMapX = 1;
+-							if(gcp2.bitMapY == 0) gcp2.bitMapY = 1;
+-
+-							line = inMap.readLine();
+-							parts = mString.split(line, ',');
+-							gcp3.bitMapX = Convert.toInt(parts[2]);
+-							gcp3.bitMapY = Convert.toInt(parts[3]);
+-							if(gcp3.bitMapX == 0) gcp3.bitMapX = 1;
+-							if(gcp3.bitMapY == 0) gcp3.bitMapY = 1;
+-							//imageWidth = gcp3.bitMapX;
+-							//imageHeight = gcp3.bitMapY;
+-
+-							line = inMap.readLine();
+-							parts = mString.split(line, ',');
+-							gcp4.bitMapX = Convert.toInt(parts[2]);
+-							gcp4.bitMapY = Convert.toInt(parts[3]);
+-							if(gcp4.bitMapX == 0) gcp4.bitMapX = 1;
+-							if(gcp4.bitMapY == 0) gcp4.bitMapY = 1;
+-
+-							line = inMap.readLine();
+-							parts = mString.split(line, ',');
+-							if(pref.digSeparator.equals(&quot;,&quot;)) {
+-								parts[3]= parts[3].replace('.', ',');
+-								parts[2]= parts[2].replace('.', ',');
+-							}
+-							gcpG = new GCPoint(Convert.toDouble(parts[3]), Convert.toDouble(parts[2]));
+-							gcpG.bitMapX = gcp1.bitMapX;
+-							gcpG.bitMapY = gcp1.bitMapY;
+-							addGCP(gcpG);
+-
+-							line = inMap.readLine();
+-							parts = mString.split(line, ',');
+-							if(pref.digSeparator.equals(&quot;,&quot;)) {
+-								parts[3]= parts[3].replace('.', ',');
+-								parts[2]= parts[2].replace('.', ',');
+-							}
+-							gcpG = new GCPoint(Convert.toDouble(parts[3]), Convert.toDouble(parts[2]));
+-							gcpG.bitMapX = gcp2.bitMapX;
+-							gcpG.bitMapY = gcp2.bitMapY;
+-							addGCP(gcpG);
+-
+-							line = inMap.readLine();
+-							parts = mString.split(line, ',');
+-							if(pref.digSeparator.equals(&quot;,&quot;)) {
+-								parts[3]= parts[3].replace('.', ',');
+-								parts[2]= parts[2].replace('.', ',');
+-							}
+-							gcpG = new GCPoint(Convert.toDouble(parts[3]), Convert.toDouble(parts[2]));
+-							gcpG.bitMapX = gcp3.bitMapX;
+-							gcpG.bitMapY = gcp3.bitMapY;
+-							addGCP(gcpG);
+-
+-							line = inMap.readLine();
+-							parts = mString.split(line, ',');
+-							if(pref.digSeparator.equals(&quot;,&quot;)) {
+-								parts[3]= parts[3].replace('.', ',');
+-								parts[2]= parts[2].replace('.', ',');
+-							}
+-							gcpG = new GCPoint(Convert.toDouble(parts[3]), Convert.toDouble(parts[2]));
+-							gcpG.bitMapX = gcp4.bitMapX;
+-							gcpG.bitMapY = gcp4.bitMapY;
+-							addGCP(gcpG);
+-							/* already read from image file itself
+-							// get dimensions of image
+-							while ( (line = inMap.readLine()) != null){
+-								if (line.startsWith(&quot;IWH&quot;)){
+-									parts = mString.split(line, ',');
+-									imageWidth = Convert.toInt(parts[2]);
+-									imageHeight = Convert.toInt(parts[3]);
+-								}
+-							}
+-							 */
+-							wfl.evalGCP(GCPs, imageWidth, imageHeight);
+-							//Vm.debug(&quot;Saving .map file to: &quot; + mapsPath + &quot;/&quot; + rawFileName + &quot;.wfl&quot;);
+-							wfl.saveWFL(mapsPath, rawFileName);
+-							GCPs.clear();
+-						} // if
+-
+-					} // while
+-					if (inMap != null)	inMap.close();
+-				} catch(IllegalArgumentException ex){ // is thrown from Convert.toDouble and saveWFL if affine[0-5]==0 NumberFormatException is a subclass of IllegalArgumentExepction
+-					inf.addWarning(&quot;\nError while importing .map-file: &quot;+ex.getMessage());
+-				} catch(IOException ex){
+-					inf.addWarning(&quot;\nIO-Error while reading or writing calibration file\n&quot; + ex.getMessage());
+-				} 
+-			} else { // if map file.exists
+-				if (!imageerror) inf.addWarning(&quot;\nNo calibration file found for: &quot; + currfile + &quot; - you can calibrate it manually&quot;);
+-			}
+-		} // for file
+-		Vm.showWait(this, false);
+-		inf.addText(&quot;\ndone.&quot;);
+-		inf.addOkButton();
+-		//inf.addOkButton(); doesn't work
+-		if(Global.mainTab.mm != null) Global.mainTab.mm.mapsloaded = false; 
+-		return Form.IDOK;
+-	}
+-
+-
+-
+-	/**
+-	 *	Handles button pressed event
+-	 *	When the button is pressed a mapname.wfl file is saved in the
+-	 *	maps directory.
+-	 */
+-	public void onEvent(Event ev){
+-
+-		if(ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.PRESSED){
+-			// display coords in another format
+-			if (ev.target == infButton){
+-				boolean retry = true;
+-				while (retry == true) {
+-					try {
+-						retry = false;
+-						wfl.saveWFL(mapsPath, thisMap);
+-						if(Global.mainTab.mm != null) Global.mainTab.mm.mapsloaded = false; 
+-					} catch (IOException e) {
+-						MessageBox tmpMB = new MessageBox(MyLocale.getMsg(321, &quot;Error&quot;), MyLocale.getMsg(321, &quot;Error writing file &quot;) + e.getMessage()+MyLocale.getMsg(324, &quot; - retry?&quot;), MessageBox.YESB | MessageBox.NOB);
+-						if (tmpMB.execute() == MessageBox.IDYES) retry = true;
+-					}catch (IllegalArgumentException e) {
+-						MessageBox tmpMB = new MessageBox(MyLocale.getMsg(144, &quot;Warning&quot;), MyLocale.getMsg(325, &quot;Map not calibrated&quot;)+MyLocale.getMsg(324, &quot; - retry?&quot;), MessageBox.YESB | MessageBox.NOB);
+-						if (tmpMB.execute() == MessageBox.IDYES) { retry = true; break; }
+-					}
+-				}
+-				if (!retry) close(0);
+-			}
+-		}
+-	}
+-}
+-
+-/**
+- *	Class that creates a panel and loads a map.
+- *	It catches click events to display a form where the user may enter the required ccordinates
+- *	The data is stored as a ground control point in the calling class: Map
+- */
+-class mapInteractivePanel extends InteractivePanel{
+-	MapImporter f;
+-	Locale l = Vm.getLocale();
+-	LocalResource lr = l.getLocalResource(&quot;cachewolf.Languages&quot;,true);
+-	public mapInteractivePanel(MapImporter f){
+-		this.f = f;
+-	}
+-
+-	/**
+-	 *	Event handler to catch clicks on the map
+-	 */
+-	public void imageClicked(AniImage which, Point pos){
+-		//Vm.debug(&quot;X = &quot; +pos.x + &quot; Y = &quot; + pos.y);
+-		Image img = new Image(31, 31);
+-		Graphics g = new Graphics(img);
+-		g.setColor(new Color(0,0,0));
+-		g.fillRect(0,0,31,31);
+-		g.setColor(new Color(255,0,0));
+-		g.drawLine(0,16,31,16);
+-		g.drawLine(16,0,16,31);
+-		AniImage aImg = new AniImage(img);
+-		aImg.setLocation(pos.x-16,pos.y-16);
+-		aImg.transparentColor = new Color(0,0,0);
+-		//aImg.properties = mImage.IsNotHot;
+-		aImg.properties = mImage.AlwaysOnTop;
+-		this.addImage(aImg);
+-		g.free();
+-		this.repaintNow();
+-		f.updatePosition(pos.x, pos.y);
+-
+-		CoordsScreen cooS = new CoordsScreen(); // (String)lr.get(4108,&quot;Coordinates:&quot;), (String)lr.get(4108,&quot;Coordinates:&quot;), InfoBox.INPUT);
+-		if (cooS.execute()==CoordsScreen.IDOK) {
+-			GCPoint gcp = new GCPoint(cooS.getCoords());
+-			gcp.bitMapX = pos.x;
+-			gcp.bitMapY = pos.y;
+-			f.addGCP(gcp); 
+-		} else this.removeImage(aImg); // CANCEL pressed
+-	}
+-}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000820.html">[Cachewolf-svn] r927 - trunk/resources/attributes-big
+</A></li>
+	<LI>Next message: <A HREF="000822.html">[Cachewolf-svn] r929 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#821">[ date ]</a>
+              <a href="thread.html#821">[ thread ]</a>
+              <a href="subject.html#821">[ subject ]</a>
+              <a href="author.html#821">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

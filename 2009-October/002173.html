@@ -1,0 +1,138 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2249 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-October/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2249%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200910071843.n97IhZdS031145%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002172.html">
+   <LINK REL="Next"  HREF="002174.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2249 - trunk/src/CacheWolf</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2249%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200910071843.n97IhZdS031145%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2249 - trunk/src/CacheWolf">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Wed Oct  7 20:43:35 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002172.html">[Cachewolf-svn] r2248 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="002174.html">[Cachewolf-svn] r2250 - in trunk: res_noewe/languages src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2173">[ date ]</a>
+              <a href="thread.html#2173">[ thread ]</a>
+              <a href="subject.html#2173">[ subject ]</a>
+              <a href="author.html#2173">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2009-10-07 20:43:30 +0200 (Wed, 07 Oct 2009)
+New Revision: 2249
+
+Modified:
+   trunk/src/CacheWolf/CacheHolder.java
+Log:
+correction for found handling on mainCache, Final and otherAddis
+
+Modified: trunk/src/CacheWolf/CacheHolder.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolder.java	2009-10-07 12:43:22 UTC (rev 2248)
++++ trunk/src/CacheWolf/CacheHolder.java	2009-10-07 18:43:30 UTC (rev 2249)
+@@ -615,13 +615,25 @@
+ 	public void setAttributesFromMainCache(){
+ 		CacheHolder mainCh = this.mainCache;
+ 		this.setCacheOwner(mainCh.getCacheOwner());
+-		this.setCacheStatus(mainCh.getCacheStatus());
++		if (mainCh.is_found()) {
++			if (!this.found) {
++				this.setCacheStatus(mainCh.getCacheStatus());
++				this.setFound(true);
++			}
++			// else addi is already found (perhaps at other time) 
++		}
++		else {
++			// there may be a found addi , so don't overwrite
++			if ((this.getType() == CacheType.CW_TYPE_FINAL)) {
++				this.setCacheStatus(mainCh.getCacheStatus());
++				this.setFound(false);
++			}
++		}
+ 		this.setArchived(mainCh.is_archived());
+ 		this.setAvailable(mainCh.is_available());
+ 		this.setBlack(mainCh.is_black());
+ 		this.setOwned(mainCh.is_owned());
+ 		this.setNew(mainCh.is_new());
+-		this.setFound(mainCh.is_found());
+ 	}
+ 
+ 	public void setAttributesToAddiWpts(){
+@@ -1093,9 +1105,16 @@
+     }
+ 
+ 	public void setCacheStatus(String cacheStatus) {
+-		Global.getProfile().notifyUnsavedChanges(!cacheStatus.equals(this.cacheStatus));		
+-    	this.cacheStatus = cacheStatus;
+-    }
++        if (!cacheStatus.equals(this.cacheStatus)) {
++        	this.cacheStatus = cacheStatus;
++            Global.getProfile().notifyUnsavedChanges(true);		
++            this.cacheStatus = cacheStatus;
++            if ((this.getType() == CacheType.CW_TYPE_FINAL) &amp;&amp; (this.mainCache != null) ) {
++              this.mainCache.setCacheStatus(this.getCacheStatus());
++              // change the addi's in setFound
++            }
++        }
++	}
+ 
+ 	public String getWayPoint() {
+     	return wayPoint;
+@@ -1214,9 +1233,11 @@
+     if (is_found != this.found) {
+       Global.getProfile().notifyUnsavedChanges(true);		
+       this.found = is_found;
+-      if (is_found &amp;&amp; (this.getType() == CacheType.CW_TYPE_FINAL) &amp;&amp; (this.mainCache != null) ) {
+-        this.mainCache.setFound(true);
+-        this.mainCache.setAttributesToAddiWpts();
++      if ((this.getType() == CacheType.CW_TYPE_FINAL) &amp;&amp; (this.mainCache != null) ) {
++        this.mainCache.setFound(is_found);
++		// done in setCacheStatus this.mainCache.setCacheStatus(this.getCacheStatus());
++        // so setFound should be called after setCacheStatus 
++        if (is_found) this.mainCache.setAttributesToAddiWpts();
+       }
+     }
+   }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002172.html">[Cachewolf-svn] r2248 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="002174.html">[Cachewolf-svn] r2250 - in trunk: res_noewe/languages src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2173">[ date ]</a>
+              <a href="thread.html#2173">[ thread ]</a>
+              <a href="subject.html#2173">[ subject ]</a>
+              <a href="author.html#2173">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

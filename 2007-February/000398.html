@@ -1,0 +1,153 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r587 - in trunk: resources src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r587%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200702141916.l1EJGQLO028085%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000397.html">
+   <LINK REL="Next"  HREF="000399.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r587 - in trunk: resources src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r587%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200702141916.l1EJGQLO028085%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r587 - in trunk: resources src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Wed Feb 14 20:16:26 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000397.html">[Cachewolf-svn] r586 - trunk/resources
+</A></li>
+        <LI>Next message: <A HREF="000399.html">[Cachewolf-svn] r588 - in trunk: resources src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#398">[ date ]</a>
+              <a href="thread.html#398">[ thread ]</a>
+              <a href="subject.html#398">[ subject ]</a>
+              <a href="author.html#398">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-02-14 20:16:22 +0100 (Wed, 14 Feb 2007)
+New Revision: 587
+
+Added:
+   trunk/resources/filter.png
+Modified:
+   trunk/src/CacheWolf/StatusBar.java
+Log:
+Statusbar mit Klickbarem Filter ein/aus.
+Filter ist jetzt ein Icon, nicht mehr &quot;Flt&quot;
+
+Added: trunk/resources/filter.png
+===================================================================
+(Binary files differ)
+
+
+Property changes on: trunk/resources/filter.png
+___________________________________________________________________
+Name: svn:mime-type
+   + application/octet-stream
+
+Modified: trunk/src/CacheWolf/StatusBar.java
+===================================================================
+--- trunk/src/CacheWolf/StatusBar.java	2007-02-14 18:01:04 UTC (rev 586)
++++ trunk/src/CacheWolf/StatusBar.java	2007-02-14 19:16:22 UTC (rev 587)
+@@ -3,6 +3,7 @@
+ import ewe.sys.Vm;
+ import ewe.ui.*;
+ import ewe.util.*;
++import ewe.fx.*;
+ 
+ /**
+  * Class ID = 4500
+@@ -13,13 +14,22 @@
+ 	DBStats stats;
+ 	mLabel disp,lblFlt,lblCenter;
+ 	Preferences pref;
++	mButton btnFlt;
++	mImage imgFlt;
+ 	
+ 	public StatusBar(Preferences p, Vector db){
+ 		pref=p;
+ 		stats = new DBStats(db);
+ 		addNext(disp = new mLabel(&quot;&quot;),CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		addNext(lblFlt= new mLabel(&quot;Flt&quot;),CellConstants.DONTSTRETCH, CellConstants.DONTFILL); lblFlt.backGround=new ewe.fx.Color(0,255,0);
++		disp.setToolTip(&quot;Total # of caches (GC&amp;OC)\nTotal # visible\nTotal # found&quot;);
++		addNext(btnFlt= new mButton(imgFlt=new mImage(&quot;filter.png&quot;)),CellConstants.DONTSTRETCH, CellConstants.DONTFILL); 
++		btnFlt.backGround=new ewe.fx.Color(0,255,0); 
++		btnFlt.setPreferredSize(20,13);
++		btnFlt.borderWidth=0; imgFlt.transparentColor=Color.White;
++		btnFlt.setToolTip(&quot;Filter status&quot;);
++//		addNext(lblFlt= new mLabel(&quot;Flt&quot;),CellConstants.DONTSTRETCH, CellConstants.DONTFILL); lblFlt.backGround=new ewe.fx.Color(0,255,0);
+ 		addLast(lblCenter=new mLabel(&quot;&quot;),CellConstants.STRETCH, WEST|CellConstants.FILL);
++		lblCenter.setToolTip(&quot;Current center&quot;);
+ 		updateDisplay();
+ 	}
+ 	
+@@ -31,9 +41,9 @@
+ 		disp.setText(strStatus);
+ 		// Indicate that a filter is active in the status line
+ 		if (Filter.filterActive)
+-			lblFlt.modify(0,Invisible); // Set the filter to &quot;invisible&quot;
++			btnFlt.backGround=new Color(0,255,0);
+ 		else
+-			lblFlt.modify(Invisible,0); // Make filter visible
++			btnFlt.backGround=null;
+ 		// Current centre can only be displayed if screen is big
+ 		// Otherwise it forces a scrollbar
+ 		if (MyLocale.getScreenWidth()&gt;=320) 
+@@ -42,4 +52,20 @@
+ 		lblCenter.setText(strCenter);
+ 		relayout(true); // in case the numbers increased and need more space
+ 	}
++	
++	public void onEvent(Event ev) {
++		if (ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.PRESSED){
++			if (ev.target == btnFlt){
++				Filter flt = new Filter();
++				if (Filter.filterActive) {
++					flt.clearFilter();
++				} else {
++					flt.setFilter();
++					flt.doFilter();
++				}
++				Global.mainTab.tbP.refreshTable();
++			}
++		}
++		super.onEvent(ev);
++	}
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000397.html">[Cachewolf-svn] r586 - trunk/resources
+</A></li>
+	<LI>Next message: <A HREF="000399.html">[Cachewolf-svn] r588 - in trunk: resources src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#398">[ date ]</a>
+              <a href="thread.html#398">[ thread ]</a>
+              <a href="subject.html#398">[ subject ]</a>
+              <a href="author.html#398">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

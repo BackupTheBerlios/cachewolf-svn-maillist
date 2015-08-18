@@ -1,0 +1,629 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r980 - in trunk/src: CacheWolf exp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-October/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r980%20-%20in%20trunk/src%3A%20CacheWolf%20exp&In-Reply-To=%3C200710142138.l9ELcKLK029464%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000872.html">
+   <LINK REL="Next"  HREF="000874.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r980 - in trunk/src: CacheWolf exp</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r980%20-%20in%20trunk/src%3A%20CacheWolf%20exp&In-Reply-To=%3C200710142138.l9ELcKLK029464%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r980 - in trunk/src: CacheWolf exp">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sun Oct 14 23:38:20 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000872.html">[Cachewolf-svn] r979 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000874.html">[Cachewolf-svn] r981 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#873">[ date ]</a>
+              <a href="thread.html#873">[ thread ]</a>
+              <a href="subject.html#873">[ subject ]</a>
+              <a href="author.html#873">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-10-14 23:38:07 +0200 (Sun, 14 Oct 2007)
+New Revision: 980
+
+Added:
+   trunk/src/CacheWolf/Log.java
+   trunk/src/CacheWolf/LogList.java
+Modified:
+   trunk/src/CacheWolf/CacheHolderDetail.java
+   trunk/src/CacheWolf/GPXImporter.java
+   trunk/src/CacheWolf/HintLogPanel.java
+   trunk/src/CacheWolf/OCXMLImporter.java
+   trunk/src/CacheWolf/ShowCacheInBrowser.java
+   trunk/src/CacheWolf/SpiderGC.java
+   trunk/src/exp/HTMLExporter.java
+Log:
+Logs: Start of change to a proper data structure. Within cache.xml logs are still stored as a string but internally they are stored in a Log datastructure with 4 elements: icon, date, logger and message.
+When updating caches the new logs are now merged with the old logs.
+
+Modified: trunk/src/CacheWolf/CacheHolderDetail.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolderDetail.java	2007-10-14 14:22:19 UTC (rev 979)
++++ trunk/src/CacheWolf/CacheHolderDetail.java	2007-10-14 21:38:07 UTC (rev 980)
+@@ -15,7 +15,7 @@
+ 	  public String LongDescription = EMPTY;
+ 	  public String LastUpdate = EMPTY;
+ 	  public String Hints = EMPTY;
+-	  public Vector CacheLogs = new Vector(0);
++	  public LogList CacheLogs=new LogList();
+ 	  public String CacheNotes = EMPTY;
+ 	  public Vector Images = new Vector();
+ 	  public Vector ImagesText = new Vector();
+@@ -57,31 +57,15 @@
+ 	 	Hints = hints;
+ 	 }
+ 	 
+-	 public void setCacheLogs(Vector logs) {
+-		  // Number of logs has changed, set the log_update flag
+-		 //if (logs.size()!=CacheLogs.size()) is_log_update=true;
+-		 int size=logs.size();
+-		 for (int i=0; i&lt;size; i++) { // Loop over all new logs
+-			 addLog((String)logs.elementAt(i));
++	 public void setCacheLogs(LogList newLogs) {
++		 int size=newLogs.size();
++		 for (int i=size-1; i&gt;=0; i--) { // Loop over all new logs, must start with oldest log
++			 if (CacheLogs.merge(newLogs.getLog(i))&gt;=0) this.is_log_update=true;
+ 		 }
+ 		 //CacheLogs=logs;
+-		 countNotFoundLogs();
++		 noFindLogs=CacheLogs.countNotFoundLogs();
+ 	 }
+ 
+-	 /**
+-	  *  Count the number of not-found logs
+-	  */
+-	 public void countNotFoundLogs() {
+-		int countNoFoundLogs = 0;
+-		String loganal = &quot;&quot;;
+-		while(countNoFoundLogs &lt; CacheLogs.size() &amp;&amp; countNoFoundLogs &lt; 5){
+-			loganal = (String)CacheLogs.get(countNoFoundLogs);
+-			if(loganal.indexOf(&quot;icon_sad&quot;)&gt;0) {
+-				countNoFoundLogs++;
+-			}else break;
+-		}
+-		noFindLogs = countNoFoundLogs;
+-	 }
+ 	 
+ 	  /**
+ 	 * Method to update an existing cache with new data. This is
+@@ -114,35 +98,6 @@
+ 		  setHints(newCh.Hints);
+ 		  setCacheLogs(newCh.CacheLogs);
+ 		  
+-/*		  Extractor extOldDate;
+-		  String oldLogDate = EMPTY;
+-		  if(this.CacheLogs.size()&gt;0){
+-			extOldDate = new Extractor((String) this.CacheLogs.get(0), &quot;;&quot;,&quot; by&quot;, 0, true);
+-			oldLogDate= new String(extOldDate.findNext());
+-		  }
+-		  // now loop through new cachedata and compare logentries, 
+-		  // starting with oldest log
+-		  
+-		  //Vm.debug(&quot;made it to here!&quot;);
+-		  int currLog = newCh.CacheLogs.size()-1;
+-		  String newLogDate = EMPTY;
+-		  while (currLog &gt;= 0 ){
+-			  Extractor extNewDate = new Extractor((String) newCh.CacheLogs.get(currLog), &quot;;&quot;,&quot; by&quot;, 0, true);
+-			  newLogDate = extNewDate.findNext();
+-			  if (newLogDate.compareTo(oldLogDate)&gt; 0){
+-		  		  // oldest log from new cachedata is younger than stored data
+-		  		  // put the new logs in front of old logs
+-				  //Vm.debug(newCh.wayPoint + &quot; New: &quot; + newLogDate + &quot; Old: &quot; + oldLogDate + &quot; cmp: &quot; + newLogDate.compareTo(oldLogDate));
+-				  while (currLog &gt;= 0) this.CacheLogs.add(0, newCh.CacheLogs.get(currLog--));
+-				  this.is_log_update = true;
+-			  }
+-			  else currLog--;
+-		  }//while
+-		  
+-		  //Logs
+-		  //&lt;img src='icon_smile.gif'&gt;&nbsp;2005-10-30 by Schatzpirat&lt;/strong&gt;&lt;br&gt;
+-		  //get Date of latest log in old cachedata
+-*/
+ 		  if (newCh.Solver.length()&gt;0) this.Solver=newCh.Solver;
+ 	 	return this;
+ 	  }
+@@ -173,55 +128,7 @@
+ 				saveCacheDetails(profile.dataDir);
+ 			}
+ 	  }
+-	  /**
+-	   * Adds a new log to the cachedata 
+-	   * @param logEntry
+-	   */
+-	  public void addLog(String logEntry){
+-		  //Logs
+-		  //&lt;img src='icon_smile.gif'&gt;&nbsp;2005-10-30 by Schatzpirat&lt;/strong&gt;&lt;br&gt;
+-		  //get Date of latest log in old cachedata
+-		  Extractor extOldDate;
+-		  String oldLogDate = &quot;&quot;;
+-		  if(this.CacheLogs.size()&gt;0){
+-			extOldDate = new Extractor((String) this.CacheLogs.get(0), &quot;;&quot;,&quot; &quot;, 0, true);
+-			oldLogDate= extOldDate.findNext();
+-		  }
+ 
+-		  String newLogDate;
+-		  Extractor extNewDate = new Extractor(logEntry, &quot;;&quot;,&quot; &quot;, 0, true);
+-		  newLogDate = extNewDate.findNext();
+-		  if (newLogDate.compareTo(oldLogDate)&gt; 0){
+-	  		  // oldest log from new cachedata is younger than stored data
+-	  		  // put the new logs in front of old logs
+-			  //Vm.debug(newCh.wayPoint + &quot; New: &quot; + newLogDate + &quot; Old: &quot; + oldLogDate + &quot; cmp: &quot; + newLogDate.compareTo(oldLogDate));
+-			  this.CacheLogs.add(0, logEntry);
+-			  this.is_log_update = true;
+-			  if (logEntry.indexOf(&quot;icon_sad&quot;)&gt; 0) this.noFindLogs++;
+-			  return;
+-		  }
+-		  if (newLogDate.compareTo(oldLogDate)== 0){
+-			  // logdate is equal, so check, if date&amp;finder is equal
+-			  String newLogFinder, oldLogFinder;
+-			  Extractor extOldFinder = new Extractor((String) this.CacheLogs.get(0), &quot;;&quot;,&quot;&lt;&quot;, 0, true);
+-			  oldLogFinder = extOldFinder.findNext().toLowerCase();
+-			  // Check whether the last old log was inserted without a &quot; by &quot; between date and finder
+-			  if (oldLogFinder.indexOf(&quot; by&quot;)&lt;0) {
+-				  int i=oldLogFinder.indexOf(&quot; &quot;);
+-				  if (i&gt;0) oldLogFinder=oldLogFinder.substring(0,i)+&quot; by&quot;+oldLogFinder.substring(i);
+-			  }
+-			  
+-			  Extractor extNewFinder = new Extractor(logEntry, &quot;;&quot;,&quot;&lt;&quot;, 0, true);
+-			  newLogFinder = extNewFinder.findNext().toLowerCase();
+-			  
+-			  if (newLogFinder.compareTo(oldLogFinder)!= 0){
+-				  this.CacheLogs.add(0, logEntry);
+-				  this.is_log_update = true;
+-				  if (logEntry.indexOf(&quot;icon_sad&quot;)&gt; 0) this.noFindLogs++;
+-			  }
+-		  }
+-	  }
+-
+ 	  
+ 		/**
+ 		*	Method to parse a specific cache.xml file.
+@@ -248,7 +155,7 @@
+ 			
+ 			dummy = ex.findNext();
+ 			while(ex.endOfSearch()==false){
+-				CacheLogs.add(dummy);
++				CacheLogs.add(new Log(dummy));
+ 				dummy = ex.findNext();
+ 			}
+ 			ex = new Extractor(text, &quot;&lt;NOTES&gt;&lt;![CDATA[&quot;, &quot;]]&gt;&lt;/NOTES&gt;&quot;, 0, true);
+@@ -357,10 +264,7 @@
+ 				  detfile.print(&quot;&lt;HINTS&gt;&lt;![CDATA[&quot;+Hints+&quot;]]&gt;&lt;/HINTS&gt;\r\n&quot;);
+ 				  detfile.print(&quot;&lt;LOGS&gt;\r\n&quot;);
+ 				  for(int i = 0; i &lt; CacheLogs.size(); i++){
+-					  dummy = (String)CacheLogs.get(i);
+-					  detfile.print(&quot;&lt;LOG&gt;&lt;![CDATA[\r\n&quot;);
+-					  detfile.print(dummy);
+-					  detfile.print(&quot;\r\n]]&gt;&lt;/LOG&gt;\r\n&quot;);
++					  detfile.print(CacheLogs.getLog(i).toXML());
+ 				  }
+ 				  detfile.print(&quot;&lt;/LOGS&gt;\r\n&quot;);
+ 			
+
+Modified: trunk/src/CacheWolf/GPXImporter.java
+===================================================================
+--- trunk/src/CacheWolf/GPXImporter.java	2007-10-14 14:22:19 UTC (rev 979)
++++ trunk/src/CacheWolf/GPXImporter.java	2007-10-14 21:38:07 UTC (rev 980)
+@@ -256,8 +256,8 @@
+ 				return;
+ 			}
+ 			if (name.equals(&quot;groundspeak:log&quot;) || name.equals(&quot;log&quot;) || name.equals(&quot;terra:log&quot;) ) {
+-				chD.CacheLogs.add(logIcon + logDate + &quot; by &quot; + logFinder + &quot;&lt;br&gt;&quot; + logData + &quot;&lt;br&gt;&quot;);
+-				if(logIcon.equals(&quot;&lt;img src='icon_smile.gif'&gt;&nbsp;&quot;) &amp;&amp; 
++				chD.CacheLogs.add(new Log(logIcon,logDate,logFinder,logData));
++				if(logIcon.equals(&quot;icon_smile.gif&quot;) &amp;&amp; 
+ 						  (logFinder.equalsIgnoreCase(pref.myAlias) || (pref.myAlias2.length()&gt;0 &amp;&amp; logFinder.equalsIgnoreCase(pref.myAlias2)))) {
+ 							chD.CacheStatus=logDate;
+ 							chD.is_found=true;
+@@ -273,7 +273,7 @@
+ 			//Vm.debug(&quot;here ?!?!?&quot;);
+ 			//Vm.debug(&quot;chould be new!!!!&quot;);
+ 			if (index == -1){
+-				chD.countNotFoundLogs();
++				chD.noFindLogs=chD.CacheLogs.countNotFoundLogs();
+ 				chD.is_new = true;
+ 				cacheDB.add(new CacheHolder(chD));
+ 				// don't spider additional waypoints, so check
+@@ -460,24 +460,24 @@
+ 	
+ 
+ 	public static String typeText2Image(String typeText){
+-		if (typeText.equals(&quot;Found it&quot;)||typeText.equals(&quot;Found&quot;)||typeText.equals(&quot;find&quot;)) return &quot;&lt;img src='icon_smile.gif'&gt;&nbsp;&quot;;
+-		if (typeText.equals(&quot;Didn't find it&quot;)||typeText.equals(&quot;Not Found&quot;)||typeText.equals(&quot;no_find&quot;)) return &quot;&lt;img src='icon_sad.gif'&gt;&nbsp;&quot;;
++		if (typeText.equals(&quot;Found it&quot;)||typeText.equals(&quot;Found&quot;)||typeText.equals(&quot;find&quot;)) return &quot;icon_smile.gif&quot;;
++		if (typeText.equals(&quot;Didn't find it&quot;)||typeText.equals(&quot;Not Found&quot;)||typeText.equals(&quot;no_find&quot;)) return &quot;icon_sad.gif&quot;;
+ 		if (typeText.equals(&quot;Write note&quot;)||typeText.equals(&quot;Note&quot;)||typeText.equals(&quot;note&quot;)
+-			||typeText.equals(&quot;Not Attempted&quot;)||typeText.equals(&quot;Other&quot;)) return &quot;&lt;img src='icon_note.gif'&gt;&nbsp;&quot;;
+-		if (typeText.equals(&quot;Enable Listing&quot;)) return &quot;&lt;img src='icon_enabled.gif'&gt;&nbsp;&quot;;
+-		if (typeText.equals(&quot;Temporarily Disable Listing&quot;)) return &quot;&lt;img src='icon_disabled.gif'&gt;&nbsp;&quot;;
+-		if (typeText.equals(&quot;Webcam Photo Taken&quot;)) return &quot;&lt;img src='11.png'&gt;&nbsp;&quot;;
+-		if (typeText.equals(&quot;Attended&quot;)) return &quot;&lt;img src='icon_attended.gif'&gt;&nbsp;&quot;;
+-		if (typeText.equals(&quot;Publish Listing&quot;)) return &quot;&lt;img src='green.png'&gt;&nbsp;&quot;;
+-		if (typeText.equals(&quot;Will Attend&quot;)) return &quot;&lt;img src='icon_rsvp.gif'&gt;&nbsp;&quot;;
+-		if (typeText.equals(&quot;Post Reviewer Note&quot;)) return &quot;&lt;img src='big_smile.gif'&gt;&nbsp;&quot;;
+-		if (typeText.equals(&quot;Unarchive&quot;)) return &quot;&lt;img src='traffic_cone.gif'&gt;&nbsp;&quot;;
+-		if (typeText.equals(&quot;Archive (show)&quot;)) return &quot;&lt;img src='traffic_cone.gif'&gt;&nbsp;&quot;;
+-		if (typeText.equals(&quot;Owner Maintenance&quot;)) return &quot;&lt;img src='icon_maint.gif'&gt;&nbsp;&quot;;
+-		if (typeText.equals(&quot;Needs Maintenance&quot;)) return &quot;&lt;img src='icon_needsmaint.gif'&gt;&nbsp;&quot;;
+-		if (typeText.equals(&quot;Update Coordinates&quot;)) return &quot;&lt;img src='coord_update.gif'&gt;&nbsp;&quot;;
++			||typeText.equals(&quot;Not Attempted&quot;)||typeText.equals(&quot;Other&quot;)) return &quot;icon_note.gif&quot;;
++		if (typeText.equals(&quot;Enable Listing&quot;)) return &quot;icon_enabled.gif&quot;;
++		if (typeText.equals(&quot;Temporarily Disable Listing&quot;)) return &quot;icon_disabled.gif&quot;;
++		if (typeText.equals(&quot;Webcam Photo Taken&quot;)) return &quot;11.png&quot;;
++		if (typeText.equals(&quot;Attended&quot;)) return &quot;icon_attended.gif&quot;;
++		if (typeText.equals(&quot;Publish Listing&quot;)) return &quot;green.png&quot;;
++		if (typeText.equals(&quot;Will Attend&quot;)) return &quot;icon_rsvp.gif&quot;;
++		if (typeText.equals(&quot;Post Reviewer Note&quot;)) return &quot;big_smile.gif&quot;;
++		if (typeText.equals(&quot;Unarchive&quot;)) return &quot;traffic_cone.gif&quot;;
++		if (typeText.equals(&quot;Archive (show)&quot;)) return &quot;traffic_cone.gif&quot;;
++		if (typeText.equals(&quot;Owner Maintenance&quot;)) return &quot;icon_maint.gif&quot;;
++		if (typeText.equals(&quot;Needs Maintenance&quot;)) return &quot;icon_needsmaint.gif&quot;;
++		if (typeText.equals(&quot;Update Coordinates&quot;)) return &quot;coord_update.gif&quot;;
+ 		//Vm.debug(&quot;Unknown Log Type:&quot; + typeText);
+-		return typeText +&quot;&nbsp;&quot;;
++		return typeText;
+ 	}
+ 	
+ 	public static String TCSizetoText(String size){
+
+Modified: trunk/src/CacheWolf/HintLogPanel.java
+===================================================================
+--- trunk/src/CacheWolf/HintLogPanel.java	2007-10-14 14:22:19 UTC (rev 979)
++++ trunk/src/CacheWolf/HintLogPanel.java	2007-10-14 21:38:07 UTC (rev 980)
+@@ -81,7 +81,7 @@
+ 		int nLogs=cache.CacheLogs.size();
+ 		int logsPerPage=Global.getPref().logsPerPage;
+ 		for(int i = crntLogPosition; i&lt;nLogs; i++){
+-			dummy.append((String)cache.CacheLogs.get(i));
++			dummy.append(cache.CacheLogs.getLog(i).toHtml());
+ 			dummy.append(&quot;&lt;/br&gt;&quot;);
+ 			if(++counter &gt;= logsPerPage) break;
+ 		}
+
+Added: trunk/src/CacheWolf/Log.java
+===================================================================
+--- trunk/src/CacheWolf/Log.java	2007-10-14 14:22:19 UTC (rev 979)
++++ trunk/src/CacheWolf/Log.java	2007-10-14 21:38:07 UTC (rev 980)
+@@ -0,0 +1,93 @@
++package CacheWolf;
++
++public class Log {
++	private static String MAXLOGICON=&quot;MAXLOG&quot;;
++	/** The icon which describes the log e.g. icon_sad */
++	private String icon;
++	/** The date in format yyyy-mm-dd */
++	private String date;
++	/** The person who logged the cache */
++	private String logger;
++	/** The logged message */
++	private String message;
++	
++	/** Create a log from a single line in format&lt;br&gt;
++	 * &lt;pre&gt;&lt;img src='ICON'&gt;&nbsp;DATE LOGGER&lt;br&gt;MESSAGE
++	 * or &lt;img src='ICON'&gt;&nbsp;DATE by LOGGER&lt;br&gt;MESSAGE&lt;/pre&gt;
++	 * @param logLine
++	 */
++	Log(String logLine) {
++//		&lt;img src='icon_smile.gif'&gt;&nbsp;2007-01-14 xyz&lt;br&gt;a wonderful log
++		int ic1=logLine.indexOf(&quot;&lt;img src='&quot;);
++		int ic2=logLine.indexOf(&quot;'&quot;,ic1+10);
++		icon=logLine.substring(ic1+10,ic2);
++		int d1=logLine.indexOf(&quot;;&quot;);
++		date=logLine.substring(d1+1,d1+11);
++		int l1=d1+12;
++		if (logLine.substring(l1,l1+3).equals(&quot;by &quot;)) l1+=3;
++		int l2=logLine.indexOf(&quot;&lt;br&gt;&quot;,l1);
++		logger=logLine.substring(l1,l2);
++		message=logLine.substring(l2+4);
++	}
++	
++	Log(String icon, String date, String logger, String message) {
++		this.icon=icon;
++		this.date=date;
++		this.logger=logger;
++		this.message=message;
++	}
++	
++	public static Log maxLog() {
++		return new Log(MAXLOGICON,&quot;1900-00-00&quot;,&quot;&quot;,&quot;&quot;);
++	}
++	
++	public String getIcon() {
++		return icon;
++	}
++	public void setIcon(String icon) {
++		this.icon = icon;
++	}
++	public String getDate() {
++		return date;
++	}
++	public void setDate(String date) {
++		this.date = date;
++	}
++	public String getLogger() {
++		return logger;
++	}
++	public void setLogger(String logger) {
++		this.logger = logger;
++	}
++	public String getMessage() {
++		return message;
++	}
++	public void setMessage(String message) {
++		this.message = message;
++	}
++
++	/** Return XML representation of log for storing in cache.xml */
++	public String toXML(){
++		StringBuffer s=new StringBuffer(400);
++		s.append(&quot;&lt;LOG&gt;&lt;![CDATA[&quot;);
++		s.append(toHtml());
++		s.append(&quot;]]&gt;&lt;/LOG&gt;\r\n&quot;);
++		return s.toString();
++	}
++	
++	/** Return HTML representation of log for display on screen */
++	public String toHtml(){
++//		&lt;img src='icon_smile.gif'&gt;&nbsp;2007-01-14 xyz&lt;br&gt;a wonderful log
++		if (icon.equals(MAXLOGICON)) return &quot;Too many logs&quot;;
++		StringBuffer s=new StringBuffer(300);
++		s.append(&quot;&lt;img src='&quot;);
++		s.append(icon);
++		s.append(&quot;'&gt;&nbsp;&quot;);
++		s.append(date);
++		s.append(&quot; by &quot;);
++		s.append(logger);
++		s.append(&quot;&lt;br&gt;&quot;);
++		s.append(message.trim());
++		return s.toString();
++	}
++}
+
+Added: trunk/src/CacheWolf/LogList.java
+===================================================================
+--- trunk/src/CacheWolf/LogList.java	2007-10-14 14:22:19 UTC (rev 979)
++++ trunk/src/CacheWolf/LogList.java	2007-10-14 21:38:07 UTC (rev 980)
+@@ -0,0 +1,103 @@
++package CacheWolf;
++
++import ewe.util.Vector;
++
++public class LogList {
++	/** The Vector containing the Log objects 
++	 * The list is always sorted in descending order */
++	private Vector logList=new Vector(10);
++
++	/** Construct an empty Log list */
++	public LogList() {
++	}
++	
++	/** Get the Log at a certain position in the list */
++	public Log getLog(int i) {
++		return (Log) logList.elementAt(i);
++	}
++	
++	/** Return the size of the list */
++	public int size() {
++		return logList.size();
++	}
++	
++	/** Clear the Log list */
++	public void clear() {
++		logList.clear();
++	}
++
++	/** Add a Log to the list */
++	public void add(Log log) {
++		logList.add(log);
++	}
++	
++	/** Remove a Log from the list */
++	public void remove(int i) {
++		logList.removeElementAt(i);
++	}
++
++	/** Replace a Log in the list */
++	public void replace(int i, Log log) {
++		logList.set(i, log);
++	}
++	
++	/** Merge a log into the list at the appropriate position
++	 * @param newLog
++	 * @return the position where the log was placed or -1 if it is already in the list
++	 */ 
++	 
++	public int merge(Log newLog) {
++		String newDate=newLog.getDate();
++		int size=size();
++		int i;
++		for (i=0; i&lt;size; i++) {
++			 int comp=newDate.compareTo(((Log) logList.elementAt(i)).getDate());
++			 if (comp&gt;0) {
++				 logList.insertElementAt(newLog, i);
++				 return i;
++			 }
++			 if (comp==0) break;
++		}
++		// Now i points to the first log with same date as the new log or i==size()
++		if (i==size) {
++			add(newLog);
++			return size;
++		}
++		// Check whether we have any logs with same date by same user
++		String newLogger=newLog.getLogger();
++		String newIcon=newLog.getIcon();
++		while (i&lt;size &amp;&amp;  newDate.equals(((Log) logList.elementAt(i)).getDate())) {
++			Log log=(Log) logList.elementAt(i);
++			if (log.getLogger().equals(newLogger) &amp;&amp;
++				log.getIcon().equals(newIcon)) {
++				// Has the log message changed vs. the one we have in cache.xml?
++				if (!log.getMessage().equals(newLog.getMessage())) {
++					replace(i,newLog);
++					return i;
++				} else
++					return -1; // Log already in list
++			}
++			i++;
++		}
++		if (i==size)
++			add(newLog);
++		else
++			logList.insertElementAt(newLog, i);
++		return i;
++	}
++
++	 /**
++	  *  Count the number of not-found logs
++	  */
++	 public int countNotFoundLogs() {
++		int countNoFoundLogs = 0;
++		while(countNoFoundLogs &lt; size() &amp;&amp; countNoFoundLogs &lt; 5){
++			if(getLog(countNoFoundLogs).getIcon().equals(&quot;icon_sad&quot;)) {
++				countNoFoundLogs++;
++			}else break;
++		}
++		return countNoFoundLogs;
++	 }
++	
++
++}
+
+Modified: trunk/src/CacheWolf/OCXMLImporter.java
+===================================================================
+--- trunk/src/CacheWolf/OCXMLImporter.java	2007-10-14 14:22:19 UTC (rev 979)
++++ trunk/src/CacheWolf/OCXMLImporter.java	2007-10-14 21:38:07 UTC (rev 980)
+@@ -587,8 +587,8 @@
+ 
+ 	private void endCacheLog(String name){
+ 		if (name.equals(&quot;cachelog&quot;)){ // &lt;/cachelog&gt;
+-			chD.addLog(logIcon + logDate + &quot; by &quot; + logFinder + &quot;&lt;/strong&gt;&lt;br&gt;&quot; + logData + &quot;&lt;br&gt;&quot;);
+-			chD.saveCacheDetails(profile.dataDir);
++			chD.CacheLogs.merge(new Log(logIcon,logDate,logFinder,logData));
++			//chD.saveCacheDetails(profile.dataDir);
+ 			return;
+ 		}
+ 
+
+Modified: trunk/src/CacheWolf/ShowCacheInBrowser.java
+===================================================================
+--- trunk/src/CacheWolf/ShowCacheInBrowser.java	2007-10-14 14:22:19 UTC (rev 979)
++++ trunk/src/CacheWolf/ShowCacheInBrowser.java	2007-10-14 21:38:07 UTC (rev 980)
+@@ -162,7 +162,7 @@
+ 					Vector logVect=new Vector(chD.CacheLogs.size());
+ 					for (int i=0; i&lt;chD.CacheLogs.size(); i++) {
+ 						Hashtable logs=new Hashtable();
+-						String log=STRreplace.replace((String)chD.CacheLogs.get(i),&quot;<A HREF="http://www.geocaching.com/images/icons/">http://www.geocaching.com/images/icons/</A>&quot;,&quot;&quot;);
++						String log=STRreplace.replace(chD.CacheLogs.getLog(i).toHtml(),&quot;<A HREF="http://www.geocaching.com/images/icons/">http://www.geocaching.com/images/icons/</A>&quot;,&quot;&quot;);
+ 						int posGt=log.indexOf('&gt;'); // Find the icon which defines the type of log
+ 						if (posGt&lt;0) {
+ 							logs.put(&quot;LOG&quot;,log);
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2007-10-14 14:22:19 UTC (rev 979)
++++ trunk/src/CacheWolf/SpiderGC.java	2007-10-14 21:38:07 UTC (rev 980)
+@@ -738,27 +738,13 @@
+ 	 * @param chD Cache Details
+ 	 * @return A HTML string containing the logs
+ 	 */
+-	private Vector getLogs(String doc, CacheHolderDetail chD) throws Exception{
++	private LogList getLogs(String doc, CacheHolderDetail chD) throws Exception{
+ 		String icon = &quot;&quot;;
+ 		String name = &quot;&quot;;
+-		Vector reslts = new Vector();
++		LogList reslts = new LogList();
+ 		Regex blockRex = new Regex(p.getProp(&quot;blockRex&quot;));
+ 		blockRex.search(doc);
+ 		doc = blockRex.stringMatched(1);
+-		//Vm.debug(&quot;Log Block: &quot; + doc);
+-		/*
+-		Vm.debug(&quot;Setting log regex&quot;);
+-		inRex = new Regex(&quot;&lt;STRONG&gt;&lt;IMG SRC='<A HREF="http://www.geocaching.com/images/icons/((?s">http://www.geocaching.com/images/icons/((?s</A>).*?)'((?s).*?)&nbsp;((?s).*?)&lt;A NAME=\&quot;((?s).*?)'text-decoration: underline;'&gt;((?s).*?)&lt;A HREF=\&quot;((?s).*?)'text-decoration: underline;'&gt;((?s).*?)&lt;/A&gt;&lt;/strong&gt;((?s).*?)\\[&lt;A href=&quot;);
+-		inRex.optimize();
+-		inRex.search(doc);
+-		Vm.debug(&quot;Log regex run...&quot;);
+-		while(inRex.didMatch()){
+-			Vm.debug(&quot;Logs:&quot; + inRex.stringMatched(1) + &quot; / &quot; + inRex.stringMatched(3)+ &quot; / &quot; + inRex.stringMatched(7)+ &quot; / &quot; + inRex.stringMatched(8));
+-			//&lt;img src='icon_smile.gif'&gt;&nbsp;
+-			reslts.add(&quot;&lt;img src='&quot;+ inRex.stringMatched(1) +&quot;'&gt;&nbsp;&quot; + inRex.stringMatched(3)+ inRex.stringMatched(7)+ inRex.stringMatched(8));
+-			inRex.searchFrom(doc, inRex.matchedTo());
+-		}
+-		*/
+ 		String singleLog = &quot;&quot;;
+ 		Extractor exSingleLog = new Extractor(doc,p.getProp(&quot;singleLogExStart&quot;), p.getProp(&quot;singleLogExEnd&quot;), 0, false); // maybe here is some change neccessary because findnext now gives the whole endstring back???
+ 		singleLog = exSingleLog.findNext();
+@@ -788,7 +774,7 @@
+ 				chD.is_found = true;
+ 				chD.CacheStatus = d;
+ 			}
+-			if (nLogs&lt;=MAXLOGS) reslts.add(&quot;&lt;img src='&quot;+ icon +&quot;'&gt;&nbsp;&quot; + d + &quot; by &quot; + name +&quot;&lt;br&gt;&quot;+ exLog.findNext());
++			if (nLogs&lt;=MAXLOGS) reslts.add(new Log(icon,d,name,exLog.findNext()));
+ 
+ 			singleLog = exSingleLog.findNext();
+ 			exIcon.setSource(singleLog);
+@@ -802,7 +788,7 @@
+ 			if (nLogs&gt;=MAXLOGS &amp;&amp; chD.is_found) break;
+ 		}
+ 		if (nLogs&gt;MAXLOGS) {
+-			reslts.add(&quot;&lt;br&gt;More than &quot;+MAXLOGS+&quot; logs.&lt;br&gt;&quot;);
++			reslts.add(Log.maxLog());
+ 		}
+ 		return reslts;
+ 	}
+
+Modified: trunk/src/exp/HTMLExporter.java
+===================================================================
+--- trunk/src/exp/HTMLExporter.java	2007-10-14 14:22:19 UTC (rev 979)
++++ trunk/src/exp/HTMLExporter.java	2007-10-14 21:38:07 UTC (rev 980)
+@@ -127,7 +127,7 @@
+ 						page_tpl.setParam(&quot;DECRYPTEDHINTS&quot;, Common.rot13(holder.Hints));
+ 						dummy = new String();
+ 						for(int j = 0; j&lt;holder.CacheLogs.size(); j++){
+-							dummy = dummy + (String)holder.CacheLogs.get(j)+&quot;&lt;br&gt;&quot;;
++							dummy = dummy + holder.CacheLogs.getLog(j).toHtml()+&quot;&lt;br&gt;&quot;;
+ 						}
+ 						page_tpl.setParam(&quot;LOGS&quot;, dummy);
+ 						page_tpl.setParam(&quot;NOTES&quot;, STRreplace.replace(holder.CacheNotes, &quot;\n&quot;,&quot;&lt;br&gt;&quot;));
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000872.html">[Cachewolf-svn] r979 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000874.html">[Cachewolf-svn] r981 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#873">[ date ]</a>
+              <a href="thread.html#873">[ thread ]</a>
+              <a href="subject.html#873">[ subject ]</a>
+              <a href="author.html#873">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

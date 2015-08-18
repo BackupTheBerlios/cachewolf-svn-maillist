@@ -1,0 +1,156 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r3047 - in trunk/src/CacheWolf: . navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2011-July/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r3047%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C20110723100927.047A7480E14%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003034.html">
+   
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r3047 - in trunk/src/CacheWolf: . navi</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r3047%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C20110723100927.047A7480E14%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r3047 - in trunk/src/CacheWolf: . navi">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Sat Jul 23 12:09:26 CEST 2011</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003034.html">[Cachewolf-svn] r3043 - trunk/src/CacheWolf
+</A></li>
+        
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3038">[ date ]</a>
+              <a href="thread.html#3038">[ thread ]</a>
+              <a href="subject.html#3038">[ subject ]</a>
+              <a href="author.html#3038">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2011-07-23 12:09:26 +0200 (Sat, 23 Jul 2011)
+New Revision: 3047
+
+Modified:
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/navi/MovingMap.java
+Log:
+1. no Text on Tabs for screens with width &lt;= 480
+2.  no Update of Position if lat = 0 and lon = 0 in movingMap
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2011-07-21 13:29:33 UTC (rev 3046)
++++ trunk/src/CacheWolf/MainTab.java	2011-07-23 10:09:26 UTC (rev 3047)
+@@ -102,7 +102,7 @@
+ 		// Don't expand tabs if the screen is very narrow, i.e. HP IPAQ
+ 		// 65xx, 69xx
+ 		int sw = MyLocale.getScreenWidth();
+-		if (sw &lt;= 240)
++		if (sw &lt;= 480)
+ 			this.dontExpandTabs = true;
+ 		String imagesize = &quot;&quot;;
+ 		if (pref.useBigIcons)
+
+Modified: trunk/src/CacheWolf/navi/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MovingMap.java	2011-07-21 13:29:33 UTC (rev 3046)
++++ trunk/src/CacheWolf/navi/MovingMap.java	2011-07-23 10:09:26 UTC (rev 3047)
+@@ -823,23 +823,13 @@
+ 			posCircleX = width / 2;
+ 			posCircleY = height / 2;
+ 		} else {
+-			posCircleX = pref.myAppWidth / 2; // maybe this could /should
+-												// be repleced to windows
+-												// size
++			// maybe this could / should be replaced to windows size
++			posCircleX = pref.myAppWidth / 2;
+ 			posCircleY = pref.myAppHeight / 2;
+ 		}
+ 		posCircle.hidden = false;
+-		posCircle.move(posCircleX - posCircle.getWidth() / 2, posCircleY - posCircle.getHeight() / 2); // posCircle.setLocation
+-																										// caused
+-																										// a
+-																										// problem
+-																										// -&gt;
+-																										// hiding
+-																										// the
+-																										// posCircle
+-																										// in
+-																										// some
+-																										// situation
++		posCircle.move(posCircleX - posCircle.getWidth() / 2, posCircleY - posCircle.getHeight() / 2);
++		// posCircle.setLocation a problem -&gt; hiding the posCircle in some situation
+ 	}
+ 
+ 	public void movePosCircleToLatLon(CWPoint p, boolean repaint) {
+@@ -879,8 +869,8 @@
+ 			dontUpdatePos = false;
+ 			updatePosition(posCircle.where);
+ 		} else
+-			updateSymbolPositions(); // will also be done in
+-										// updatePosition
++			// will also be done in updatePosition
++			updateSymbolPositions();
+ 		updateOverlayPos();
+ 	}
+ 
+@@ -1125,7 +1115,7 @@
+ 	 * posCircle is at lat/lon
+ 	 */
+ 	public void updatePosition(CWPoint where) {
+-		if (dontUpdatePos || loadingMapList)
++		if (dontUpdatePos || loadingMapList || (where.latDec == 0 &amp;&amp; where.lonDec == 0))
+ 			return; // avoid multi-threading problems
+ 		loadBestMap(where);
+ 		if (width == 0 || height == 0) {
+@@ -1137,17 +1127,7 @@
+ 		final boolean screenNotCompletlyCovered = (mmp.mapImage == null) || (mmp.mapImage != null &amp;&amp; (mapPos.y &gt; 0 || mapPos.x &gt; 0 || mapPos.y + mmp.mapImage.getHeight() &lt; this.height || mapPos.x + mmp.mapImage.getWidth() &lt; this.width));
+ 		// if screendimensions changed also force reload of map
+ 		forceMapLoad |= lastWidth != width || lastHeight != height;
+-		if (forceMapLoad || wantMapTest || screenNotCompletlyCovered) { // if
+-																		// force
+-																		// ||
+-																		// want
+-																		// ||
+-																		// map
+-																		// doesn't
+-																		// cover
+-																		// the
+-																		// screen
+-																		// completly
++		if (forceMapLoad || wantMapTest || screenNotCompletlyCovered) {
+ 			if (forceMapLoad || (java.lang.Math.abs(lastCompareX - mapPos.x) &gt; this.width / 10 || java.lang.Math.abs(lastCompareY - mapPos.y) &gt; this.height / 10)) {
+ 				// more then 1/10 of screen moved since last time we tried
+ 				// to find a better map
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003034.html">[Cachewolf-svn] r3043 - trunk/src/CacheWolf
+</A></li>
+	
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3038">[ date ]</a>
+              <a href="thread.html#3038">[ thread ]</a>
+              <a href="subject.html#3038">[ subject ]</a>
+              <a href="author.html#3038">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

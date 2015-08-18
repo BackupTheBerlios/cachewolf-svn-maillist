@@ -1,0 +1,175 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r991 - in trunk/src/CacheWolf: . navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-October/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r991%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C200710251355.l9PDtNR1002609%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000883.html">
+   <LINK REL="Next"  HREF="000885.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r991 - in trunk/src/CacheWolf: . navi</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r991%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C200710251355.l9PDtNR1002609%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r991 - in trunk/src/CacheWolf: . navi">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Thu Oct 25 15:55:23 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000883.html">[Cachewolf-svn] r990 - in trunk/src/CacheWolf: . navi
+</A></li>
+        <LI>Next message: <A HREF="000885.html">[Cachewolf-svn] r992 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#884">[ date ]</a>
+              <a href="thread.html#884">[ thread ]</a>
+              <a href="subject.html#884">[ subject ]</a>
+              <a href="author.html#884">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-10-25 15:55:18 +0200 (Thu, 25 Oct 2007)
+New Revision: 991
+
+Modified:
+   trunk/src/CacheWolf/DetailsPanel.java
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/Profile.java
+   trunk/src/CacheWolf/navi/GotoPanel.java
+Log:
+GotoPanel: &quot;new Waypoint&quot; creates automatically a new AddiWpt
+
+Modified: trunk/src/CacheWolf/DetailsPanel.java
+===================================================================
+--- trunk/src/CacheWolf/DetailsPanel.java	2007-10-25 12:05:23 UTC (rev 990)
++++ trunk/src/CacheWolf/DetailsPanel.java	2007-10-25 13:55:18 UTC (rev 991)
+@@ -34,6 +34,7 @@
+ 	private boolean dirty_details = false;
+ 	private boolean blackStatus = false;
+ 	private boolean blackStatusChanged=false;
++	private boolean isNewWpt = false;
+ 	
+ 	Preferences pref; // Test
+ 	Profile profile;
+@@ -138,8 +139,12 @@
+ 		
+ 	}
+ 	
++	public void setIsNew(boolean isnew) {
++		isNewWpt = isnew;
++	}
++	
+ 	public boolean isDirty() {
+-		return dirty_notes || dirty_details;
++		return dirty_notes || dirty_details || isNewWpt;
+ 	}
+ 	public boolean hasBlackStatusChanged() {
+ 		return blackStatusChanged;
+@@ -175,6 +180,7 @@
+ 		blackStatus=ch.is_black; 
+ 		blackStatusChanged=false;
+ 		btnBlack.repaintNow();
++		createWptName();
+ 		if(ch.has_bug == true) {
+ 			//btnShowBug.modify(Control.Disabled,1);
+ 			btnShowBug.image = imgShowBug;
+@@ -298,7 +304,7 @@
+ 		}
+ 		if(ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.PRESSED){
+ 			if(ev.target == btnNotes){
+-				dirty_notes=true;
++				dirty_notes=true; // TODO I think this is redundant, because the notes are saved seperately by the notes screen itself
+ 				NotesScreen nsc = new NotesScreen(thisCache.getCacheDetails(true));
+ 				nsc.execute(this.getFrame(), Gui.CENTER_FRAME);
+ 			}
+@@ -496,6 +502,7 @@
+ 		  ch.setAttributesToAddiWpts();
+ 		  dirty_notes=false;
+ 		  dirty_details=false;
++		  setIsNew(false);
+ 		  
+ 		  // Global.mainTab.tbP.refreshTable(); this is done in mainTab.onLeavingPanel
+ 		  ////Vm.debug(&quot;New status updated!&quot;);
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2007-10-25 12:05:23 UTC (rev 990)
++++ trunk/src/CacheWolf/MainTab.java	2007-10-25 13:55:18 UTC (rev 991)
+@@ -283,8 +283,12 @@
+ 		}
+ 		//if (detP.isDirty()) detP.saveDirtyWaypoint();
+ 		Global.getProfile().hasUnsavedChanges=true;
+-		ch.wayPoint = profile.getNewWayPointName();
++		detP.setIsNew(true);
+ 		if (ch.type == null || ch.type == &quot;&quot;) ch.type = &quot;0&quot;;
++		if (CacheType.isAddiWpt(ch.type)) {
++			ch.wayPoint = profile.getNewAddiWayPointName(mainCache);
++			profile.setAddiRef(ch);
++		} else ch.wayPoint = profile.getNewWayPointName();
+ 		ch.CacheSize = &quot;None&quot;;
+ 		chD = ch.getCacheDetails(true);
+ 		this.ch = ch;
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2007-10-25 12:05:23 UTC (rev 990)
++++ trunk/src/CacheWolf/Profile.java	2007-10-25 13:55:18 UTC (rev 991)
+@@ -359,6 +359,11 @@
+ 		return strWp;
+ 	}
+ 	
++	/**
++	 * 
++	 * @param forcache maincache
++	 * @return
++	 */
+ 	public String getNewAddiWayPointName(String forcache) {
+ 		int wptNo=-1;
+ 		String waypoint;
+
+Modified: trunk/src/CacheWolf/navi/GotoPanel.java
+===================================================================
+--- trunk/src/CacheWolf/navi/GotoPanel.java	2007-10-25 12:05:23 UTC (rev 990)
++++ trunk/src/CacheWolf/navi/GotoPanel.java	2007-10-25 13:55:18 UTC (rev 991)
+@@ -390,7 +390,7 @@
+ 				CacheHolder ch = new CacheHolder();
+ 				ch.LatLon = myNavigation.gpsPos.toString();
+ 				ch.pos = new CWPoint(myNavigation.gpsPos);
+-			//	ch.type = &quot;51&quot;; // see CacheType.GC_AW_STAGE_OF_MULTI // TODO unfertig
++				ch.type = &quot;51&quot;; // see CacheType.GC_AW_STAGE_OF_MULTI // TODO unfertig
+ 				mainT.newWaypoint(ch);
+ 			}
+ 			// change destination waypoint
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000883.html">[Cachewolf-svn] r990 - in trunk/src/CacheWolf: . navi
+</A></li>
+	<LI>Next message: <A HREF="000885.html">[Cachewolf-svn] r992 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#884">[ date ]</a>
+              <a href="thread.html#884">[ thread ]</a>
+              <a href="subject.html#884">[ subject ]</a>
+              <a href="author.html#884">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

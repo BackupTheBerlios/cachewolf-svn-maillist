@@ -1,0 +1,341 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2399 - in trunk: res_noewe src/CacheWolf	src/CacheWolf/imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2399%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf%0A%09src/CacheWolf/imp&In-Reply-To=%3C201001111027.o0BAR44Y020893%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002322.html">
+   <LINK REL="Next"  HREF="002324.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2399 - in trunk: res_noewe src/CacheWolf	src/CacheWolf/imp</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2399%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf%0A%09src/CacheWolf/imp&In-Reply-To=%3C201001111027.o0BAR44Y020893%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2399 - in trunk: res_noewe src/CacheWolf	src/CacheWolf/imp">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Mon Jan 11 11:27:04 CET 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002322.html">[Cachewolf-svn] r2398 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="002324.html">[Cachewolf-svn] r2400 - in trunk: res_noewe/languages	src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2323">[ date ]</a>
+              <a href="thread.html#2323">[ thread ]</a>
+              <a href="subject.html#2323">[ subject ]</a>
+              <a href="author.html#2323">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2010-01-11 11:27:01 +0100 (Mon, 11 Jan 2010)
+New Revision: 2399
+
+Modified:
+   trunk/res_noewe/spider.def
+   trunk/src/CacheWolf/Preferences.java
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+changes due to input of MiK (hopefully all!?!)
+
+Modified: trunk/res_noewe/spider.def
+===================================================================
+--- trunk/res_noewe/spider.def	2010-01-11 10:00:21 UTC (rev 2398)
++++ trunk/res_noewe/spider.def	2010-01-11 10:27:01 UTC (rev 2399)
+@@ -57,7 +57,7 @@
+ listBlockRex       = &lt;table id=&quot;ctl00_ContentBody_dlResults&quot;((?s).*?)&lt;/table&gt;
+ lineRex            = &lt;tr\ bgcolor='#.{6}'&gt;(?:(?s).*?)&lt;td\ valign=&quot;top&quot;\ align=&quot;left&quot;&gt;((?s).*?)&lt;/tr&gt;
+ directionRex       = /compass/(.*?).gif
+-distRex            = &lt;br\ /&gt;(.*?)(?:km|mi)
++distRex            = &lt;br\ /&gt;(.*?)(?:km|mi)(?:\\s*)&lt;/td&gt;
+ waypointRex        = \\(GC(.*?)\\)&lt;br\ /&gt;
+ showOnlyFound      = &amp;f=1
+ maxDistance        = &amp;dist=
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2010-01-11 10:00:21 UTC (rev 2398)
++++ trunk/src/CacheWolf/Preferences.java	2010-01-11 10:27:01 UTC (rev 2399)
+@@ -226,12 +226,16 @@
+ 	public boolean addDetailsToName = false;
+ 	/** The own GC member ID */
+ 	public String gcMemberId = &quot;&quot;;
++	/** Premium Member ? */
++	public boolean isPremium = true;
+ 	/** The maximum number of logs to export */
+ 	public int numberOfLogsToExport = 5;
+ 	/** Add Travelbugs when exporting */
+ 	public boolean exportTravelbugs = false;
+ 	/** Try to make a MyFinds GPX when exporting to GPX */
+ 	public boolean exportGpxAsMyFinds = true;
++	/** Check if lastFound is newer than saved log*/
++	public boolean checkLog=false;
+ 	/** Download images when loading cache data */
+ 	public boolean downloadPics = true;
+ 	/** Download TB information when loading cache data */
+@@ -258,10 +262,10 @@
+ 
+     /** SortingGroupedByCache */
+     public boolean SortingGroupedByCache=true;
+-    
++
+     /** useOwnSymbols */
+     public boolean useOwnSymbols=true;
+-    
++
+     /** TRUE if we want automatic sorting **/
+     public boolean sortAutomatic = true;
+ 
+@@ -382,7 +386,10 @@
+ 			SpiderGC.passwort=password;
+ 		}
+ 		else if(name.equals(&quot;alias2&quot;)) myAlias2 = SafeXML.cleanback(atts.getValue(&quot;name&quot;));
+-		else if(name.equals(&quot;gcmemberid&quot;)) gcMemberId = atts.getValue(&quot;name&quot;);
++		else if(name.equals(&quot;gcmemberid&quot;)) {
++			gcMemberId = atts.getValue(&quot;name&quot;);
++			isPremium=Boolean.valueOf(atts.getValue(&quot;Premium&quot;)).booleanValue();
++		}
+ 		else if(name.equals(&quot;location&quot;)){
+ 			curCentrePt.set(atts.getValue(&quot;lat&quot;)+&quot; &quot;+atts.getValue(&quot;long&quot;));
+ 		}
+@@ -488,6 +495,7 @@
+ 		}
+ 		else if (name.equals(&quot;spider&quot;)) {
+ 			forceLogin = Boolean.valueOf(atts.getValue(&quot;forcelogin&quot;)).booleanValue();
++			checkLog = Boolean.valueOf(atts.getValue(&quot;checkLog&quot;)).booleanValue();
+ 			tmp = atts.getValue(&quot;spiderUpdates&quot;);
+ 			if (tmp != null) spiderUpdates=Convert.parseInt(tmp);
+ 			tmp = atts.getValue(&quot;maxSpiderNumber&quot;);
+@@ -625,7 +633,7 @@
+ 			outp.print(&quot;    &lt;CurrentCentre FromGPSPosition=\&quot;&quot; + SafeXML.clean(Convert.toString(setCurrentCentreFromGPSPosition)) + &quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;alias name =\&quot;&quot;+ SafeXML.clean(myAlias) +&quot;\&quot; password=\&quot;&quot;+SafeXML.clean(password)+&quot;\&quot; /&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;alias2 name =\&quot;&quot;+ SafeXML.clean(myAlias2) +&quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;    &lt;gcmemberid name =\&quot;&quot;+ SafeXML.clean(gcMemberId) +&quot;\&quot;/&gt;\n&quot;);
++			outp.print(&quot;    &lt;gcmemberid name =\&quot;&quot;+ SafeXML.clean(gcMemberId) + &quot;\&quot;&quot; + &quot; Premium =\&quot;&quot;+ SafeXML.strxmlencode(isPremium) +&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;browser name = \&quot;&quot; + SafeXML.clean(browser) + &quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;proxy prx = \&quot;&quot; + SafeXML.clean(myproxy) + &quot;\&quot; prt = \&quot;&quot; + SafeXML.clean(myproxyport) + &quot;\&quot; active = \&quot;&quot; + SafeXML.strxmlencode(proxyActive) + &quot;\&quot; /&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;port portname = \&quot;&quot; + SafeXML.clean(mySPO.portName) + &quot;\&quot; baud = \&quot;&quot; + SafeXML.strxmlencode(mySPO.baudRate) + &quot;\&quot;/&gt;\n&quot;);
+@@ -646,7 +654,7 @@
+ 					        &quot;\&quot; addDetailsToWaypoint = \&quot;&quot; + SafeXML.strxmlencode(addDetailsToWaypoint) + &quot;\&quot; addDetailsToName = \&quot;&quot; + SafeXML.strxmlencode(addDetailsToName) + &quot;\&quot; /&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;opencaching downloadMissing=\&quot;&quot; + SafeXML.strxmlencode(downloadmissingOC) + &quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;location lat = \&quot;&quot; + SafeXML.clean(curCentrePt.getLatDeg(TransformCoordinates.DD)) + &quot;\&quot; long = \&quot;&quot; + SafeXML.clean(curCentrePt.getLonDeg(TransformCoordinates.DD)) + &quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;    &lt;spider forcelogin=\&quot;&quot; + SafeXML.strxmlencode(forceLogin) + &quot;\&quot; spiderUpdates=\&quot;&quot; + SafeXML.strxmlencode(spiderUpdates) + &quot;\&quot; maxSpiderNumber=\&quot;&quot; + SafeXML.strxmlencode(maxSpiderNumber) + &quot;\&quot; downloadPics=\&quot;&quot; + SafeXML.strxmlencode(downloadPics) + &quot;\&quot; downloadTBs=\&quot;&quot; + SafeXML.strxmlencode(downloadTBs) +&quot;\&quot;/&gt;\n&quot;);
++			outp.print(&quot;    &lt;spider forcelogin=\&quot;&quot; + SafeXML.strxmlencode(forceLogin) + &quot;\&quot; spiderUpdates=\&quot;&quot; + SafeXML.strxmlencode(spiderUpdates) + &quot;\&quot; checkLog=\&quot;&quot; + SafeXML.strxmlencode(checkLog) + &quot;\&quot; maxSpiderNumber=\&quot;&quot; + SafeXML.strxmlencode(maxSpiderNumber) + &quot;\&quot; downloadPics=\&quot;&quot; + SafeXML.strxmlencode(downloadPics) + &quot;\&quot; downloadTBs=\&quot;&quot; + SafeXML.strxmlencode(downloadTBs) +&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;gotopanel northcentered=\&quot;&quot; + SafeXML.strxmlencode(northCenteredGoto) + &quot;\&quot; /&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;details cacheSize=\&quot;&quot; + SafeXML.strxmlencode(maxDetails) + &quot;\&quot; delete=\&quot;&quot; + SafeXML.strxmlencode(deleteDetails) + &quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;metric type=\&quot;&quot; + SafeXML.strxmlencode(metricSystem) + &quot;\&quot;/&gt;\n&quot;);
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2010-01-11 10:00:21 UTC (rev 2398)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2010-01-11 10:27:01 UTC (rev 2399)
+@@ -296,14 +296,6 @@
+ 			maxNew=java.lang.Math.min(numFinds-numFoundInDB,maxNew);
+ 			if (maxUpdate==0 &amp;&amp; maxNew == 0) { Vm.showWait(false); infB.close(0); return; }
+ 		}
+-		
+-		String[] cacheDescGC;
+-		int anzLines=38;
+-		int lineDistance=1;
+-		int lineDirection=1;
+-		int lineWaypoint=22;
+-		int lineDescription=20;
+-		int lineLastFound=27;
+ 		Regex lineRex = new Regex(propLineRex);
+ 		try {
+ 			//Loop pages till maximum distance has been found or no more caches are in the list
+@@ -315,40 +307,28 @@
+ 				while (maxDistance &gt; 0){
+ 					if (!lineRex.didMatch()) break;
+ 					found_on_page++;
+-					cacheDescGC=mString.split(lineRex.stringMatched(1),'\n');
+-					if(cacheDescGC.length!=anzLines) {
+-						maxDistance = 0; //add no more caches
+-						(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), &quot;GC changed table output \nCW must be changed too!&quot;, FormBase.OKB)).execute();
+-						throw new Exception(&quot;GC changed table output&quot;);
+-					}
+-					double gotDistance=getDistGC(cacheDescGC[lineDistance]);
+-					String chWaypoint=getWP(cacheDescGC[lineWaypoint]);
++					String CacheDescriptionGC=lineRex.stringMatched(1);
++					double gotDistance=getDistGC(CacheDescriptionGC);
++					String chWaypoint=getWP(CacheDescriptionGC);
+ 					if(gotDistance &lt;= maxDistance){
+ 						ch=cacheDB.get(chWaypoint);
+ 						if(ch == null){ // not in DB
+-							if ( gotDistance &gt;= minDistance &amp;&amp;
+-								 directionOK(directions,getDirection(cacheDescGC[lineDirection])) ){
++							if(cachesToLoad.size() &lt; maxNew) {
++								if ( gotDistance &gt;= minDistance &amp;&amp;
++										 directionOK(directions,getDirection(CacheDescriptionGC))  &amp;&amp;
++										 doPMCache(CacheDescriptionGC) ){
+ 								cachesToLoad.add(chWaypoint);
+-								if(cachesToLoad.size()==maxNew) {
+-									if(maxUpdate!=Integer.MAX_VALUE) maxDistance=0;
+ 								}
+ 							}
++							else {
++								if(maxUpdate!=Integer.MAX_VALUE) { maxDistance=0; }
++							}
+ 						}
+ 						else {
+ 							if (maxUpdate&gt;0) {
+-								boolean update=false;
+-								if (spiderAllFinds) {
+-									if(!ch.is_found()) { ch.setFound(true); update=true;}
+-									boolean is_archived_GC=cacheDescGC[lineDescription].indexOf(&quot;&lt;font color=\&quot;red\&quot;&gt;&lt;strike&gt;&quot;)!=-1;
+-									if (is_archived_GC!=ch.is_archived()) { ch.setArchived(is_archived_GC); update=true;}
++								if (updateExists(ch,CacheDescriptionGC)) {
++									if (!ch.is_black() &amp;&amp; (cachesShouldUpdate.size()&lt;maxUpdate)) cachesShouldUpdate.put(chWaypoint, ch);
+ 								}
+-								boolean is_available_GC=cacheDescGC[lineDescription].indexOf(&quot;&lt;strike&gt;&quot;)==-1;
+-								if (is_available_GC != ch.is_available()) { ch.setAvailable(is_available_GC); update=true;}
+-								if (newLogExists(ch,cacheDescGC[lineLastFound])) {update=true;}
+-								if (update) {
+-									cachesShouldUpdate.put(chWaypoint, ch);
+-									if(cachesShouldUpdate.size()==maxUpdate) maxDistance=0;
+-								}
+ 								else
+ 									if (maxUpdate==Integer.MAX_VALUE) cachesToUpdate.remove( chWaypoint );
+ 							}
+@@ -773,6 +753,24 @@
+ 	}
+ 
+ 	/**
++	 * check if new Update exists
++	 * @param ch CacheHolder
++	 * @param CacheDescription A previously fetched cachepage
++	 * @return true if new Update exists else false
++	 */
++	private boolean updateExists(CacheHolder ch, String CacheDescription) {
++		// int lineDescription=20;
++		if (spiderAllFinds) {
++			if(!ch.is_found()) { ch.setFound(true); ch.save(); return true;}
++			boolean is_archived_GC=CacheDescription.indexOf(&quot;&lt;font color=\&quot;red\&quot;&gt;&lt;strike&gt;&quot;)!=-1;
++			if (is_archived_GC!=ch.is_archived()) { ch.setArchived(is_archived_GC); ch.save(); return true;}
++		}
++		boolean is_available_GC=CacheDescription.indexOf(&quot;&lt;strike&gt;&quot;)==-1;
++		if (is_available_GC != ch.is_available()) { ch.setAvailable(is_available_GC); ch.save(); return true;}
++		if (newLogExists(ch,CacheDescription)) {return true;}
++		return false;
++	}
++	/**
+ 	 * Get num found
+ 	 * @param doc A previously fetched cachepage
+ 	 * @return numFound
+@@ -807,8 +805,8 @@
+ 			return(0);
+ 		}
+ 		else {
+-			//inRex = new Regex(p.getProp(&quot;distRex&quot;));
+-			Regex inRex = new Regex(&quot;&lt;br /&gt;(.*?)(?:km|mi)&quot;);
++			 // int lineDistance=1;
++			Regex inRex = new Regex(p.getProp(&quot;distRex&quot;));
+ 			inRex.search(doc);
+ 			if (!inRex.didMatch()) return 0;
+ 			if(MyLocale.getDigSeparator().equals(&quot;,&quot;)) return Convert.toDouble(inRex.stringMatched(1).replace('.',','));
+@@ -822,11 +820,21 @@
+ 	 * @return Name of waypoint to add to list
+ 	 */
+ 	private String getWP(String doc) throws Exception {
++		// int lineWaypoint=22;
+ 		Regex inRex = new Regex(p.getProp(&quot;waypointRex&quot;));
+ 		inRex.search(doc);
+ 		if (!inRex.didMatch()) return &quot;???&quot;;
+ 		return &quot;GC&quot;+inRex.stringMatched(1);
+ 	}
++	
++	/**
++	 * check for Premium Member Cache
++	 */
++	private boolean doPMCache(String toCheck) {
++		// int linePM=10;
++		if (pref.isPremium) return true;
++		if (toCheck.indexOf(&quot;small_profile.gif&quot;)&gt;0) return false; else return true;
++	}
+ 
+ 	/**
+ 	 * Get the direction
+@@ -834,12 +842,16 @@
+ 	 * @return direction String
+ 	 */
+ 	private String getDirection(String doc) throws Exception {
++		// int lineDirection=1;
+ 		Regex inRex = new Regex(p.getProp(&quot;directionRex&quot;));
+ 		inRex.search(doc);
+ 		if (!inRex.didMatch()) return &quot;&quot;;
+ 		return inRex.stringMatched(1);
+ 	}
+-
++	
++	/*
++	 * if cache lies in the desired direction
++	 */
+ 	private boolean directionOK(String[] directions, String gotDirection) {
+ 		if (directions.length==0) return true; // nothing means all
+ 		for (int i = 0; i &lt; directions.length; i++) {
+@@ -857,10 +869,20 @@
+ 	}
+ 
+ 	/*
+-	 * in CacheHolder ch
+-	 * in String cacheDescGC
++	 * @param CacheHolder ch
++	 * @param String cacheDescGC
++	 * @return boolean newLogExists
+ 	 */
+-	private boolean newLogExists(CacheHolder ch, String cacheDescGC) {
++	private boolean newLogExists(CacheHolder ch, String cacheDescrition) {
++		if(!pref.checkLog) return false;
++		String[] CacheDesc=mString.split(cacheDescrition,'\n');
++		int anzLines=38;
++		int lineLastFound=27;
++		if(CacheDesc.length!=anzLines) {
++			maxDistance = 0; //add no more caches
++			(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), &quot;GC changed table output \nCW must be changed too!&quot;, FormBase.OKB)).execute();
++			return false;
++		}
+ 		Time lastLogCW = new Time();
+ 		CacheHolderDetail chd = ch.getCacheDetails(true);
+ 		String slastLogCW=chd.CacheLogs.getLog(0).getDate();
+@@ -873,7 +895,7 @@
+ 		lastLogGC.second=0;
+ 		lastLogGC.millis=0;
+ 		String[] SDate;
+-		String stmp=cacheDescGC.trim();
++		String stmp=CacheDesc[lineLastFound].trim();
+ 		if (stmp.indexOf(&quot;day&quot;)&gt;0) {
+ 			lastLogGC.day=java.lang.Math.max(1, lastLogGC.day-7); // simplyfied (update if not newer than last week)
+ 		}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002322.html">[Cachewolf-svn] r2398 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="002324.html">[Cachewolf-svn] r2400 - in trunk: res_noewe/languages	src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2323">[ date ]</a>
+              <a href="thread.html#2323">[ thread ]</a>
+              <a href="subject.html#2323">[ subject ]</a>
+              <a href="author.html#2323">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

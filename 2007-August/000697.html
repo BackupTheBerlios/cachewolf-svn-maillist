@@ -1,0 +1,138 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r807 - in trunk: resources src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-August/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r807%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200708111222.l7BCMmik017051%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000696.html">
+   <LINK REL="Next"  HREF="000698.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r807 - in trunk: resources src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r807%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200708111222.l7BCMmik017051%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r807 - in trunk: resources src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sat Aug 11 14:22:48 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000696.html">[Cachewolf-svn] r806 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000698.html">[Cachewolf-svn] r808 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#697">[ date ]</a>
+              <a href="thread.html#697">[ thread ]</a>
+              <a href="subject.html#697">[ subject ]</a>
+              <a href="author.html#697">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-08-11 14:22:43 +0200 (Sat, 11 Aug 2007)
+New Revision: 807
+
+Modified:
+   trunk/resources/spider.def
+   trunk/src/CacheWolf/SpiderGC.java
+Log:
+SpiderGC: Bugfixes. Infobox schliessen wenn Login nicht erfolgreich.
+Spidern von verschluesselten Logs.
+
+Modified: trunk/resources/spider.def
+===================================================================
+--- trunk/resources/spider.def	2007-08-11 11:16:12 UTC (rev 806)
++++ trunk/resources/spider.def	2007-08-11 12:22:43 UTC (rev 807)
+@@ -8,6 +8,7 @@
+ # Version 2.4 - 20070616 neu: Attribute
+ # Version 2.5 - 20070629 Anpassungen an Listen&#228;nderung bei GC
+ # Version 2.6 - 20070701 Bugfix: Wenn Zentrum exakt in Cachekoordinaten liegt wurde der Cache nicht gespidert
++# Version 2.7 - 20070811 Bugfix fuer verschluesselte Logs
+ #============================================================
+ # A suffix of Rex indicates a regular expression
+ # A suffix of ExStart indicates the start of an Extractor search pattern
+@@ -70,7 +71,7 @@
+ nameExEnd          = &lt;
+ dateExStart        = align='absmiddle'&gt;&nbsp;
+ dateExEnd          = \ by\ &lt;
+-logExStart         = found)
++logExStart         = found)&lt;br&gt;
+ logExEnd           = &lt;br&gt;[
+ # Die Icons, die einen erfolgreichen Fund signalisieren
+ icon_smile         = icon_smile.gif
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2007-08-11 11:16:12 UTC (rev 806)
++++ trunk/src/CacheWolf/SpiderGC.java	2007-08-11 12:22:43 UTC (rev 807)
+@@ -121,7 +121,8 @@
+ 				start = fetch_post(loginPage, doc, p.getProperty(&quot;nextPage&quot;));  // /login/default.aspx
+ 				if(start.indexOf(&quot;You are logged in as&quot;) &gt; 0) pref.log(&quot;Login successful&quot;);
+ 				else {
+-					pref.log(&quot;Login failed.&quot;);
++					pref.log(&quot;Login failed. Wrong Account or Password?&quot;);
++					infB.close(0);
+ 					return ERR_LOGIN;
+ 				}
+ 			}catch(Exception ex){
+@@ -742,7 +743,7 @@
+ 				chD.is_found = true;
+ 				chD.CacheStatus = d;
+ 			}
+-			reslts.add(&quot;&lt;img src='&quot;+ icon +&quot;'&gt;&nbsp;&quot; + d + &quot; &quot; + name + exLog.findNext());
++			reslts.add(&quot;&lt;img src='&quot;+ icon +&quot;'&gt;&nbsp;&quot; + d + &quot; &quot; + name +&quot;&lt;br&gt;&quot;+ exLog.findNext());
+ 			
+ 			singleLog = exSingleLog.findNext();
+ 			exIcon.setSource(singleLog);
+@@ -814,8 +815,8 @@
+ 		String longDesc = &quot;&quot;;
+ 		if (chD.wayPoint.startsWith(&quot;TC&quot;)) longDesc = doc;
+ 		else longDesc = getLongDesc(doc);
+-		longDesc = STRreplace.replace(longDesc, &quot;img&quot;, &quot;IMG&quot;);
+-		longDesc = STRreplace.replace(longDesc, &quot;src&quot;, &quot;SRC&quot;);
++		longDesc = STRreplace.replace(longDesc, &quot;&lt;img&quot;, &quot;&lt;IMG&quot;);
++		longDesc = STRreplace.replace(longDesc, &quot;src=&quot;, &quot;SRC=&quot;);
+ 		longDesc = STRreplace.replace(longDesc, &quot;'&quot;, &quot;\&quot;&quot;);
+ 		Extractor exImgBlock = new Extractor(longDesc,p.getProperty(&quot;imgBlockExStart&quot;),p.getProperty(&quot;imgBlockExEnd&quot;), 0, false);
+ 		//Vm.debug(&quot;In getImages: Have longDesc&quot; + longDesc);
+@@ -1174,5 +1175,6 @@
+ 		}
+ 		return new String(dest,0,d);
+ 	}
+-	
++
++
+ }
+\ No newline at end of file
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000696.html">[Cachewolf-svn] r806 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000698.html">[Cachewolf-svn] r808 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#697">[ date ]</a>
+              <a href="thread.html#697">[ thread ]</a>
+              <a href="subject.html#697">[ subject ]</a>
+              <a href="author.html#697">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,128 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2428 - trunk/src/CacheWolf/exp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2428%20-%20trunk/src/CacheWolf/exp&In-Reply-To=%3C201001241111.o0OBBB4s030886%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002352.html">
+   <LINK REL="Next"  HREF="002354.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2428 - trunk/src/CacheWolf/exp</H1>
+    <B>kalli at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2428%20-%20trunk/src/CacheWolf/exp&In-Reply-To=%3C201001241111.o0OBBB4s030886%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2428 - trunk/src/CacheWolf/exp">kalli at mail.berlios.de
+       </A><BR>
+    <I>Sun Jan 24 12:11:11 CET 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002352.html">[Cachewolf-svn] r2427 - trunk
+</A></li>
+        <LI>Next message: <A HREF="002354.html">[Cachewolf-svn] r2429 - trunk/src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2353">[ date ]</a>
+              <a href="thread.html#2353">[ thread ]</a>
+              <a href="subject.html#2353">[ subject ]</a>
+              <a href="author.html#2353">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: kalli
+Date: 2010-01-24 12:11:10 +0100 (Sun, 24 Jan 2010)
+New Revision: 2428
+
+Modified:
+   trunk/src/CacheWolf/exp/SpoilerPOIExporter.java
+Log:
+Check if images exists; export only images that are shown in the image-panel
+
+Modified: trunk/src/CacheWolf/exp/SpoilerPOIExporter.java
+===================================================================
+--- trunk/src/CacheWolf/exp/SpoilerPOIExporter.java	2010-01-23 20:55:57 UTC (rev 2427)
++++ trunk/src/CacheWolf/exp/SpoilerPOIExporter.java	2010-01-24 11:11:10 UTC (rev 2428)
+@@ -2,6 +2,7 @@
+ import ewe.sys.Time;
+ import ewe.ui.FormBase;
+ import CacheWolf.*;
++import CacheWolf.utils.FileBugfix;
+ import CacheWolf.utils.URLUTF8Encoder;
+ 
+ /** 
+@@ -51,6 +52,8 @@
+ 	public String record(CacheHolder ch, String lat, String lon) {
+ 		StringBuffer strBuf = new StringBuffer(1000);
+ 		String comment,filename, url;
++		CacheImages images;
++		int picCounter;
+ 		
+ 		// Makes only sense for main waypoints
+ 		if (ch.isAddiWpt()) return null;
+@@ -60,16 +63,23 @@
+ 		if (! ch.detailsLoaded()) return null;
+ 		if (ch.details.images.size() == 0) return null;
+ 		
+-		for (int i=0; i &lt; ch.details.images.size(); i++ ) {
+-			filename = ch.details.images.get(i).getFilename();
+-			comment = ch.details.images.get(i).getTitle();
++		images = ch.details.images.getDisplayImages(ch.getWayPoint());
++		picCounter = 0;
++		for (int i=0; i &lt; images.size(); i++ ) {
++			filename = images.get(i).getFilename();
++			comment = images.get(i).getTitle();
++			url = profile.dataDir + filename;
++			
+ 			// POILoader can only work with JPG-Files
+ 			if ( !filename.endsWith(&quot;.jpg&quot;)) continue;
+ 			// Try to export only Spoiler
+ 			if ( onlySpoiler &amp;&amp; (comment.indexOf(&quot;oiler&quot;) &lt; 1)) continue;
++			// check if the file is not deleted
++			if (!(new FileBugfix(url)).exists()) continue;
+ 			
++			picCounter++;
+ 			strBuf.append(&quot;&lt;wpt lat=\&quot;&quot; + lat + &quot;\&quot; lon=\&quot;&quot; + lon + &quot;\&quot;&gt;\r\n&quot;);
+-			strBuf.append(&quot;  &lt;name&gt;Sp &quot; + i + &quot;: &quot; + SafeXML.cleanGPX(ch.cacheName) + &quot;&lt;/name&gt;\r\n&quot;);
++			strBuf.append(&quot;  &lt;name&gt;Sp &quot; + picCounter + &quot;: &quot; + SafeXML.cleanGPX(ch.cacheName) + &quot;&lt;/name&gt;\r\n&quot;);
+ 			strBuf.append(&quot;  &lt;cmt&gt;\r\n&quot;);
+ 			if (ch.details.Hints.length()&gt; 0){
+ 				strBuf.append(&quot;  Hint: &quot; + SafeXML.cleanGPX(Common.rot13(ch.details.Hints)) + &quot;\r\n&quot;);
+@@ -79,7 +89,6 @@
+ 			}
+ 			strBuf.append(&quot;  &lt;/cmt&gt;\r\n&quot;);
+ 			strBuf.append(&quot;  &lt;desc&gt;GCcode: &quot; + ch.getWayPoint() + &quot; &lt;/desc&gt;\r\n&quot;);
+-			url = profile.dataDir + filename;
+ 			strBuf.append(&quot;   &lt;link href=\&quot;&quot; + URLUTF8Encoder.encode(url, false)  + &quot;\&quot;/&gt;\r\n&quot;);
+ 			strBuf.append(&quot;  &lt;sym&gt;Scenic Area&lt;/sym&gt;\r\n&quot;);
+ 			strBuf.append(&quot;  &lt;extensions&gt;\r\n&quot;);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002352.html">[Cachewolf-svn] r2427 - trunk
+</A></li>
+	<LI>Next message: <A HREF="002354.html">[Cachewolf-svn] r2429 - trunk/src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2353">[ date ]</a>
+              <a href="thread.html#2353">[ thread ]</a>
+              <a href="subject.html#2353">[ subject ]</a>
+              <a href="author.html#2353">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

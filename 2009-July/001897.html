@@ -1,0 +1,822 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1978 - in trunk/src: CacheWolf CacheWolf/imp exp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-July/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1978%20-%20in%20trunk/src%3A%20CacheWolf%20CacheWolf/imp%20exp&In-Reply-To=%3C200907031723.n63HNfAS019153%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001896.html">
+   <LINK REL="Next"  HREF="001898.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1978 - in trunk/src: CacheWolf CacheWolf/imp exp</H1>
+    <B>engywuck at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1978%20-%20in%20trunk/src%3A%20CacheWolf%20CacheWolf/imp%20exp&In-Reply-To=%3C200907031723.n63HNfAS019153%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1978 - in trunk/src: CacheWolf CacheWolf/imp exp">engywuck at mail.berlios.de
+       </A><BR>
+    <I>Fri Jul  3 19:23:41 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001896.html">[Cachewolf-svn] r1977 - in trunk/src: CacheWolf CacheWolf/navi exp
+</A></li>
+        <LI>Next message: <A HREF="001898.html">[Cachewolf-svn] r1979 - in trunk/src: CacheWolf CacheWolf/imp exp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1897">[ date ]</a>
+              <a href="thread.html#1897">[ thread ]</a>
+              <a href="subject.html#1897">[ subject ]</a>
+              <a href="author.html#1897">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: engywuck
+Date: 2009-07-03 19:23:32 +0200 (Fri, 03 Jul 2009)
+New Revision: 1978
+
+Added:
+   trunk/src/CacheWolf/CacheImages.java
+   trunk/src/CacheWolf/ImageInfo.java
+Modified:
+   trunk/src/CacheWolf/CacheHolderDetail.java
+   trunk/src/CacheWolf/DescriptionPanel.java
+   trunk/src/CacheWolf/ImagePanel.java
+   trunk/src/CacheWolf/ShowCacheInBrowser.java
+   trunk/src/CacheWolf/imp/GPXImporter.java
+   trunk/src/CacheWolf/imp/OCXMLImporter.java
+   trunk/src/CacheWolf/imp/SpiderGC.java
+   trunk/src/exp/HTMLExporter.java
+Log:
+Creating two new classes (CacheImages and ImageInfo) to handle images in caches. Up to now it's just a kind of refactoring and should show exactly the same behaviour as before.
+
+Modified: trunk/src/CacheWolf/CacheHolderDetail.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolderDetail.java	2009-07-03 17:10:15 UTC (rev 1977)
++++ trunk/src/CacheWolf/CacheHolderDetail.java	2009-07-03 17:23:32 UTC (rev 1978)
+@@ -24,13 +24,9 @@
+ 	  public String Hints = CacheHolder.EMPTY;
+ 	  public LogList CacheLogs=new LogList();
+ 	  private String CacheNotes = CacheHolder.EMPTY;
+-	  public Vector Images = new Vector();
+-	  public Vector ImagesText = new Vector();
+-	  public Vector ImagesInfo = new Vector();
+-	  public Vector LogImages = new Vector();
+-	  public Vector LogImagesText = new Vector();
+-	  public Vector UserImages = new Vector();
+-	  public Vector UserImagesText = new Vector();
++	  public CacheImages images = new CacheImages();
++	  public CacheImages logImages = new CacheImages();
++	  public CacheImages userImages = new CacheImages();
+ 	  public Attributes attributes=new Attributes();
+ 	  public Vector CacheIcons = new Vector();
+ 	  public TravelbugList Travelbugs=new TravelbugList();
+@@ -131,9 +127,7 @@
+ 		  this.URL = newCh.URL;
+ 		  
+ 		  // Images
+-		  this.Images = newCh.Images;
+-		  this.ImagesInfo = newCh.ImagesInfo;
+-		  this.ImagesText = newCh.ImagesText;
++		  this.images = newCh.images;
+ 		  
+ 		  setLongDescription(newCh.LongDescription);
+ 		  setHints(newCh.Hints);
+@@ -165,10 +159,12 @@
+ 				imgDesc = new InputBox(&quot;Description&quot;).input(&quot;&quot;,10);
+ 				//Create Destination Filename
+ 				String ext = imgFile.getFileExt().substring(imgFile.getFileExt().lastIndexOf(&quot;.&quot;));
+-				imgDestName = getParent().getWayPoint() + &quot;_U_&quot; + (this.UserImages.size()+1) + ext;
++				imgDestName = getParent().getWayPoint() + &quot;_U_&quot; + (this.userImages.size()+1) + ext;
+ 				
+-				this.UserImages.add(imgDestName);
+-				this.UserImagesText.add(imgDesc);
++				ImageInfo userImageInfo = new ImageInfo();
++				userImageInfo.setName(imgDestName);
++				userImageInfo.setText(imgDesc);
++				this.userImages.add(userImageInfo);
+ 				// Copy File
+ 				DataMover.copy(imgFile.getFullPath(),profile.dataDir + imgDestName);
+ 				// Save Data
+@@ -185,6 +181,7 @@
+ 		void readCache(String dir) throws IOException{
+ 			String dummy;
+ 			FileReader in = null;
++			ImageInfo imageInfo;
+ 			// If parent cache has empty waypoint then don't do anything. This might happen
+ 			// when a cache object is freshly created to serve as container for imported data
+ 			if (this.getParent().getWayPoint().equals(CacheHolder.EMPTY)) return;
+@@ -234,55 +231,64 @@
+ 			}
+ 			ex = new Extractor(text, &quot;&lt;NOTES&gt;&lt;![CDATA[&quot;, &quot;]]&gt;&lt;/NOTES&gt;&quot;, 0, true);
+ 			CacheNotes = ex.findNext();
+-			Images.clear();
++			images.clear();
+ 			ex = new Extractor(text, &quot;&lt;IMG&gt;&quot;, &quot;&lt;/IMG&gt;&quot;, 0, true);
+ 			dummy = ex.findNext();
+ 			while(ex.endOfSearch() == false){
+-				Images.add(SafeXML.strxmldecode(dummy));
++				imageInfo = new ImageInfo();
++				imageInfo.setName(SafeXML.strxmldecode(dummy));
++				this.images.add(imageInfo);
+ 				dummy = ex.findNext();
+ 			}
+-			ImagesText.clear();
+ 			ex = new Extractor(text, &quot;&lt;IMGTEXT&gt;&quot;, &quot;&lt;/IMGTEXT&gt;&quot;, 0, true);
+ 			dummy = ex.findNext();
++			int imgNr = 0;
+ 			while(ex.endOfSearch() == false){
++				imageInfo = this.images.get(imgNr);
+ 				int pos=dummy.indexOf(&quot;&lt;DESC&gt;&quot;);
+ 				if (pos&gt;0) {
+-					ImagesText.add(dummy.substring(0,pos));
+-					ImagesInfo.add(dummy.substring(pos+6,dummy.indexOf(&quot;&lt;/DESC&gt;&quot;)));
++					imageInfo.setText(dummy.substring(0,pos));
++					imageInfo.setComment(dummy.substring(pos+6,dummy.indexOf(&quot;&lt;/DESC&gt;&quot;)));
+ 				} else {
+-					ImagesText.add(dummy);
+-					ImagesInfo.add(null);
++					imageInfo.setText(dummy);
+ 				}
+ 				dummy = ex.findNext();
++				imgNr = imgNr + 1;
+ 			}
+ 			// Logimages
+-			LogImages.clear();
++			logImages.clear();
+ 			ex = new Extractor(text, &quot;&lt;LOGIMG&gt;&quot;, &quot;&lt;/LOGIMG&gt;&quot;, 0, true);
+ 			dummy = ex.findNext();
+ 			while(ex.endOfSearch() == false){
+-				LogImages.add(dummy);
++				imageInfo = new ImageInfo();
++				imageInfo.setName(dummy);
++				logImages.add(imageInfo);
+ 				dummy = ex.findNext();
+ 			}
+-			LogImagesText.clear();
+ 			ex = new Extractor(text, &quot;&lt;LOGIMGTEXT&gt;&quot;, &quot;&lt;/LOGIMGTEXT&gt;&quot;, 0, true);
+ 			dummy = ex.findNext();
++			imgNr = 0;
+ 			while(ex.endOfSearch() == false){
+-				LogImagesText.add(dummy);
++				imageInfo = logImages.get(imgNr++);
++				imageInfo.setText(dummy);
+ 				dummy = ex.findNext();
+ 			}
+ 
+-			UserImages.clear();
++			userImages.clear();
+ 			ex = new Extractor(text, &quot;&lt;USERIMG&gt;&quot;, &quot;&lt;/USERIMG&gt;&quot;, 0, true);
+ 			dummy = ex.findNext();
+ 			while(ex.endOfSearch() == false){
+-				UserImages.add(dummy);
++				imageInfo = new ImageInfo();
++				imageInfo.setName(dummy);
++				userImages.add(imageInfo);
+ 				dummy = ex.findNext();
+ 			}
+-			UserImagesText.clear();
+ 			ex = new Extractor(text, &quot;&lt;USERIMGTEXT&gt;&quot;, &quot;&lt;/USERIMGTEXT&gt;&quot;, 0, true);
+ 			dummy = ex.findNext();
++			imgNr = 0;
+ 			while(ex.endOfSearch() == false){
+-				UserImagesText.add(dummy);
++				imageInfo = userImages.get(imgNr++);
++				imageInfo.setText(dummy);
+ 				dummy = ex.findNext();
+ 			}
+ 
+@@ -361,33 +367,33 @@
+ 				  detfile.print(&quot;&lt;NOTES&gt;&lt;![CDATA[&quot;+CacheNotes+&quot;]]&gt;&lt;/NOTES&gt;\n&quot;);
+ 				  detfile.print(&quot;&lt;IMAGES&gt;\n&quot;);
+ 				  String stbuf = new String();
+-				  for(int i = 0;i&lt;Images.size();i++){
+-						stbuf = (String)Images.get(i);
++				  for(int i = 0;i&lt;images.size();i++){
++						stbuf = images.get(i).getName();
+ 						detfile.print(&quot;    &lt;IMG&gt;&quot;+SafeXML.strxmlencode(stbuf)+&quot;&lt;/IMG&gt;\n&quot;);
+ 				  }
+-				  int iis = ImagesInfo.size();
+-				  for(int i = 0;i&lt;ImagesText.size();i++){
+-						stbuf = (String)ImagesText.get(i);
+-						if (i&lt; iis &amp;&amp; ImagesInfo.get(i) != null)
+-							detfile.print(&quot;    &lt;IMGTEXT&gt;&quot;+stbuf+&quot;&lt;DESC&gt;&quot;+ImagesInfo.get(i)+&quot;&lt;/DESC&gt;&lt;/IMGTEXT&gt;\n&quot;);
++				  int iis = images.size();
++				  for(int i = 0;i&lt;iis;i++){
++						stbuf = images.get(i).getText();
++						if (i&lt; iis &amp;&amp; images.get(i).getComment() != null)
++							detfile.print(&quot;    &lt;IMGTEXT&gt;&quot;+stbuf+&quot;&lt;DESC&gt;&quot;+images.get(i).getComment()+&quot;&lt;/DESC&gt;&lt;/IMGTEXT&gt;\n&quot;);
+ 						else 
+ 							detfile.print(&quot;    &lt;IMGTEXT&gt;&quot;+stbuf+&quot;&lt;/IMGTEXT&gt;\n&quot;);
+ 				  }
+ 
+-				  for(int i = 0;i&lt;LogImages.size();i++){
+-						stbuf = (String)LogImages.get(i);
++				  for(int i = 0;i&lt;logImages.size();i++){
++						stbuf = logImages.get(i).getName();
+ 						detfile.print(&quot;    &lt;LOGIMG&gt;&quot;+stbuf+&quot;&lt;/LOGIMG&gt;\n&quot;);
+ 				  }
+-				  for(int i = 0;i&lt;LogImagesText.size();i++){
+-						stbuf = (String)LogImagesText.get(i);
++				  for(int i = 0;i&lt;logImages.size();i++){
++						stbuf = logImages.get(i).getText();
+ 						detfile.print(&quot;    &lt;LOGIMGTEXT&gt;&quot;+stbuf+&quot;&lt;/LOGIMGTEXT&gt;\n&quot;);
+ 				  }
+-				  for(int i = 0;i&lt;UserImages.size();i++){
+-						stbuf = (String)UserImages.get(i);
++				  for(int i = 0;i&lt;userImages.size();i++){
++						stbuf = userImages.get(i).getName();
+ 						detfile.print(&quot;    &lt;USERIMG&gt;&quot;+stbuf+&quot;&lt;/USERIMG&gt;\n&quot;);
+ 				  }
+-				  for(int i = 0;i&lt;UserImagesText.size();i++){
+-						stbuf = (String)UserImagesText.get(i);
++				  for(int i = 0;i&lt;userImages.size();i++){
++						stbuf = userImages.get(i).getText();
+ 						detfile.print(&quot;    &lt;USERIMGTEXT&gt;&quot;+stbuf+&quot;&lt;/USERIMGTEXT&gt;\n&quot;);
+ 				  }
+ 
+@@ -419,16 +425,10 @@
+ 		 * @return true if cache has additional info, false otherwise
+ 		 */
+ 		public boolean hasImageInfo() {
+-			for (int i=ImagesInfo.size()-1; i&gt;=0; i--)
+-				if (ImagesInfo.get(i)!=null) return true;
++			for (int i=this.images.size()-1; i&gt;=0; i--)
++				if (this.images.get(i).getComment() != null) return true;
+ 			return false;
+ 		}
+-
+-//	   public void finalize() {
+-//		   super.finalize();
+-//		   Vm.debug(&quot;Destroying CacheHolder &quot;+wayPoint);
+-//	   }
+-
+ }
+ 
+ 
+
+Added: trunk/src/CacheWolf/CacheImages.java
+===================================================================
+--- trunk/src/CacheWolf/CacheImages.java	2009-07-03 17:10:15 UTC (rev 1977)
++++ trunk/src/CacheWolf/CacheImages.java	2009-07-03 17:23:32 UTC (rev 1978)
+@@ -0,0 +1,41 @@
++/**
++ * 
++ */
++package CacheWolf;
++
++import ewe.util.Vector;
++
++public class CacheImages {
++	
++	public CacheImages(){ // Public Constructor
++	}
++	
++	private Vector vector=null;
++	private Vector getVector(){
++		if (this.vector==null) {
++			vector = new Vector(10);
++		}
++		return this.vector;
++	}
++	
++	public void add(ImageInfo img) {
++        getVector().add(img);
++    }
++	
++	public ImageInfo get(int idx) {
++		return (ImageInfo) getVector().get(idx);
++	}
++	
++	public void clear() {
++		if (this.vector!=null) {
++			this.vector.clear();
++		}
++	}
++	public int size() {
++		if (this.vector == null) {
++			return 0;
++		} else {
++			return this.vector.size();
++		}
++	}
++}
+\ No newline at end of file
+
+Modified: trunk/src/CacheWolf/DescriptionPanel.java
+===================================================================
+--- trunk/src/CacheWolf/DescriptionPanel.java	2009-07-03 17:10:15 UTC (rev 1977)
++++ trunk/src/CacheWolf/DescriptionPanel.java	2009-07-03 17:23:32 UTC (rev 1978)
+@@ -5,7 +5,6 @@
+ import ewe.ui.*;
+ import ewe.fx.*;
+ import ewe.sys.*;
+-import ewe.util.Vector;
+ 
+ /**
+ *	This class shows the long description on a cache.
+@@ -68,19 +67,19 @@
+         if (cache!=null &amp;&amp; isHtml) {
+             int imageNo = 0;
+             if (Global.getPref().descShowImg) {
+-                Vector Images;
++                CacheImages Images;
+                 CacheHolder chImages; // cache which supplies the images (could be main cache)
+                 if (cache.isAddiWpt()) {
+                     chImages=cache.mainCache;
+                 } else {
+                     chImages=cache;
+                 }
+-            	Images = chImages.getExistingDetails().Images;
++            	Images = chImages.getExistingDetails().images;
+                 StringBuffer s = new StringBuffer(desc.length() + Images.size() * 100);
+                 int start = 0;
+                 int pos;
+                 Regex imgRex = new Regex(&quot;src=(?:\\s*[^\&quot;|']*?)(?:\&quot;|')(.*?)(?:\&quot;|')&quot;);
+-                if (Images.getCount() &gt; 0) {
++                if (Images.size() &gt; 0) {
+                     while (start &gt;= 0 &amp;&amp; (pos = desc.indexOf(&quot;&lt;img&quot;, start)) &gt; 0) {
+                         s.append(desc.substring(start, pos));
+                         imgRex.searchFrom(desc, pos);
+@@ -101,14 +100,14 @@
+                         start = desc.indexOf(&quot;&gt;&quot;, pos);
+                         if (start &gt;= 0)
+                             start++;
+-                        if (imageNo &gt;= Images.getCount())
++                        if (imageNo &gt;= Images.size())
+                             break;
+                     }
+                 }
+                 if (start &gt;= 0)
+                     s.append(desc.substring(start));
+                 desc = s.toString();
+-                if (imageNo&lt;Images.getCount()) {
++                if (imageNo&lt;Images.size()) {
+                     desc += getPicDesc(imageNo, chImages.getExistingDetails());
+                 }
+             }
+@@ -139,12 +138,12 @@
+ 		StringBuffer sb=new StringBuffer(1000);
+ 		sb.append(&quot;&lt;hr&gt;&lt;font size=\&quot;+1\&quot; color=\&quot;red\&quot;&gt;&quot;).append(MyLocale.getMsg(202,&quot;IMAGES&quot;).toUpperCase()).append(&quot;&lt;/font&gt;&quot;);
+ 		sb.append(&quot;&lt;br&gt;&lt;br&gt;&quot;);
+-		for (int i=imagesShown; i&lt;chD.ImagesInfo.size(); i++) {
+-			sb.append(chD.ImagesText.get(i)).append(&quot;&lt;br&gt;&quot;);
++		for (int i=imagesShown; i&lt;chD.images.size(); i++) {
++			sb.append(chD.images.get(i).getText()).append(&quot;&lt;br&gt;&quot;);
+ 			// Show the additional text if there is one
+-			if (chD.ImagesInfo.get(i)!=null) sb.append(&quot;&lt;font color='blue'&gt;&quot;).append(chD.ImagesInfo.get(i)).append(&quot;&lt;/font&gt;&quot;);
++			if (chD.images.get(i).getComment()!=null) sb.append(&quot;&lt;font color='blue'&gt;&quot;).append(chD.images.get(i).getComment()).append(&quot;&lt;/font&gt;&quot;);
+ 			// Only show the image if images are enabled
+-			if (Global.getPref().descShowImg) sb.append(&quot;&lt;img src=\&quot;&quot;+chD.Images.get(i)+&quot;\&quot;&gt;&lt;br&gt;&quot;);
++			if (Global.getPref().descShowImg) sb.append(&quot;&lt;img src=\&quot;&quot;+chD.images.get(i).getName()+&quot;\&quot;&gt;&lt;br&gt;&quot;);
+ 			sb.append(&quot;&lt;br&gt;&lt;br&gt;&lt;hr&gt;&quot;);
+ 		}
+ 		return sb.toString();
+
+Added: trunk/src/CacheWolf/ImageInfo.java
+===================================================================
+--- trunk/src/CacheWolf/ImageInfo.java	2009-07-03 17:10:15 UTC (rev 1977)
++++ trunk/src/CacheWolf/ImageInfo.java	2009-07-03 17:23:32 UTC (rev 1978)
+@@ -0,0 +1,34 @@
++package CacheWolf;
++
++public class ImageInfo {
++	
++	private String name=&quot;&quot;;
++	private String text=&quot;&quot;;
++	private String comment=null;
++
++	public String getName() {
++    	return name;
++    }
++	public void setName(String name) {
++    	this.name = name;
++    }
++	public String getText() {
++    	return text;
++    }
++	public void setText(String text) {
++    	this.text = text;
++    }
++	public String getComment() {
++    	return comment;
++    }
++	public void setComment(String comment) {
++		if (comment != null &amp;&amp; comment.equals(&quot;&quot;)) {
++			this.comment = null;
++		} else {
++			this.comment = comment;
++		}
++    }
++	
++	
++	
++}
+
+Modified: trunk/src/CacheWolf/ImagePanel.java
+===================================================================
+--- trunk/src/CacheWolf/ImagePanel.java	2009-07-03 17:10:15 UTC (rev 1977)
++++ trunk/src/CacheWolf/ImagePanel.java	2009-07-03 17:23:32 UTC (rev 1978)
+@@ -5,7 +5,6 @@
+ import ewe.fx.*;
+ import ewe.ui.*;
+ import ewe.io.*;
+-import ewe.util.*;
+ 
+ 
+ /**
+@@ -51,7 +50,7 @@
+ 			clearImages();
+ 			thumb_size = ((pref.myAppWidth-2*padding) / 3);
+ 			thumb_size = thumb_size - padding;
+-			int rowCounter = cache.Images.size() + cache.UserImages.size();
++			int rowCounter = cache.images.size() + cache.userImages.size();
+ 			rowCounter = (rowCounter/3)+1;
+ 			Rect r = new Rect(0, 0, pref.myAppWidth, rowCounter*thumb_size+rowCounter*padding+padding);
+ 			this.virtualSize = r;
+@@ -62,17 +61,17 @@
+ 			addTitle(MyLocale.getMsg(340,&quot;Cache Images:&quot;));
+ 			locY = 20;
+ 			locX = padding;
+-			addImages(cache.Images,cache.ImagesText);
++			addImages(cache.images);
+ 			// load user images
+ 			if(locCounter==1 || locCounter ==2) locY = locY + thumb_size;
+ 			//Vm.debug(&quot;thumb_size: &quot; + Convert.toString(thumb_size));
+ 			//Vm.debug(&quot;locy after: &quot; + Convert.toString(locY));
+-			if (cache.UserImages.getCount()&gt; 0){
++			if (cache.userImages.size()&gt; 0){
+ 				addTitle(MyLocale.getMsg(341,&quot;User Images:&quot;));
+ 				locY = locY + 20;
+ 				locX = padding;
+ 				locCounter = 0;
+-				addImages(cache.UserImages,cache.UserImagesText);
++				addImages(cache.userImages);
+ 			}
+ 			oldCache=cache;
+ 		} // cache!=oldCache	
+@@ -122,7 +121,7 @@
+ 	 * @param pImages Vector of images or userImages
+ 	 * @param imagesText Vector of image texts or user image texts
+ 	 */
+-	private void addImages(Vector pImages, Vector imagesText) {
++	private void addImages(CacheImages pImages) {
+ 		String location, imgText;
+ 		mImage mI;
+ 		int scaleX, scaleY;
+@@ -131,7 +130,7 @@
+ 		AniImage AimgText;
+ 		locCounter=0;
+ 		for(int i = 0; i&lt;pImages.size(); i++){
+-			location = profile.dataDir + (String)pImages.get(i);
++			location = profile.dataDir + pImages.get(i).getName();
+ 			if (!(new FileBugfix(location)).exists()) {
+ 				location=NO_IMAGE;
+ 				if (!pref.showDeletedImages) continue; // Don't show the deleted Image if user does not want it
+@@ -169,11 +168,11 @@
+ 				ipi.setLocation(locX, locY);
+ 				addImage(ipi);
+ 				//Name of picture:
+-				if(imagesText.size()&gt;i){
++				if(pImages.size()&gt;i){
+ 					if (location.equals(NO_IMAGE))
+ 						imgText=MyLocale.getMsg(342,&quot;Deleted&quot;);
+ 					else
+-						imgText = SafeXML.cleanback((String)imagesText.get(i));
++						imgText = SafeXML.cleanback(pImages.get(i).getText());
+ 					if(imgText.length()==0) imgText = &quot;???&quot;;
+ 					AimgText = new AniImage();
+ 					AimgText = getImageText(imgText);
+@@ -276,4 +275,4 @@
+ 		}
+ 		super.onPenEvent(ev);
+ 	}
+-}
+\ No newline at end of file
++}
+
+Modified: trunk/src/CacheWolf/ShowCacheInBrowser.java
+===================================================================
+--- trunk/src/CacheWolf/ShowCacheInBrowser.java	2009-07-03 17:10:15 UTC (rev 1977)
++++ trunk/src/CacheWolf/ShowCacheInBrowser.java	2009-07-03 17:23:32 UTC (rev 1978)
+@@ -119,7 +119,7 @@
+ 					int imageNo=0;
+ 					Regex imgRex = new Regex(&quot;src=(?:\\s*[^\&quot;|']*?)(?:\&quot;|')(.*?)(?:\&quot;|')&quot;);
+ 					while (start&gt;=0 &amp;&amp; (pos=chD.getExistingDetails().LongDescription.indexOf(&quot;&lt;img&quot;,start))&gt;0) {
+-						if (imageNo &gt;= chD.getExistingDetails().Images.getCount())break;
++						if (imageNo &gt;= chD.getExistingDetails().images.size())break;
+ 						s.append(chD.getExistingDetails().LongDescription.substring(start,pos));
+ 						imgRex.searchFrom(chD.getExistingDetails().LongDescription,pos);
+ 						String imgUrl=imgRex.stringMatched(1);
+@@ -129,7 +129,7 @@
+ 							// If we have an image which we stored when spidering, we can display it
+         					if(imgType.startsWith(&quot;.png&quot;) || imgType.startsWith(&quot;.jpg&quot;) || imgType.startsWith(&quot;.gif&quot;)){
+ 								s.append(&quot;&lt;img src=\&quot;<A HREF="file://">file://</A>&quot;+
+-								   Global.getProfile().dataDir+chD.getExistingDetails().Images.get(imageNo)+&quot;\&quot;&gt;&quot;);
++								   Global.getProfile().dataDir+chD.getExistingDetails().images.get(imageNo).getName()+&quot;\&quot;&gt;&quot;);
+ 								imageNo++;
+ 							}
+ 						}
+@@ -141,15 +141,15 @@
+ 					
+ 					// Do the remaining pictures which are not included in main body of text
+ 					// They will be hidden initially and can be displayed by clicking on a link
+-					if (imageNo&lt;chD.getExistingDetails().Images.size()) {
+-						Vector imageVect=new Vector(chD.getExistingDetails().Images.size()-imageNo);
+-						for (; imageNo&lt;chD.getExistingDetails().Images.size(); imageNo++) {
++					if (imageNo&lt;chD.getExistingDetails().images.size()) {
++						Vector imageVect=new Vector(chD.getExistingDetails().images.size()-imageNo);
++						for (; imageNo&lt;chD.getExistingDetails().images.size(); imageNo++) {
+ 							Hashtable imgs=new Hashtable();
+ 							imgs.put(&quot;IMAGE&quot;,&quot;&lt;img src=\&quot;<A HREF="file://">file://</A>&quot;+
+-									   Global.getProfile().dataDir+chD.getExistingDetails().Images.get(imageNo)+&quot;\&quot; border=0&gt;&quot;);
+-							imgs.put(&quot;IMAGETEXT&quot;,chD.getExistingDetails().ImagesText.get(imageNo));
+-							if (imageNo&lt;chD.getExistingDetails().ImagesInfo.size() &amp;&amp; chD.getExistingDetails().ImagesInfo.get(imageNo)!=null)
+-								imgs.put(&quot;IMAGECOMMENT&quot;,chD.getExistingDetails().ImagesInfo.get(imageNo));
++									   Global.getProfile().dataDir+chD.getExistingDetails().images.get(imageNo).getName()+&quot;\&quot; border=0&gt;&quot;);
++							imgs.put(&quot;IMAGETEXT&quot;,chD.getExistingDetails().images.get(imageNo).getText());
++							if (imageNo&lt;chD.getExistingDetails().images.size() &amp;&amp; chD.getExistingDetails().images.get(imageNo).getComment()!=null)
++								imgs.put(&quot;IMAGECOMMENT&quot;,chD.getExistingDetails().images.get(imageNo).getComment());
+ 							else
+ 								imgs.put(&quot;IMAGECOMMENT&quot;,&quot;&quot;);
+ 							imgs.put(&quot;I&quot;,&quot;'img&quot;+new Integer(imageNo).toString()+&quot;'&quot;);
+
+Modified: trunk/src/CacheWolf/imp/GPXImporter.java
+===================================================================
+--- trunk/src/CacheWolf/imp/GPXImporter.java	2009-07-03 17:10:15 UTC (rev 1977)
++++ trunk/src/CacheWolf/imp/GPXImporter.java	2009-07-03 17:23:32 UTC (rev 1978)
+@@ -325,8 +325,8 @@
+ 						int num = 0;
+ 						while(ex.endOfSearch() == false &amp;&amp; spiderOK == true){
+ 							//Vm.debug(&quot;Replacing: &quot; + text);
+-							if (num &gt;= holder.getFreshDetails().ImagesText.getCount())break;
+-							imgName = (String)holder.getFreshDetails().ImagesText.get(num);
++							if (num &gt;= holder.getFreshDetails().images.size())break;
++							imgName = holder.getFreshDetails().images.get(num).getText();
+ 							holder.getFreshDetails().LongDescription = replace(holder.getFreshDetails().LongDescription, text, &quot;[[Image: &quot; + imgName + &quot;]]&quot;);
+ 							num++;
+ 							text = ex.findNext();
+
+Modified: trunk/src/CacheWolf/imp/OCXMLImporter.java
+===================================================================
+--- trunk/src/CacheWolf/imp/OCXMLImporter.java	2009-07-03 17:10:15 UTC (rev 1977)
++++ trunk/src/CacheWolf/imp/OCXMLImporter.java	2009-07-03 17:23:32 UTC (rev 1978)
+@@ -9,6 +9,7 @@
+ import CacheWolf.CacheTerrDiff;
+ import CacheWolf.CacheType;
+ import CacheWolf.Common;
++import CacheWolf.ImageInfo;
+ import CacheWolf.InfoBox;
+ import CacheWolf.Log;
+ import CacheWolf.MyLocale;
+@@ -461,9 +462,7 @@
+ 			// clear data (picture, logs) if we do a complete Update
+ 			if (incUpdate == false){
+ 				holder.getFreshDetails().CacheLogs.clear();
+-				holder.getFreshDetails().Images.clear();
+-				holder.getFreshDetails().ImagesText.clear();
+-				holder.getFreshDetails().ImagesInfo.clear();
++				holder.getFreshDetails().images.clear();
+ 			}
+ 
+ 			// save all
+@@ -588,17 +587,18 @@
+ 		try {
+ 			if (!fetchURL.startsWith(&quot;<A HREF="http://">http://</A>&quot;)) fetchURL = new URL(new URL(&quot;<A HREF="http://">http://</A>&quot; + OPENCACHING_HOST+&quot;/&quot;), fetchURL).toString(); // TODO this is not quite correct: actually the &quot;base&quot; URL must be known... but anyway a different baseURL should not happen very often  - it doesn't in my area
+ 			String fileName = createPicFilename(fetchURL);
++			ImageInfo imageInfo = new ImageInfo();
+ 			// add title
+-			holder.getFreshDetails().ImagesText.add(picDesc);
+-			holder.getFreshDetails().ImagesInfo.add(null); // need to stay in sync with ImagesText
++			imageInfo.setText(picDesc);
++			holder.getFreshDetails().images.add(imageInfo);
+ 			try {
+ 				File ftest = new File(profile.dataDir + fileName);
+ 				if (ftest.exists()){
+-					holder.getFreshDetails().Images.add(fileName);
++					imageInfo.setName(fileName);
+ 				}
+ 				else {
+ 					if (pref.downloadPics) {
+-						holder.getFreshDetails().Images.add(fetch(fetchURL, fileName));
++						imageInfo.setName(fetch(fetchURL, fileName));
+ 					}
+ 				}
+ 			} catch (IOException e) {
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2009-07-03 17:10:15 UTC (rev 1977)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2009-07-03 17:23:32 UTC (rev 1978)
+@@ -41,6 +41,7 @@
+ import CacheWolf.Extractor;
+ import CacheWolf.Global;
+ import CacheWolf.HttpConnection;
++import CacheWolf.ImageInfo;
+ import CacheWolf.InfoBox;
+ import CacheWolf.Log;
+ import CacheWolf.LogList;
+@@ -727,9 +728,7 @@
+ 						//int logsz = chD.CacheLogs.size();
+ 						//chD.CacheLogs.clear();
+ 						ch.addiWpts.clear();
+-						ch.getFreshDetails().Images.clear();
+-						ch.getFreshDetails().ImagesText.clear();
+-						ch.getFreshDetails().ImagesInfo.clear();
++						ch.getFreshDetails().images.clear();
+ 
+ 						if(completeWebPage.indexOf(p.getProp(&quot;cacheUnavailable&quot;)) &gt;= 0) ch.setAvailable(false);
+ 						if(completeWebPage.indexOf(p.getProp(&quot;cacheArchived&quot;)) &gt;= 0) ch.setArchived(true);
+@@ -1171,6 +1170,7 @@
+ 		int imgCounter = 0;
+ 		String imgName, oldImgName, imgType, imgUrl, imgComment;
+ 		Vector spideredUrls=new Vector(15);
++		ImageInfo imageInfo;
+ 		Extractor exImgBlock,exImgComment;
+ 		int idxUrl; // Index of already spidered Url in list of spideredUrls
+ 		//========
+@@ -1205,19 +1205,21 @@
+ 						// Check whether image was already spidered for this cache
+ 						idxUrl=spideredUrls.find(imgUrl);
+ 						imgName = chD.getParent().getWayPoint() + &quot;_&quot; + Convert.toString(imgCounter);
++						imageInfo = new ImageInfo();
+ 						if (idxUrl&lt;0) { // New image
+ 							pref.log(&quot;Loading image: &quot; + imgUrl+&quot; as &quot;+imgName);
+ 							spiderImage(imgUrl, imgName+imgType);
+-							chD.Images.add(imgName+imgType);
++							imageInfo.setName(imgName+imgType);
+ 							spideredUrls.add(imgUrl);
+ 						} else { // Image already spidered as wayPoint_'idxUrl'
+ 							pref.log(&quot;Already loaded image: &quot; + imgUrl);
+ 							oldImgName = chD.getParent().getWayPoint() + &quot;_&quot; + Convert.toString(idxUrl);
+-							chD.Images.add(oldImgName+imgType); // Store name of old image as image to load
++							imageInfo.setName(oldImgName+imgType);
+ 						}
+-						chD.ImagesText.add(imgName); // Keep the image name
+-						chD.ImagesInfo.add(null); // Need to stay in synch with ImagesText
++						imageInfo.setText(imgName);
++						imageInfo.setComment(null);
+ 						imgCounter++;
++						chD.images.add(imageInfo);
+ 					}
+ 				} catch (IndexOutOfBoundsException e) {
+ 					//Vm.debug(&quot;IndexOutOfBoundsException not in image span&quot;+e.toString()+&quot;imgURL:&quot;+imgUrl);
+@@ -1252,22 +1254,22 @@
+ 						// Check whether image was already spidered for this cache
+ 						idxUrl=spideredUrls.find(imgUrl);
+ 						imgName = chD.getParent().getWayPoint() + &quot;_&quot; + Convert.toString(imgCounter);
++						imageInfo = new ImageInfo();
+ 						if (idxUrl&lt;0) { // New image
+-							pref.log(&quot;Loading image: &quot; + imgUrl);
++							pref.log(&quot;Loading image: &quot; + imgUrl+&quot; as &quot;+imgName);
+ 							spiderImage(imgUrl, imgName+imgType);
+-							chD.Images.add(imgName+imgType);
+-						} else { // Image already spidered as wayPoint_ 'idxUrl'
++							imageInfo.setName(imgName+imgType);
++							spideredUrls.add(imgUrl);
++						} else { // Image already spidered as wayPoint_'idxUrl'
+ 							pref.log(&quot;Already loaded image: &quot; + imgUrl);
+ 							oldImgName = chD.getParent().getWayPoint() + &quot;_&quot; + Convert.toString(idxUrl);
+-							chD.Images.add(oldImgName+imgType); // Store name of old image as image to load
++							imageInfo.setName(oldImgName+imgType);
+ 						}
+-						chD.ImagesText.add(exImgName.findNext()); // Keep the image description
++						imageInfo.setText(exImgName.findNext());
+ 						while (imgComment.startsWith(&quot;&lt;br /&gt;&quot;)) imgComment=imgComment.substring(6);
+ 						while (imgComment.endsWith(&quot;&lt;br /&gt;&quot;)) imgComment=imgComment.substring(0,imgComment.length()-6);
+-						if (imgComment.length()==0)
+-							chD.ImagesInfo.add(null);
+-						else
+-							chD.ImagesInfo.add(imgComment);
++						imageInfo.setComment(imgComment);
++						chD.images.add(imageInfo);
+ 						imgCounter++;
+ 					}
+ 				} catch (IndexOutOfBoundsException e) {
+@@ -1291,14 +1293,15 @@
+ 						// Check whether image was already spidered for this cache
+ 						idxUrl=spideredUrls.find(imgUrl);
+ 						if (idxUrl&lt;0) { // New image
++							imageInfo = new ImageInfo();
+ 							imgName = chD.getParent().getWayPoint() + &quot;_&quot; + Convert.toString(imgCounter);
+ 							pref.log(&quot;Loading image: &quot; + imgUrl+&quot; as &quot;+imgName);
+ 							spiderImage(imgUrl, imgName+imgType);
+-							chD.Images.add(imgName+imgType);
++							imageInfo.setName(imgName+imgType);
+ 							spideredUrls.add(imgUrl);
+-							chD.ImagesText.add(imgName); // Keep the image name
+-							chD.ImagesInfo.add(null);
++							imageInfo.setText(imgName);
+ 							imgCounter++;
++							chD.images.add(imageInfo);
+ 						}
+ 					}
+ 				} catch (IndexOutOfBoundsException e) {
+
+Modified: trunk/src/exp/HTMLExporter.java
+===================================================================
+--- trunk/src/exp/HTMLExporter.java	2009-07-03 17:10:15 UTC (rev 1977)
++++ trunk/src/exp/HTMLExporter.java	2009-07-03 17:23:32 UTC (rev 1978)
+@@ -145,14 +145,11 @@
+ 							page_tpl.setParam(&quot;NOTES&quot;, STRreplace.replace(det.getCacheNotes(), &quot;\n&quot;,&quot;&lt;br&gt;&quot;));
+ 							
+ 							cacheImg.clear();
+-							for(int j = 0; j&lt;det.Images.size(); j++){
++							for(int j = 0; j&lt;det.images.size(); j++){
+ 								imgParams = new Hashtable();
+-								String imgFile = new String((String)det.Images.get(j));
++								String imgFile = new String(det.images.get(j).getName());
+ 								imgParams.put(&quot;FILE&quot;, imgFile);
+-								if (j &lt; det.ImagesText.size())
+-									imgParams.put(&quot;TEXT&quot;,det.ImagesText.get(j));
+-								else
+-									imgParams.put(&quot;TEXT&quot;,imgFile);
++								imgParams.put(&quot;TEXT&quot;,det.images.get(j).getText());
+ 								DataMover.copy(profile.dataDir + imgFile,targetDir + imgFile);
+ 								cacheImg.add(imgParams);
+ 							}
+@@ -160,14 +157,11 @@
+ 							
+ 							// Log images
+ 							logImg.clear();
+-							for(int j = 0; j&lt;det.LogImages.size(); j++){
++							for(int j = 0; j&lt;det.logImages.size(); j++){
+ 								logImgParams = new Hashtable();
+-								String logImgFile = (String) det.LogImages.get(j);
++								String logImgFile = det.logImages.get(j).getName();
+ 								logImgParams.put(&quot;FILE&quot;, logImgFile);
+-								if (j &lt; det.LogImagesText.size())
+-									logImgParams.put(&quot;TEXT&quot;,det.LogImagesText.get(j));
+-								else
+-									logImgParams.put(&quot;TEXT&quot;,logImgFile);
++								logImgParams.put(&quot;TEXT&quot;,det.logImages.get(j).getText());
+ 								DataMover.copy(profile.dataDir + logImgFile,targetDir + logImgFile);
+ 								logImg.add(logImgParams);
+ 							}
+@@ -175,14 +169,11 @@
+ 							
+ 							// User images
+ 							usrImg.clear();
+-							for(int j = 0; j&lt;det.UserImages.size(); j++){
++							for(int j = 0; j&lt;det.userImages.size(); j++){
+ 								usrImgParams = new Hashtable();
+-								String usrImgFile = new String((String)det.UserImages.get(j));
++								String usrImgFile = new String(det.userImages.get(j).getName());
+ 								usrImgParams.put(&quot;FILE&quot;, usrImgFile);
+-								if (j &lt; det.UserImagesText.size())
+-									usrImgParams.put(&quot;TEXT&quot;,det.UserImagesText.get(j));
+-								else
+-									usrImgParams.put(&quot;TEXT&quot;,usrImgFile);
++								usrImgParams.put(&quot;TEXT&quot;,det.userImages.get(j).getText());
+ 								DataMover.copy(profile.dataDir + usrImgFile,targetDir + usrImgFile);
+ 								usrImg.add(usrImgParams);
+ 							}
+@@ -297,8 +288,8 @@
+ 					// image links in the description (eg. because of importing
+ 					// GPX files). We have to allow for this situation.
+ 					Object localImageSource = null;
+-					if (imageNo &lt; chD.Images.size()) {
+-						localImageSource = chD.Images.get(imageNo);
++					if (imageNo &lt; chD.images.size()) {
++						localImageSource = chD.images.get(imageNo).getName();
+ 					}
+ 					if (localImageSource == null) localImageSource = imgUrl;
+ 					s.append(&quot;&lt;img src=\&quot;&quot;+localImageSource+&quot;\&quot;&gt;&quot;);
+@@ -309,7 +300,7 @@
+ 			}
+ 			start=chD.LongDescription.indexOf(&quot;&gt;&quot;,pos);
+ 			if (start&gt;=0) start++;
+-			if (imageNo &gt;= chD.Images.getCount())break;
++			if (imageNo &gt;= chD.images.size()) break;
+ 		}
+ 		if (start&gt;=0) s.append(chD.LongDescription.substring(start));
+ 		return s.toString();
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001896.html">[Cachewolf-svn] r1977 - in trunk/src: CacheWolf CacheWolf/navi exp
+</A></li>
+	<LI>Next message: <A HREF="001898.html">[Cachewolf-svn] r1979 - in trunk/src: CacheWolf CacheWolf/imp exp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1897">[ date ]</a>
+              <a href="thread.html#1897">[ thread ]</a>
+              <a href="subject.html#1897">[ subject ]</a>
+              <a href="author.html#1897">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

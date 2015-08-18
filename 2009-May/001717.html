@@ -1,0 +1,983 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1799 - in trunk/src: CacheWolf exp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-May/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1799%20-%20in%20trunk/src%3A%20CacheWolf%20exp&In-Reply-To=%3C200905121943.n4CJhI3U017897%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001716.html">
+   <LINK REL="Next"  HREF="001718.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1799 - in trunk/src: CacheWolf exp</H1>
+    <B>greiol at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1799%20-%20in%20trunk/src%3A%20CacheWolf%20exp&In-Reply-To=%3C200905121943.n4CJhI3U017897%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1799 - in trunk/src: CacheWolf exp">greiol at mail.berlios.de
+       </A><BR>
+    <I>Tue May 12 21:43:18 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001716.html">[Cachewolf-svn] r1798 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001718.html">[Cachewolf-svn] r1800 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1717">[ date ]</a>
+              <a href="thread.html#1717">[ thread ]</a>
+              <a href="subject.html#1717">[ subject ]</a>
+              <a href="author.html#1717">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: greiol
+Date: 2009-05-12 21:43:10 +0200 (Tue, 12 May 2009)
+New Revision: 1799
+
+Modified:
+   trunk/src/CacheWolf/CacheHolder.java
+   trunk/src/CacheWolf/CacheSize.java
+   trunk/src/CacheWolf/DetailsPanel.java
+   trunk/src/CacheWolf/Filter.java
+   trunk/src/CacheWolf/GPXImporter.java
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/MyComparer.java
+   trunk/src/CacheWolf/OCXMLImporter.java
+   trunk/src/CacheWolf/Parser.java
+   trunk/src/CacheWolf/ShowCacheInBrowser.java
+   trunk/src/CacheWolf/SpiderGC.java
+   trunk/src/CacheWolf/Version.java
+   trunk/src/CacheWolf/myInteractivePanel.java
+   trunk/src/CacheWolf/myTableModel.java
+   trunk/src/exp/Exporter.java
+   trunk/src/exp/GPXExporter.java
+   trunk/src/exp/HTMLExporter.java
+   trunk/src/exp/MSARCSVExporter.java
+   trunk/src/exp/TPLExporter.java
+   trunk/src/exp/TomTomExporter.java
+Log:
+activated CacheSize class
+
+Modified: trunk/src/CacheWolf/CacheHolder.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolder.java	2009-05-12 17:01:32 UTC (rev 1798)
++++ trunk/src/CacheWolf/CacheHolder.java	2009-05-12 19:43:10 UTC (rev 1799)
+@@ -47,22 +47,6 @@
+ 	protected static final String DT_45_TXT = &quot;4.5&quot;;
+ 	protected static final String DT_50_TXT = &quot;5&quot;;
+ 	protected static final String DT_UNKNOWN_TXT = &quot;?&quot;;
+-	protected static final byte SIZE_UNKNOWN = 0;
+-	protected static final byte SIZE_OTHER = 1;
+-	protected static final byte SIZE_MICRO = 2;
+-	protected static final byte SIZE_SMALL = 3;
+-	protected static final byte SIZE_REGULAR = 4;
+-	protected static final byte SIZE_LARGE = 5;
+-	protected static final byte SIZE_VLARGE = 6;
+-	protected static final byte SIZE_NONE = 7;
+-	protected static final String SIZE_UNKNOWN_TXT = &quot;&quot;;
+-	protected static final String SIZE_OTHER_TXT = &quot;Other&quot;;
+-	protected static final String SIZE_MICRO_TXT = &quot;Micro&quot;;
+-	protected static final String SIZE_SMALL_TXT = &quot;Small&quot;;
+-	protected static final String SIZE_REGULAR_TXT = &quot;Regular&quot;;
+-	protected static final String SIZE_LARGE_TXT = &quot;Large&quot;;
+-	protected static final String SIZE_VLARGE_TXT = &quot;Very Large&quot;;
+-	protected static final String SIZE_NONE_TXT = &quot;None&quot;;
+ 
+ 	/** Cachestatus is Found, Not found or a date in format yyyy-mm-dd hh:mm for found date */
+ 	private String cacheStatus = EMPTY;
+@@ -79,7 +63,7 @@
+ 	/** The date when the cache was hidden in format yyyy-mm-dd */
+ 	private String dateHidden = EMPTY;
+ 	/** The size of the cache (as per GC cache sizes Micro, Small, ....) */
+-	private String cacheSize = &quot;None&quot;;
++	private byte cacheSize = CacheSize.CW_SIZE_NOTCHOSEN;
+ 	/** The distance from the centre in km */
+ 	public double kilom = -1; int bla = 0;
+ 	public double lastKilom = -2; // Cache last value
+@@ -169,7 +153,7 @@
+ 		this.wayPoint = wp;
+     }
+ 	
+-	public CacheHolder(String xmlString, int version) {		 
++	public CacheHolder(String xmlString, int version) {
+ 		int start,end;
+ 	        try {
+ 			if (version == 1) {
+@@ -217,7 +201,9 @@
+ 		        setFiltered(xmlString.substring(start + 1, end).equals(&quot;true&quot;));
+ 		        start = xmlString.indexOf('&quot;', end + 1);
+ 		        end = xmlString.indexOf('&quot;', start + 1);
+-		        setCacheSize(xmlString.substring(start + 1, end));
++		        
++		        setCacheSize(CacheSize.v1Converter(xmlString.substring(start + 1, end)));
++		        
+ 		        start = xmlString.indexOf('&quot;', end + 1);
+ 		        end = xmlString.indexOf('&quot;', start + 1);
+ 		        setAvailable(xmlString.substring(start + 1, end).equals(&quot;true&quot;));
+@@ -345,7 +331,7 @@
+ 		            setFiltered(true);
+             }
+ 	        } catch (Exception ex) {
+-	        	Global.getPref().log(&quot;Ignored Exception&quot;, ex, true);
++	        	Global.getPref().log(&quot;Ignored Exception in CacheHolder()&quot;, ex, true);
+ 	        }
+         }
+ 	
+@@ -856,7 +842,7 @@
+ 		long value = byteBitMask(CacheHolder.terrHard_String2byte(hard), 1)    | 
+ 		byteBitMask(CacheHolder.terrHard_String2byte(terrain), 2)   |
+ 		byteBitMask(this.type, 3)    |
+-		byteBitMask(CacheHolder.size_String2byte(cacheSize), 4)|
++		byteBitMask(cacheSize, 4)|
+ 		byteBitMask(this.noFindLogs, 5);		             
+ 		return value;
+ 	}
+@@ -869,7 +855,7 @@
+ 		this.setHard(CacheHolder.terrHard_byte2String(byteFromLong(value, 1)));
+ 		this.setTerrain(CacheHolder.terrHard_byte2String(byteFromLong(value, 2)));
+ 		this.type = byteFromLong(value, 3);
+-		this.setCacheSize(CacheHolder.size_byte2String(byteFromLong(value, 4)));
++		this.setCacheSize(byteFromLong(value, 4));
+ 		this.setNoFindLogs((byteFromLong(value, 5)));
+ 	}
+ 
+@@ -1025,12 +1011,12 @@
+     	this.dateHidden = dateHidden;
+     }
+ 
+-	public String getCacheSize() {
++	public byte getCacheSize() {
+     	return cacheSize;
+     }
+ 
+-	public void setCacheSize(String cacheSize) {
+-		Global.getProfile().notifyUnsavedChanges(!cacheSize.equals(this.cacheSize));		
++	public void setCacheSize(byte cacheSize) {
++		Global.getProfile().notifyUnsavedChanges(cacheSize != this.cacheSize);		
+     	this.cacheSize = cacheSize;
+     }
+ 
+@@ -1074,28 +1060,6 @@
+ 		} 
+ 		return result;
+ 	}
+-	/**
+-	 * The string representation of the internal value for the cache size.
+-	 * @param value Internal cache size value 
+-	 * @return String representation of cache size
+-	 */
+-	private static String size_byte2String(byte value) {
+-		String result;
+-		//Change: If no sensible value for the cache size is entered, then 
+-		//the state is set to &quot;None&quot;.
+-		switch (value) {
+-		case SIZE_UNKNOWN: result = SIZE_NONE_TXT; break;
+-		case SIZE_OTHER: result = SIZE_OTHER_TXT; break;
+-		case SIZE_MICRO: result = SIZE_MICRO_TXT; break;
+-		case SIZE_SMALL: result = SIZE_SMALL_TXT; break;
+-		case SIZE_REGULAR: result = SIZE_REGULAR_TXT; break;
+-		case SIZE_LARGE: result = SIZE_LARGE_TXT; break;
+-		case SIZE_VLARGE: result = SIZE_VLARGE_TXT; break;
+-		case SIZE_NONE: result = SIZE_NONE_TXT; break;
+-		default: result = SIZE_NONE_TXT;
+-		} 
+-		return result;
+-	}
+ 
+ 	/**
+ 	 * Decoding the String represenations of difficulty or terrain values to internal (byte) values.
+@@ -1143,32 +1107,7 @@
+ 	    if (value.endsWith(&quot;.0&quot;)) value = value.substring(0,1);
+ 	    return value;
+     }
+-    /**
+-     * @param value
+-     * @return
+-     */
+-    private static byte size_String2byte(String value) {
+-    	byte result;
+-    	if (value.equals(SIZE_OTHER_TXT)) {
+-    		result = SIZE_OTHER;
+-    	} else if (value.equals(SIZE_MICRO_TXT)) {
+-    		result = SIZE_MICRO;
+-    	} else if (value.equals(SIZE_SMALL_TXT)) {
+-    		result = SIZE_SMALL;
+-    	} else if (value.equals(SIZE_REGULAR_TXT)) {
+-    		result = SIZE_REGULAR;
+-    	} else if (value.equals(SIZE_LARGE_TXT)) {
+-    		result = SIZE_LARGE;
+-    	} else if (value.equals(SIZE_VLARGE_TXT)) {
+-    		result = SIZE_VLARGE;
+-    	} else if (value.equals(SIZE_NONE_TXT)) {
+-    		result = SIZE_NONE;
+-    	} else {
+-    		result = DT_UNKNOWN;
+-    	}
+-    	return result;
+-    }
+-
++ 
+ 	/**
+ 	 * Gets the type of cache as integer.
+ 	 * @return Cache type
+
+Modified: trunk/src/CacheWolf/CacheSize.java
+===================================================================
+--- trunk/src/CacheWolf/CacheSize.java	2009-05-12 17:01:32 UTC (rev 1798)
++++ trunk/src/CacheWolf/CacheSize.java	2009-05-12 19:43:10 UTC (rev 1799)
+@@ -28,6 +28,7 @@
+ 	static final protected String GC_SIZE_OTHER = &quot;Other&quot;;
+ 	static final protected String GC_SIZE_VIRTUAL = &quot;Virtual&quot;;
+ 	static final protected String OCTC_SIZE_VERYLARGE = &quot;Very large&quot;;
++	static final protected String OCTC_SIZE_NONE = &quot;None&quot;;
+ 
+ 	/*
+ 	 * OpenCaching Size IDs
+@@ -63,6 +64,24 @@
+ 	static final protected String CW_GUIIMG_VERYLARGE = &quot;sizeVLarge.png&quot;;
+ 	
+ 	/*
++	 * IDs for the sizePics[] array in TableModel
++	 * therefore they must start with 0 and be consecutive
++	 */
++	static final protected byte CW_GUIIMGID_MICRO = 0;
++	static final protected byte CW_GUIIMGID_SMALL = 1;
++	static final protected byte CW_GUIIMGID_NORMAL = 2;
++	static final protected byte CW_GUIIMGID_LARGE = 3;
++	static final protected byte CW_GUIIMGID_NONPHYSICAL = 4;
++	static final protected byte CW_GUIIMGID_VERYLARGE = 5;
++	
++	/*
++	 * total number of different size images
++	 * will be used to det the dimension of sizePics[] array in TableModel
++	 */
++	static final protected byte CW_TOTAL_SIZE_IMAGES = 6;
++	
++	
++	/*
+ 	 * bit masks to be used with the filter function
+ 	 */
+ 	static final protected byte CW_FILTER_MICRO = 0x01&lt;&lt;0;
+@@ -79,6 +98,27 @@
+ 	public CacheSize() {
+ 		// do nothing
+ 	}
++	
++	/**
++	 * map filenames of images for the different sizes to the ids used
++	 * array index for sizePics[] in TableModel
++	 * @param id size identifier matching the CW_GUIIMGID_ constants
++	 * @return filenam of image to be displayed for id
++	 * @throws IllegalArgumentException if there is no image associated to the id
++	 */
++	public static String sizeImageForId(byte id) {
++		switch(id) {
++		case CW_GUIIMGID_MICRO: return CW_GUIIMG_MICRO;
++		case CW_GUIIMGID_SMALL: return CW_GUIIMG_SMALL;
++		case CW_GUIIMGID_NORMAL: return CW_GUIIMG_NORMAL;
++		case CW_GUIIMGID_LARGE: return CW_GUIIMG_LARGE;
++		case CW_GUIIMGID_NONPHYSICAL: return CW_GUIIMG_NONPHYSICAL;
++		case CW_GUIIMGID_VERYLARGE: return CW_GUIIMG_VERYLARGE;
++		default:
++			throw (new IllegalArgumentException(&quot;unmatched argument &quot; + id
++					+ &quot; in CacheSize cw2ExportString()&quot;));			
++		}
++	}
+ 
+ 	/**
+ 	 * convert the size info from a CacheHolder to a string suitable for GPX
+@@ -108,9 +148,11 @@
+ 			return GC_SIZE_VIRTUAL;
+ 		case CW_SIZE_VERYLARGE:
+ 			return OCTC_SIZE_VERYLARGE;
++		case CW_SIZE_NONE:
++			return OCTC_SIZE_NONE;
+ 		default:
+ 			throw (new IllegalArgumentException(&quot;unmatched argument &quot; + size
+-					+ &quot; in CacheSize cw2GcString()&quot;));
++					+ &quot; in CacheSize cw2ExportString()&quot;));
+ 		}
+ 	}
+ 
+@@ -229,33 +271,70 @@
+ 	 * @throws IllegalArgumentException
+ 	 *             if size can not be mapped
+ 	 */
+-	public static String guiSizeImage(byte size) {
++	public static byte guiSizeImageId(byte size) {
+ 		switch (size) {
+ 		case CW_SIZE_MICRO:
+-			return CW_GUIIMG_MICRO;
++			return CW_GUIIMGID_MICRO;
+ 		case CW_SIZE_SMALL:
+-			return CW_GUIIMG_SMALL;
++			return CW_GUIIMGID_SMALL;
+ 		case CW_SIZE_REGULAR:
+-			return CW_GUIIMG_NORMAL;
++			return CW_GUIIMGID_NORMAL;
+ 		case CW_SIZE_LARGE:
+-			return CW_GUIIMG_LARGE;
++			return CW_GUIIMGID_LARGE;
+ 		case CW_SIZE_NOTCHOSEN:
+-			return CW_GUIIMG_NONPHYSICAL;
++			return CW_GUIIMGID_NONPHYSICAL;
+ 		case CW_SIZE_OTHER:
+-			return CW_GUIIMG_NONPHYSICAL;
++			return CW_GUIIMGID_NONPHYSICAL;
+ 		case CW_SIZE_VIRTUAL:
+-			return CW_GUIIMG_NONPHYSICAL;
++			return CW_GUIIMGID_NONPHYSICAL;
+ 		case CW_SIZE_VERYLARGE:
+-			return CW_GUIIMG_VERYLARGE;
++			return CW_GUIIMGID_VERYLARGE;
+ 		case CW_SIZE_NONE:
+-			return CW_GUIIMG_NONPHYSICAL;
++			return CW_GUIIMGID_NONPHYSICAL;
+ 		default:
+ 			throw (new IllegalArgumentException(&quot;unmatched argument &quot; 
+ 					+ size + &quot; in CacheSize guiSizeImage()&quot;));
+ 		}
+ 	}
+ 	
++
+ 	/**
++	 * convert an &quot;old style&quot; size string to the new internal representation
++	 * @param v1Size old size string
++	 * @return CW internal representation of cache size
++	 * @throws if v1Size can not be mapped
++	 * @deprecated remove once v1 file version compatibility is abandoned
++	 */
++	public static final byte v1Converter(String v1Size) {
++		if (v1Size.equals(GC_SIZE_MICRO)) {
++			return CW_SIZE_MICRO;
++		} else if (v1Size.equals(GC_SIZE_SMALL)) {
++			return CW_SIZE_SMALL;
++		} else if (v1Size.equals(GC_SIZE_REGULAR)) {
++			return CW_SIZE_REGULAR;
++		} else if (v1Size.equals(GC_SIZE_LARGE)) {
++			return CW_SIZE_LARGE;
++		} else if (v1Size.equals(GC_SIZE_NOTCHOSEN)) {
++			return CW_SIZE_NOTCHOSEN;
++		} else if (v1Size.equals(GC_SIZE_OTHER)) {
++			return CW_SIZE_OTHER;
++		} else if (v1Size.equals(GC_SIZE_VIRTUAL)) {
++			return CW_SIZE_VIRTUAL;
++		} else if (v1Size.equals(OCTC_SIZE_NONE)) {
++			return CW_SIZE_NONE;
++		} else if (v1Size.equals(OCTC_SIZE_VERYLARGE)) {
++			return CW_SIZE_VERYLARGE;
++		} else if (v1Size.equals(&quot;&quot;)) {
++			return CW_SIZE_NOTCHOSEN;
++		} else if (v1Size.equals(null)) {
++			return CW_SIZE_NOTCHOSEN;
++		} else {
++			throw (new IllegalArgumentException(&quot;unmatched argument &quot;
++					+ v1Size + &quot; in v1Converter()&quot;));
++		}
++	}
++	
++	/**
+ 	 * return a bit mask representing the caches size for use in the Filter
+ 	 * 
+ 	 * @param size CW internal representation of cache size
+@@ -322,4 +401,85 @@
+ 					+ size + &quot; in CacheSize getExportShortId()&quot;));
+ 		}
+ 	}
++	
++	/**
++	 * generate a string array suitable to be used in DetalsPanel drop down list
++	 * @return strings to be displayed in the DetailsPanel Size DropDown
++	 * @see guiSizeStrings2CwSize
++	 * @see cwSizeId2GuiSizeId
++	 */
++	
++	public static String[] guiSizeStrings() {
++		// make sure strings appear in ascending order for CW_SIZE_*
++		String ret[] = new String[] {
++				GC_SIZE_NOTCHOSEN,
++				GC_SIZE_OTHER,
++				GC_SIZE_MICRO,
++				GC_SIZE_SMALL,
++				GC_SIZE_REGULAR,
++				GC_SIZE_LARGE,
++				OCTC_SIZE_VERYLARGE,
++				OCTC_SIZE_NONE,
++				GC_SIZE_VIRTUAL
++		};
++		return ret;
++	}
++
++	/**
++	 * map a string chosen from the DetailsPanel Size drop down list back to internal representation
++	 * @param id
++	 * @return 
++	 * @throws IllegalArgumentException if id can not be mapped 
++	 * @see cwSizeId2GuiSizeId
++	 * @see guiSizeStrings
++	 */
++	public static byte guiSizeStrings2CwSize(String id) {
++		// map the strings in guiSizeStrings() back to cw byte types
++		if (id.equals(GC_SIZE_NOTCHOSEN)) {
++			return CW_SIZE_NOTCHOSEN;
++		} else if (id.equals(GC_SIZE_OTHER)) {
++			return CW_SIZE_OTHER;
++		} else if (id.equals(GC_SIZE_SMALL)) {
++			return CW_SIZE_SMALL;
++		} else if (id.equals(GC_SIZE_REGULAR)) {
++			return CW_SIZE_REGULAR;
++		} else if (id.equals(GC_SIZE_LARGE)) {
++			return CW_SIZE_LARGE;
++		} else if (id.equals(OCTC_SIZE_VERYLARGE)) {
++			return CW_SIZE_VERYLARGE;
++		} else if (id.equals(OCTC_SIZE_NONE)) {
++			return CW_SIZE_NONE;
++		} else if (id.equals(GC_SIZE_MICRO)) {
++			return CW_SIZE_MICRO;
++		} else {
++			throw (new IllegalArgumentException(&quot;unmatched argument &quot; 
++					+ id + &quot; in guiSizeStrings2CwSize()&quot;));
++		}	
++	}
++	
++	/**
++	 * map internal representation to index used in the the DetailsPanel Size drop down list
++	 * @param id internal id to be mapped
++	 * @return index of internal size in array
++	 * @throws IllegalArgumentException if id can not be mapped
++	 * @see guiSizeStrings2CwSize
++	 * @see cwSizeId2GuiSizeId
++	 */
++	public static int cwSizeId2GuiSizeId(byte id) {
++		switch(id) {
++		case CW_SIZE_NOTCHOSEN: return 0;
++		case CW_SIZE_OTHER: return 1;
++		case CW_SIZE_MICRO: return 2;
++		case CW_SIZE_SMALL: return 3;
++		case CW_SIZE_REGULAR: return 4;
++		case CW_SIZE_LARGE: return 5;
++		case CW_SIZE_VERYLARGE: return 6;
++		case CW_SIZE_NONE: return 7;
++		case CW_SIZE_VIRTUAL: return 8;
++		default:
++			throw (new IllegalArgumentException(&quot;unmatched argument &quot; 
++					+ id + &quot; in CacheSize ()&quot;));
++		}
++		
++	}
+ }
+
+Modified: trunk/src/CacheWolf/DetailsPanel.java
+===================================================================
+--- trunk/src/CacheWolf/DetailsPanel.java	2009-05-12 17:01:32 UTC (rev 1798)
++++ trunk/src/CacheWolf/DetailsPanel.java	2009-05-12 19:43:10 UTC (rev 1799)
+@@ -18,7 +18,7 @@
+ 	mInput inpOwner = new mInput();
+ 	mButton btnDelete,btnCenter, btnAddDateTime;
+ 	mChoice chcType = new mChoice(new String[]{&quot;Custom&quot;, &quot;Traditional&quot;, &quot;Multi&quot;, &quot;Virtual&quot;, &quot;Letterbox&quot;, &quot;Event&quot;, &quot;Mega Event&quot;, &quot;Mystery&quot;, &quot;Webcam&quot;, &quot;Locationless&quot;, &quot;CITO&quot;, &quot;Earthcache&quot;, &quot;wherIGo&quot;, &quot;Addi: Parking&quot;, &quot;Addi: Stage&quot;, &quot;Addi: Question&quot;, &quot;Addi: Final&quot;,&quot;Addi: Trailhead&quot;,&quot;Addi: Reference&quot;},0);
+-	mChoice chcSize = new mChoice(new String[]{&quot;&quot;, &quot;Micro&quot;, &quot;Small&quot;, &quot;Regular&quot;, &quot;Large&quot;,&quot;Other&quot;,&quot;Very Large&quot;,&quot;None&quot;},0);
++	mChoice chcSize = new mChoice(CacheSize.guiSizeStrings(),0);
+ 	mComboBox chcStatus = new mComboBox(new String[]{&quot;&quot;, MyLocale.getMsg(313,&quot;Flag 1&quot;), MyLocale.getMsg(314,&quot;Flag 2&quot;), MyLocale.getMsg(315,&quot;Flag 3&quot;), MyLocale.getMsg(316,&quot;Flag 4&quot;), MyLocale.getMsg(317,&quot;Search&quot;), MyLocale.getMsg(318,&quot;Found&quot;), MyLocale.getMsg(319,&quot;Not Found&quot;), MyLocale.getMsg(320,&quot;Owner&quot;)},0);
+ 	mButton btnNewWpt, btnShowBug, btnShowMap, btnGoto, btnAddPicture, btnBlack, btnNotes, btnSave, btnCancel;
+ 	mButton btnFoundDate,btnHiddenDate;
+@@ -208,14 +208,8 @@
+ 			btnShowBug.image = imgShowBugNo;
+ 		}
+ 		btnShowBug.repaintNow();
+-		if(ch.getCacheSize().equals(&quot;Micro&quot;)) chcSize.setInt(1);
+-		if(ch.getCacheSize().equals(&quot;Small&quot;)) chcSize.setInt(2);
+-		if(ch.getCacheSize().equals(&quot;Regular&quot;)) chcSize.setInt(3);
+-		if(ch.getCacheSize().equals(&quot;Large&quot;)) chcSize.setInt(4);
+-		if(ch.getCacheSize().equals(&quot;Other&quot;)) chcSize.setInt(5);
+-		if(ch.getCacheSize().equals(&quot;Very Large&quot;)) chcSize.setInt(6);
+-		if(ch.getCacheSize().equals(&quot;None&quot;)) chcSize.setInt(7);
+-		if(ch.getCacheSize().equals(&quot;Not chosen&quot;)) chcSize.setInt(7);
++		chcSize.setInt(ch.getCacheSize());
++
+ 		attV.showImages(ch.getCacheDetails(true).attributes);
+ 		lblTerr.setText((ch.getTerrain().length()&gt;0) ? (MyLocale.getMsg(1001,&quot;T&quot;)+&quot;: &quot;+ch.getTerrain()) : &quot;&quot;);
+ 		lblDiff.setText((ch.getHard().length()&gt;0)    ? (MyLocale.getMsg(1000,&quot;D&quot;)+&quot;: &quot;+ch.getHard()) : &quot;&quot;); 
+@@ -491,7 +485,7 @@
+ 		  thisCache.setBlack(blackStatus);
+ 		  String oldWaypoint=thisCache.getWayPoint();
+ 		  thisCache.setWayPoint(inpWaypoint.getText().toUpperCase().trim());
+-		  thisCache.setCacheSize(chcSize.getText());
++		  thisCache.setCacheSize(CacheSize.guiSizeStrings2CwSize(chcSize.getText()));
+ 		  // If the waypoint does not have a name, give it one
+ 		  if (thisCache.getWayPoint().equals(&quot;&quot;)) { 
+ 			  thisCache.setWayPoint(profile.getNewWayPointName());
+
+Modified: trunk/src/CacheWolf/Filter.java
+===================================================================
+--- trunk/src/CacheWolf/Filter.java	2009-05-12 17:01:32 UTC (rev 1798)
++++ trunk/src/CacheWolf/Filter.java	2009-05-12 19:43:10 UTC (rev 1799)
+@@ -68,14 +68,6 @@
+ 	private static final int S = 32768;
+ 	private static final int ROSE_ALL= N|NNE|NE|ENE|E|ESE|SE|SSE|SSW|SW|WSW|W|WNW|NW|NNW|S;
+ 
+-	private static final int MICRO=1; 
+-	private static final int SMALL=2;	
+-	private static final int REGULAR=4;	
+-	private static final int LARGE=8;	
+-	private static final int VERYLARGE=16;	
+-	private static final int OTHER=32;	
+-	private static final int SIZE_ALL=MICRO|SMALL|REGULAR|LARGE|VERYLARGE|OTHER;
+-	
+ 	private int distdirec = 0;
+ 	private int diffdirec = 0;
+ 	private int terrdirec = 0;
+@@ -302,13 +294,13 @@
+ 		hasRoseMatchPattern=roseMatchPattern!=ROSE_ALL;
+ 		sizeMatchPattern=0;
+ 		String filterSize=profile.getFilterSize();
+-		if (filterSize.charAt(0) == '1') sizeMatchPattern|=MICRO;
+-		if (filterSize.charAt(1) == '1') sizeMatchPattern|=SMALL;
+-		if (filterSize.charAt(2) == '1') sizeMatchPattern|=REGULAR;
+-		if (filterSize.charAt(3) == '1') sizeMatchPattern|=LARGE;
+-		if (filterSize.charAt(4) == '1') sizeMatchPattern|=VERYLARGE;
+-		if (filterSize.charAt(5) == '1') sizeMatchPattern|=OTHER;
+-		hasSizeMatchPattern=sizeMatchPattern!=SIZE_ALL;
++		if (filterSize.charAt(0) == '1') sizeMatchPattern|=CacheSize.CW_FILTER_MICRO;
++		if (filterSize.charAt(1) == '1') sizeMatchPattern|=CacheSize.CW_FILTER_SMALL;
++		if (filterSize.charAt(2) == '1') sizeMatchPattern|=CacheSize.CW_FILTER_NORMAL;
++		if (filterSize.charAt(3) == '1') sizeMatchPattern|=CacheSize.CW_FILTER_LARGE;
++		if (filterSize.charAt(4) == '1') sizeMatchPattern|=CacheSize.CW_FILTER_VERYLARGE;
++		if (filterSize.charAt(5) == '1') sizeMatchPattern|=CacheSize.CW_FILTER_NONPHYSICAL;
++		hasSizeMatchPattern=sizeMatchPattern!=CacheSize.CW_FILTER_ALL;
+ 		distdirec = profile.getFilterDist().charAt(0) == 'L' ? SMALLER : GREATER; 
+ 		fscDist = Common.parseDouble(profile.getFilterDist().substring(1));  // Distance
+ 		diffdirec = profile.getFilterDiff().charAt(0) == 'L' ? SMALLER : 
+@@ -546,19 +538,7 @@
+ 	        // Filter criterium 10: Size
+ 	        ///////////////////////////////
+ 	        if (hasSizeMatchPattern) {
+-		        cacheSizePattern = 0;
+-		        if (ch.getCacheSize().startsWith(&quot;M&quot;))
+-			        cacheSizePattern = MICRO;
+-		        else if (ch.getCacheSize().startsWith(&quot;S&quot;))
+-			        cacheSizePattern = SMALL;
+-		        else if (ch.getCacheSize().startsWith(&quot;R&quot;))
+-			        cacheSizePattern = REGULAR;
+-		        else if (ch.getCacheSize().startsWith(&quot;L&quot;))
+-			        cacheSizePattern = LARGE;
+-		        else if (ch.getCacheSize().startsWith(&quot;V&quot;))
+-			        cacheSizePattern = VERYLARGE;
+-		        else
+-			        cacheSizePattern = OTHER;
++		        cacheSizePattern = CacheSize.getFilterPattern(ch.getCacheSize());
+ 		        if ((cacheSizePattern &amp; sizeMatchPattern) == 0) {
+ 			        cacheFiltered = true; break;
+ 		        }
+
+Modified: trunk/src/CacheWolf/GPXImporter.java
+===================================================================
+--- trunk/src/CacheWolf/GPXImporter.java	2009-05-12 17:01:32 UTC (rev 1798)
++++ trunk/src/CacheWolf/GPXImporter.java	2009-05-12 19:43:10 UTC (rev 1799)
+@@ -387,9 +387,8 @@
+ 		// aditional wapypoint
+ 		if (name.equals(&quot;type&quot;)&amp;&amp; inWpt &amp;&amp; !inCache &amp;&amp; strData.startsWith(&quot;Waypoint&quot;)){
+ 			holder.setType(CacheType.typeText2Number(strData));
+-			holder.setCacheSize(&quot;None&quot;);
++			holder.setCacheSize(CacheSize.CW_SIZE_NOTCHOSEN);
+ 		}
+-
+ 		
+ 		if ((name.equals(&quot;groundspeak:name&quot;)|| name.equals(&quot;terra:name&quot;)) &amp;&amp; inCache) {
+ 			holder.setCacheName(strData);
+@@ -413,7 +412,7 @@
+ 			return;
+ 		}
+ 		if (name.equals(&quot;groundspeak:container&quot;)|| name.equals(&quot;container&quot;)){
+-			holder.setCacheSize(strData);
++			holder.setCacheSize(CacheSize.gcGpxString2Cw(strData));
+ 			return;
+ 		}
+ 		if (name.equals(&quot;groundspeak:country&quot;)|| name.equals(&quot;country&quot;)){
+@@ -425,7 +424,7 @@
+ 			return;
+ 		}
+ 		if (name.equals(&quot;terra:size&quot;)){
+-			holder.setCacheSize(TCSizetoText(strData));
++			holder.setCacheSize(CacheSize.tcGpxString2Cw(strData));
+ 		}
+ 
+ 		if (name.equals(&quot;groundspeak:short_description&quot;)|| name.equals(&quot;summary&quot;)) {
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2009-05-12 17:01:32 UTC (rev 1798)
++++ trunk/src/CacheWolf/MainTab.java	2009-05-12 19:43:10 UTC (rev 1799)
+@@ -304,7 +304,7 @@
+ 			pCh.setType(0);
+ 			lastselected=pCh.getWayPoint();
+ 		}
+-		pCh.setCacheSize(&quot;None&quot;);
++		pCh.setCacheSize(CacheSize.CW_SIZE_NOTCHOSEN);
+ 		chD = pCh.getCacheDetails(true);
+ 		this.ch = pCh;
+ 		cacheDB.add(pCh);
+
+Modified: trunk/src/CacheWolf/MyComparer.java
+===================================================================
+--- trunk/src/CacheWolf/MyComparer.java	2009-05-12 17:01:32 UTC (rev 1798)
++++ trunk/src/CacheWolf/MyComparer.java	2009-05-12 19:43:10 UTC (rev 1799)
+@@ -77,15 +77,7 @@
+ 		} else if (colToCompare==12) {
+ 			for (int i=0; i&lt;visibleSize; i++) {
+ 				CacheHolder ch=cacheDB.get(i);
+-				if (ch.getCacheSize().length()==0) ch.sort=&quot;?&quot;;
+-				else switch (ch.getCacheSize().charAt(0)) {
+-					case 'M': ch.sort=&quot;1&quot;; break;
+-					case 'S': ch.sort=&quot;2&quot;; break;
+-					case 'R': ch.sort=&quot;3&quot;; break;
+-					case 'L': ch.sort=&quot;4&quot;; break; 
+-					case 'V': ch.sort=&quot;5&quot;; break;
+-					default: ch.sort=&quot;?&quot;;
+-				}
++				ch.sort=Byte.toString(ch.getCacheSize());
+ 			}
+ 		} else if (colToCompare==13) {
+ 			for (int i=0; i&lt;visibleSize; i++) {
+
+Modified: trunk/src/CacheWolf/OCXMLImporter.java
+===================================================================
+--- trunk/src/CacheWolf/OCXMLImporter.java	2009-05-12 17:01:32 UTC (rev 1798)
++++ trunk/src/CacheWolf/OCXMLImporter.java	2009-05-12 19:43:10 UTC (rev 1799)
+@@ -368,7 +368,7 @@
+ 			return;
+ 		}
+ 		if(name.equals(&quot;size&quot;)){
+-			holder.setCacheSize(transSize(atts.getValue(&quot;id&quot;)));
++			holder.setCacheSize(CacheSize.ocXmlString2Cw(atts.getValue(&quot;id&quot;)));
+ 			return;
+ 		}
+ 
+
+Modified: trunk/src/CacheWolf/Parser.java
+===================================================================
+--- trunk/src/CacheWolf/Parser.java	2009-05-12 17:01:32 UTC (rev 1798)
++++ trunk/src/CacheWolf/Parser.java	2009-05-12 19:43:10 UTC (rev 1799)
+@@ -1102,7 +1102,7 @@
+ 		CacheHolder ch = new CacheHolder();
+ 		ch.setWayPoint(wayPoint);
+ 		ch.setType(type);
+-		ch.setCacheSize(&quot;None&quot;);
++		ch.setCacheSize(CacheSize.CW_SIZE_NOTCHOSEN);
+ 		ch.setCacheName(name);
+ 
+ 		Global.getProfile().setAddiRef(ch);
+
+Modified: trunk/src/CacheWolf/ShowCacheInBrowser.java
+===================================================================
+--- trunk/src/CacheWolf/ShowCacheInBrowser.java	2009-05-12 17:01:32 UTC (rev 1798)
++++ trunk/src/CacheWolf/ShowCacheInBrowser.java	2009-05-12 19:43:10 UTC (rev 1799)
+@@ -69,7 +69,7 @@
+ 						tpl.setParam(&quot;TYPE&quot;, &quot;\&quot;<A HREF="file://">file://</A>&quot;+FileBase.getProgramDirectory()+&quot;/&quot;+CacheType.transOCType(chD.getType())+&quot;.gif\&quot;&quot;);
+ 					else	
+ 						tpl.setParam(&quot;TYPE&quot;, &quot;\&quot;<A HREF="file://">file://</A>&quot;+FileBase.getProgramDirectory()+&quot;/&quot;+chD.getType()+&quot;.gif\&quot;&quot;);
+-					tpl.setParam(&quot;SIZE&quot;, chD.getCacheSize());
++					tpl.setParam(&quot;SIZE&quot;, CacheSize.cw2ExportString(chD.getCacheSize()));
+ 					tpl.setParam(&quot;WAYPOINT&quot;, chD.getWayPoint());
+ 					tpl.setParam(&quot;CACHE_NAME&quot;, chD.getCacheName());
+ 					tpl.setParam(&quot;OWNER&quot;, chD.getCacheOwner());
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2009-05-12 17:01:32 UTC (rev 1798)
++++ trunk/src/CacheWolf/SpiderGC.java	2009-05-12 19:43:10 UTC (rev 1799)
+@@ -718,7 +718,7 @@
+ 						else pref.log(&quot;Got hints&quot;);
+ 
+ 						pref.log(&quot;Trying size&quot;);
+-						ch.setCacheSize(getSize(completeWebPage));
++						ch.setCacheSize(CacheSize.gcSpiderString2Cw(getSize(completeWebPage)));
+ 						if (pref.debug) pref.log(&quot;Size: &quot; + ch.getCacheSize());
+ 						else pref.log(&quot;Got size&quot;);
+ 
+
+Modified: trunk/src/CacheWolf/Version.java
+===================================================================
+--- trunk/src/CacheWolf/Version.java	2009-05-12 17:01:32 UTC (rev 1798)
++++ trunk/src/CacheWolf/Version.java	2009-05-12 19:43:10 UTC (rev 1799)
+@@ -15,7 +15,7 @@
+ 	static final int VER_MAJOR = 1;
+ 	static final int VER_MINOR = 0;
+ 	static final String VER_SVN =&quot;$LastChangedRevision$&quot;; // the number is automatically replaced by subversion to the latest versionnumer of this file (svn:keywords LastChangedRevision)
+-	static final int SVN_REVISION = Common.parseInt(VER_SVN.substring(VER_SVN.indexOf(&quot; &quot;)+1, VER_SVN.lastIndexOf(&quot; &quot;)));
++	static final int SVN_REVISION = 20090512;
+ 	static final int VERSION_TYPE = 3;
+ 	public static final String[] VERSION_TYPES = {
+ 		&quot;Release&quot;, 
+@@ -34,8 +34,8 @@
+ 	}
+ 
+ 	public static String getReleaseDetailed() {
+-		// habe die SVN-Nummer doch aus der Anzeige erstmal wieder herausgenommen, weil es in einem final Release doch recht seltsam auss&#228;he.
+-		// Sinnvoll w&#228;re daher vielleicht, eine Methode getReleaseDatail, die die SVN-Versionnummer mit angibt und z.B. im &quot;&#252;ber&quot;-Dialog angezeigt werden k&#246;nnte.
++		// habe die SVN-Nummer doch aus der Anzeige erstmal wieder herausgenommen, weil es in einem final Release doch recht seltsam auss&#239;&#191;&#189;he.
++		// Sinnvoll w&#239;&#191;&#189;re daher vielleicht, eine Methode getReleaseDatail, die die SVN-Versionnummer mit angibt und z.B. im &quot;&#239;&#191;&#189;ber&quot;-Dialog angezeigt werden k&#239;&#191;&#189;nnte.
+ 		return getRelease() + &quot;.&quot; + Convert.toString(SVN_REVISION) + &quot; &quot; + VERSION_TYPES[VERSION_TYPE];
+ 	}
+ 
+
+Modified: trunk/src/CacheWolf/myInteractivePanel.java
+===================================================================
+--- trunk/src/CacheWolf/myInteractivePanel.java	2009-05-12 17:01:32 UTC (rev 1798)
++++ trunk/src/CacheWolf/myInteractivePanel.java	2009-05-12 19:43:10 UTC (rev 1799)
+@@ -54,6 +54,7 @@
+ 	public void setMainTab(MainTab tb){
+ 		mt = tb;
+ 	}
++	
+ 	public boolean imageMovedOn(AniImage which) {
+ 		timePenOn=Vm.getTimeStampLong();
+ 		setFont(font);
+@@ -61,7 +62,7 @@
+ 		CacheDB cacheDB=Global.getProfile().cacheDB;
+ 		CacheHolder ch=cacheDB.get(imgRP.rownum);
+ 		wayPoint=ch.getWayPoint();
+-		String s=wayPoint+&quot;  &quot;+ch.getCacheSize()+&quot; / &quot;+strDifficulty+&quot;=&quot;+ch.getHard()+&quot;  &quot;+strTerrain+&quot;=&quot;+ch.getTerrain();
++		String s=wayPoint+&quot;  &quot;+CacheSize.getExportShortId(ch.getCacheSize())+&quot; / &quot;+strDifficulty+&quot;=&quot;+ch.getHard()+&quot;  &quot;+strTerrain+&quot;=&quot;+ch.getTerrain();
+ 		String s1=ch.getCacheName();
+ 		if (s1.length()&gt;40) s1=s1.substring(0,40);
+ 		int tw=fm.getTextWidth(s)+2;
+
+Modified: trunk/src/CacheWolf/myTableModel.java
+===================================================================
+--- trunk/src/CacheWolf/myTableModel.java	2009-05-12 17:01:32 UTC (rev 1798)
++++ trunk/src/CacheWolf/myTableModel.java	2009-05-12 19:43:10 UTC (rev 1799)
+@@ -51,7 +51,8 @@
+ 	private boolean sortAsc = false;
+ 	private int sortedBy = -1;
+ 	private FontMetrics fm;
+-	private mImage picSizeMicro,picSizeSmall,picSizeReg,picSizeLarge,picSizeVLarge;
++//	private mImage picSizeMicro,picSizeSmall,picSizeReg,picSizeLarge,picSizeVLarge,picSizeNonPhysical;
++	private mImage[] sizePics = new mImage[CacheSize.CW_TOTAL_SIZE_IMAGES];
+ 	/** This is the modifier (Shift &amp; Control key status) for Pen Events
+ 	 * it is set in myTableControl.onEvent */
+ 	public int penEventModifiers; 
+@@ -81,11 +82,19 @@
+ 		bug = new mImage(&quot;bug_table.png&quot;);bug.transparentColor=Color.DarkBlue;
+ 		checkboxTicked = new Image(&quot;checkboxTicked.png&quot;);
+ 		checkboxUnticked= new Image(&quot;checkboxUnticked.png&quot;);
+-		picSizeMicro=new mImage(&quot;sizeMicro.png&quot;); picSizeMicro.transparentColor=Color.White;
+-		picSizeSmall=new mImage(&quot;sizeSmall.png&quot;); picSizeSmall.transparentColor=Color.White;
+-		picSizeReg=new mImage(&quot;sizeReg.png&quot;); picSizeReg.transparentColor=Color.White;
+-		picSizeLarge=new mImage(&quot;sizeLarge.png&quot;); picSizeLarge.transparentColor=Color.White;
+-		picSizeVLarge=new mImage(&quot;sizeVLarge.png&quot;); picSizeVLarge.transparentColor=Color.White;
++		
++//		picSizeMicro=new mImage(&quot;sizeMicro.png&quot;); picSizeMicro.transparentColor=Color.White;
++//		picSizeSmall=new mImage(&quot;sizeSmall.png&quot;); picSizeSmall.transparentColor=Color.White;
++//		picSizeReg=new mImage(&quot;sizeReg.png&quot;); picSizeReg.transparentColor=Color.White;
++//		picSizeLarge=new mImage(&quot;sizeLarge.png&quot;); picSizeLarge.transparentColor=Color.White;
++//		picSizeVLarge=new mImage(&quot;sizeVLarge.png&quot;); picSizeVLarge.transparentColor=Color.White;
++//		picSizeNonPhysical=new mImage(&quot;sizeNonPhysical.png&quot;); picSizeNonPhysical.transparentColor=Color.White;
++		
++		for (byte i = 0; i &lt; CacheSize.CW_TOTAL_SIZE_IMAGES; i++) {
++			sizePics[i] = new mImage(CacheSize.sizeImageForId(i));
++			sizePics[i].transparentColor=Color.White;
++		}
++				
+ //		updateRows();
+ 	}
+ 	
+@@ -217,7 +226,7 @@
+ 					lastColorFG.set(ta.foreground);
+ 					lastRow = row;
+ 				} catch (Exception e) {
+-					Global.getPref().log(&quot;Ignored Exception&quot;, e, true);
++					Global.getPref().log(&quot;Ignored Exception in myTableModel.TableCellAttributes()&quot;, e, true);
+ 				};
+ 			} else  {
+ 				// Here: We already had this row.
+@@ -318,14 +327,10 @@
+ 					case 11: // Bearing
+ 						return ch.bearing;
+ 					case 12: // Size
+-						if (ch.getCacheSize().length()==0) return &quot;?&quot;;
+-						switch (ch.getCacheSize().charAt(0)) {
+-							case 'M': return picSizeMicro;
+-							case 'S': return picSizeSmall;
+-							case 'R': return picSizeReg;
+-							case 'L': return picSizeLarge;
+-							case 'V': return picSizeVLarge;
+-							default: return &quot;?&quot;;
++						if (ch.isAddiWpt()) {
++							return &quot;&quot;;
++						} else {
++							return sizePics[CacheSize.guiSizeImageId(ch.getCacheSize())];
+ 						}
+ 					case 13: // OC number of recommendations
+ 						if (ch.getWayPoint().startsWith(&quot;OC&quot;))
+@@ -337,7 +342,10 @@
+ 						return null;
+ 				} // Switch
+ 			} // if
+-		} catch (Exception e) { return null; }
++		} catch (Exception e) {
++			Global.getPref().log(&quot;Ignored Exception in myTableModel.getCellData()&quot;, e, true);
++			return null; 
++		}
+ 		return null;
+ 	}
+ 	
+
+Modified: trunk/src/exp/Exporter.java
+===================================================================
+--- trunk/src/exp/Exporter.java	2009-05-12 17:01:32 UTC (rev 1798)
++++ trunk/src/exp/Exporter.java	2009-05-12 19:43:10 UTC (rev 1799)
+@@ -424,7 +424,7 @@
+     				strBuf.append(&quot;5&quot;);
+     			}
+     		}
+-    		strBuf.append(ch.getCacheSize().substring(0, 1).toLowerCase());
++    		strBuf.append(CacheSize.getExportShortId(ch.getCacheSize()));
+     	}
+ 
+     	return strBuf.toString();
+
+Modified: trunk/src/exp/GPXExporter.java
+===================================================================
+--- trunk/src/exp/GPXExporter.java	2009-05-12 17:01:32 UTC (rev 1798)
++++ trunk/src/exp/GPXExporter.java	2009-05-12 19:43:10 UTC (rev 1799)
+@@ -80,7 +80,7 @@
+ 				//todo low prio: correct owner-id
+ 				strBuf.append(&quot;      &lt;groundspeak:owner id=\&quot;23\&quot;&gt;&quot;).append(SafeXML.cleanGPX(ch.getCacheOwner())+&quot;&lt;/groundspeak:owner&gt;\r\n&quot;);
+ 				strBuf.append(&quot;      &lt;groundspeak:type&gt;&quot;).append(CacheType.transType(ch.getType())).append(&quot;&lt;/groundspeak:type&gt;\r\n&quot;);
+-				strBuf.append(&quot;      &lt;groundspeak:container&gt;&quot;).append(ch.getCacheSize()).append(&quot;&lt;/groundspeak:container&gt;\r\n&quot;);
++				strBuf.append(&quot;      &lt;groundspeak:container&gt;&quot;).append(CacheSize.cw2ExportString(ch.getCacheSize())).append(&quot;&lt;/groundspeak:container&gt;\r\n&quot;);
+ 				//for Colorado/Oregon: 2.0 -&gt; 2
+ 				String diffTerr = ch.getHard().replace(',','.');
+ 				if ( diffTerr.endsWith( &quot;.0&quot; ) ) {
+
+Modified: trunk/src/exp/HTMLExporter.java
+===================================================================
+--- trunk/src/exp/HTMLExporter.java	2009-05-12 17:01:32 UTC (rev 1798)
++++ trunk/src/exp/HTMLExporter.java	2009-05-12 19:43:10 UTC (rev 1799)
+@@ -85,7 +85,7 @@
+ 					det=ch.getExistingDetails();
+ 					varParams = new Hashtable();
+ 					varParams.put(&quot;TYPE&quot;, CacheType.transType(ch.getType()));
+-					varParams.put(&quot;SIZE&quot;, ch.getCacheSize());
++					varParams.put(&quot;SIZE&quot;, CacheSize.cw2ExportString(ch.getCacheSize()));
+ 					varParams.put(&quot;WAYPOINT&quot;, ch.getWayPoint());
+ 					varParams.put(&quot;NAME&quot;, ch.getCacheName());
+ 					varParams.put(&quot;OWNER&quot;, ch.getCacheOwner());
+@@ -101,7 +101,7 @@
+ 					try{
+ 						Template page_tpl = new Template(template_init_page);
+ 						page_tpl.setParam(&quot;TYPE&quot;, CacheType.transType(ch.getType()));
+-						page_tpl.setParam(&quot;SIZE&quot;, ch.getCacheSize());
++						page_tpl.setParam(&quot;SIZE&quot;, CacheSize.cw2ExportString(ch.getCacheSize()));
+ 						page_tpl.setParam(&quot;WAYPOINT&quot;, ch.getWayPoint());
+ 						page_tpl.setParam(&quot;NAME&quot;, ch.getCacheName());
+ 						page_tpl.setParam(&quot;OWNER&quot;, ch.getCacheOwner());
+
+Modified: trunk/src/exp/MSARCSVExporter.java
+===================================================================
+--- trunk/src/exp/MSARCSVExporter.java	2009-05-12 17:01:32 UTC (rev 1798)
++++ trunk/src/exp/MSARCSVExporter.java	2009-05-12 19:43:10 UTC (rev 1799)
+@@ -5,7 +5,7 @@
+ /**
+  * Class to export the cache database (index) to an CSV File which can bei easy
+  * importet bei MS AutoRoute (testet with AR 2001 German) Format of the file:
+- * Name;Breitengrad;L&#228;ngengrad;Typ1;Typ2;Waypoint;Datum;Hyperlink
++ * Name;Breitengrad;L&#239;&#191;&#189;ngengrad;Typ1;Typ2;Waypoint;Datum;Hyperlink
+  * 
+  */
+ public class MSARCSVExporter extends Exporter {
+@@ -27,7 +27,7 @@
+ 		str.append(&quot;\&quot;&quot; + ch.getWayPoint() + &quot; - &quot; + ch.getCacheName() + &quot;\&quot;;&quot;);
+ 		str.append(lat + &quot;;&quot; + lon +&quot;;&quot;);
+ 		str.append(&quot;\&quot;&quot; + CacheType.transType(ch.getType())+ &quot;\&quot;;&quot;);
+-		str.append(&quot;\&quot;&quot; + ch.getCacheSize() + &quot;\&quot;;&quot;);
++		str.append(&quot;\&quot;&quot; + CacheSize.cw2ExportString(ch.getCacheSize()) + &quot;\&quot;;&quot;);
+ 		str.append(&quot;\&quot;&quot; + ch.getWayPoint() + &quot;\&quot;;&quot;);
+ 		str.append(&quot;\&quot;&quot; + ch.getDateHidden() + &quot;\&quot;;&quot;);
+ 		str.append(&quot;\&quot;&quot; + ch.getExistingDetails().URL + &quot;\&quot;\r\n&quot;);
+
+Modified: trunk/src/exp/TPLExporter.java
+===================================================================
+--- trunk/src/exp/TPLExporter.java	2009-05-12 17:01:32 UTC (rev 1798)
++++ trunk/src/exp/TPLExporter.java	2009-05-12 19:43:10 UTC (rev 1799)
+@@ -29,6 +29,7 @@
+ import CacheWolf.CacheDB;
+ import CacheWolf.CacheHolder;
+ import CacheWolf.CacheHolderDetail;
++import CacheWolf.CacheSize;
+ import CacheWolf.CacheType;
+ import CacheWolf.Global;
+ import CacheWolf.Preferences;
+@@ -195,8 +196,8 @@
+ 						varParams = new Hashtable();
+ 						varParams.put(&quot;TYPE&quot;, CacheType.transType(ch.getType()));
+ 						varParams.put(&quot;SHORTTYPE&quot;, CacheType.transType(ch.getType()).substring(0,1));
+-						varParams.put(&quot;SIZE&quot;, ch.getCacheSize());
+-						varParams.put(&quot;SHORTSIZE&quot;, ch.getCacheSize().substring(0,1));
++						varParams.put(&quot;SIZE&quot;, CacheSize.cw2ExportString(ch.getCacheSize()));
++						varParams.put(&quot;SHORTSIZE&quot;, CacheSize.getExportShortId(ch.getCacheSize()));
+ 						varParams.put(&quot;WAYPOINT&quot;, ch.getWayPoint());
+ 						varParams.put(&quot;OWNER&quot;, ch.getCacheOwner());
+ 						varParams.put(&quot;DIFFICULTY&quot;, dec.replaceAll(ch.getHard()));
+
+Modified: trunk/src/exp/TomTomExporter.java
+===================================================================
+--- trunk/src/exp/TomTomExporter.java	2009-05-12 17:01:32 UTC (rev 1798)
++++ trunk/src/exp/TomTomExporter.java	2009-05-12 19:43:10 UTC (rev 1799)
+@@ -185,7 +185,7 @@
+ 			outp.writeBytes(&quot;/&quot;);
+ 			outp.writeBytes(ch.getTerrain());
+ 			outp.writeBytes(&quot; - &quot;);
+-			outp.writeBytes(ch.getCacheSize());
++			outp.writeBytes(CacheSize.cw2ExportString(ch.getCacheSize()));
+ 			outp.writeBytes(&quot;\&quot;\r\n&quot;);
+ 		} catch (IOException e) {
+ 			Vm.debug(&quot;Error writing to file&quot;);
+@@ -202,7 +202,7 @@
+ 		try {
+ 			d = 2;
+ 			outp.writeByte((byte)d);
+-			data = ch.getWayPoint().length()+ch.getCacheName().length()+ch.getCacheOwner().length()+ch.getHard().length()+ch.getTerrain().length()+ch.getCacheSize().length()+27;
++			data = ch.getWayPoint().length()+ch.getCacheName().length()+ch.getCacheOwner().length()+ch.getHard().length()+ch.getTerrain().length()+CacheSize.cw2ExportString(ch.getCacheSize()).length()+27;
+ 			writeIntBinary(outp, data);
+ 			latlon = Common.parseDouble(lon);
+ 			latlon *=100000;
+@@ -224,7 +224,7 @@
+ 			outp.writeBytes(&quot;/&quot;);
+ 			outp.writeBytes(ch.getTerrain());
+ 			outp.writeBytes(&quot; - &quot;);
+-			outp.writeBytes(ch.getCacheSize());
++			outp.writeBytes(CacheSize.cw2ExportString(ch.getCacheSize()));
+ 			d = 0;
+ 			outp.writeByte((byte)d);
+ 		} catch (IOException e) {
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001716.html">[Cachewolf-svn] r1798 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001718.html">[Cachewolf-svn] r1800 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1717">[ date ]</a>
+              <a href="thread.html#1717">[ thread ]</a>
+              <a href="subject.html#1717">[ subject ]</a>
+              <a href="author.html#1717">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

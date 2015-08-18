@@ -1,0 +1,616 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1742 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-April/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1742%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200904081644.n38Gijhu025268%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001659.html">
+   <LINK REL="Next"  HREF="001661.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1742 - trunk/src/CacheWolf</H1>
+    <B>engywuck at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1742%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200904081644.n38Gijhu025268%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1742 - trunk/src/CacheWolf">engywuck at mail.berlios.de
+       </A><BR>
+    <I>Wed Apr  8 18:44:45 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001659.html">[Cachewolf-svn] r1741 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001661.html">[Cachewolf-svn] r1743 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1660">[ date ]</a>
+              <a href="thread.html#1660">[ thread ]</a>
+              <a href="subject.html#1660">[ subject ]</a>
+              <a href="author.html#1660">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: engywuck
+Date: 2009-04-08 18:44:32 +0200 (Wed, 08 Apr 2009)
+New Revision: 1742
+
+Modified:
+   trunk/src/CacheWolf/CacheList.java
+   trunk/src/CacheWolf/GPXImporter.java
+   trunk/src/CacheWolf/LOCXMLImporter.java
+   trunk/src/CacheWolf/OCXMLImporter.java
+   trunk/src/CacheWolf/Parser.java
+   trunk/src/CacheWolf/Profile.java
+   trunk/src/CacheWolf/SpiderGC.java
+   trunk/src/CacheWolf/TablePanel.java
+   trunk/src/CacheWolf/myInteractivePanel.java
+Log:
+Removed a bucket of hashtables that were occasionally used to speed up looking for waypoint names. Performed some other tweaking related to new CacheDB.
+
+Modified: trunk/src/CacheWolf/CacheList.java
+===================================================================
+--- trunk/src/CacheWolf/CacheList.java	2009-04-08 16:41:52 UTC (rev 1741)
++++ trunk/src/CacheWolf/CacheList.java	2009-04-08 16:44:32 UTC (rev 1742)
+@@ -279,10 +279,8 @@
+ 			   cacheDB for each entry in cacheList, we simply compare the sort field of ch to apply.
+ 			*/
+ 			if (!ch.sort.equals(apply)) {
+-				int idx=Global.getProfile().getCacheIndex(ch.getWayPoint());
+-				if (idx==-1) continue;
+-				ch=null;
+-				ch=cacheDB.get(idx);
++				ch=cacheDB.get(ch.getWayPoint());
++				if (ch == null) continue;
+ 			}
+ 			if (ch.is_black()!=Global.getProfile().showBlacklisted()) 
+ 				wrongBlackStatus++;
+@@ -306,9 +304,8 @@
+ 	public boolean addCache(String wayPoint) {
+ 		// Check whether this is the first cache being added
+ 		if (needsInit)  {lstCaches.deleteItem(0);lstCaches.deleteItem(0);  needsInit=false; lstCaches.repaint(); }
+-		int idx=Global.getProfile().getCacheIndex(wayPoint);
+-		if (idx==-1) return false;
+-		CacheHolder ch=Global.getProfile().cacheDB.get(idx);
++		CacheHolder ch=Global.getProfile().cacheDB.get(wayPoint);
++		if (ch == null) return false;
+ 		boolean cachesAdded=false;
+ 		// Add main cache
+ 		cachesAdded|=addCache(ch);
+@@ -390,8 +387,6 @@
+ 		try {
+ 			FileReader in = new FileReader(fileName);
+ 			String wayPoint;
+-			int idx;
+-			CacheDB cacheDB=Global.getProfile().cacheDB;
+ 			int lineNr=0;
+ 			while ((wayPoint = in.readLine()) != null){
+ 				wayPoint=wayPoint.trim();
+@@ -401,9 +396,9 @@
+ 					select=lineNr;
+ 				}
+ 				// Only add the cache if it is in this profile
+-				idx=Global.getProfile().getCacheIndex(wayPoint);
+-				if (idx&gt;=0) {
+-					addCache(cacheDB.get(idx));
++				CacheHolder ch=Global.getProfile().cacheDB.get(wayPoint);
++				if (ch != null) {
++					addCache(ch);
+ 				}
+ 				lineNr++;
+ 			}
+
+Modified: trunk/src/CacheWolf/GPXImporter.java
+===================================================================
+--- trunk/src/CacheWolf/GPXImporter.java	2009-04-08 16:41:52 UTC (rev 1741)
++++ trunk/src/CacheWolf/GPXImporter.java	2009-04-08 16:44:32 UTC (rev 1742)
+@@ -31,7 +31,6 @@
+ 	boolean fromTC = false;
+ 	boolean nameFound = false;
+ 	int zaehlerGel = 0;
+-	Hashtable DBindex = new Hashtable();
+ 	public static final int DOIT_ASK = 0;
+ 	public static final int DOIT_NOSPOILER = 1;
+ 	public static final int DOIT_WITHSPOILER = 2;
+@@ -52,12 +51,6 @@
+ 		inCache = false;
+ 		inLogs = false;
+ 		inBug =false;
+-		//index db for faster search
+-		CacheHolder ch;
+-		for(int i = 0; i&lt;cacheDB.size();i++){
+-			ch = cacheDB.get(i);
+-			DBindex.put(ch.getWayPoint(), new Integer(i));
+-		}//for
+ 	}
+ /*	skg: This Constructor is not referenced, therefore commented out 
+ 	public GPXImporter(Vector DB, String[] f,String d, Preferences p)
+@@ -273,7 +266,7 @@
+ 		if (name.equals(&quot;wpt&quot;)){
+ 			// Add cache Data only, if waypoint not already in database
+ 			//if (searchWpt(cacheDB, holder.wayPoint)== -1){
+-			int index=searchWpt(chD.getWayPoint());
++			int index=cacheDB.getIndex(chD.getWayPoint());
+ 			//Vm.debug(&quot;here ?!?!?&quot;);
+ 			//Vm.debug(&quot;chould be new!!!!&quot;);
+ 			if (index == -1){
+@@ -522,12 +515,6 @@
+ 	}
+ 	*/
+ 	
+-	private int searchWpt(String wpt){
+-		Integer INTR = (Integer)DBindex.get(wpt);
+-		if(INTR != null){
+-			return INTR.intValue();
+-		} else return -1;
+-	}
+ 	private void spiderImagesUsingSpider(){
+ 		String addr;
+ 		String cacheText;
+
+Modified: trunk/src/CacheWolf/LOCXMLImporter.java
+===================================================================
+--- trunk/src/CacheWolf/LOCXMLImporter.java	2009-04-08 16:41:52 UTC (rev 1741)
++++ trunk/src/CacheWolf/LOCXMLImporter.java	2009-04-08 16:44:32 UTC (rev 1742)
+@@ -44,7 +44,6 @@
+ 	String file;
+ 	CacheHolderDetail holder;
+ 
+-	Hashtable DBindexWpt = new Hashtable();
+ 	String strData = new String();
+ 
+ 	
+@@ -53,11 +52,6 @@
+ 		profile=prof;
+ 		cacheDB = profile.cacheDB;
+ 		file = f;
+-		CacheHolder ch;
+-		for(int i = 0; i&lt;cacheDB.size();i++){
+-			ch = cacheDB.get(i);
+-			DBindexWpt.put(ch.getWayPoint(), new Integer(i));
+-		}//for
+ 	}
+ 	
+ 	public void doIt() {
+@@ -105,11 +99,10 @@
+ 
+ 		if (name.equals(&quot;waypoint&quot;)){
+ 			int index;
+-			index = searchWpt(holder.getWayPoint());
++			index = cacheDB.getIndex(holder.getWayPoint());
+ 			if (index == -1){
+ 				holder.setNew(true);
+ 				cacheDB.add(new CacheHolder(holder));
+-				DBindexWpt.put(holder.getWayPoint(), new Integer(cacheDB.size()-1));
+ 			}
+ 			// update (overwrite) data
+ 			else {
+@@ -138,23 +131,11 @@
+ 		if (debugXML) Vm.debug(strData);
+ 	}
+ 
+-	
+-	/**
+-	* Method to iterate through cache database and look for waypoint.
+-	* Returns value &gt;= 0 if waypoint is found, else -1
+-	*/
+-	private int searchWpt(String wpt){
+-		Integer INTR = (Integer)DBindexWpt.get(wpt);
+-		if(INTR != null){
+-			return INTR.intValue();
+-		} else return -1;
+-	}
+-
+ 	private CacheHolderDetail getHolder(String wpt){// See also OCXMLImporter
+ 		int index;
+ 		CacheHolderDetail ch;
+ 		
+-		index = searchWpt(wpt);
++		index = cacheDB.getIndex(wpt);
+ 		if (index == -1){
+ 			ch = new CacheHolderDetail();
+ 			ch.setWayPoint(wpt);
+
+Modified: trunk/src/CacheWolf/OCXMLImporter.java
+===================================================================
+--- trunk/src/CacheWolf/OCXMLImporter.java	2009-04-08 16:41:52 UTC (rev 1741)
++++ trunk/src/CacheWolf/OCXMLImporter.java	2009-04-08 16:44:32 UTC (rev 1742)
+@@ -46,7 +46,6 @@
+ 	boolean incUpdate = true; // complete or incremental Update
+ 	boolean ignoreDesc = false;
+ 	boolean askForOptions = true;
+-	Hashtable DBindexWpt = new Hashtable();
+ 	Hashtable DBindexID = new Hashtable();
+ 
+ 	String picUrl = new String();
+@@ -75,7 +74,6 @@
+ 		user = p.myAlias.toLowerCase();
+ 		for(int i = 0; i&lt;cacheDB.size();i++){
+ 			ch = cacheDB.get(i);
+-			DBindexWpt.put(ch.getWayPoint(), new Integer(i));
+ 			if (!ch.getOcCacheID().equals(&quot;&quot;))
+ 				DBindexID.put(ch.getOcCacheID(), new Integer(i));
+ 		}//for
+@@ -429,7 +427,7 @@
+ 		if (name.equals(&quot;cache&quot;)){
+ 			chD.setLastSyncOC(dateOfthisSync.format(&quot;yyyyMMddHHmmss&quot;));
+ 			int index;
+-			index = searchWpt(chD.getWayPoint());
++			index = cacheDB.getIndex(chD.getWayPoint());
+ 			if (index == -1){
+ 				chD.setNew(true);
+ 				CacheHolder ch = new CacheHolder(chD);
+@@ -437,7 +435,6 @@
+ 				cacheDB.add(ch);
+ 				ch.detailsAdded();
+ 				Integer indexInt = new Integer(cacheDB.size()-1);
+-				DBindexWpt.put(chD.getWayPoint(), indexInt);
+ 				DBindexID.put(chD.getOcCacheID(), indexInt);
+ 			}
+ 			// update (overwrite) data
+@@ -715,22 +712,11 @@
+ 	}
+ 
+ 	/**
+-	 * Method to iterate through cache database and look for waypoint.
+-	 * Returns value &gt;= 0 if waypoint is found, else -1
+-	 */
+-	private int searchWpt(String wpt){
+-		Integer INTR = (Integer)DBindexWpt.get(wpt);
+-		if(INTR != null){
+-			return INTR.intValue();
+-		} else return -1;
+-	}
+-
+-	/**
+ 	 * Method to iterate through cache database and look for cacheID.
+ 	 * Returns value &gt;= 0 if cacheID is found, else -1
+ 	 */
+-	private int searchID(String cacheID){
+-		Integer INTR = (Integer)DBindexID.get(cacheID);
++	private int searchID(String cacxheID){
++		Integer INTR = (Integer)DBindexID.get(cacxheID);
+ 		if(INTR != null){
+ 			return INTR.intValue();
+ 		} else return -1;
+@@ -740,7 +726,7 @@
+ 	private CacheHolderDetail getHolder(String wpt){// See also LOCXMLImporter
+ 		int index;
+ 		
+-		index = searchWpt(wpt);
++		index = cacheDB.getIndex(wpt);
+ 		if (index ==-1) index = searchID(wpt);
+ 		if (index == -1) {
+ 			chD = new CacheHolderDetail();
+
+Modified: trunk/src/CacheWolf/Parser.java
+===================================================================
+--- trunk/src/CacheWolf/Parser.java	2009-04-08 16:41:52 UTC (rev 1741)
++++ trunk/src/CacheWolf/Parser.java	2009-04-08 16:44:32 UTC (rev 1742)
+@@ -222,9 +222,8 @@
+ 
+ 	private Object getVariable(String varName) throws Exception {
+ 		if (varName.startsWith(&quot;$&quot;)) { // Potential coordinate
+-			int idx=Global.getProfile().getCacheIndex(varName.substring(1));
+-			if (idx!=-1) { // Found it!
+-				CacheHolder ch=Global.getProfile().cacheDB.get(idx);
++			CacheHolder ch=Global.getProfile().cacheDB.get(varName.substring(1));
++			if (ch != null) { // Found it!
+ 				// Check whether coordinates are valid
+ 				cwPt.set(ch.pos);
+ 				if (cwPt.isValid() )
+@@ -544,10 +543,12 @@
+ 		// Don't want to switch to goto panel, just set the values
+ 		nav.setDestination(coord);
+ 		if (nargs==2) { // Now set the value of the addi waypoint (it must exist already)
+-    		int i=Global.getProfile().getCacheIndex(waypointName);
+-    		if (i&lt;0) err(MyLocale.getMsg(1714,&quot;Goto: Waypoint does not exist: &quot;)+waypointName);
+     		cwPt.set(coord);
+-    		CacheHolder ch=Global.getProfile().cacheDB.get(i);
++    		CacheHolder ch=Global.getProfile().cacheDB.get(waypointName);
++    		if (ch == null) {
++    			err(MyLocale.getMsg(1714,&quot;Goto: Waypoint does not exist: &quot;)+waypointName);
++    			return;
++    		}
+     		ch.LatLon=cwPt.toString(CWPoint.CW);
+     		ch.pos.set(cwPt);
+     		ch.calcDistance(Global.getPref().curCentrePt); // Update distance/bearing
+@@ -663,11 +664,11 @@
+      */
+     private void funcSkeleton(int nargs) throws Exception {
+    		String waypointName=Global.mainTab.lastselected;
+-    	int ci=Global.getProfile().getCacheIndex(waypointName);
+-    	if (ci&lt;0) return;
++    	CacheHolder c=Global.getProfile().cacheDB.get(waypointName);
++    	if (c == null) return;
+     	// If it is an addi, find its main cache
+-    	if (Global.getProfile().cacheDB.get(ci).isAddiWpt()) {
+-    		waypointName=Global.getProfile().cacheDB.get(ci).mainCache.getWayPoint();
++    	if (c.isAddiWpt()) {
++    		waypointName=c.mainCache.getWayPoint();
+     	}
+    		int nStages=-1;
+     	if (nargs==1) {
+@@ -707,9 +708,11 @@
+ 				Global.mainTab.tbP.refreshTable();
+ 			}
+     	} else {
+-	    	int i=Global.getProfile().getCacheIndex(waypointName);
+-			if (i&lt;0) err(MyLocale.getMsg(1714,&quot;Goto: Waypoint does not exist: &quot;)+waypointName);
+-	   	    CacheHolder ch=Global.getProfile().cacheDB.get(i);
++	   	    CacheHolder ch=Global.getProfile().cacheDB.get(waypointName);
++	   	    if (ch == null) {
++	   	    	err(MyLocale.getMsg(1714,&quot;Goto: Waypoint does not exist: &quot;)+waypointName);
++	   	    	return;
++	   	    }
+ 			CacheHolder addiWpt;
+ 	   	    if (ch.hasAddiWpt()){
+ 	   	    	op.append(&quot;cls()\n&quot;);
+@@ -891,9 +894,8 @@
+ 		if (thisToken.tt==TokenObj.TT_ENDIF || thisToken.token.equals(&quot;;&quot;)) return;
+ 		parseStringExp();
+ 		if (varName.startsWith(&quot;$&quot;)) { // Potential coordinate
+-			int idx=Global.getProfile().getCacheIndex(varName.substring(1));
+-			if (idx!=-1) { // Yes, is a coordinate
+-				CacheHolder ch=Global.getProfile().cacheDB.get(idx);
++			CacheHolder ch=Global.getProfile().cacheDB.get(varName.substring(1));
++			if (ch != null) { // Yes, is a coordinate
+ 				// Check whether new coordinates are valid
+ 				String coord=popCalcStackAsString();
+ 				cwPt.set(coord);
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2009-04-08 16:41:52 UTC (rev 1741)
++++ trunk/src/CacheWolf/Profile.java	2009-04-08 16:44:32 UTC (rev 1742)
+@@ -371,22 +371,17 @@
+ 	}
+ 
+ 	/** Get a unique name for a new waypoint */
+-	// TODO Make more efficient
+ 	public String getNewWayPointName() {
+ 		String strWp = null;
+-		long lgWp = 1;
++		long lgWp = 0;
+ 		int s = cacheDB.size();
+ 		if (s == 0)
+ 			return &quot;CW0000&quot;;
+ 		// Create new waypoint,look if not in db
+-		for (int i = 0; i &lt; s; i++) {
++		do {
++			lgWp++;
+ 			strWp = &quot;CW&quot; + MyLocale.formatLong(lgWp, &quot;0000&quot;);
+-			if (cacheDB.get(i).getWayPoint().indexOf(strWp) &gt;= 0) {
+-				// waypoint exists in database
+-				lgWp++;
+-				i = -1; // Because i++ will be executed next, so we start the loop with 0
+-			}
+-		}
++		} while (cacheDB.getIndex(strWp) &gt;= 0);
+ 		return strWp;
+ 	}
+ 
+@@ -501,31 +496,27 @@
+ 	 */
+ 	public void buildReferences(){
+ 		CacheHolder ch, mainCh;
+-		Hashtable dbIndex = new Hashtable((int)(cacheDB.size()/0.75f + 1), 0.75f); // initialise so that von rehashing is neccessary
+ 
+-		Integer index;
+ 		// Build index for faster search and clear all references
+ 		for (int i = cacheDB.size() - 1; i &gt;= 0; i--) {
+ 			ch = cacheDB.get(i);
+ 			ch.addiWpts.clear();
+ 			ch.mainCache = null;
+-			// if (ch.wayPoint.startsWith(&quot;GC&quot;)) // Only put potential master caches into the index
+-			dbIndex.put(ch.getWayPoint(), new Integer(i));
+ 		}
++		
+ 		// Build references
+ 		int max = cacheDB.size();
+ 		for (int i = 0; i &lt; max; i++) {
+ 			ch = cacheDB.get(i);
+ 			if (ch.isAddiWpt()) {
+ 				// search main cache
+-				index = (Integer) dbIndex.get(&quot;GC&quot; + ch.getWayPoint().substring(2));
+-				if (index == null)  // TODO save the source (GC or OC or Custom) of the maincache somewhere else to avoid ambiguity of addi-wpt-names
+-					index = (Integer) dbIndex.get(&quot;OC&quot;+ ch.getWayPoint().substring(2));
+-				if (index == null)  // TODO save the source (GC or OC or Custom) of the maincache somewhere else to avoid ambiguity of addi-wpt-names
+-					index = (Integer) dbIndex.get(&quot;CW&quot;+ ch.getWayPoint().substring(2));
++				mainCh = cacheDB.get(&quot;GC&quot; + ch.getWayPoint().substring(2));
++				if (mainCh == null)  // TODO save the source (GC or OC or Custom) of the maincache somewhere else to avoid ambiguity of addi-wpt-names
++					mainCh = cacheDB.get(&quot;OC&quot; + ch.getWayPoint().substring(2));
++				if (mainCh == null)  // TODO save the source (GC or OC or Custom) of the maincache somewhere else to avoid ambiguity of addi-wpt-names
++					mainCh = cacheDB.get(&quot;CW&quot; + ch.getWayPoint().substring(2));
+ 
+-				if (index != null) {
+-					mainCh = cacheDB.get(index.intValue());
++				if (mainCh != null) {
+ 					mainCh.addiWpts.add(ch);
+ 					ch.mainCache = mainCh;
+ 					ch.setAttributesFromMainCache(mainCh);
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2009-04-08 16:41:52 UTC (rev 1741)
++++ trunk/src/CacheWolf/SpiderGC.java	2009-04-08 16:44:32 UTC (rev 1742)
+@@ -59,7 +59,6 @@
+ 	private Regex inRex = new Regex();
+ 	private CacheDB cacheDB;
+ 	private Vector cachesToLoad = new Vector();
+-	private Hashtable indexDB;
+ 	private InfoBox infB;
+ 	private static myProperties p=null;
+ 
+@@ -293,13 +292,10 @@
+ 		}
+ 		if (System.getProperty(&quot;os.name&quot;)!=null)pref.log(&quot;Operating system: &quot;+System.getProperty(&quot;os.name&quot;)+&quot;/&quot;+System.getProperty(&quot;os.arch&quot;));
+ 		if (System.getProperty(&quot;java.vendor&quot;)!=null)pref.log(&quot;Java: &quot;+System.getProperty(&quot;java.vendor&quot;)+&quot;/&quot;+System.getProperty(&quot;java.version&quot;));
+-		// Prepare an index of caches for faster searching
+-		indexDB = new Hashtable(cacheDB.size());
+ 		CacheHolder ch;
+-		//index the database for faster searching!
++		// Reset is_new()
+ 		for(int i = 0; i&lt;cacheDB.size();i++){
+ 			ch = cacheDB.get(i);
+-			indexDB.put(ch.getWayPoint(), new Integer(i));
+ 			ch.setNew(false);
+ 		}
+ 		String start = &quot;&quot;;
+@@ -367,11 +363,11 @@
+ 			ch = cacheDB.get(i);
+ 			if (spiderAllFinds) {
+ 				if ( (ch.getWayPoint().substring(0,2).equalsIgnoreCase(&quot;GC&quot;)) ) {
+-					cachesToUpdate.put(ch.getWayPoint(), new Integer(i));
++					cachesToUpdate.put(ch.getWayPoint(), ch);
+ 				}
+ 			} else {
+ 				if ( (!ch.is_archived()) &amp;&amp; (ch.kilom &lt;= distanceInKm) &amp;&amp; !(doNotgetFound &amp;&amp; ch.is_found()) &amp;&amp; (ch.getWayPoint().substring(0,2).equalsIgnoreCase(&quot;GC&quot;)) ) {
+-					cachesToUpdate.put(ch.getWayPoint(), new Integer(i));
++					cachesToUpdate.put(ch.getWayPoint(), ch);
+ 				}
+ 			}
+ 		}
+@@ -447,8 +443,8 @@
+ 					found_on_page++;
+ 					if(getDist(lineRex.stringMatched(1)) &lt;= distance){
+ 						String waypoint=getWP(lineRex.stringMatched(1));
+-						Integer nr;
+-						if((nr=(Integer)indexDB.get(waypoint)) == null){
++						CacheHolder existingCache;
++						if((existingCache=cacheDB.get(waypoint)) == null){
+ 							if ( (maxNumber &gt; 0) &amp;&amp; (cachesToLoad.size() &gt;= maxNumber) ) {
+ 								maxNumberAbort = true;
+ 								
+@@ -462,14 +458,14 @@
+ 							}
+ 						} else {
+ 							pref.log(waypoint+&quot; already in DB&quot;);
+-							ch=cacheDB.get(nr.intValue());
++							ch=existingCache;
+ 							// If the &lt;strike&gt; tag is used, the cache is marked as unavailable or archived
+ 							boolean is_archived_GC=lineRex.stringMatched(1).indexOf(&quot;&lt;strike&gt;&lt;font color=\&quot;red\&quot;&gt;&quot;)!=-1;
+ 							boolean is_available_GC=lineRex.stringMatched(1).indexOf(&quot;&lt;strike&gt;&quot;)==-1;
+ 							if (ch.is_archived()!=is_archived_GC) { // Update the database with the cache status
+ 								pref.log(&quot;Updating status of &quot;+waypoint+&quot; to &quot;+(is_archived_GC?&quot;archived&quot;:&quot;not archived&quot;));
+ 								if ( ch.is_archived() ) {
+-									cachesToUpdate.put(ch.getWayPoint(), nr);
++									cachesToUpdate.put(ch.getWayPoint(), ch);
+ 								}
+ 								ch.setArchived(is_archived_GC);
+ 								chD=ch.getCacheDetails(true,false);
+@@ -558,7 +554,7 @@
+ 
+ 			wpt = (String)cachesToLoad.get(i);
+ 			// Get only caches not already available in the DB
+-			if(searchWpt(wpt) == -1){
++			if(cacheDB.getIndex(wpt) == -1){
+ 				infB.setInfo(MyLocale.getMsg(5513,&quot;Loading: &quot;) + wpt +&quot; (&quot; + (i+1) + &quot; / &quot; + totalCachesToLoad + &quot;)&quot;);
+ 				chD = new CacheHolderDetail();
+ 				chD.setWayPoint(wpt);
+@@ -580,12 +576,11 @@
+ 		if (!infB.isClosed) {
+ 			int j = 1;
+ 			for (Enumeration e = cachesToUpdate.elements() ; e.hasMoreElements() ; j++) {
+-				int i = ((Integer)e.nextElement()).intValue();
+-				ch = cacheDB.get(i);
++				ch = (CacheHolder)e.nextElement();
+ 				infB.setInfo(MyLocale.getMsg(5513,&quot;Loading: &quot;) + ch.getWayPoint() +&quot; (&quot; + (cachesToLoad.size()+j) + &quot; / &quot; + totalCachesToLoad + &quot;)&quot;);
+ 				infB.redisplay();
+ 
+-				int test = spiderSingle(i, infB,false);
++				int test = spiderSingle(cacheDB.getIndex(ch), infB,false);
+ 				if (test == -1) {
+ 					break;
+ 				} else if (test == 0) {
+@@ -828,17 +823,6 @@
+ 		return ret;
+ 	} // getCacheByWaypointName
+ 
+-	/**
+-	 * Check whether a waypoint is in the database
+-	 * @param wpt Name of waypoint to check
+-	 * @return index of waypoint in database, -1 if it does not exist
+-	 */
+-	private int searchWpt(String wpt){
+-		Integer INTR = (Integer)indexDB.get(wpt);
+-		if(INTR != null){
+-			return INTR.intValue();
+-		} else return -1;
+-	}
+ 
+ 	/**
+ 	 * Get the Distance to the centre
+
+Modified: trunk/src/CacheWolf/TablePanel.java
+===================================================================
+--- trunk/src/CacheWolf/TablePanel.java	2009-04-08 16:41:52 UTC (rev 1741)
++++ trunk/src/CacheWolf/TablePanel.java	2009-04-08 16:44:32 UTC (rev 1742)
+@@ -116,7 +116,7 @@
+ 		// Check whether the currently selected cache is still visible
+ 		int rownum = 0;
+ 		if (wayPoint != null) {
+-			rownum = Global.getProfile().getCacheIndex(wayPoint);
++			rownum = Global.getProfile().cacheDB.getIndex(wayPoint);
+ 			if ( (rownum &lt; 0) || (rownum&gt;=myMod.numRows) ) {
+ 				// If it is not visible: Go backward in the list of the 
+ 				// previously visible caches and look if you find
+@@ -124,7 +124,7 @@
+ 				int i;
+ 				for (i=sel-1; i&gt;=0; i--) {
+ 					CacheHolder checkCache = (CacheHolder) oldVisibleCaches.get(i);
+-					rownum = Global.getProfile().getCacheIndex(checkCache.getWayPoint());
++					rownum = Global.getProfile().cacheDB.getIndex(checkCache.getWayPoint());
+ 					if ((rownum &gt;= 0) &amp;&amp; (rownum &lt; myMod.numRows)) break;
+ 					rownum = 0;	
+ 				}
+
+Modified: trunk/src/CacheWolf/myInteractivePanel.java
+===================================================================
+--- trunk/src/CacheWolf/myInteractivePanel.java	2009-04-08 16:41:52 UTC (rev 1741)
++++ trunk/src/CacheWolf/myInteractivePanel.java	2009-04-08 16:44:32 UTC (rev 1742)
+@@ -102,13 +102,8 @@
+ 	
+ 	public void startDragging(DragContext dc) {
+ 		if (!Global.mainForm.cacheListVisible) return;
+-		CacheDB cacheDB=Global.getProfile().cacheDB;
+-//Vm.debug(&quot;myIAP startDrag &quot;+dc.start.x+&quot;/&quot;+dc.start.y);
+-		int idx=Global.getProfile().getCacheIndex(wayPoint); 
+-		if (idx&gt;=0) {
+-			 CacheHolder ch=cacheDB.get(idx);
+-			 //wayPoint=ch.wayPoint;
+-			 //Vm.debug(&quot;Waypoint : &quot;+ch.wayPoint);
++		CacheHolder ch=Global.getProfile().cacheDB.get(wayPoint); 
++		if (ch != null) {
+ 			 IconAndText icnDrag=new IconAndText();
+ 			 icnDrag.addColumn(CacheType.cache2Img(ch.getType()));
+ 			 icnDrag.addColumn(ch.getWayPoint());
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001659.html">[Cachewolf-svn] r1741 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001661.html">[Cachewolf-svn] r1743 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1660">[ date ]</a>
+              <a href="thread.html#1660">[ thread ]</a>
+              <a href="subject.html#1660">[ subject ]</a>
+              <a href="author.html#1660">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

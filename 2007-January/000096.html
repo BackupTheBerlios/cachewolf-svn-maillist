@@ -1,0 +1,1442 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r380 - in trunk: resources src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r380%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200701110413.l0B4DJoW022562%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000093.html">
+   <LINK REL="Next"  HREF="000094.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r380 - in trunk: resources src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r380%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200701110413.l0B4DJoW022562%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r380 - in trunk: resources src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Thu Jan 11 05:13:19 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000093.html">[Cachewolf-svn] [Feature #3031] Doppelklick in der Cacheliste
+</A></li>
+        <LI>Next message: <A HREF="000094.html">[Cachewolf-svn] [Feature #2987] /maps Verzeichnis
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#96">[ date ]</a>
+              <a href="thread.html#96">[ thread ]</a>
+              <a href="subject.html#96">[ subject ]</a>
+              <a href="author.html#96">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-01-11 05:13:15 +0100 (Thu, 11 Jan 2007)
+New Revision: 380
+
+Modified:
+   trunk/resources/cachewolf.Languages.cfg
+   trunk/src/CacheWolf/MovingMap.java
+   trunk/src/CacheWolf/myTableControl.java
+Log:
+realisiert: [ Feature Request #2987 ] /maps Verzeichnis
+kleinere Fehler in MovingMap behoben
+
+Modified: trunk/resources/cachewolf.Languages.cfg
+===================================================================
+--- trunk/resources/cachewolf.Languages.cfg	2007-01-10 23:47:02 UTC (rev 379)
++++ trunk/resources/cachewolf.Languages.cfg	2007-01-11 04:13:15 UTC (rev 380)
+@@ -170,14 +170,16 @@
+ 		1007=Status
+ 		1008=Entf
+ 		1009=Peil
+-		1010=Gehe zu
+-		1011=Filter
+-		1012=L%f6schen
++		1010=Gehe zu diesem
++		1011=Nichtmarkierte ausfiltern
++		1012=Markierte l%f6schen
+ 		1013=Auswahl
+-		1014=Aktualisieren
++		1014=Markierte aktualisieren
+ 		1015=Alle w%e4hlen
+ 		1016=Alle abw%e4hlen
+-		1019=Zentrum
++		1019=Diesen als Zentrum setzen
++		1020=Im Browser online %f6ffnen
++		1021=Beschreibung %f6ffnen
+ 		1100=Profile
+ 		1101=Profil 1
+ 		1102=Profil 2
+@@ -252,6 +254,7 @@
+ 		4109=Lade Karten...
+ 		4110=Lade
+ 		4111=Koordinaten m%fcssen in dem Format N XX XX,XXX E XXX XX,XXX eingegeben werden
++		4200=Kartenverzeichnis w%e4hlen
+ 		4500=Ges:
+ 		4501=Gez:
+ 		4502=Gef:
+@@ -422,14 +425,16 @@
+ 		1007=Status
+ 		1008=Dist
+ 		1009=Bear
+-		1010=Goto
+-		1011=Filter
+-		1012=Delete
++		1010=Goto this one
++		1011=filter out non-selected
++		1012=Delete selected
+ 		1013=With selection
+-		1014=Update
++		1014=Update cache data
+ 		1015=Select all
+-		1016=De-select all
+-		1019=Center
++		1016=Deselect all
++		1019=Set this as center
++		1020=Open online in Browser
++		1021=Open cache description
+ 		1100=Profiles
+ 		1101=Profile 1
+ 		1102=Profile 2
+@@ -503,6 +508,7 @@
+ 		4109=Loading maps...
+ 		4110=loading
+ 		4111=Coordinates must be entered in the format N XX XX.XXX E XXX XX.XXX
++		4200=Choose map directory
+ 		{..}
+ 	{..}
+ {..}
+
+Modified: trunk/src/CacheWolf/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/MovingMap.java	2007-01-10 23:47:02 UTC (rev 379)
++++ trunk/src/CacheWolf/MovingMap.java	2007-01-11 04:13:15 UTC (rev 380)
+@@ -5,19 +5,20 @@
+ import ewe.io.File;
+ import ewe.io.IOException;
+ import ewe.sys.*;
++import ewe.filechooser.FileChooser;
+ import ewe.fx.*;
+ import ewe.util.Vector;
+ 
+ /**
+-*	Class to handle a moving map.
+-*/
++ *	Class to handle a moving map.
++ */
+ public class MovingMap extends Form {
+ 	final static int gotFix = 4; //green
+ 	final static int lostFix = 3; //yellow
+ 	final static int noGPSData = 2; // red
+ 	final static int noGPS = 1; // no GPS-Position marker, manually disconnected 
+ 	final static int ignoreGPS = -1; // ignore even changes in GPS-signal (eg. from lost fix to gotFix) this is wanted when the map is moved manually
+-	
++
+ 	public int GpsStatus;
+ 	Preferences pref;
+ 	MovingMapPanel mmp;
+@@ -32,7 +33,7 @@
+ 	AniImage statusImageHaveSignal = new AniImage(&quot;position_green.png&quot;);
+ 	AniImage statusImageNoSignal = new AniImage(&quot;position_yellow.png&quot;);
+ 	AniImage statusImageNoGps = new AniImage(&quot;position_red.png&quot;);
+-	
++
+ 	AniImage ButtonImageChooseMap = new AniImage(&quot;choose_map.gif&quot;); 
+ 	AniImage ButtonImageGpsOn = new AniImage(&quot;snap2gps.gif&quot;); 
+ 	/*AniImage arrowUp = new AniImage(&quot;arrow_up.png&quot;);
+@@ -42,12 +43,13 @@
+ 	AniImage posCircle = new AniImage(&quot;position_green.png&quot;);
+ 	int posCircleX = 0, posCircleY = 0, lastCompareX = Integer.MAX_VALUE, lastCompareY = Integer.MAX_VALUE;
+ 	double posCircleLat, posCircleLon;
+-	
++
+ 	boolean ignoreGps = false;
+ 	boolean ignoreGpsStatutsChanges = false;
+ 	boolean autoSelectMap = true;
+ 	boolean forceMapLoad = true; // only needed to force updateposition to try to load the best map again after OutOfMemoryError after an repeated click on snap-to-gps
+-	
++	CWPoint lastUpatePosition = new CWPoint();
++
+ 	public MovingMap(Preferences pref, GotoPanel gP, Vector cacheDB){
+ 		this.cacheDB = cacheDB;
+ 		gotoPanel = gP;
+@@ -64,7 +66,7 @@
+ 		ButtonImageChooseMap.properties = AniImage.AlwaysOnTop;
+ 		ButtonImageGpsOn.setLocation(pref.myAppWidth-25, 10);
+ 		ButtonImageGpsOn.properties = AniImage.AlwaysOnTop;
+-/*		arrowUp.setLocation(pref.myAppWidth/2, 10);
++		/*		arrowUp.setLocation(pref.myAppWidth/2, 10);
+ 		arrowDown.setLocation(pref.myAppWidth/2, pref.myAppHeight-20);
+ 		arrowLeft.setLocation(10, pref.myAppHeight/2+7);
+ 		arrowRight.setLocation(pref.myAppWidth-25, pref.myAppHeight/2+7);
+@@ -76,25 +78,24 @@
+ 		mmp.addImage(arrowDown);
+ 		mmp.addImage(arrowLeft);
+ 		mmp.addImage(arrowRight);
+-*/		mmp.addImage(ButtonImageChooseMap);
+-		mmp.addImage(ButtonImageGpsOn);
+-		posCircle.properties = AniImage.AlwaysOnTop;
+-		loadMaps();
++		 */		mmp.addImage(ButtonImageChooseMap);
++		 mmp.addImage(ButtonImageGpsOn);
++		 posCircle.properties = AniImage.AlwaysOnTop;
++		 loadMaps(Global.getPref().baseDir+&quot;maps/standard/&quot;);
+ 	}
+ 
+ 	/**
+ 	 * loads the list of maps
+ 	 *
+ 	 */
+-	public void loadMaps(){
++	public void loadMaps(String mapsPath){
+ 		Vm.showWait(true);
+ 		resetCenterOfMap();
+ 		InfoBox inf = new InfoBox(&quot;Info&quot;, &quot;Loading list of maps...&quot;);
+ 		inf.exec();
+-		maps = new Vector();
++		maps = new Vector(); // forget already loaded maps
++		//if (mmp.mapImage != null) 
+ 		String dateien[];
+-		String mapsPath = new String();
+-		mapsPath = Global.getPref().baseDir+&quot;maps/standard&quot;;
+ 		File files = new File(mapsPath);
+ 		Extractor ext;
+ 		String rawFileName = new String();
+@@ -124,6 +125,12 @@
+ 		inf.close(0);
+ 		Vm.showWait(false);
+ 	}
++
++	public void forceMapLoad() {
++		forceMapLoad = true;
++		updatePosition(lastUpatePosition.latDec, lastUpatePosition.lonDec);
++	}
++
+ 	public final FormFrame myExec() {
+ 		addOverlaySet(); // neccessary to draw points which were added when the MovingMap was not running, so that these pixels are not stored in the not-immediately-drawing-work-around
+ 		return exec();
+@@ -135,7 +142,7 @@
+ 		tracks.add(tr);
+ 		addOverlaySet();
+ 	}
+-	
++
+ 	public void addTracks(Track[] trs) {
+ 		if (trs==null || trs.length == 0) return;
+ 		for (int i=0; i&lt;trs.length; i++) {
+@@ -143,22 +150,22 @@
+ 		}
+ 		addOverlaySet();
+ 	}
+-	
++
+ 	/**
+ 	 * adds an 3x3 set of overlays to the map-window which contain the track
+ 	 * 
+ 	 * add tracks with addtrack(track) before
+ 	 */
+-	
++
+ 	public void addOverlaySet() {
+-		if (tracks == null) return; // no tracks
++		//if (tracks == null) return; // no tracks
+ 		if (TrackOverlays != null) {
+ 			for (int i=0; i&lt; TrackOverlays.length; i++) {	destroyOverlay(i);	}
+ 		}
+ 		addMissingOverlays();
+ 	}
+-	
+ 
++
+ 	public void addMissingOverlays() {
+ 		Point upperleft = getMapXYPosition();
+ 		int ww = pref.myAppWidth;
+@@ -170,7 +177,7 @@
+ 				i = yi*3+xi;
+ 				if (TrackOverlays[i]==null) { 
+ 					TrackOverlays[i]= new TrackOverlay(currentMap.calcLatLon(-upperleft.x+(xi-1)*ww, -upperleft.y+(yi-1)*wh), ww, wh, currentMap); 
+-					TrackOverlays[i].setLocation(0, 0);
++					TrackOverlays[i].move(0, 0);
+ 					TrackOverlays[i].tracks = this.tracks;
+ 					TrackOverlays[i].paintTracks();
+ 					mmp.addImage(TrackOverlays[i]);
+@@ -179,7 +186,7 @@
+ 		}
+ 		updateOverlayOnlyPos();
+ 	}
+-	
++
+ 	private void destroyOverlay(int ov) {
+ 		if (TrackOverlays[ov] == null) return; 
+ 		mmp.removeImage(TrackOverlays[ov]);
+@@ -277,7 +284,7 @@
+ 									}else
+ 										for (int i=0; i&lt;TrackOverlays.length; i++) {destroyOverlay(i);} // this happens if a position jump occured
+ 								}}}}}}} // close all IFs
+-			Vm.debug(&quot;Overlayrearanged&quot;+TrackOverlays.toString());
++		Vm.debug(&quot;Overlayrearanged&quot;+TrackOverlays.toString());
+ 	}
+ 
+ 	public void ShowLastAddedPoint(Track tr) {
+@@ -292,561 +299,622 @@
+ 		//	Point upperleft = getMapXYPosition();
+ 		Point posOnScreen;
+ 		posOnScreen = getXYinMap(TrackOverlays[4].topLeft.latDec, TrackOverlays[4].topLeft.lonDec);
+-		int ww = pref.myAppWidth;
+-		int wh = pref.myAppHeight;
++		Dimension ws = mmp.getSize(null);
++		int ww = ws.width;
++		int wh = ws.height;
+ 		//Vm.sleep(100); // this is necessary because the ewe vm ist not multi-threaded and the serial thread also needs time
+ 		for (int yi=0; yi&lt;3; yi++) {
+ 			for (int xi=0; xi&lt;3; xi++) {
+-		//		if( (TrackOverlays[yi*3+xi].properties &amp; AniImage.HasChanged) != 0) TrackOverlays[yi*3+xi].draw.r
+-				TrackOverlays[yi*3+xi].move(posOnScreen.x+(xi-1)*ww, posOnScreen.y+(yi-1)*wh);
++				if (posOnScreen.x +ww &gt;=0 &amp;&amp; posOnScreen.x &lt;= ww &amp;&amp; posOnScreen.y + wh &gt;=0 &amp;&amp; posOnScreen.y &lt;= wh)
++				{
++					TrackOverlays[yi*3+xi].properties &amp;= ~mImage.IsInvisible;
++					TrackOverlays[yi*3+xi].move(posOnScreen.x+(xi-1)*ww, posOnScreen.y+(yi-1)*wh);
++				} else {
++					TrackOverlays[yi*3+xi].properties |= mImage.IsInvisible;
++					TrackOverlays[yi*3+xi].move(30, 30);
++				}
+ 			}
+ 		}
+ 	}
+-	
+-	public void updateOverlayPos() {
+-		if (TrackOverlays == null) return;
+-		updateOverlayOnlyPos();
+-		if (TrackOverlays[0].location.x&gt;pref.myAppWidth || TrackOverlays[0].location.x + 3*pref.myAppWidth &lt; 0 || // testForNeedToRearange
+-				TrackOverlays[0].location.y&gt;pref.myAppHeight || TrackOverlays[0].location.y + 3*pref.myAppHeight &lt;0) {
+-			rearangeOverlays();
+-			addMissingOverlays();
+-			// updateOverlayOnlyPos(); is called from addMissingOverlays 
++
++		public void updateOverlayPos() {
++			if (TrackOverlays == null) return;
++			updateOverlayOnlyPos();
++			if (TrackOverlays[0].location.x&gt;pref.myAppWidth || TrackOverlays[0].location.x + 3*pref.myAppWidth &lt; 0 || // testForNeedToRearange
++					TrackOverlays[0].location.y&gt;pref.myAppHeight || TrackOverlays[0].location.y + 3*pref.myAppHeight &lt;0) {
++				rearangeOverlays();
++				addMissingOverlays();
++				// updateOverlayOnlyPos(); is called from addMissingOverlays 
++			}
+ 		}
+-	}
+ 
+-	private int getBestMap(double lat, double lon) { // finds the map which is next (center of the map) to the gps-position / could be a good idea to seachr only maps which show the current position (use InBound)
+-		// maps, gotoPanel.gpsPosition.latDec != 0, gotoPanel.gpsPosition
+-		MapInfoObject mi = new MapInfoObject();
+-		MapInfoObject bestMap = new MapInfoObject();
+-		double minDistLat = 1000000000000000000000000000000000000000000000.0;
+-		double minDistLon = 1000000000000000000000000000000000000000000000.0;
+-		boolean latNearer, lonNearer;
+-		int minDistMap = -1;
+-		boolean better = false;
+-		for (int i=0; i&lt;maps.size() ;i++) {
+-			better = false;
+-			mi=(MapInfoObject)maps.get(i);
+-			latNearer=java.lang.Math.abs(lat - mi.center.latDec)/mi.sizeKm &lt; minDistLat ;
+-			lonNearer=java.lang.Math.abs(lon - mi.center.lonDec)/mi.sizeKm &lt; minDistLon;
+-			if ( latNearer &amp;&amp; lonNearer) better = true;
+-			if ( !better &amp;&amp; (latNearer || lonNearer )) { 
+-				if ( mi.center.getDistanceRad(lat, lon) &lt; bestMap.center.getDistanceRad(lat, lon) ) better = true;
+-					}
+-			if (better) {
+-				minDistLat = java.lang.Math.abs(lat - mi.center.latDec)/mi.sizeKm;
+-				minDistLon = java.lang.Math.abs(lon - mi.center.lonDec)/mi.sizeKm;
+-				minDistMap = i;
+-				bestMap = mi;
+-				// Vm.debug(&quot;better&quot;+ i);
++		private int getBestMap(double lat, double lon) { // finds the map which is next (center of the map) to the gps-position / could be a good idea to seachr only maps which show the current position (use InBound)
++			// maps, gotoPanel.gpsPosition.latDec != 0, gotoPanel.gpsPosition
++			MapInfoObject mi = new MapInfoObject();
++			MapInfoObject bestMap = new MapInfoObject();
++			double minDistLat = 1000000000000000000000000000000000000000000000.0;
++			double minDistLon = 1000000000000000000000000000000000000000000000.0;
++			boolean latNearer, lonNearer;
++			int minDistMap = -1;
++			boolean better = false;
++			for (int i=0; i&lt;maps.size() ;i++) {
++				better = false;
++				mi=(MapInfoObject)maps.get(i);
++				latNearer=java.lang.Math.abs(lat - mi.center.latDec)/mi.sizeKm &lt; minDistLat ;
++				lonNearer=java.lang.Math.abs(lon - mi.center.lonDec)/mi.sizeKm &lt; minDistLon;
++				if ( latNearer &amp;&amp; lonNearer) better = true;
++				if ( !better &amp;&amp; (latNearer || lonNearer )) { 
++					if ( mi.center.getDistanceRad(lat, lon) &lt; bestMap.center.getDistanceRad(lat, lon) ) better = true;
++				}
++				if (better) {
++					minDistLat = java.lang.Math.abs(lat - mi.center.latDec)/mi.sizeKm;
++					minDistLon = java.lang.Math.abs(lon - mi.center.lonDec)/mi.sizeKm;
++					minDistMap = i;
++					bestMap = mi;
++					// Vm.debug(&quot;better&quot;+ i);
++				}
+ 			}
++			//	tmp = secBestMap.center.getDistance(gotoPanel.gpsPosition.latDec, gotoPanel.gpsPosition.lonDec)/secBestMap.sizeKm; // quasi second return value 
++			return minDistMap ;
+ 		}
+-	//	tmp = secBestMap.center.getDistance(gotoPanel.gpsPosition.latDec, gotoPanel.gpsPosition.lonDec)/secBestMap.sizeKm; // quasi second return value 
+-		return minDistMap ;
+-	}
+-	
+-	
+-	
+-	public void resetCenterOfMap() {
+-		posCircleX = pref.myAppWidth/2; // maybe this could /should be repleced to windows size
+-		posCircleY = pref.myAppHeight/2;
+-		posCircle.setLocation(posCircleX-posCircle.getWidth()/2, posCircleY-posCircle.getHeight()/2);
+-	}
+ 
+-	/**
+-	 * get upper left corner of map on window
+-	 * returns the same as mmp.mapImage.getLocation(mapPos);
+-	 * but also works if mmp == null and is used to move the map to the correct point
+-	 * @return
+-	 */
+-	public Point getMapXYPosition() {
+-		Point mapPos = new Point(); 
+-		//if (mmp.mapImage != null) mmp.mapImage.getLocation(mapPos);
+-		//else {
++
++
++		public void resetCenterOfMap() {
++			posCircleX = pref.myAppWidth/2; // maybe this could /should be repleced to windows size
++			posCircleY = pref.myAppHeight/2;
++			posCircle.setLocation(posCircleX-posCircle.getWidth()/2, posCircleY-posCircle.getHeight()/2);
++		}
++
++		/**
++		 * get upper left corner of map on window
++		 * returns the same as mmp.mapImage.getLocation(mapPos);
++		 * but also works if mmp == null and is used to move the map to the correct point
++		 * @return
++		 */
++		public Point getMapXYPosition() {
++			Point mapPos = new Point(); 
++			//if (mmp.mapImage != null) mmp.mapImage.getLocation(mapPos);
++			//else {
+ 			Point mapposint = currentMap.calcMapXY(posCircleLat, posCircleLon);
+ 			mapPos.x = posCircleX - mapposint.x;
+ 			mapPos.y = posCircleY - mapposint.y;
+-		//}
+-		return mapPos;
+-	}
++			//}
++			return mapPos;
++		}
+ 
+-	public Point getXYinMap(double lat, double lon){
+-		Point coords = new Point();
+-		Point mapPos = new Point();
+-		coords = currentMap.calcMapXY(lat, lon);
+-		mapPos = getMapXYPosition();
+-	//		Vm.debug(&quot;getXYinMap, posCiLat: &quot;+posCircleLat+&quot;poscLOn: &quot;+ posCircleLon+&quot;gotoLat: &quot;+ lat + &quot;gotoLon: &quot;+ lon+&quot; mapPosX: &quot;+mapPos.x+&quot;mapposY&quot;+mapPos.y);
+-		return new Point(coords.x + mapPos.x, coords.y + mapPos.y);
+-	}
+-	
+-	public void updateSymbolPositions() {
+-		if (symbols == null) return;
+-		Point pOnScreen;
+-		MapSymbol symb;
+-		for (int i=symbols.size()-1; i&gt;=0; i--) {
+-			symb = (MapSymbol)symbols.get(i);
+-			pOnScreen = getXYinMap(symb.lat, symb.lon);
+-			symb.pic.setLocation(pOnScreen.x-symb.pic.getWidth()/2, pOnScreen.y-symb.pic.getHeight()/2);
++		public Point getXYinMap(double lat, double lon){
++			Point coords = currentMap.calcMapXY(lat, lon);
++			Point mapPos = getMapXYPosition();
++			//		Vm.debug(&quot;getXYinMap, posCiLat: &quot;+posCircleLat+&quot;poscLOn: &quot;+ posCircleLon+&quot;gotoLat: &quot;+ lat + &quot;gotoLon: &quot;+ lon+&quot; mapPosX: &quot;+mapPos.x+&quot;mapposY&quot;+mapPos.y);
++			return new Point(coords.x + mapPos.x, coords.y + mapPos.y);
+ 		}
+-	}
+-	
+-	public void addSymbol(String name, String filename, double lat, double lon) {
+-		if (symbols==null) symbols=new Vector();
+-		MapSymbol ms = new MapSymbol(name, filename, lat, lon);
+-		ms.loadImage();
+-		Point pOnScreen=getXYinMap(lat, lon);
+-		ms.pic.setLocation(pOnScreen.x-ms.pic.getWidth()/2, pOnScreen.y-ms.pic.getHeight()/2);
+-		symbols.add(ms);
+-		mmp.addImage(ms.pic);
+-	}
+-	public void addSymbol(String name, AniImage imSymb, double lat, double lon) {
+-		if (symbols==null) symbols=new Vector();
+-		MapSymbol ms = new MapSymbol(name, &quot; &quot;, lat, lon);
+-		ms.pic = imSymb;
+-		ms.pic.properties = AniImage.AlwaysOnTop;
+-		Point pOnScreen=getXYinMap(lat, lon);
+-		ms.pic.setLocation(pOnScreen.x-ms.pic.getWidth()/2, pOnScreen.y-ms.pic.getHeight()/2);
+-		symbols.add(ms);
+-		mmp.addImage(ms.pic);
+-	}
+-	
+-	public void setGotoPosition(double lat, double lon) {
+-		removeMapSymbol(&quot;goto&quot;);
+-		addSymbol(&quot;goto&quot;, &quot;goto_map.png&quot;, lat, lon); 
+-	}
+-	
+-	public CWPoint getGotoPos(){
+-		int symbNr;
+-		symbNr = findMapSymbol(&quot;goto&quot;);
+-		if (symbNr == -1) return null;
+-		MapSymbol ms = (MapSymbol) symbols.get(symbNr);
+-		return new CWPoint(ms.lat, ms.lon);
+-	}
+-	
+-	public void removeAllMapSymbolsButGoto(){
+-		for (int i=symbols.size()-1; i&gt;=0; i--) {
+-			if (((MapSymbol)symbols.get(i)).name != &quot;goto&quot;) removeMapSymbol(i);
++
++		public void updateSymbolPositions() {
++			if (symbols == null) return;
++			Point pOnScreen;
++			MapSymbol symb;
++			Dimension ws = mmp.getSize(null);
++			int ww = ws.width;
++			int wh = ws.height;
++			int w, h;
++			for (int i=symbols.size()-1; i&gt;=0; i--) {
++				symb = (MapSymbol)symbols.get(i);
++				pOnScreen = getXYinMap(symb.lat, symb.lon);
++				w=symb.pic.getWidth();
++				h=symb.pic.getHeight();
++				if (pOnScreen.x+w &gt;= 0 &amp;&amp; pOnScreen.x &lt;= ww &amp;&amp; pOnScreen.y+h &gt;= 0 &amp;&amp;  pOnScreen.y &lt;= wh) 
++				{
++					symb.pic.properties &amp;= ~mImage.IsInvisible;
++					symb.pic.move(pOnScreen.x-w/2, pOnScreen.y-h/2);
++				}
++				else 
++				{symb.pic.properties |= mImage.IsInvisible;
++				symb.pic.move(30, 30);
++				}
++				//symb.pic.move(ww+1, wh+1);
++			}
+ 		}
+-	}
+-	
+-	public void removeMapSymbol(String name) {
+-		int symbNr = findMapSymbol(name);
+-		if (symbNr != -1) removeMapSymbol(symbNr);
+-	}
+ 
+-	public void removeMapSymbol(int SymNr) {
+-		mmp.removeImage(((MapSymbol)symbols.get(SymNr)).pic);
+-		symbols.removeElementAt(SymNr);
+-	}
++		public void addSymbol(String name, String filename, double lat, double lon) {
++			if (symbols==null) symbols=new Vector();
++			MapSymbol ms = new MapSymbol(name, filename, lat, lon);
++			ms.loadImage();
++			Point pOnScreen=getXYinMap(lat, lon);
++			ms.pic.setLocation(pOnScreen.x-ms.pic.getWidth()/2, pOnScreen.y-ms.pic.getHeight()/2);
++			symbols.add(ms);
++			mmp.addImage(ms.pic);
++		}
++		public void addSymbol(String name, AniImage imSymb, double lat, double lon) {
++			if (symbols==null) symbols=new Vector();
++			MapSymbol ms = new MapSymbol(name, &quot; &quot;, lat, lon);
++			ms.pic = imSymb;
++			ms.pic.properties = AniImage.AlwaysOnTop;
++			Point pOnScreen=getXYinMap(lat, lon);
++			ms.pic.setLocation(pOnScreen.x-ms.pic.getWidth()/2, pOnScreen.y-ms.pic.getHeight()/2);
++			symbols.add(ms);
++			mmp.addImage(ms.pic);
++		}
+ 
+-	public int findMapSymbol(String name) {
+-		if (symbols == null) return -1;
+-		MapSymbol ms;
+-		for (int i = 0; i &lt; symbols.size(); i++) {
+-			ms= (MapSymbol)symbols.get(i);
+-			if (ms.name == name) return i;
++		public void setGotoPosition(double lat, double lon) {
++			removeMapSymbol(&quot;goto&quot;);
++			addSymbol(&quot;goto&quot;, &quot;goto_map.png&quot;, lat, lon); 
+ 		}
+-		return -1;
+-	}
+ 
+-	/**
+-	* Move the map so that the posCircle is at lat/lon
+-	* 
+-	* @param lat &amp;&amp; lon == -361 -&gt; ignore lat/lon, set map position to upperleft corner of window 
+-	*/
+-	public void updateOnlyPosition(double lat, double lon, boolean updateOverlay){
+-		Point mapPos = new Point(0,0);
+-		Point oldMapPos = getMapXYPosition();
+-		if (lat != -361.0 || lon != -361.0) {
+-			posCircleLat = lat;
+-			posCircleLon = lon;
+-			mapPos = getMapXYPosition();
++		public CWPoint getGotoPos(){
++			int symbNr;
++			symbNr = findMapSymbol(&quot;goto&quot;);
++			if (symbNr == -1) return null;
++			MapSymbol ms = (MapSymbol) symbols.get(symbNr);
++			return new CWPoint(ms.lat, ms.lon);
+ 		}
+-		//Vm.debug(&quot;mapx = &quot; + mapx);
+-		//Vm.debug(&quot;mapy = &quot; + mapy);
+-		if (java.lang.Math.abs(oldMapPos.x - mapPos.x) &gt; 1 || java.lang.Math.abs(oldMapPos.y - mapPos.y) &gt; 1) {
+-			if (mmp.mapImage != null) 	mmp.mapImage.move(mapPos.x,mapPos.y);
+-			updateSymbolPositions();
+-			if (updateOverlay &amp;&amp; TrackOverlays != null) updateOverlayPos();
+-		//}
+-		mmp.repaintNow(); // TODO test if the &quot;if&quot; above can be used
++
++		public void removeAllMapSymbolsButGoto(){
++			for (int i=symbols.size()-1; i&gt;=0; i--) {
++				if (((MapSymbol)symbols.get(i)).name != &quot;goto&quot;) removeMapSymbol(i);
++			}
+ 		}
+-		//Vm.debug(&quot;update only position&quot;);			
+-	}
+-	/**
+-	* Method to laod the best map for lat/lon and move the map so that the posCircle is at lat/lon
+-	*/
+-	public void updatePosition(double lat, double lon){
+-		if(!ignoreGps){
+-			updateOnlyPosition(lat, lon, true);
+-			if (autoSelectMap) {
+-				Point mapPos = getMapXYPosition();
+-				if (forceMapLoad || (mmp.mapImage != null &amp;&amp; ( mapPos.y &gt; 0 || mapPos.x &gt; 0 || mapPos.y+mmp.mapImage.getHeight()&lt;this.height	|| mapPos.x+mmp.mapImage.getWidth()&lt;this.width) 
+-					|| 	mmp.mapImage == null )) 	{
+-					forceMapLoad = false;
+-					//Vm.debug(&quot;Screen not completly covered by map&quot;);
+-					if (java.lang.Math.abs(lastCompareX-mapPos.x) &gt; MyLocale.getScreenWidth()/10 || java.lang.Math.abs(lastCompareY-mapPos.y) &gt; MyLocale.getScreenHeight()/10) {
+-						// more then 1/10 of screen moved since last time we tried to find a better map
+-						lastCompareX = mapPos.x;
+-						lastCompareY = mapPos.y;
+-//						Vm.debug(&quot;look for a bettermap&quot;);
+-						int newMapN=getBestMap(lat, lon); // this is independet of the Position of the PosCircle on the windows -&gt; may be it would be better to call it with the coos of the center of the window?, nein, es k&#246;nnte st&#246;ren, wenn man manuell die Karte bewegt und er st&#228;ndig ne neue l&#228;d... bleibt erstmal so
+-						MapInfoObject newmap ;
+-						newmap = (MapInfoObject) maps.get(newMapN);
+-						if (!(currentMap.mapName == newmap.mapName)) {
+-							setMap(newmap, lat, lon);
+-//							Vm.debug(&quot;better map found&quot;);
+-							// use new map
++
++		public void removeMapSymbol(String name) {
++			int symbNr = findMapSymbol(name);
++			if (symbNr != -1) removeMapSymbol(symbNr);
++		}
++
++		public void removeMapSymbol(int SymNr) {
++			mmp.removeImage(((MapSymbol)symbols.get(SymNr)).pic);
++			symbols.removeElementAt(SymNr);
++		}
++
++		public int findMapSymbol(String name) {
++			if (symbols == null) return -1;
++			MapSymbol ms;
++			for (int i = 0; i &lt; symbols.size(); i++) {
++				ms= (MapSymbol)symbols.get(i);
++				if (ms.name == name) return i;
++			}
++			return -1;
++		}
++
++		/**
++		 * Move the map so that the posCircle is at lat/lon
++		 * 
++		 * @param lat &amp;&amp; lon == -361 -&gt; ignore lat/lon, set map position to upperleft corner of window 
++		 */
++		public void updateOnlyPosition(double lat, double lon, boolean updateOverlay){
++			Point mapPos = new Point(0,0);
++			Point oldMapPos = getMapXYPosition();
++			if (lat != -361.0 || lon != -361.0) {
++				posCircleLat = lat;
++				posCircleLon = lon;
++				mapPos = getMapXYPosition();
++			}
++			//Vm.debug(&quot;mapx = &quot; + mapx);
++			//Vm.debug(&quot;mapy = &quot; + mapy);
++			if (forceMapLoad || (java.lang.Math.abs(oldMapPos.x - mapPos.x) &gt; 1 || java.lang.Math.abs(oldMapPos.y - mapPos.y) &gt; 1)) {
++				if (mmp.mapImage != null) 	mmp.mapImage.move(mapPos.x,mapPos.y);
++				updateSymbolPositions();
++				if (updateOverlay &amp;&amp; TrackOverlays != null) updateOverlayPos();
++				//}
++				mmp.repaintNow(); // TODO test if the &quot;if&quot; above can be used
++			}
++			//Vm.debug(&quot;update only position&quot;);			
++		}
++		/**
++		 * Method to laod the best map for lat/lon and move the map so that the posCircle is at lat/lon
++		 */
++		public void updatePosition(double lat, double lon){
++			lastUpatePosition.latDec=lat;
++			lastUpatePosition.lonDec=lon;
++			if(!ignoreGps || forceMapLoad){
++				updateOnlyPosition(lat, lon, true);
++				if (autoSelectMap || forceMapLoad) {
++					Point mapPos = getMapXYPosition();
++					if (forceMapLoad || (mmp.mapImage != null &amp;&amp; ( mapPos.y &gt; 0 || mapPos.x &gt; 0 || mapPos.y+mmp.mapImage.getHeight()&lt;this.height	|| mapPos.x+mmp.mapImage.getWidth()&lt;this.width) 
++							|| 	mmp.mapImage == null )) 	{
++						//Vm.debug(&quot;Screen not completly covered by map&quot;);
++						if (forceMapLoad || (java.lang.Math.abs(lastCompareX-mapPos.x) &gt; MyLocale.getScreenWidth()/10 || java.lang.Math.abs(lastCompareY-mapPos.y) &gt; MyLocale.getScreenHeight()/10)) {
++							// more then 1/10 of screen moved since last time we tried to find a better map
++							lastCompareX = mapPos.x;
++							lastCompareY = mapPos.y;
++//							Vm.debug(&quot;look for a bettermap&quot;);
++							int newMapN=getBestMap(lat, lon); // this is independet of the Position of the PosCircle on the windows -&gt; may be it would be better to call it with the coos of the center of the window?, nein, es k&#246;nnte st&#246;ren, wenn man manuell die Karte bewegt und er st&#228;ndig ne neue l&#228;d... bleibt erstmal so
++							MapInfoObject newmap ;
++							newmap = (MapInfoObject) maps.get(newMapN);
++							if (!(currentMap.mapName == newmap.mapName)) {
++								setMap(newmap, lat, lon);
++								Vm.debug(&quot;better map found&quot;);
++								// use new map
++							}
++							forceMapLoad = false;
+ 						}
+ 					}
+ 				}
+ 			}
+ 		}
+-	}
+ 
+-	public void setGpsStatus (int status) {
+-		if ((status == GpsStatus) || ignoreGpsStatutsChanges) return; // if ignoreGpsStatutsChanges == true than the Map is in manual-mode
+-		GpsStatus = status;
+-		ignoreGps = false;
+-		switch (status) {
+-		case noGPS: 	{ posCircle.change(null); ignoreGps = true; break; }
+-		case gotFix:    { posCircle.change(statusImageHaveSignal); break; }
+-		case lostFix:   { posCircle.change(statusImageNoSignal); break; }
+-		case noGPSData: { posCircle.change(statusImageNoGps); break; }
++		public void setGpsStatus (int status) {
++			if ((status == GpsStatus) || ignoreGpsStatutsChanges) return; // if ignoreGpsStatutsChanges == true than the Map is in manual-mode
++			GpsStatus = status;
++			ignoreGps = false;
++			switch (status) {
++			case noGPS: 	{ posCircle.change(null); ignoreGps = true; break; }
++			case gotFix:    { posCircle.change(statusImageHaveSignal); break; }
++			case lostFix:   { posCircle.change(statusImageNoSignal); break; }
++			case noGPSData: { posCircle.change(statusImageNoGps); break; }
++			}
++			posCircle.refreshNow();
+ 		}
+-		posCircle.refreshNow();
+-	}
+-	
+-	public void SnapToGps() {
+-		resetCenterOfMap();
+-		ignoreGps = false;
+-		ignoreGpsStatutsChanges = false;
+-		lastCompareX = Integer.MAX_VALUE; // neccessary to make updateposition to test if the current map is the best one for the GPS-Position
+-		lastCompareY = Integer.MAX_VALUE;
+-		autoSelectMap = true;
+-		forceMapLoad = true;
+-//		updatePosition(gotoPanel.gpsPosition.latDec, gotoPanel.gpsPosition.latDec); is called from GotoPanel.ticked
+-	}
+ 
+-	/** sets and displays the map
+-	 * 
+-	 * @param newmap
+-	 * @param lat move map so that lat/lon is in the center / -361: don't adust to lat/lon
+-	 * @param lon -361: don't adust to lat/lon
+-	 */
+-	public void setMap(MapInfoObject newmap, double lat, double lon) {
+-		if (newmap.mapName == currentMap.mapName) {
+-			updateOnlyPosition(lat, lon, true); 
+-			return;
+-		}
+-		Vm.showWait(true);
+-		boolean saveIgnoreStatus;
+-		saveIgnoreStatus = ignoreGps;
+-		ignoreGps = true;  // make updatePosition ignore calls during loading new map
+-		InfoBox inf;
+-		inf = new InfoBox(&quot;Info&quot;, &quot;Loading map...&quot;);
+-		inf.show();
+-		try {
+-			this.currentMap = newmap; 
+-			this.title = currentMap.mapName;
+-//transXlat
+-			
++		public void SnapToGps() {
++			resetCenterOfMap();
++			ignoreGps = false;
++			ignoreGpsStatutsChanges = false;
+ 			lastCompareX = Integer.MAX_VALUE; // neccessary to make updateposition to test if the current map is the best one for the GPS-Position
+ 			lastCompareY = Integer.MAX_VALUE;
+-			if (! (mmp.mapImage == null) ) {
+-				//Vm.debug(&quot;free: &quot;+Vm.getUsedMemory(false)+&quot;classMemory: &quot;+Vm.getClassMemory()+ &quot;after garbage collection: &quot;+Vm.getUsedMemory(false));
+-				mmp.removeImage(mmp.mapImage); mmp.mapImage.free(); mmp.mapImage = null;
+-				//Vm.debug(&quot;free: &quot;+Vm.getUsedMemory(false)+&quot;classMemory: &quot;+Vm.getClassMemory()+ &quot;after garbage collection: &quot;+Vm.getUsedMemory(false));
+-				Vm.getUsedMemory(true); // calls the garbage collection
++			autoSelectMap = true;
++			forceMapLoad = true;
++//			updatePosition(gotoPanel.gpsPosition.latDec, gotoPanel.gpsPosition.latDec); is called from GotoPanel.ticked
++		}
++
++		/** sets and displays the map
++		 * 
++		 * @param newmap
++		 * @param lat move map so that lat/lon is in the center / -361: don't adust to lat/lon
++		 * @param lon -361: don't adust to lat/lon
++		 */
++		public void setMap(MapInfoObject newmap, double lat, double lon) {
++			if (newmap.mapName == currentMap.mapName) {
++				updateOnlyPosition(lat, lon, true); 
++				return;
++			}
++			Vm.showWait(true);
++			boolean saveIgnoreStatus;
++			saveIgnoreStatus = ignoreGps;
++			ignoreGps = true;  // make updatePosition ignore calls during loading new map
++			InfoBox inf;
++			inf = new InfoBox(&quot;Info&quot;, &quot;Loading map...&quot;);
++			inf.show();
++			try {
++				this.currentMap = newmap; 
++				this.title = currentMap.mapName;
++//				transXlat
++
++				lastCompareX = Integer.MAX_VALUE; // neccessary to make updateposition to test if the current map is the best one for the GPS-Position
++				lastCompareY = Integer.MAX_VALUE;
++				if (! (mmp.mapImage == null) ) {
++					//Vm.debug(&quot;free: &quot;+Vm.getUsedMemory(false)+&quot;classMemory: &quot;+Vm.getClassMemory()+ &quot;after garbage collection: &quot;+Vm.getUsedMemory(false));
++					mmp.removeImage(mmp.mapImage); mmp.mapImage.free(); mmp.mapImage = null;
++					//Vm.debug(&quot;free: &quot;+Vm.getUsedMemory(false)+&quot;classMemory: &quot;+Vm.getClassMemory()+ &quot;after garbage collection: &quot;+Vm.getUsedMemory(false));
++					Vm.getUsedMemory(true); // calls the garbage collection
+ 				} // give memory free before loading the new map to avoid out of memory error  
+-			if (currentMap.fileName.length()&gt;0) mmp.mapImage = new AniImage(currentMap.fileName); // attention: when running in native java-vm, no exception will be thrown, not even OutOfMemeoryError
+-			else mmp.mapImage = new AniImage();
+-			mmp.mapImage.properties = mmp.mapImage.properties | AniImage.IsMoveable; 
+-			mmp.mapImage.move(0,0);
+-			mmp.addImage(mmp.mapImage);
+-			mmp.images.moveToBack(mmp.mapImage);
+-			addOverlaySet();
+-			updateOnlyPosition(lat, lon, false);
+-			inf.close(0);  // this doesn't work in a ticked-thread in the ewe-vm. That's why i made a new mThread in gotoPanel for ticked
+-			Vm.showWait(false);
+-			ignoreGps = saveIgnoreStatus;
+-		} catch (IllegalArgumentException e) { // thrown by new AniImage() in ewe-vm if file not found;
+-			if (mmp.mapImage != null) {
+-				mmp.removeImage(mmp.mapImage); 
+-				mmp.mapImage.free();
+-				mmp.mapImage = null;
++				if (currentMap.fileName.length()&gt;0) mmp.mapImage = new AniImage(currentMap.fileName); // attention: when running in native java-vm, no exception will be thrown, not even OutOfMemeoryError
++				else mmp.mapImage = new AniImage();
++				mmp.mapImage.properties = mmp.mapImage.properties | AniImage.IsMoveable; 
++				mmp.mapImage.move(0,0);
++				mmp.addImage(mmp.mapImage);
++				mmp.images.moveToBack(mmp.mapImage);
++				addOverlaySet();
++				forceMapLoad = true; // forces updateOnlyPosition to redraw
++				updateOnlyPosition(lat, lon, false);
++				forceMapLoad = false;
++				inf.close(0);  // this doesn't work in a ticked-thread in the ewe-vm. That's why i made a new mThread in gotoPanel for ticked
++				Vm.showWait(false);
++				ignoreGps = saveIgnoreStatus;
++			} catch (IllegalArgumentException e) { // thrown by new AniImage() in ewe-vm if file not found;
++				if (mmp.mapImage != null) {
++					mmp.removeImage(mmp.mapImage); 
++					mmp.mapImage.free();
++					mmp.mapImage = null;
++				}
++				addOverlaySet();
++				updateOnlyPosition(lat, lon, false);
++				inf.close(0);
++				Vm.showWait(false);
++				(new MessageBox(&quot;Error&quot;, &quot;Could not load map: &quot;+ newmap.fileName, MessageBox.OKB)).execute();
++				ignoreGps = saveIgnoreStatus;
++			} catch (OutOfMemoryError e) {
++				if (mmp.mapImage != null) {
++					mmp.removeImage(mmp.mapImage); 
++					mmp.mapImage.free();
++					mmp.mapImage = null;
++				}
++				addOverlaySet();
++				updateOnlyPosition(lat, lon, false);
++				inf.close(0);
++				Vm.showWait(false);
++				(new MessageBox(&quot;Error&quot;, &quot;Not enough memory to load map: &quot;+ newmap.fileName+&quot;\nYou can try to close\n all prgrams and \nrestart CacheWolf&quot;, MessageBox.OKB)).execute();
++				ignoreGps = saveIgnoreStatus;
++			}catch (SystemResourceException e) {
++				if (mmp.mapImage != null) {
++					mmp.removeImage(mmp.mapImage); 
++					mmp.mapImage.free();
++					mmp.mapImage = null;
++				}
++				addOverlaySet();
++				updateOnlyPosition(lat, lon, false);
++				inf.close(0);
++				Vm.showWait(false);
++				(new MessageBox(&quot;Error&quot;, &quot;Not enough ressources to load map: &quot;+ newmap.fileName+&quot;\nYou can try to close\n all prgrams and \nrestart CacheWolf&quot;, MessageBox.OKB)).execute();
++				ignoreGps = saveIgnoreStatus;
+ 			}
+-			addOverlaySet();
+-			updateOnlyPosition(lat, lon, false);
+-			inf.close(0);
+-			Vm.showWait(false);
+-			(new MessageBox(&quot;Error&quot;, &quot;Could not load map: &quot;+ newmap.fileName, MessageBox.OKB)).execute();
+-			ignoreGps = saveIgnoreStatus;
+-		} catch (OutOfMemoryError e) {
+-			if (mmp.mapImage != null) {
+-				mmp.removeImage(mmp.mapImage); 
+-				mmp.mapImage.free();
+-				mmp.mapImage = null;
++		}
++
++
++		public void onEvent(Event ev){
++			if(ev instanceof FormEvent &amp;&amp; (ev.type == FormEvent.CLOSED )){
++				gotoPanel.runMovingMap = false;
+ 			}
+-			addOverlaySet();
+-			updateOnlyPosition(lat, lon, false);
+-			inf.close(0);
+-			Vm.showWait(false);
+-			(new MessageBox(&quot;Error&quot;, &quot;Not enough memory to load map: &quot;+ newmap.fileName+&quot;\nYou can try to close\n all prgrams and \nrestart CacheWolf&quot;, MessageBox.OKB)).execute();
+-			ignoreGps = saveIgnoreStatus;
+-		}catch (SystemResourceException e) {
+-			if (mmp.mapImage != null) {
+-				mmp.removeImage(mmp.mapImage); 
+-				mmp.mapImage.free();
+-				mmp.mapImage = null;
+-			}
+-			addOverlaySet();
+-			updateOnlyPosition(lat, lon, false);
+-			inf.close(0);
+-			Vm.showWait(false);
+-			(new MessageBox(&quot;Error&quot;, &quot;Not enough ressources to load map: &quot;+ newmap.fileName+&quot;\nYou can try to close\n all prgrams and \nrestart CacheWolf&quot;, MessageBox.OKB)).execute();
+-			ignoreGps = saveIgnoreStatus;
++			super.onEvent(ev);
+ 		}
+ 	}
+-	
+-	
+-	public void onEvent(Event ev){
+-		if(ev instanceof FormEvent &amp;&amp; (ev.type == FormEvent.CLOSED )){
+-			gotoPanel.runMovingMap = false;
++
++	/**
++	 *	Class to display the map bitmap and to select another bitmap to display.
++	 */
++	class MovingMapPanel extends InteractivePanel implements EventListener {
++		Menu mapsMenu;
++		MovingMap mm;
++		AniImage mapImage;
++		Point saveMapLoc = null;
++		boolean saveGpsIgnoreStatus;
++		public MovingMapPanel(MovingMap f){
++			this.mm = f;
++			//this.autoMoveToTop = false;
+ 		}
+-		super.onEvent(ev);
+-	}
+-}
++		public boolean imageBeginDragged(AniImage which,Point pos) {
++			if (! (which == mapImage || which instanceof TrackOverlay) ) return false;
++			saveGpsIgnoreStatus = mm.ignoreGps; 
++			mm.ignoreGps = true;
++			saveMapLoc = mapImage.getLocation(null);
++			return super.imageBeginDragged(mapImage, pos);
++		}
+ 
+-/**
+-*	Class to display the map bitmap and to select another bitmap to display.
+-*/
+-class MovingMapPanel extends InteractivePanel{
+-	MovingMap mm;
+-	AniImage mapImage;
+-	Point saveMapLoc = null;
+-	boolean saveGpsIgnoreStatus;
+-	public MovingMapPanel(MovingMap f){
+-		this.mm = f;
+-		//this.autoMoveToTop = false;
+-	}
+-	public boolean imageBeginDragged(AniImage which,Point pos) {
+-		if (! (which == mapImage || which instanceof TrackOverlay) ) return false;
+-		saveGpsIgnoreStatus = mm.ignoreGps; 
+-		mm.ignoreGps = true;
+-		saveMapLoc = mapImage.getLocation(null);
+-		return super.imageBeginDragged(mapImage, pos);
++		public boolean imageNotDragged(ImageDragContext dc,Point pos){
++			boolean ret = super.imageNotDragged(dc, pos);
++			mapMoved(mapImage.location.x - saveMapLoc.x, mapImage.location.y - saveMapLoc.y);
++			mm.ignoreGps = saveGpsIgnoreStatus;
++			return ret;
++
+ 		}
++		public void moveMap(int diffX, int diffY) {
++			Point p = new Point();
++			if (mapImage!= null) {
++				p = mapImage.getLocation(null);
++				mapImage.move(p.x+diffX,p.y+diffY);
++			}
++			mapMoved(diffX, diffY);
++		}
+ 
+-	public boolean imageNotDragged(ImageDragContext dc,Point pos){
+-		boolean ret = super.imageNotDragged(dc, pos);
+-		mapMoved(mapImage.location.x - saveMapLoc.x, mapImage.location.y - saveMapLoc.y);
+-		mm.ignoreGps = saveGpsIgnoreStatus;
+-		return ret;
+-	 
+-	}
+-	public void moveMap(int diffX, int diffY) {
+-		Point p = new Point();
+-		if (mapImage!= null) {
+-			p = mapImage.getLocation(null);
+-			mapImage.move(p.x+diffX,p.y+diffY);
++		public void mapMoved(int diffX, int diffY){
++			Point p = mm.posCircle.getLocation(null);
++			mm.posCircle.move(p.x+diffX, p.y+diffY);
++			mm.posCircleX = mm.posCircleX+diffX;
++			mm.posCircleY = mm.posCircleY+diffY;
++			mm.updateSymbolPositions();
++			mm.updateOverlayPos();
++			this.repaintNow();
++
+ 		}
+-		mapMoved(diffX, diffY);
+-	}
+-	
+-	public void mapMoved(int diffX, int diffY){
+-		Point p = mm.posCircle.getLocation(null);
+-		mm.posCircle.move(p.x+diffX, p.y+diffY);
+-		mm.posCircleX = mm.posCircleX+diffX;
+-		mm.posCircleY = mm.posCircleY+diffY;
+-		mm.updateSymbolPositions();
+-		mm.updateOverlayPos();
+-		this.repaintNow();
+-		
+-	}
+-	public void chooseMap() {
+-		CWPoint gpspos;
+-		if (mm.gotoPanel.gpsPosition.Fix &gt; 0) gpspos = new CWPoint(mm.gotoPanel.gpsPosition.latDec, mm.gotoPanel.gpsPosition.lonDec);
+-		else gpspos = null;
+-		ListBox l = new ListBox(mm.maps, gpspos, mm.getGotoPos());
+-		if(l.execute() == FormBase.IDOK){
+-//			Vm.debug(&quot;Trying map: &quot; + l.selectedMap.fileName);
+-			mm.autoSelectMap = false;
+-			if (l.selectedMap.inBound(mm.posCircleLat, mm.posCircleLon) || l.selectedMap.fileName.length()==0) {
+-				mm.setMap(l.selectedMap, mm.posCircleLat, mm.posCircleLon);
+-				mm.ignoreGpsStatutsChanges = false;
+-			} else {
+-				mm.ignoreGpsStatutsChanges = false;
+-				mm.setGpsStatus(MovingMap.noGPS);
+-				mm.ignoreGpsStatutsChanges = true;
+-				mm.setMap(l.selectedMap, -361, -361); // don't adjust Image to lat/lon
+-//				Point posCXY = new Point (0,0); mm.getXYinMap(mm.posCircleLat, mm.posCircleLat);
+-	//			double lat = mm.currentMap.affine[0]*posCXY.x + mm.currentMap.affine[2]*posCXY.y + mm.currentMap.affine[4]; 
+-				mm.posCircleX = 0; // place map to the upper left corner of windows
+-				mm.posCircleY = 0;
+-				mm.updateOnlyPosition(mm.currentMap.affine[4], mm.currentMap.affine[5], true);
++		public void chooseMap() {
++			CWPoint gpspos;
++			if (mm.gotoPanel.gpsPosition.Fix &gt; 0) gpspos = new CWPoint(mm.gotoPanel.gpsPosition.latDec, mm.gotoPanel.gpsPosition.lonDec);
++			else gpspos = null;
++			ListBox l = new ListBox(mm.maps, gpspos, mm.getGotoPos());
++			if(l.execute() == FormBase.IDOK){
++//				Vm.debug(&quot;Trying map: &quot; + l.selectedMap.fileName);
++				mm.autoSelectMap = false;
++				if (l.selectedMap.inBound(mm.posCircleLat, mm.posCircleLon) || l.selectedMap.fileName.length()==0) {
++					mm.setMap(l.selectedMap, mm.posCircleLat, mm.posCircleLon);
++					mm.ignoreGpsStatutsChanges = false;
++				} else {
++					mm.ignoreGpsStatutsChanges = false;
++					mm.setGpsStatus(MovingMap.noGPS);
++					mm.ignoreGpsStatutsChanges = true;
++					mm.setMap(l.selectedMap, -361, -361); // don't adjust Image to lat/lon
++//					Point posCXY = new Point (0,0); mm.getXYinMap(mm.posCircleLat, mm.posCircleLat);
++					//			double lat = mm.currentMap.affine[0]*posCXY.x + mm.currentMap.affine[2]*posCXY.y + mm.currentMap.affine[4]; 
++					mm.posCircleX = 0; // place map to the upper left corner of windows
++					mm.posCircleY = 0;
++					mm.updateOnlyPosition(mm.currentMap.affine[4], mm.currentMap.affine[5], true);
++				}
+ 			}
+ 		}
+-	}
+-	
+-	/**
+-	*	Method to react to user.
+-	*/
+-	public void imageClicked(AniImage which, Point pos){
+-		if (which == mm.ButtonImageChooseMap){ chooseMap();	}
+-		if (which == mm.ButtonImageGpsOn) {
+-			if (mm.gotoPanel.serThread == null || !mm.gotoPanel.serThread.isAlive()) {
+-				mm.gotoPanel.startGps();
+-				mm.addTrack(mm.gotoPanel.currTrack); // use new track when gps now started
+-			} 
+-			mm.SnapToGps();
+-		}
+-		/*if (which == mm.arrowRight)	{	moveMap(-10,0);	}
++
++		/**
++		 *	Method to react to user.
++		 */
++		public void imageClicked(AniImage which, Point pos){
++			if (which == mm.ButtonImageChooseMap){ 
++				mapsMenu = new Menu(new String[]{&quot;Select a map manually&quot;, &quot;Change map directory&quot;}, &quot;map choice&quot;);
++				//m.set(Menu., status)
++				mapsMenu.exec(this, new Point(which.location.x, which.location.y), this);
++			}
++			//chooseMap();	
++			if (which == mm.ButtonImageGpsOn) {
++				if (mm.gotoPanel.serThread == null || !mm.gotoPanel.serThread.isAlive()) {
++					mm.gotoPanel.startGps();
++					mm.addTrack(mm.gotoPanel.currTrack); // use new track when gps now started
++				} 
++				mm.SnapToGps();
++			}
++
++			/*if (which == mm.arrowRight)	{	moveMap(-10,0);	}
+ 		if (which == mm.arrowLeft)	{	moveMap(+10,0);	}
+ 		if (which == mm.arrowDown)	{	moveMap(0,-10);	}
+ 		if (which == mm.arrowUp)	{	moveMap(0,+10);	} */
++		}
++		public void onEvent(Event ev){
++			//if (ev instanceof PenEvent &amp;&amp; ev.type == PenEvent.PEN_DOWN &amp;&amp; ev.target == this) mapsMenu.close();
++			if (ev instanceof ControlEvent ) { 
++				if (ev.target == mapsMenu &amp;&amp; ev.type == MenuEvent.SELECTED ) {
++					if (ev.type == MenuEvent.ABORTED || ev.type == MenuEvent.CANCELLED || ev.type == MenuEvent.FOCUS_OUT) mapsMenu.close();
++					if (mapsMenu.getSelectedItem() != null) {
++						if (mapsMenu.getSelectedItem() != null &amp;&amp; mapsMenu.getSelectedItem().toString().equalsIgnoreCase(&quot;Select a map manually&quot;) )
++						{ 
++							mapsMenu.close();
++							chooseMap();
++						}
++						if (mapsMenu.getSelectedItem() != null &amp;&amp; mapsMenu.getSelectedItem().toString().equalsIgnoreCase(&quot;Change map directory&quot;) )
++						{
++							mapsMenu.close();
++							FileChooser fc = new FileChooser(FileChooser.DIRECTORY_SELECT, Global.getPref().baseDir+&quot;/maps&quot;);
++							fc.addMask(&quot;*.wfl&quot;);
++							fc.setTitle((String)MyLocale.getMsg(4200,&quot;Select map directory:&quot;));
++							if(fc.execute() != FileChooser.IDCANCEL){
++								mm.loadMaps(fc.getChosen().toString()+&quot;/&quot;);
++								mm.addOverlaySet();
++								mm.forceMapLoad();
++							}
++						}
++					}
++				}
++
++
++			}
++			super.onEvent(ev);
++		}
+ 	}
+-}
+ 
+-/**
+-*	Class to display maps to choose from
+-*/
+-class ListBox extends Form{
+-	public MapInfoObject selectedMap = new MapInfoObject();
+-	mButton cancelButton, okButton;
+-	mList list = new mList(4,1,false);
+-	public boolean selected = false;
+-	Vector maps;
+-	
+-	public ListBox(Vector maps, CWPoint Gps, CWPoint gotopos){
+-		this.title = &quot;Maps&quot;;
+-		// if (Gui.screenIs(Gui.PDA_SCREEN)) this.setPreferredSize(200,100); else 
+-		this.setPreferredSize(MyLocale.getScreenWidth()*3/4, MyLocale.getScreenHeight()*3/4);
+-		this.maps = maps;
+-		MapInfoObject map;
+-		ScrollBarPanel scb;
+-		boolean[] inList = new boolean[maps.size()];
+-		if (gotopos != null &amp;&amp; Gps != null) {
+-			list.addItem(&quot;--- Karten von akt. Position und Ziel ---&quot;);
+-			for(int i = 0; i&lt;maps.size();i++){
+-				map = new MapInfoObject();
+-				map = (MapInfoObject)maps.get(i);
+-				if( map.inBound(Gps.latDec, Gps.lonDec) &amp;&amp; map.inBound(gotopos) ) 
++
++	/**
++	 *	Class to display maps to choose from
++	 */
++	class ListBox extends Form{
++		public MapInfoObject selectedMap = new MapInfoObject();
++		mButton cancelButton, okButton;
++		mList list = new mList(4,1,false);
++		public boolean selected = false;
++		Vector maps;
++
++		public ListBox(Vector maps, CWPoint Gps, CWPoint gotopos){
++			this.title = &quot;Maps&quot;;
++			// if (Gui.screenIs(Gui.PDA_SCREEN)) this.setPreferredSize(200,100); else 
++			this.setPreferredSize(MyLocale.getScreenWidth()*3/4, MyLocale.getScreenHeight()*3/4);
++			this.maps = maps;
++			MapInfoObject map;
++			ScrollBarPanel scb;
++			boolean[] inList = new boolean[maps.size()];
++			if (gotopos != null &amp;&amp; Gps != null) {
++				list.addItem(&quot;--- Karten von akt. Position und Ziel ---&quot;);
++				for(int i = 0; i&lt;maps.size();i++){
++					map = new MapInfoObject();
++					map = (MapInfoObject)maps.get(i);
++					if( map.inBound(Gps.latDec, Gps.lonDec) &amp;&amp; map.inBound(gotopos) ) 
+ 					{
+-					list.addItem(i + &quot;: &quot; + map.mapName);
+-					inList[i] = true;
++						list.addItem(i + &quot;: &quot; + map.mapName);
++						inList[i] = true;
+ 					} else inList[i] = false;
++				}
+ 			}
+-		}
+-		if (Gps != null) {
+-			list.addItem(&quot;--- Karten der aktuellen Position ---&quot;);
+-			for(int i = 0; i&lt;maps.size();i++){
+-				map = new MapInfoObject();
+-				map = (MapInfoObject)maps.get(i);
+-				if(map.inBound(Gps.latDec, Gps.lonDec) == true) 
++			if (Gps != null) {
++				list.addItem(&quot;--- Karten der aktuellen Position ---&quot;);
++				for(int i = 0; i&lt;maps.size();i++){
++					map = new MapInfoObject();
++					map = (MapInfoObject)maps.get(i);
++					if(map.inBound(Gps.latDec, Gps.lonDec) == true) 
+ 					{
+-					list.addItem(i + &quot;: &quot; + map.mapName);
+-					inList[i] = true;
++						list.addItem(i + &quot;: &quot; + map.mapName);
++						inList[i] = true;
+ 					}
++				}
+ 			}
+-		}
+-		if (gotopos != null) {
+-			list.addItem(&quot;--- Karten des Ziels ---&quot;);
++			if (gotopos != null) {
++				list.addItem(&quot;--- Karten des Ziels ---&quot;);
++				for(int i = 0; i&lt;maps.size();i++){
++					map = new MapInfoObject();
++					map = (MapInfoObject)maps.get(i);
++					if(map.inBound(gotopos)) {
++						list.addItem(i + &quot;: &quot; + map.mapName);
++						inList[i] = true;
++					}
++				}
++			}
++			list.addItem(&quot;--- andere Karten ---&quot;);
+ 			for(int i = 0; i&lt;maps.size();i++){
+ 				map = new MapInfoObject();
+ 				map = (MapInfoObject)maps.get(i);
+-				if(map.inBound(gotopos)) {
+-					list.addItem(i + &quot;: &quot; + map.mapName);
+-					inList[i] = true;
+-				}
++				if(!inList[i]) list.addItem(i + &quot;: &quot; + map.mapName);
+ 			}
++
++			this.addLast(scb = new ScrollBarPanel(list),CellConstants.STRETCH, CellConstants.FILL);
++			cancelButton = new mButton(&quot;Cancel&quot;);
++			cancelButton.setHotKey(0, KeyEvent.getCancelKey(true));
++			this.addNext(cancelButton,CellConstants.STRETCH, CellConstants.FILL);
++			okButton = new mButton(&quot;Select&quot;);
++			okButton.setHotKey(0, KeyEvent.getActionKey(true));
++			this.addLast(okButton,CellConstants.STRETCH, CellConstants.FILL);
+ 		}
+-		list.addItem(&quot;--- andere Karten ---&quot;);
+-		for(int i = 0; i&lt;maps.size();i++){
+-			map = new MapInfoObject();
+-			map = (MapInfoObject)maps.get(i);
+-			if(!inList[i]) list.addItem(i + &quot;: &quot; + map.mapName);
++		private boolean mapIsInList(int mapNr){ // it is not used  anymore could be deleted
++			String testitem = new String();
++			int testitemnr;
++			for (int i=0; i&lt;list.countListItems(); i++) {
++				try { 
++					testitem = ((MenuItem)list.items.get(i)).label;
++					testitemnr = Convert.toInt(testitem.substring(0,testitem.indexOf(':')));
++					if ( testitemnr == mapNr) return true;
++				} catch (IndexOutOfBoundsException e) {} // happens on a seperator line because it doesn't contain &quot;:&quot;
++				catch (NegativeArraySizeException e) {} // happens on a seperator line because it doesn't contain &quot;:&quot;
++			}
++			return false;
+ 		}
+-		
+-		this.addLast(scb = new ScrollBarPanel(list),CellConstants.STRETCH, CellConstants.FILL);
+-		cancelButton = new mButton(&quot;Cancel&quot;);
+-		cancelButton.setHotKey(0, KeyEvent.getCancelKey(true));
+-		this.addNext(cancelButton,CellConstants.STRETCH, CellConstants.FILL);
+-		okButton = new mButton(&quot;Select&quot;);
+-		okButton.setHotKey(0, KeyEvent.getActionKey(true));
+-		this.addLast(okButton,CellConstants.STRETCH, CellConstants.FILL);
+-		okButton.setHotKey(0, KeyEvent.getActionKey(true));
+-	}
+-	private boolean mapIsInList(int mapNr){ // it is not used  anymore could be deleted
+-		String testitem = new String();
+-		int testitemnr;
+-		for (int i=0; i&lt;list.countListItems(); i++) {
+-			try { 
+-				testitem = ((MenuItem)list.items.get(i)).label;
+-				testitemnr = Convert.toInt(testitem.substring(0,testitem.indexOf(':')));
+-				if ( testitemnr == mapNr) return true;
+-			} catch (IndexOutOfBoundsException e) {} // happens on a seperator line because it doesn't contain &quot;:&quot;
+-			catch (NegativeArraySizeException e) {} // happens on a seperator line because it doesn't contain &quot;:&quot;
++
++
++		public int myExecute() {
++			if (this.maps.size()==1) {
++				//this.selectedMap = 1;
++				this.selectedMap = (MapInfoObject) maps.get(0);
++				return FormBase.IDOK;
++			}
++			return execute();
+ 		}
+-		return false;
+-	}
+ 
+-	
+-	public int myExecute() {
+-		if (this.maps.size()==1) {
+-			//this.selectedMap = 1;
+-			this.selectedMap = (MapInfoObject) maps.get(0);
+-			return FormBase.IDOK;
+-		}
+-		return execute();
+-	}
+-	
+-	
+-	public void onEvent(Event ev){
+-		if(ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.PRESSED){
+-			if (ev.target == cancelButton){
+-				selectedMap = null;
+-				selected = false;
+-				this.close(FormBase.IDCANCEL);
+-			}
+-			if (ev.target == okButton){
+-				try {
++
++		public void onEvent(Event ev){
++			if(ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.PRESSED){
++				if (ev.target == cancelButton){
+ 					selectedMap = null;
+-					int mapNum = 0;
+-					String it = new String();
+-					it = list.getText();
+-					if (it != &quot;&quot;){
+-						it = it.substring(0,it.indexOf(':'));
+-						mapNum = Convert.toInt(it);
+-						//	Vm.debug(&quot;Kartennummer: &quot; + mapNum);
+-						selectedMap = (MapInfoObject)maps.get(mapNum);
+-						selected = true;
+-						this.close(FormBase.IDOK);
+-					}
+-					else {
+-						selected = false;
+-						this.close(FormBase.IDCANCEL);
+-					}
+-				}catch (NegativeArraySizeException e) {} // happens in substring when a dividing line selected 
++					selected = false;
++					this.close(FormBase.IDCANCEL);
++				}
++				if (ev.target == okButton){
++					try {
++						selectedMap = null;
++						int mapNum = 0;
++						String it = new String();
++						it = list.getText();
++						if (it != &quot;&quot;){
++							it = it.substring(0,it.indexOf(':'));
++							mapNum = Convert.toInt(it);
++							//	Vm.debug(&quot;Kartennummer: &quot; + mapNum);
++							selectedMap = (MapInfoObject)maps.get(mapNum);
++							selected = true;
++							this.close(FormBase.IDOK);
++						}
++						else {
++							selected = false;
++							this.close(FormBase.IDCANCEL);
++						}
++					}catch (NegativeArraySizeException e) {} // happens in substring when a dividing line selected 
++				}
+ 			}
++			super.onEvent(ev);
+ 		}
+-		super.onEvent(ev);
+ 	}
+-}
+ 
+-class MapSymbol {
+-	String name;
+-	String filename;
+-	double lat, lon;
+-	AniImage pic;
+-	public MapSymbol(String namei, String filenamei, double lati, double loni) {
+-		name = namei;
+-		filename = filenamei;
+-		lat = lati;
+-		lon = loni;
++	class MapSymbol {
++		String name;
++		String filename;
++		double lat, lon;
++		AniImage pic;
++		public MapSymbol(String namei, String filenamei, double lati, double loni) {
++			name = namei;
++			filename = filenamei;
++			lat = lati;
++			lon = loni;
++		}
++		public void loadImage(){
++			pic = new AniImage(filename);
++			pic.properties = AniImage.AlwaysOnTop;
++		}
+ 	}
+-	public void loadImage(){
+-		pic = new AniImage(filename);
+-		pic.properties = AniImage.AlwaysOnTop;
+-	}
+-}
+ 
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2007-01-10 23:47:02 UTC (rev 379)
++++ trunk/src/CacheWolf/myTableControl.java	2007-01-11 04:13:15 UTC (rev 380)
+@@ -57,6 +57,7 @@
+ 			tbp.refreshTable();
+ 		}
+ 		if (selectedItem.toString().equals(MyLocale.getMsg(1012,&quot;Delete&quot;))){
++			if ((new MessageBox(&quot;Warnung&quot;, &quot;Alle mit H&#228;ckchen markierten Caches l&#246;schen?&quot;, MessageBox.YESB | MessageBox.NOB)).execute() != Form.IDYES) return;
+ 			for(int i = 0; i &lt;	db.size(); i++){
+ 				ch = (CacheHolder)db.get(i);
+ 				if(ch.is_Checked == true) {
+@@ -98,6 +99,7 @@
+ 				pref.curCentrePt.set(cp);
+ 				TablePanel.updateBearingDistance(db, pref);
+ 				tbp.refreshTable();
++				(new MessageBox(&quot;Info&quot;, &quot;Entfernungen in der Listenansicht \nvom aktuellen Standpunkt aus \nneu berechnet&quot;, MessageBox.OKB)).execute();
+ 			}
+ 		}
+ 		
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000093.html">[Cachewolf-svn] [Feature #3031] Doppelklick in der Cacheliste
+</A></li>
+	<LI>Next message: <A HREF="000094.html">[Cachewolf-svn] [Feature #2987] /maps Verzeichnis
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#96">[ date ]</a>
+              <a href="thread.html#96">[ thread ]</a>
+              <a href="subject.html#96">[ subject ]</a>
+              <a href="author.html#96">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

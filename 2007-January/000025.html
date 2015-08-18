@@ -1,0 +1,394 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r348 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r348%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701061954.l06JskKg002443%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000024.html">
+   <LINK REL="Next"  HREF="000026.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r348 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r348%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701061954.l06JskKg002443%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r348 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sat Jan  6 20:54:46 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000024.html">[Cachewolf-svn] [Bug #9752] sonderzeichen
+</A></li>
+        <LI>Next message: <A HREF="000026.html">[Cachewolf-svn] r349 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#25">[ date ]</a>
+              <a href="thread.html#25">[ thread ]</a>
+              <a href="subject.html#25">[ subject ]</a>
+              <a href="author.html#25">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-01-06 20:54:43 +0100 (Sat, 06 Jan 2007)
+New Revision: 348
+
+Modified:
+   trunk/src/CacheWolf/MainForm.java
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/TablePanel.java
+   trunk/src/CacheWolf/myTableModel.java
+Log:
+Ein-/ausgeblendete Spalten werden sofort nach &quot;Anwenden&quot; der Praeferenzen angezeigt.
+Beginn Umbau auf Global
+
+Modified: trunk/src/CacheWolf/MainForm.java
+===================================================================
+--- trunk/src/CacheWolf/MainForm.java	2007-01-06 13:21:17 UTC (rev 347)
++++ trunk/src/CacheWolf/MainForm.java	2007-01-06 19:54:43 UTC (rev 348)
+@@ -11,8 +11,8 @@
+ public class MainForm extends Form {
+ 	
+ 	StatusBar statBar;
+-	Preferences pref = Preferences.getPrefObject(); // Singleton pattern
+-	Profile profile = new Profile();
++	Preferences pref = Global.getPref(); // Singleton pattern
++	Profile profile = Global.getProfile();
+ 	MainTab mTab;
+ 	MainMenu mMenu;
+ 
+@@ -70,9 +70,9 @@
+ 				Vm.setSIP(Vm.SIP_LEAVE_BUTTON|Vm.SIP_ON);
+ 			}
+ 		} else Vm.setSIP(0);
+-		Vm.setParameter(Vm.SET_ALWAYS_SHOW_SIP_BUTTON,1);
++		//Vm.setParameter(Vm.SET_ALWAYS_SHOW_SIP_BUTTON,1);
+ 		statBar = new StatusBar(pref, profile.cacheDB);
+-		this.addLast(mMenu = new MainMenu(this, pref, profile),CellConstants.DONTSTRETCH, CellConstants.FILL);
++		this.addLast(mMenu = new MainMenu(this),CellConstants.DONTSTRETCH, CellConstants.FILL);
+ 		this.addLast(mTab = new MainTab(pref,profile,statBar),CellConstants.STRETCH, CellConstants.FILL);
+ 		mMenu.setTablePanel(mTab.getTablePanel());
+ 		
+@@ -111,6 +111,7 @@
+ 	
+ 	public void onEvent(Event ev){ // Preferences have been changed by PreferencesScreen
+ 		if(pref.dirty == true){
++			mTab.getTablePanel().myMod.setColumnNamesAndWidths();	
+ 		    mTab.getTablePanel().refreshTable();
+ 			pref.dirty = false;
+ 		}
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2007-01-06 13:21:17 UTC (rev 347)
++++ trunk/src/CacheWolf/MainMenu.java	2007-01-06 19:54:43 UTC (rev 348)
+@@ -30,15 +30,9 @@
+ 	private MenuItem orgCopy, orgMove, orgDelete;
+ 	private MenuItem mnuNewProfile, mnuOpenProfile, mnuEditProfile;
+ 	private Form father;
+-	private Preferences pref;
+-	private Vector cacheDB;
+ 	private TablePanel tbp;
+-	private Profile profile;
+ 	
+-	public MainMenu(Form f, Preferences p, Profile prof){
+-		profile=prof;
+-		cacheDB = profile.cacheDB;
+-		pref = p;
++	public MainMenu(Form f){
+ 		father = f;
+ 		String cwd = File.getProgramDirectory();
+ 
+@@ -162,6 +156,9 @@
+ 	}
+ 	
+ 	public void onEvent(Event ev){
++		Preferences pref=Global.getPref();
++		Profile profile=Global.getProfile();
++		Vector cacheDB=profile.cacheDB;
+ 		if (ev instanceof MenuEvent){ //&amp;&amp; ev.type == MenuEvent.PRESSED
+ 			MenuEvent mev = (MenuEvent)ev;
+ 			if(mev.selectedItem == wolflang){
+@@ -190,9 +187,10 @@
+ 			}
+ 			if(mev.selectedItem == mnuOpenProfile){
+ 				if (pref.selectProfile(profile,Preferences.PROFILE_SELECTOR_FORCED_ON,false)) {
++					profile.cacheDB.clear();
+ 					profile.readIndex();
+ 					pref.curCentrePt.set(profile.centre);
+-					tbp.resetModel(cacheDB);
++					tbp.resetModel();
+ 				}
+ 			}
+ 			if(mev.selectedItem == mnuEditProfile){
+@@ -202,6 +200,7 @@
+ 				f.close(0);
+ 			}
+ 			if(mev.selectedItem == preferences){
++				tbp.saveColWith(pref);
+ 				PreferencesScreen pfs = new PreferencesScreen(pref);
+ 				pfs.execute(father.getFrame(), Gui.CENTER_FRAME);
+ 				pref.readPrefFile();
+@@ -238,12 +237,12 @@
+ 						}
+ 					}
+ 				}
+-				tbp.resetModel(cacheDB);
++				tbp.resetModel();
+ 			}
+ 			if(mev.selectedItem == loadOC){
+ 				OCXMLImporter oc = new OCXMLImporter(pref,profile);
+ 				oc.doIt();
+-				tbp.resetModel(cacheDB);
++				tbp.resetModel();
+ 			}
+ 			if(mev.selectedItem == filtCreate){
+ 				FilterScreen fsc = new FilterScreen(cacheDB, pref.baseDir);
+@@ -261,10 +260,10 @@
+ 				pcx.doIt(PCX5Exporter.MODE_AUTO);
+ 				ProgressBarForm pbf = new ProgressBarForm();
+ 				pbf.display(MyLocale.getMsg(950,&quot;Transfer&quot;),MyLocale.getMsg(951,&quot;Sending to GPS&quot;), null);
+-				String cwd = new String();
+-				cwd = File.getProgramDirectory() + &quot;/temp.pcx&quot;;
++				String cwd = File.getProgramDirectory() + &quot;/temp.pcx&quot;;
+ 				try{
+ 					ewe.sys.Process p = Vm.exec(&quot;gpsbabel -s -i pcx -f &quot;+ cwd +&quot; -o garmin -F &quot; + pref.garminConn +&quot;:&quot;);
++					Vm.debug(&quot;gpsbabel -s -i pcx -f &quot;+ cwd +&quot; -o garmin -F &quot; + pref.garminConn +&quot;:&quot;);
+ 					p.waitFor();
+ 				}catch(IOException ioex){};
+ 				pbf.clear();
+@@ -297,7 +296,7 @@
+ 			}
+ 			
+ 			if(mev.selectedItem == filtSelected){
+-				CacheHolder ch = new CacheHolder();
++				CacheHolder ch;
+ 				for(int i = 0; i &lt;	cacheDB.size(); i++){
+ 					ch = (CacheHolder)cacheDB.get(i);
+ 					ch.is_filtered = false;
+@@ -443,28 +442,9 @@
+ 				}
+ 			}
+ 			if(mev.selectedItem == spider){
+-				//GeoToadUI gtUI = new GeoToadUI(myPreferences, File.getProgramDirectory(),cacheDB);
+ 				SpiderGC spGC = new SpiderGC(pref, profile);
+ 				spGC.doIt();
+-				tbp.resetModel(cacheDB);
+-				/*
+-				gtUI.execute();
+-				File ftest = new File(File.getProgramDirectory() + &quot;/temp.gpx&quot;);
+-				if(ftest.exists()){
+-					if(gtUI.chkImport.getState()){
+-						//if(chkSpoilers.getState()) inf = new InfoBox(&quot;GPX&quot;, &quot;import + spoiler&quot;);
+-						//else inf = new InfoBox(&quot;GPX&quot;, &quot;import&quot;);
+-						//inf.show();
+-						GPXImporter imp = new GPXImporter(cacheDB, File.getProgramDirectory() + &quot;/temp.gpx&quot;, myPreferences);
+-						if(gtUI.chkSpoilers.getState()) {
+-							imp.doIt(GPXImporter.DOIT_WITHSPOILER);
+-						} else imp.doIt(GPXImporter.DOIT_NOSPOILER);
+-					} else {
+-						//Vm.debug(&quot;timer checking...&quot;);					
+-					}
+-					tbp.resetModel(cacheDB);
+-				}
+-				*/
++				tbp.resetModel();
+ 			}
+ 			if(mev.selectedItem == exit){
+ 				ewe.sys.Vm.exit(0);
+
+Modified: trunk/src/CacheWolf/TablePanel.java
+===================================================================
+--- trunk/src/CacheWolf/TablePanel.java	2007-01-06 13:21:17 UTC (rev 347)
++++ trunk/src/CacheWolf/TablePanel.java	2007-01-06 19:54:43 UTC (rev 348)
+@@ -26,6 +26,7 @@
+ 		this.statBar = statBar;
+ 		cacheDB = profile.cacheDB;
+ 		pref = p;
++/*
+ 		String [] spName = {&quot; &quot;,&quot;?&quot;,MyLocale.getMsg(1000,&quot;D&quot;),&quot;T&quot;,MyLocale.getMsg(1002,&quot;Waypoint&quot;),&quot;Name&quot;,MyLocale.getMsg(1004,&quot;Location&quot;),MyLocale.getMsg(1005,&quot;Owner&quot;),MyLocale.getMsg(1006,&quot;Hidden&quot;),MyLocale.getMsg(1007,&quot;Status&quot;),MyLocale.getMsg(1008,&quot;Dist&quot;),MyLocale.getMsg(1009,&quot;Bear&quot;)};
+ 		String[] jester;
+ 		int colWidth[];
+@@ -45,7 +46,7 @@
+ 				ji++;
+ 			}
+ 		}
+-		
++*/		
+ 		addLast(new ScrollBarPanel(tc = new myTableControl()));
+ 		addLast(statBar,CellConstants.DONTSTRETCH, CellConstants.FILL);
+ 		Menu m = new Menu(new String[]{MyLocale.getMsg(1010,&quot;Goto&quot;),MyLocale.getMsg(1019,&quot;Center&quot;),MyLocale.getMsg(1011,&quot;Filter&quot;),MyLocale.getMsg(1012,&quot;Delete&quot;),MyLocale.getMsg(1014,&quot;Update&quot;),MyLocale.getMsg(1018,&quot;Sel. add. wpts.&quot;),&quot;-&quot;,MyLocale.getMsg(1015,&quot;Select all&quot;),MyLocale.getMsg(1016,&quot;De-select all&quot;),MyLocale.getMsg(1017,&quot;All add. wpts&quot;)},MyLocale.getMsg(1013,&quot;With selection&quot;));
+@@ -54,7 +55,7 @@
+ 		tc.db = cacheDB;
+ 		tc.pref = p;
+ 		tc.tbp = this;
+-		myMod = new myTableModel(cacheDB, jester, colWidth, tc, getFontMetrics());
++		myMod = new myTableModel(tc, getFontMetrics());
+ 		myMod.hasRowHeaders = false;
+ 		myMod.hasColumnHeaders  = true;
+ 		tc.setTableModel(myMod);
+@@ -87,45 +88,18 @@
+ 		}
+ 	}
+ 	
+-	public void resetModel(Vector cacheDB) {
+-		myMod.setVector(cacheDB);
++	public void resetModel() {
++		//RB  myMod.setVector(cacheDB);
++		myMod.numRows = cacheDB.size();
+ 		updateBearingDistance(cacheDB, pref);
+ 		////Vm.debug(&quot;IS mypref loaded? &quot; + myPreferences.mylgDeg);
+-		tc.setTableModel(myMod);
++		// tc.setTableModel(myMod); Not needed ?
+ 		tc.update(true);
+ 		statBar.updateDisplay();
+ 	}
+ 	
+ 	public void refreshTable(){
+-/*		Auskommentiert f&#252;r bug 9529 - vergessene Spaltenbreite
+-        Weil bei jedem refresh ein neues TableModel Objekt erzeugt wurde, werden
+-        die Spaltenbreiten vergessen.
+-        Derzeit nur auskommentiert um eventuelle Nebeneffekte zu prfen.
+-         
+- 		String [] spName = {&quot; &quot;,&quot;?&quot;,MyLocale.getMsg(1000,&quot;D&quot;),&quot;T&quot;,MyLocale.getMsg(1002,&quot;Waypoint&quot;),&quot;Name&quot;,MyLocale.getMsg(1004,&quot;Location&quot;),MyLocale.getMsg(1005,&quot;Owner&quot;),MyLocale.getMsg(1006,&quot;Hidden&quot;),MyLocale.getMsg(1007,&quot;Status&quot;),MyLocale.getMsg(1008,&quot;Dist&quot;),MyLocale.getMsg(1009,&quot;Bear&quot;)};
+-		String[] jester;
+-		int colWidth[];
+-
+-		int colnum = 0;
+-		
+-		for(int i = 0; i&lt;=11; i++){
+-			if(myPreferences.tablePrefs[i] == 1) colnum++;
+-		}
+-		jester = new String[colnum];
+-		colWidth = new int[colnum];
+-		int ji = 0;
+-		for(int i = 0; i&lt;=11;i++){
+-			if(myPreferences.tablePrefs[i] == 1){
+-				jester[ji] = spName[i];
+-				colWidth[ji] = myPreferences.tableWidth[i];
+-				ji++;
+-			}
+-		}
+-		myMod = new myTableModel(cacheDB, jester, colWidth, tc, getFontMetrics());
+-		myMod.hasRowHeaders = false;
+-		myMod.hasColumnHeaders  = true;
+-		tc.setTableModel(myMod);
+-*/		myMod.updateRows();
++		myMod.updateRows();
+ 		tc.update(true);
+ 		statBar.updateDisplay();
+ 	}
+
+Modified: trunk/src/CacheWolf/myTableModel.java
+===================================================================
+--- trunk/src/CacheWolf/myTableModel.java	2007-01-06 13:21:17 UTC (rev 347)
++++ trunk/src/CacheWolf/myTableModel.java	2007-01-06 19:54:43 UTC (rev 348)
+@@ -29,7 +29,7 @@
+ 	String nmCheck, nmQuest, nmD,nmT,nmWay,nmName,nmLoc,nmOwn,nmHid,nmStat,nmDist,nmBear = new String();
+ 	Image checkboxTicked,checkboxUnticked;
+ 	
+-	public myTableModel(Vector DB, String[] colNs,int[] colWidth, myTableControl tc, FontMetrics fm){
++	public myTableModel(myTableControl tc, FontMetrics fm){
+ 		super();
+ 		nmCheck = &quot; &quot;;
+ 		nmQuest = &quot;?&quot;;
+@@ -45,15 +45,15 @@
+ 		nmBear = MyLocale.getMsg(1009,&quot;Bear&quot;);
+ 		fm = this.fm;
+ 		tcControl = tc;
+-		cacheDB = DB;
++		setColumnNamesAndWidths(); 
++		cacheDB = Global.getProfile().cacheDB;
+ 		this.numRows = cacheDB.size();
+ 		Dimension selrow = new Dimension(-1,1);
+ 		this.cursorSize = selrow;
+-		colName = new String[colNs.length];
+-		colName = colNs;
+-		breiten = new int[colWidth.length];
+-		breiten = colWidth;
+-		this.numCols = colName.length;
++		//colName = new String[colNs.length];
++		//colName = colNs;
++		//breiten = new int[colWidth.length];
++		//breiten = colWidth;
+ 		cacheImages[0] = new Image(&quot;0.png&quot;);
+ 		//cacheImages[1] = new Image();
+ 		cacheImages[2] = new Image(&quot;2.png&quot;);
+@@ -93,11 +93,43 @@
+ 		checkboxUnticked= new Image(&quot;checkboxUnticked.png&quot;);
+ 	}
+ 	
+-	public void setVector(Vector DB){
+-		cacheDB = DB;
+-		this.numRows = cacheDB.size();
++	/**
++	 * Sets the column names and widths from preferences
++	 *
++	 */
++	public void setColumnNamesAndWidths() {
++		String [] spName = {&quot; &quot;,&quot;?&quot;,MyLocale.getMsg(1000,&quot;D&quot;),&quot;T&quot;,MyLocale.getMsg(1002,&quot;Waypoint&quot;),&quot;Name&quot;,MyLocale.getMsg(1004,&quot;Location&quot;),MyLocale.getMsg(1005,&quot;Owner&quot;),MyLocale.getMsg(1006,&quot;Hidden&quot;),MyLocale.getMsg(1007,&quot;Status&quot;),MyLocale.getMsg(1008,&quot;Dist&quot;),MyLocale.getMsg(1009,&quot;Bear&quot;)};
++		String[] jester;
++		int colWidth[];
++		int colnum = 0;
++		Preferences pref=Global.getPref();
++		
++		for(int i = 0; i&lt;=11; i++){
++			if(pref.tablePrefs[i] == 1) colnum++;
++		}
++		jester = new String[colnum];
++		colWidth = new int[colnum];
++		
++		int ji = 0;
++		for(int i = 0; i&lt;=11;i++){
++			if(pref.tablePrefs[i] == 1){
++				jester[ji] = spName[i];
++				colWidth[ji] = pref.tableWidth[i];
++				ji++;
++			}
++		}
++		colName = jester;
++		breiten = colWidth;
++		this.numCols = colName.length;
++		clearCellAdjustments();
++		//remapColumns(null);
+ 	}
+ 	
++	//RBpublic void setVector(Vector DB){
++	//	cacheDB = DB;
++	//	this.numRows = cacheDB.size();
++	//}
++	
+ 	public void updateRows(){
+ 		this.numRows = cacheDB.size();
+ 		int counter = 0;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000024.html">[Cachewolf-svn] [Bug #9752] sonderzeichen
+</A></li>
+	<LI>Next message: <A HREF="000026.html">[Cachewolf-svn] r349 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#25">[ date ]</a>
+              <a href="thread.html#25">[ thread ]</a>
+              <a href="subject.html#25">[ subject ]</a>
+              <a href="author.html#25">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

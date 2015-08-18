@@ -1,0 +1,253 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2774 - trunk/src/CacheWolf/imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-September/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2774%20-%20trunk/src/CacheWolf/imp&In-Reply-To=%3C20100910134422.15BEC48038A%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002761.html">
+   <LINK REL="Next"  HREF="002763.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2774 - trunk/src/CacheWolf/imp</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2774%20-%20trunk/src/CacheWolf/imp&In-Reply-To=%3C20100910134422.15BEC48038A%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2774 - trunk/src/CacheWolf/imp">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Fri Sep 10 03:44:22 CEST 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002761.html">[Cachewolf-svn] r2773 - in trunk/src/CacheWolf: . imp navi
+</A></li>
+        <LI>Next message: <A HREF="002763.html">[Cachewolf-svn] r2775 - in trunk: res_noewe/languages src/CacheWolf	src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2762">[ date ]</a>
+              <a href="thread.html#2762">[ thread ]</a>
+              <a href="subject.html#2762">[ subject ]</a>
+              <a href="author.html#2762">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2010-09-10 15:44:21 +0200 (Fri, 10 Sep 2010)
+New Revision: 2774
+
+Modified:
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+changed calculating the squares to the simple way.
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2010-09-09 18:04:23 UTC (rev 2773)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2010-09-10 13:44:21 UTC (rev 2774)
+@@ -220,8 +220,10 @@
+ 			
+ 			cachesToUpdate=fillDownloadLists(pref.maxSpiderNumber , maxUpdate, maxDistance, minDistance, directions, cachesToUpdate);
+ 			if (cachesToUpdate == null) {cachesToUpdate = new Hashtable();};
+-			if (infB.isClosed) { Vm.showWait(false); return; }
+-			infB.setInfo(MyLocale.getMsg(5511,&quot;Found &quot;) + cachesToLoad.size() + MyLocale.getMsg(5512,&quot; caches&quot;));
++			if (!infB.isClosed){
++				infB.setInfo(MyLocale.getMsg(5511,&quot;Found &quot;) + cachesToLoad.size() + MyLocale.getMsg(5512,&quot; caches&quot;));
++			}
++			// continue to update index to changed cache.xml things (size,terrain,difficulty,...?) 
+ 
+ 			//=======
+ 			// Now ready to spider each cache in the lists
+@@ -252,8 +254,10 @@
+ 
+ 			if (Global.mainTab.statBar!=null) Global.mainTab.statBar.updateDisplay(&quot;&quot;);
+ 
+-			spiderErrors=downloadCaches(cachesToLoad, spiderErrors, totalCachesToLoad, loadAllLogs);
+-			spiderErrors=updateCaches(cachesToUpdate, spiderErrors, totalCachesToLoad, loadAllLogs);
++			if (!infB.isClosed) {
++				spiderErrors=downloadCaches(cachesToLoad, spiderErrors, totalCachesToLoad, loadAllLogs);
++				spiderErrors=updateCaches(cachesToUpdate, spiderErrors, totalCachesToLoad, loadAllLogs);
++			}
+ 
+ 			if ( spiderErrors &gt; 0) {
+ 				new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;),spiderErrors + MyLocale.getMsg(5516,&quot; cache descriptions%0acould not be loaded.&quot;),FormBase.DEFOKB).execute();
+@@ -397,8 +401,22 @@
+ 
+ 		page_number = 1;
+ 		num_added = 0;
+-		getCaches(origin,halfSideLength);
+ 		
++		int north = 0;
++		int east = 1;
++		int south = 2;
++		int west = 3;
++
++		halfSideLength=halfSideLength*1000; // in meters
++		CWPoint northwest = new CWPoint(origin); 
++		northwest.shift(halfSideLength , north);
++		northwest.shift(halfSideLength , west);		
++		CWPoint southeast = new CWPoint(origin);
++		southeast.shift(halfSideLength, south);
++		southeast.shift(halfSideLength, east);
++
++		getCaches(northwest.latDec,northwest.lonDec,southeast.latDec,southeast.lonDec);
++		
+ 		if (!infB.isClosed) infB.close(0);
+ 		Vm.showWait(false);
+ 
+@@ -407,46 +425,40 @@
+ 				
+ 	}
+ 	
+-	private void getCaches(CWPoint middleOfSquare, double halfSideLength) {
++	private void getCaches(double north, double west, double south, double east) {
+ 		if (infB.isClosed) return;
+ 		page_number++;
+-		String listPage=getMapListPage(middleOfSquare, halfSideLength, halfSideLength);
+-		if (listPage.indexOf(&quot;\&quot;count\&quot;: 501&quot;)&gt;-1 || halfSideLength &lt; 1.0 ) {
+-			Vm.debug(&quot;split &quot;+middleOfSquare.toString());
+-			double quarterSideLength = halfSideLength/2.0;
+-			double metersQuarterSideLength = quarterSideLength * 1000;
+-			int north = 0;
+-			int east = 1;
+-			int south = 2;
+-			int west = 3;
++		CWPoint middle = new CWPoint((north+south)/2.0,(west+east)/2.0);
++		
++		// Global.getPref().log(&quot;Mitte: &quot;+middle,null);
++		// Global.getPref().log(&quot;Rechteck: &quot;+south+&quot; &quot;+west+&quot; to &quot;+north+&quot; &quot;+east,null);
++		CWPoint lu = new CWPoint(south,west);
++		CWPoint ro = new CWPoint(north,east);
++		CWPoint lo = new CWPoint(north,west);
++		CWPoint ru = new CWPoint(south,east);
++		// Global.getPref().log(&quot;Seitenl&#228;ngen: &quot;+lu.getDistance(ru)+&quot; &quot;+lu.getDistance(lo)+&quot; &quot;+ro.getDistance(lo)+&quot; &quot;+ro.getDistance(ru),null);		
+ 
+-			CWPoint northwest = new CWPoint(middleOfSquare); 
+-			northwest.shift(metersQuarterSideLength, north);
+-			CWPoint northeast = new CWPoint(northwest);
+-			northwest.shift(metersQuarterSideLength , west);
+-			northeast.shift(metersQuarterSideLength, east);
++		String listPage=getMapListPage(middle, north, west, south, east);
++		if (listPage.indexOf(&quot;\&quot;count\&quot;: 501&quot;)&gt;-1 &amp;&amp; +lu.getDistance(ru) &gt; 2.0 ) {
++			Vm.debug(&quot;split &quot;);
+ 			
+-			CWPoint southwest = new CWPoint(middleOfSquare);
+-			southwest.shift(metersQuarterSideLength, south);
+-			CWPoint southeast = new CWPoint(southwest);
+-			southwest.shift(metersQuarterSideLength, west);
+-			southeast.shift(metersQuarterSideLength, east);
+-			
++			double northsouthmiddle = (north+south)/2.0;
++			double westeastmiddle = (west+east)/2.0;
+ 			Vm.debug(&quot;get northwest&quot;);
+-			getCaches(northwest, quarterSideLength);
++			getCaches(north, west, northsouthmiddle, westeastmiddle);
+ 			Vm.debug(&quot;get northeast&quot;);
+-			getCaches(northeast, quarterSideLength);
++			getCaches(north, westeastmiddle, northsouthmiddle, east);
+ 			Vm.debug(&quot;get southwest&quot;);
+-			getCaches(southwest, quarterSideLength);
++			getCaches(northsouthmiddle, west, south, westeastmiddle);
+ 			Vm.debug(&quot;get southeast&quot;);
+-			getCaches(southeast, quarterSideLength);
++			getCaches(northsouthmiddle, westeastmiddle, south, east);
+ 			
+ 		}
+ 		else {
+-			Vm.debug(&quot;add Caches &quot;+middleOfSquare.toString());
++			Vm.debug(&quot;add Caches &quot;);
+ 			addCaches(listPage);
+ 		}
+-		Vm.debug(&quot;ready &quot;+middleOfSquare.toString());
++		Vm.debug(&quot;ready &quot;);
+ 	}
+ 	
+ 	private void addCaches(String listPage) {
+@@ -666,7 +678,7 @@
+ 			for (int i = 0; i &lt; (startPage / 10); i++) {
+ 				getAListPage(toDistanceInMiles,gotoNextBlock);			
+ 			}
+-			getAListPage(toDistanceInMiles,gotoPage+startPage);			
++			if (startPage&gt;1) getAListPage(toDistanceInMiles,gotoPage+startPage);			
+ 		}
+ 		
+ 		int numFoundInDB=0; // Number of GC-founds already in this profile
+@@ -748,7 +760,7 @@
+ 								}
+ 						}
+ 						else {
+-							if (maxUpdate&gt;0) {
++							if (maxUpdate&gt;0) { // regardless of fromDistance
+ 								if (!ch.is_black()) {
+ 									if (doPMCache(CacheDescriptionGC) &amp;&amp; updateExists(ch,CacheDescriptionGC)) {
+ 										if (cFoundForUpdate.size()&lt;maxUpdate) {
+@@ -773,7 +785,8 @@
+ 					} else toDistance = 0; // finish listing
+ 					// get next row of table (next Cache Description) of this htmlListPage
+ 					RexPropLine.searchFrom(tableOfHtmlListPage, RexPropLine.matchedTo());
+-					if (infB.isClosed) { toDistance=0; break; }
++					if (infB.isClosed) {
++						toDistance=0; break; }
+ 				} // next Cache
+ 				 infB.setInfo(MyLocale.getMsg(5511,&quot;Found &quot;)+
+ 						 cachesToLoad.size()+&quot; / &quot;+
+@@ -1232,22 +1245,16 @@
+ 		}
+ 	}
+ 	/* */
+-	private String getMapListPage(CWPoint origin, double kmlat, double kmlon) {
+-		double km2latdeg=1/(origin.getDistance(new CWPoint(origin.latDec+1,origin.lonDec)));
+-		double km2londeg=1/(origin.getDistance(new CWPoint(origin.latDec,origin.lonDec+1)));
+-		double dlat = kmlat * km2latdeg;
+-		double dlon = kmlon * km2londeg;
++	private String getMapListPage(CWPoint middle, double north, double west, double south, double east) {
++
+ 		String url=&quot;<A HREF="http://www.geocaching.com/map/default.aspx">http://www.geocaching.com/map/default.aspx</A>&quot;+
+-			&quot;?lat=&quot;+origin.getLatDeg(TransformCoordinates.DD)+
+-			&quot;&amp;lng=&quot;+origin.getLonDeg(TransformCoordinates.DD);
+-		double left = origin.lonDec - dlon;
+-		double up = origin.latDec + dlat;
+-		double right = origin.lonDec + dlon;
+-		double down = origin.latDec - dlat;
+-		String strLeft=MyLocale.formatDouble(left, &quot;00.00000&quot;).replace(',','.');
+-		String strUp=MyLocale.formatDouble(up, &quot;00.00000&quot;).replace(',','.');
+-		String strRight=MyLocale.formatDouble(right, &quot;00.00000&quot;).replace(',','.');
+-		String strDown=MyLocale.formatDouble(down, &quot;00.00000&quot;).replace(',','.');
++			&quot;?lat=&quot;+middle.getLatDeg(TransformCoordinates.DD)+
++			&quot;&amp;lng=&quot;+middle.getLonDeg(TransformCoordinates.DD);
++				
++		String strLeft=MyLocale.formatDouble(west, &quot;00.00000&quot;).replace(',','.');
++		String strUp=MyLocale.formatDouble(north, &quot;00.00000&quot;).replace(',','.');
++		String strRight=MyLocale.formatDouble(east, &quot;00.00000&quot;).replace(',','.');
++		String strDown=MyLocale.formatDouble(south, &quot;00.00000&quot;).replace(',','.');
+ 
+ 		String eo_cb_param1 = &quot;eo_cb_param=%7B%22c%22%3A%201%2C%20%22m%22%3A%20%22%22%2C%20%22d%22%3A%20%22&quot;;
+ 		String eo_cb_param2 = strUp+&quot;|&quot;+strDown+&quot;|&quot;+strRight+&quot;|&quot;+strLeft+&quot;%22%7D&quot;;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002761.html">[Cachewolf-svn] r2773 - in trunk/src/CacheWolf: . imp navi
+</A></li>
+	<LI>Next message: <A HREF="002763.html">[Cachewolf-svn] r2775 - in trunk: res_noewe/languages src/CacheWolf	src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2762">[ date ]</a>
+              <a href="thread.html#2762">[ thread ]</a>
+              <a href="subject.html#2762">[ subject ]</a>
+              <a href="author.html#2762">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

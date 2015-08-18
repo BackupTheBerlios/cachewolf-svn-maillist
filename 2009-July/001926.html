@@ -1,0 +1,275 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2007 - in trunk: res_noewe src/CacheWolf	src/CacheWolf/imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-July/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2007%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf%0A%09src/CacheWolf/imp&In-Reply-To=%3C200907100638.n6A6c7PM027281%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001925.html">
+   <LINK REL="Next"  HREF="001927.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2007 - in trunk: res_noewe src/CacheWolf	src/CacheWolf/imp</H1>
+    <B>engywuck at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2007%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf%0A%09src/CacheWolf/imp&In-Reply-To=%3C200907100638.n6A6c7PM027281%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2007 - in trunk: res_noewe src/CacheWolf	src/CacheWolf/imp">engywuck at mail.berlios.de
+       </A><BR>
+    <I>Fri Jul 10 08:38:07 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001925.html">[Cachewolf-svn] r2006 - trunk/src/exp
+</A></li>
+        <LI>Next message: <A HREF="001927.html">[Cachewolf-svn] r2008 - trunk/src/exp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1926">[ date ]</a>
+              <a href="thread.html#1926">[ thread ]</a>
+              <a href="subject.html#1926">[ subject ]</a>
+              <a href="author.html#1926">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: engywuck
+Date: 2009-07-10 08:38:05 +0200 (Fri, 10 Jul 2009)
+New Revision: 2007
+
+Modified:
+   trunk/res_noewe/spider.def
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+Ignoring error when encountering a premium member cache page as non premium member.
+
+Modified: trunk/res_noewe/spider.def
+===================================================================
+--- trunk/res_noewe/spider.def	2009-07-09 19:07:19 UTC (rev 2006)
++++ trunk/res_noewe/spider.def	2009-07-10 06:38:05 UTC (rev 2007)
+@@ -92,6 +92,7 @@
+ terrainRex         = &lt;span\ id=&quot;Terrain&quot;&gt;.*?alt=&quot;(.*?)\ out\ of
+ cacheTypeRex       = \\./images/WptTypes/(.*?)\\.gif
+ cacheLocationRex   = &lt;span\ id=&quot;Location&quot;&gt;In\ ([^&lt;]*?)&lt;
++premiumCachepage   = Sorry, the owner of this listing has made it viewable to subscribers only.
+ 
+ #--------------------------------------
+ #Section2a: Logs
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2009-07-09 19:07:19 UTC (rev 2006)
++++ trunk/src/CacheWolf/MainMenu.java	2009-07-10 06:38:05 UTC (rev 2007)
+@@ -768,10 +768,10 @@
+ 			infB.redisplay();
+ 			if (ch.getWayPoint().substring(0,2).equalsIgnoreCase(&quot;GC&quot;)) {
+ 				int test = spider.spiderSingle(i, infB,forceLogin);
+-				if (test == -1) {
++				if (test == SpiderGC.SPIDER_CANCEL) {
+ 					infB.close(0);
+ 					break;
+-				} else if (test == 0) {
++				} else if (test == SpiderGC.SPIDER_ERROR) {
+ 					spiderErrors++;
+ 				} else {
+ 					//profile.hasUnsavedChanges=true;	
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2009-07-09 19:07:19 UTC (rev 2006)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2009-07-10 06:38:05 UTC (rev 2007)
+@@ -71,6 +71,16 @@
+ 	public static String passwort = &quot;&quot;; // Can be pre-set from preferences
+ 	public static boolean loggedIn = false;
+ 
++	// Return values for spider action
++	/** Ignoring a premium member cache when spidering from a non premium account */
++	public static int SPIDER_IGNORE_PREMIUM = -2;
++	/** Canceling spider process */
++	public static int SPIDER_CANCEL = -1;
++	/** Error occured while spidering */
++	public static int SPIDER_ERROR = 0;
++	/** Cache was spidered without problems */
++	public static int SPIDER_OK = 1;
++	
+ 	private static int ERR_LOGIN = -10;
+ 	private static Preferences pref;
+ 	private Profile profile;
+@@ -259,7 +269,7 @@
+ 			boolean loadAllLogs = (MAXLOGS &gt; 5);
+ 			ret=getCacheByWaypointName(ch,true,pref.downloadPics,pref.downloadTBs,false,loadAllLogs);
+ 			// Save the spidered data
+-			if (ret == 1) {
++			if (ret == SPIDER_OK) {
+ 				CacheHolder cacheInDB = cacheDB.get(number);
+ 				cacheInDB.initStates(false);
+ 				if (cacheInDB.is_found() &amp;&amp; !ch.is_found() &amp;&amp; ! loadAllLogs) {
+@@ -639,17 +649,17 @@
+ 				holder = new CacheHolder();
+ 				holder.setWayPoint(wpt);
+ 				int test = getCacheByWaypointName(holder,false,getImages,getTBs,doNotgetFound,loadAllLogs);
+-				if (test == -1) {
++				if (test == SPIDER_CANCEL) {
+ 					infB.close(0);
+ 					break;
+-				} else if (test == 0) {
++				} else if (test == SPIDER_ERROR) {
+ 					spiderErrors++;
+-				} else {
++				} else if (test == SPIDER_OK){
+ 					if (!holder.is_found() || !doNotgetFound ) {
+ 						cacheDB.add(holder);
+ 						holder.save();
+ 					}
+-				}
++				} // For test==SPIDER_IGNORE_PREMIUM: Nothing to do
+ 			}
+ 		}
+ 
+@@ -661,9 +671,9 @@
+ 				infB.redisplay();
+ 
+ 				int test = spiderSingle(cacheDB.getIndex(ch), infB,false);
+-				if (test == -1) {
++				if (test == SPIDER_CANCEL) {
+ 					break;
+-				} else if (test == 0) {
++				} else if (test == SPIDER_ERROR) {
+ 					spiderErrors++;
+ 					Global.getPref().log(&quot;SpiderGC: could not spider &quot;+ch.getWayPoint());
+ 				} else {
+@@ -701,13 +711,13 @@
+ 	 * @return -1 if the infoBox was closed (cancel spidering), 0 if there was an error (continue with next cache), 1 if everything ok
+ 	 */
+ 	private int getCacheByWaypointName(CacheHolder ch, boolean isUpdate, boolean fetchImages, boolean fetchTBs, boolean doNotGetFound, boolean fetchAllLogs) {
+-		int ret = 1;
++		int ret = SPIDER_OK; // initialize value;
+ 		while (true) {
+ 			String completeWebPage;
+ 			int spiderTrys=0;
+ 			int MAX_SPIDER_TRYS=3;
+ 			while (spiderTrys++&lt;MAX_SPIDER_TRYS) {
+-				ret = 1;
++				ret = SPIDER_OK; // initialize value;
+ 				try{
+ 					String doc = p.getProp(&quot;getPageByName&quot;) + ch.getWayPoint() +(fetchAllLogs?p.getProp(&quot;fetchAllLogs&quot;):&quot;&quot;);
+ 					pref.log(&quot;Fetching: &quot; + ch.getWayPoint());
+@@ -718,7 +728,7 @@
+ 							continue;
+ 						} else {
+ 							ch.setIncomplete(true);
+-							return -1;
++							return SPIDER_CANCEL;
+ 						}
+ 					}
+ 				}catch(Exception ex){
+@@ -727,7 +737,7 @@
+ 						continue;
+ 					} else {
+ 						ch.setIncomplete(true);
+-						return -1;
++						return SPIDER_CANCEL;
+ 					}
+ 				}
+ 				// Only analyse the cache data and fetch pictures if user has not closed the progress window
+@@ -738,9 +748,17 @@
+ 						//first check if coordinates are available to prevent deleting existing coorinates
+ 						String latLon = getLatLon(completeWebPage);
+ 						if (latLon.equals(&quot;???&quot;)) {
+-							pref.log(&quot;&gt;&gt;&gt;&gt; Failed to spider Cache. Retry.&quot;);
+-							ret = 0;
+-							continue; // Restart the spider
++							if (completeWebPage.indexOf(p.getProp(&quot;premiumCachepage&quot;))&gt;0) {
++								// Premium cache spidered by non premium member
++								pref.log(&quot;Ignoring premium member cache: &quot;+ch.getWayPoint());
++								spiderTrys = MAX_SPIDER_TRYS;
++								ret = SPIDER_IGNORE_PREMIUM;
++								continue;
++							} else {
++								pref.log(&quot;&gt;&gt;&gt;&gt; Failed to spider Cache. Retry.&quot;);
++								ret = SPIDER_ERROR;
++								continue; // Restart the spider
++							}
+ 						}
+ 
+ 						ch.setHTML(true);
+@@ -835,9 +853,9 @@
+ 						// If the switch is set to not store found caches and we found the cache =&gt; return
+ 						if (ch.is_found() &amp;&amp; doNotGetFound) {
+ 							if (infB.isClosed) {
+-								return -1;
++								return SPIDER_CANCEL;
+ 							} else {
+-								return 1;
++								return SPIDER_OK;
+ 							}
+ 						}
+ 
+@@ -886,21 +904,21 @@
+ 					break;
+ 				}
+ 			} // spiderTrys
+-			if ( ( spiderTrys &gt;= MAX_SPIDER_TRYS ) &amp;&amp; ( ret == 1 ) ) {
++			if ( ( spiderTrys &gt;= MAX_SPIDER_TRYS ) &amp;&amp; ( ret == SPIDER_OK ) ) {
+ 				pref.log(&quot;&gt;&gt;&gt; Failed to spider cache. Number of retrys exhausted.&quot;);
+ 				int decision = (new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;),MyLocale.getMsg(5515,&quot;Failed to load cache.%0aPleas check your internet connection.%0aRetry?&quot;),FormBase.DEFOKB|FormBase.NOB|FormBase.CANCELB)).execute();
+ 				if ( decision == FormBase.IDOK ) {
+ 					continue;
+ 				} else if ( decision == FormBase.IDNO ){
+-					ret = 0;
++					ret = SPIDER_ERROR;
+ 				} else {
+-					ret = -1;
++					ret = SPIDER_CANCEL;
+ 				}
+ 			}
+ 			break;
+ 		}//while(true)
+ 		if (infB.isClosed) {// If the infoBox was closed before getting here, we return -1
+-			return -1;
++			return SPIDER_CANCEL;
+ 		}
+ 		return ret;
+ 	} // getCacheByWaypointName
+@@ -1758,6 +1776,13 @@
+ 				(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), MyLocale.getMsg(5504,&quot;Could not load 'spider.def'&quot;), FormBase.OKB)).execute();
+ 			}
+ 		}
++		
++		/**
++		 * Gets an entry in spider.def by its key (tag)
++		 * @param key The key which is attributed to a specific entry
++		 * @return The value for the key
++		 * @throws Exception When a key is requested which doesn't exist
++		 */
+ 		public String getProp(String key) throws Exception {
+ 			String s=super.getProperty(key);
+ 			if (s==null) {
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001925.html">[Cachewolf-svn] r2006 - trunk/src/exp
+</A></li>
+	<LI>Next message: <A HREF="001927.html">[Cachewolf-svn] r2008 - trunk/src/exp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1926">[ date ]</a>
+              <a href="thread.html#1926">[ thread ]</a>
+              <a href="subject.html#1926">[ subject ]</a>
+              <a href="author.html#1926">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

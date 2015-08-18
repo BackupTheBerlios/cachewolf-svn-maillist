@@ -1,0 +1,622 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r525 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r525%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702052336.l15NaDqh002836%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000318.html">
+   <LINK REL="Next"  HREF="000320.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r525 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r525%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702052336.l15NaDqh002836%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r525 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Tue Feb  6 00:36:13 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000318.html">[Cachewolf-svn] r524 - in trunk: resources src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000320.html">[Cachewolf-svn] r526 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#319">[ date ]</a>
+              <a href="thread.html#319">[ thread ]</a>
+              <a href="subject.html#319">[ subject ]</a>
+              <a href="author.html#319">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-02-06 00:36:06 +0100 (Tue, 06 Feb 2007)
+New Revision: 525
+
+Modified:
+   trunk/src/CacheWolf/GotoPanel.java
+   trunk/src/CacheWolf/MapLoaderGui.java
+   trunk/src/CacheWolf/MovingMap.java
+   trunk/src/CacheWolf/Navigate.java
+   trunk/src/CacheWolf/Profile.java
+   trunk/src/CacheWolf/myTableControl.java
+   trunk/src/CacheWolf/myTableModel.java
+Log:
+MapLoader: zeigt beim Download pro Cache jetz die richtige gesmatzahl an (vorher 0)
+MovingMap: Bug fixed: Goto-Position setzen, setzte falschen Punkt (war durch schnellfehlerbeheung heute nachmittag entstanden
+MovingMap: angezeigte caches werden nach Profilwechsel aktualisiert
+
+Modified: trunk/src/CacheWolf/GotoPanel.java
+===================================================================
+--- trunk/src/CacheWolf/GotoPanel.java	2007-02-05 21:39:07 UTC (rev 524)
++++ trunk/src/CacheWolf/GotoPanel.java	2007-02-05 23:36:06 UTC (rev 525)
+@@ -211,7 +211,7 @@
+ 		
+ 	}
+ 	
+-	public void destChanged() { // called from myNavigate
++	public void destChanged(CWPoint d) { // called from myNavigate
+ 		btnGoto.setText(getGotoBtnText());
+ 		updateDistance();
+ 	}
+
+Modified: trunk/src/CacheWolf/MapLoaderGui.java
+===================================================================
+--- trunk/src/CacheWolf/MapLoaderGui.java	2007-02-05 21:39:07 UTC (rev 524)
++++ trunk/src/CacheWolf/MapLoaderGui.java	2007-02-05 23:36:06 UTC (rev 525)
+@@ -147,8 +147,10 @@
+ 			ml.downlaodTiles(mapsDir);
+ 		} else { // per cache
+ 			CacheHolder ch; 
+-			CWPoint tmpca=new CWPoint();
++			CWPoint tmpca = new CWPoint();
+ 			int numdownloaded = 0;
++			Global.getProfile().getSourroundingArea(onlySelected); // calculate numCachesInArea
++			int numCaches = Global.getProfile().numCachesInArea;
+ 			for (int i=cacheDB.size()-1; i &gt;= 0; i--) {
+ 				ch = (CacheHolder) cacheDB.get(i);
+ 				if (!this.onlySelected || ch.is_Checked) {
+
+Modified: trunk/src/CacheWolf/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/MovingMap.java	2007-02-05 21:39:07 UTC (rev 524)
++++ trunk/src/CacheWolf/MovingMap.java	2007-02-05 23:36:06 UTC (rev 525)
+@@ -254,8 +254,8 @@
+ 		// update cache symbols in map
+ 		running = true;
+ 		MainTab mainT = Global.mainTab;
+-		if (mainT.tbP.myMod.cacheSelectionChanged) {
+-			mainT.tbP.myMod.cacheSelectionChanged = false;
++		if (Global.getProfile().selectionChanged) {
++			Global.getProfile().selectionChanged = false;
+ 			removeAllMapSymbolsButGoto();
+ 			CacheHolder ch;
+ 			for (int i=cacheDB.size()-1; i&gt;=0; i--) {
+@@ -837,7 +837,7 @@
+ 	
+ 	public void gpsStarted() {
+ 		addTrack(myNavigation.curTrack);
+-		addOverlaySet();
++		//addOverlaySet();
+ 	}
+ 	public void gpsStoped() {
+ 		setGpsStatus(MovingMap.noGPS);
+@@ -964,6 +964,10 @@
+ 
+ 	public void loadMapForAllCaches(){
+ 		Area sur = Global.getProfile().getSourroundingArea(true);
++		if (sur == null) {
++			(new MessageBox(&quot;Error&quot;, &quot;Keine  Caches mit H&#228;ckchen ausgew&#228;hlt&quot;, MessageBox.OKB)).execute();
++			return;
++		}
+ 		MapInfoObject newmap = maps.getMapForArea(sur.topleft, sur.buttomright);
+ 		if (newmap == null ) { // no map that includs all caches is available -&gt; load map with lowest resolution
+ 			Object [] s = getRectForMapChange(posCircleLat, posCircleLon);
+@@ -1303,7 +1307,6 @@
+ 		//if (!(which == null || which == mapImage || which instanceof TrackOverlay || which == mm.directionArrows) ) return false;
+ 		saveGpsIgnoreStatus = mm.ignoreGps; 
+ 		mm.ignoreGps = true;
+-		//paintingZoomArea = true;
+ 		saveMapLoc = pos;
+ 		bringMapToTop();
+ 		if (mapImage.isOnScreen() &amp;&amp; !mapImage.hidden ) return super.imageBeginDragged(mapImage, pos);
+@@ -1521,7 +1524,6 @@
+ 				if (clickedCache != null) openCacheDescMenuItem = new MenuItem(&quot;Open '&quot;+clickedCache.CacheName+&quot;'$o&quot;); // clickedCache == null can happen if clicked on the goto-symbol
+ 				kontextMenu.addItem(openCacheDescMenuItem);
+ 			}
+-			saveMapLoc = p;
+ 			kontextMenu.exec(this, new Point(p.x, p.y), this);
+ 		}
+ 	}
+
+Modified: trunk/src/CacheWolf/Navigate.java
+===================================================================
+--- trunk/src/CacheWolf/Navigate.java	2007-02-05 21:39:07 UTC (rev 524)
++++ trunk/src/CacheWolf/Navigate.java	2007-02-05 23:36:06 UTC (rev 525)
+@@ -45,13 +45,13 @@
+ 			}
+ 			serThread.start();
+ 			startDisplayTimer();
++			curTrack = new Track(trackColor); // TODO addTrack here to MovingMap? see MovingMapPanel.snapToGps
+ 			if (lograw)	gpsPos.startLog(Global.getProfile().dataDir, logIntervall, CWGPSPoint.LOGALL);
+ 			if (gotoPanel != null) gotoPanel.gpsStarted();
+ 			if (movingMap != null) movingMap.gpsStarted();
+ 		} catch (IOException e) {
+ 			(new MessageBox(&quot;Error&quot;, &quot;Could not connect to GPS-receiver.\n Error while opening serial Port &quot; + e.getMessage()+&quot;\npossible reasons:\n Another (GPS-)program is blocking the port\nwrong port\nOn Loox: active infra-red port is blocking GPS&quot;, MessageBox.OKB)).execute(); 
+ 		}
+-		curTrack = new Track(trackColor); // TODO addTrack here to MovingMap? see MovingMapPanel.snapToGps
+ 	}
+ 
+ 	public void setRawLogging(boolean on, int intervall) {
+@@ -88,11 +88,8 @@
+ 
+ 	public void setDestination(CWPoint d) {
+ 		destination = new CWPoint (d);
+-		if (gotoPanel != null) gotoPanel.destChanged();
+-		if (movingMap != null) { // TODO make movingmap the same as gotopanel
+-			movingMap.destChanged(destination);
+-			movingMap.repaintNow();
+-		}
++		if (gotoPanel != null) gotoPanel.destChanged(destination);
++		if (movingMap != null) movingMap.destChanged(destination);
+ 	}
+ 	public void ticked() {
+ 		int fix = gpsPos.getFix();
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2007-02-05 21:39:07 UTC (rev 524)
++++ trunk/src/CacheWolf/Profile.java	2007-02-05 23:36:06 UTC (rev 525)
+@@ -18,7 +18,7 @@
+  *
+  */
+ public class Profile {
+-	
++
+ 	/** The list of caches (CacheHolder objects). A pointer to this object exists in many classes in parallel to
+ 	 *  this object, i.e. the respective class contains both a {@link Profile} object and a cacheDB Vector. 
+ 	 */
+@@ -34,7 +34,7 @@
+ 	public String last_sync_opencaching = new String();
+ 	/** Distance for opencaching caches */
+ 	public String distOC = new String();
+-	
++
+ 	public final static String FILTERTYPE=&quot;11111111111000000&quot;;
+ 	public final static String FILTERROSE=&quot;1111111111111111&quot;;
+ 	public final static String FILTERVAR=&quot;11111111&quot;;
+@@ -47,17 +47,19 @@
+ 	public String filterDist=new String(&quot;&quot;);
+ 	public String filterDiff=new String(&quot;&quot;);
+ 	public String filterTerr=new String(&quot;&quot;);
+-	
++
++	public boolean selectionChanged = true; // (&quot;H&#228;ckchen&quot;) used by movingMap to get to knao if it should update the caches in the map 
++
+ 	//TODO Add other settings, such as max. number of logs to spider
+ 	//TODO Add settings for the preferred mapper to allow for maps other than expedia and other resolutions
+-	
++
+ 	/**
+ 	 * Constructor for a profile
+ 	 *
+ 	 */
+ 	public Profile(){
+ 	}
+-	
++
+ 	public void clearProfile() {
+ 		cacheDB.clear();
+ 		centre.set(0,0);
+@@ -66,33 +68,33 @@
+ 		last_sync_opencaching = &quot;&quot;;
+ 		distOC = &quot;&quot;;
+ 	}
+-	
+-	
++
++
+ 	/**
+-	*	Method to save the index.xml file that holds the total information
+-	*	on available caches in the database. The database is nothing else
+-	*	than the collection of caches in a directory.
+-	*   
+-	*   Not sure whether we need to keep 'pref' in method signature. May eventually remove it. 
+-	*/
++	 *	Method to save the index.xml file that holds the total information
++	 *	on available caches in the database. The database is nothing else
++	 *	than the collection of caches in a directory.
++	 *   
++	 *   Not sure whether we need to keep 'pref' in method signature. May eventually remove it. 
++	 */
+ 	public void saveIndex(Preferences pref){
+ 		PrintWriter detfile;
+ 		CacheHolder ch;
+ 		try{
+-		  detfile = new PrintWriter(new BufferedWriter(new FileWriter(dataDir + &quot;index.xml&quot;)));
++			detfile = new PrintWriter(new BufferedWriter(new FileWriter(dataDir + &quot;index.xml&quot;)));
+ 		} catch (Exception e) {
+-		  Vm.debug(&quot;Problem creating index file &quot;+e.toString()+&quot;\nFilename=&quot;+dataDir + &quot;index.xml&quot;);
++			Vm.debug(&quot;Problem creating index file &quot;+e.toString()+&quot;\nFilename=&quot;+dataDir + &quot;index.xml&quot;);
+ 			return;
+ 		}
+ 		CWPoint savedCentre=centre;
+ 		if (centre==null || !centre.isValid() || (savedCentre.latDec==0.0 &amp;&amp; savedCentre.lonDec==0.0)) savedCentre=pref.curCentrePt;
+-		
++
+ 		try{
+ 			detfile.print(&quot;&lt;?xml version=\&quot;1.0\&quot; encoding=\&quot;ISO-8859-1\&quot;?&gt;\n&quot;);
+ 			detfile.print(&quot;&lt;CACHELIST format=\&quot;decimal\&quot;&gt;\n&quot;);
+ 			if (savedCentre.isValid())
+ //				detfile.print(&quot;    &lt;CENTRE lat=\&quot;&quot;+savedCentre.getNSLetter() + &quot; &quot; + savedCentre.getLatDeg(CWPoint.CW) + &quot;&deg; &quot; + savedCentre.getLatMin(CWPoint.CW)+ &quot;\&quot; &quot;+
+-//				                        &quot;long=\&quot;&quot;+savedCentre.getEWLetter() + &quot; &quot; + savedCentre.getLonDeg(CWPoint.CW) + &quot;&deg; &quot; + savedCentre.getLonMin(CWPoint.CW)+&quot;\&quot;/&gt;\n&quot;);
++//				&quot;long=\&quot;&quot;+savedCentre.getEWLetter() + &quot; &quot; + savedCentre.getLonDeg(CWPoint.CW) + &quot;&deg; &quot; + savedCentre.getLonMin(CWPoint.CW)+&quot;\&quot;/&gt;\n&quot;);
+ 				detfile.print(&quot;    &lt;CENTRE lat=\&quot;&quot;+savedCentre.latDec+&quot;\&quot; lon=\&quot;&quot;+savedCentre.lonDec+&quot;\&quot;/&gt;\n&quot;);
+ 			if(last_sync_opencaching == null || last_sync_opencaching.endsWith(&quot;null&quot;) || last_sync_opencaching.equals(&quot;&quot;)){
+ 				last_sync_opencaching = &quot;20050801000000&quot;;
+@@ -100,25 +102,25 @@
+ 			if(distOC == null || distOC.endsWith(&quot;null&quot;) || distOC.equals(&quot;&quot;)){
+ 				distOC = &quot;0&quot;;
+ 			}
+-			
++
+ 			detfile.print(&quot;    &lt;FILTER rose = \&quot;&quot;+filterRose+&quot;\&quot; type = \&quot;&quot;+filterType+
+-					 &quot;\&quot; var = \&quot;&quot;+filterVar+&quot;\&quot; dist = \&quot;&quot;+filterDist.replace('&quot;',' ')+&quot;\&quot; diff = \&quot;&quot;+
+-					 filterDiff+&quot;\&quot; terr = \&quot;&quot;+filterTerr+&quot;\&quot; size = \&quot;&quot;+filterSize+&quot;\&quot; /&gt;\n&quot;);
++					&quot;\&quot; var = \&quot;&quot;+filterVar+&quot;\&quot; dist = \&quot;&quot;+filterDist.replace('&quot;',' ')+&quot;\&quot; diff = \&quot;&quot;+
++					filterDiff+&quot;\&quot; terr = \&quot;&quot;+filterTerr+&quot;\&quot; size = \&quot;&quot;+filterSize+&quot;\&quot; /&gt;\n&quot;);
+ 			detfile.print(&quot;    &lt;SYNCOC date = \&quot;&quot;+last_sync_opencaching+&quot;\&quot; dist = \&quot;&quot;+distOC+&quot;\&quot;/&gt;\n&quot;);
+ 			for(int i = 0; i&lt;cacheDB.size();i++){
+ 				ch = (CacheHolder)cacheDB.get(i);
+ 				////Vm.debug(&quot;Saving: &quot; + ch.CacheName);
+ 				if(ch.wayPoint.length()&gt;0 &amp;&amp; ch.LongDescription.equals(&quot;An Error Has Occured&quot;) == false){
+-/* pos must always be set, so this is no longer needed
++					/* pos must always be set, so this is no longer needed
+  					if (ch.pos==null) {
+ 						ParseLatLon pl=new ParseLatLon(ch.LatLon);
+ 						pl.parse();
+ 						ch.pos=new CWPoint(pl.lat2,pl.lon2);
+ 					}
+-*/					detfile.print(&quot;    &lt;CACHE name = \&quot;&quot;+SafeXML.clean(ch.CacheName)+&quot;\&quot; owner = \&quot;&quot;+SafeXML.clean(ch.CacheOwner)+
+-							//&quot;\&quot; lat = \&quot;&quot;+ SafeXML.clean(ch.LatLon) +
+-							&quot;\&quot; lat = \&quot;&quot;+ ch.pos.latDec + &quot;\&quot; lon = \&quot;&quot;+ch.pos.lonDec+
+-							&quot;\&quot; hidden = \&quot;&quot;+ch.DateHidden+&quot;\&quot; wayp = \&quot;&quot;+SafeXML.clean(ch.wayPoint)+&quot;\&quot; status = \&quot;&quot;+ch.CacheStatus+&quot;\&quot; type = \&quot;&quot;+ch.type+&quot;\&quot; dif = \&quot;&quot;+ch.hard+&quot;\&quot; terrain = \&quot;&quot; + ch.terrain + &quot;\&quot; dirty = \&quot;&quot; + ch.dirty + &quot;\&quot; size = \&quot;&quot;+ch.CacheSize+&quot;\&quot; online = \&quot;&quot; + Convert.toString(ch.is_available) + &quot;\&quot; archived = \&quot;&quot; + Convert.toString(ch.is_archived) + &quot;\&quot; has_bug = \&quot;&quot; + Convert.toString(ch.has_bug) + &quot;\&quot; black = \&quot;&quot; + Convert.toString(ch.is_black) + &quot;\&quot; owned = \&quot;&quot; + Convert.toString(ch.is_owned) + &quot;\&quot; found = \&quot;&quot; + Convert.toString(ch.is_found) + &quot;\&quot; is_new = \&quot;&quot; + Convert.toString(ch.is_new) +&quot;\&quot; is_log_update = \&quot;&quot; + Convert.toString(ch.is_log_update) + &quot;\&quot; is_update = \&quot;&quot; + Convert.toString(ch.is_update) + &quot;\&quot; is_HTML = \&quot;&quot; + Convert.toString(ch.is_HTML) + &quot;\&quot; DNFLOGS = \&quot;&quot; + ch.noFindLogs + &quot;\&quot; ocCacheID = \&quot;&quot; + ch.ocCacheID + &quot;\&quot; /&gt;\n&quot;);
++					 */					detfile.print(&quot;    &lt;CACHE name = \&quot;&quot;+SafeXML.clean(ch.CacheName)+&quot;\&quot; owner = \&quot;&quot;+SafeXML.clean(ch.CacheOwner)+
++							 //&quot;\&quot; lat = \&quot;&quot;+ SafeXML.clean(ch.LatLon) +
++							 &quot;\&quot; lat = \&quot;&quot;+ ch.pos.latDec + &quot;\&quot; lon = \&quot;&quot;+ch.pos.lonDec+
++							 &quot;\&quot; hidden = \&quot;&quot;+ch.DateHidden+&quot;\&quot; wayp = \&quot;&quot;+SafeXML.clean(ch.wayPoint)+&quot;\&quot; status = \&quot;&quot;+ch.CacheStatus+&quot;\&quot; type = \&quot;&quot;+ch.type+&quot;\&quot; dif = \&quot;&quot;+ch.hard+&quot;\&quot; terrain = \&quot;&quot; + ch.terrain + &quot;\&quot; dirty = \&quot;&quot; + ch.dirty + &quot;\&quot; size = \&quot;&quot;+ch.CacheSize+&quot;\&quot; online = \&quot;&quot; + Convert.toString(ch.is_available) + &quot;\&quot; archived = \&quot;&quot; + Convert.toString(ch.is_archived) + &quot;\&quot; has_bug = \&quot;&quot; + Convert.toString(ch.has_bug) + &quot;\&quot; black = \&quot;&quot; + Convert.toString(ch.is_black) + &quot;\&quot; owned = \&quot;&quot; + Convert.toString(ch.is_owned) + &quot;\&quot; found = \&quot;&quot; + Convert.toString(ch.is_found) + &quot;\&quot; is_new = \&quot;&quot; + Convert.toString(ch.is_new) +&quot;\&quot; is_log_update = \&quot;&quot; + Convert.toString(ch.is_log_update) + &quot;\&quot; is_update = \&quot;&quot; + Convert.toString(ch.is_update) + &quot;\&quot; is_HTML = \&quot;&quot; + Convert.toString(ch.is_HTML) + &quot;\&quot; DNFLOGS = \&quot;&quot; + ch.noFindLogs + &quot;\&quot; ocCacheID = \&quot;&quot; + ch.ocCacheID + &quot;\&quot; /&gt;\n&quot;);
+ 				}
+ 			}
+ 			detfile.print(&quot;&lt;/CACHELIST&gt;\n&quot;);
+@@ -128,16 +130,17 @@
+ 			Vm.debug(&quot;Problem writing to index file &quot;+e.toString());
+ 		}
+ 	}
+-	
+-	
+-	
++
++
++
+ 	/**
+-	*	Method to read the index.xml file that holds the total information
+-	*	on available caches in the database. The database in nothing else
+-	*	than the collection of caches in a directory.
+-	*/
++	 *	Method to read the index.xml file that holds the total information
++	 *	on available caches in the database. The database in nothing else
++	 *	than the collection of caches in a directory.
++	 */
+ 	public void readIndex(){
+ 		try {
++			selectionChanged = true;
+ 			boolean fmtDec=false;
+ 			char decSep=MyLocale.getDigSeparator().charAt(0);
+ 			char notDecSep=decSep=='.'?',':'.';
+@@ -180,7 +183,7 @@
+ 					ch.is_new = ex.findNext().equals(&quot;true&quot;) ? true : false;
+ 					ch.is_log_update = ex.findNext().equals(&quot;true&quot;) ? true : false;
+ 					ch.is_update = ex.findNext().equals(&quot;true&quot;) ? true : false;
+-					  // for backwards compatibility set value to true, if it is not in the file
++					// for backwards compatibility set value to true, if it is not in the file
+ 					ch.is_HTML = ex.findNext().equals(&quot;false&quot;) ? false : true;
+ 					ch.noFindLogs = Convert.toInt(ex.findNext());
+ 					ch.ocCacheID = ex.findNext();
+@@ -217,7 +220,7 @@
+ 					filterDiff = ex.findNext();
+ 					filterTerr = ex.findNext();
+ 					filterSize = ex.findNext();
+-//					 Bilbowolf: Pattern for storing filter &lt;FILTER type=&quot;01001101&quot; rose = &quot;010010101&quot; var = &quot;0101&quot; dist = &quot;&lt;12&quot; diff = &quot;&gt;13&quot; terr = &quot;&lt;1&quot;/&gt;
++//					Bilbowolf: Pattern for storing filter &lt;FILTER type=&quot;01001101&quot; rose = &quot;010010101&quot; var = &quot;0101&quot; dist = &quot;&lt;12&quot; diff = &quot;&gt;13&quot; terr = &quot;&lt;1&quot;/&gt;
+ 				}
+ 			}
+ 			in.close();
+@@ -232,7 +235,7 @@
+ 		}
+ 		normalizeFilters();
+ 	}
+-	
++
+ 	public int getCacheIndex(String wp){
+ 		int retval = -1;
+ 		CacheHolder ch;
+@@ -250,8 +253,8 @@
+ 	public String getNewWayPointName(){
+ 		String strWp=null;
+ 		long  lgWp=1;
+-        if (cacheDB.size()==0 )
+-        	return &quot;CW0000&quot;;
++		if (cacheDB.size()==0 )
++			return &quot;CW0000&quot;;
+ 		//Create new waypoint,look if not in db
+ 		for(int i = 0;i &lt; cacheDB.size();i++){
+ 			strWp = &quot;CW&quot; + MyLocale.formatLong(lgWp, &quot;0000&quot;);
+@@ -263,18 +266,30 @@
+ 		}
+ 		return strWp;
+ 	}
+-	
++
+ 	public String toString() {
+ 		return &quot;Profile: Name=&quot;+name+&quot;\nCentre=&quot;+centre.toString()+&quot;\ndataDir=&quot;+dataDir+&quot;\nlastSyncOC=&quot;+
+-		     last_sync_opencaching+&quot;\ndistOC=&quot;+distOC;
++		last_sync_opencaching+&quot;\ndistOC=&quot;+distOC;
+ 	}
++
++	public void setSelectForAll(boolean selectStatus) {
++		selectionChanged = true;
++		CacheHolder ch;
++		for(int i = cacheDB.size()-1; i &gt;=	0; i--){
++			ch = (CacheHolder)cacheDB.get(i);
++			if (ch.is_filtered == false) ch.is_Checked = selectStatus;
++		}
++	} 
++
++
++	int numCachesInArea; // only valid after calling getSourroundingArea
+ 	public Area getSourroundingArea(boolean onlyOfSelected) {
+ 		if (cacheDB == null || cacheDB.size() == 0) return null;
+ 		CacheHolder ch;
+ 		CWPoint topleft = null;
+ 		CWPoint buttomright = null;
+ 		CWPoint tmpca = new CWPoint();
+-		int numCaches = 0;
++		numCachesInArea = 0;
+ 		for (int i=cacheDB.size()-1; i &gt;= 0; i--) {
+ 			ch = (CacheHolder) cacheDB.get(i);
+ 			if (!onlyOfSelected || ch.is_Checked) {
+@@ -289,7 +304,7 @@
+ 					if (topleft.lonDec &gt; ch.pos.lonDec) topleft.lonDec = ch.pos.lonDec;
+ 					if (buttomright.latDec &gt; ch.pos.latDec) buttomright.latDec = ch.pos.latDec;
+ 					if (buttomright.lonDec &lt; ch.pos.lonDec) buttomright.lonDec = ch.pos.lonDec;
+-					numCaches++;
++					numCachesInArea++;
+ 				}
+ 			}
+ 		}
+@@ -299,74 +314,74 @@
+ 	}
+ 
+ 	/**
+-		*	Method to calculate bearing and distance of a cache in the index
+-		*	list.
+-		*	@see	CacheHolder
+-		*	@see	Extractor
+-		*/
+-		public void updateBearingDistance(){
+-			CWPoint fromPoint = new CWPoint(Global.getPref().curCentrePt); // Clone current centre to be sure
+-			int anz = cacheDB.getCount();
+-			CacheHolder ch;
+-			CWPoint toPoint;
+-			// Jetzt durch die CacheDaten schleifen
+-			while(--anz &gt;= 0){
+-				ch = (CacheHolder)cacheDB.get(anz); // This returns a pointer to the CacheHolder object
+-				if(ch.LatLon.length()&gt;4){
+-					toPoint = ch.pos;
+-					ch.kilom = fromPoint.getDistance(toPoint);
+-					ch.degrees = fromPoint.getBearing(toPoint);
+-					ch.bearing = CWPoint.getDirection(ch.degrees);
+-					ch.distance = MyLocale.formatDouble(ch.kilom,&quot;0.00&quot;);
+-					ch.distance = ch.distance + &quot; km&quot;;
+-				}
++	 *	Method to calculate bearing and distance of a cache in the index
++	 *	list.
++	 *	@see	CacheHolder
++	 *	@see	Extractor
++	 */
++	public void updateBearingDistance(){
++		CWPoint fromPoint = new CWPoint(Global.getPref().curCentrePt); // Clone current centre to be sure
++		int anz = cacheDB.getCount();
++		CacheHolder ch;
++		CWPoint toPoint;
++		// Jetzt durch die CacheDaten schleifen
++		while(--anz &gt;= 0){
++			ch = (CacheHolder)cacheDB.get(anz); // This returns a pointer to the CacheHolder object
++			if(ch.LatLon.length()&gt;4){
++				toPoint = ch.pos;
++				ch.kilom = fromPoint.getDistance(toPoint);
++				ch.degrees = fromPoint.getBearing(toPoint);
++				ch.bearing = CWPoint.getDirection(ch.degrees);
++				ch.distance = MyLocale.formatDouble(ch.kilom,&quot;0.00&quot;);
++				ch.distance = ch.distance + &quot; km&quot;;
+ 			}
+-			// The following call is not very clean as it mixes UI with base classes
+-			// However, calling it from here allows us to recenter the
+-			// radar panel with only one call
+-			if (Global.mainTab!=null) Global.mainTab.radarP.recenterRadar();
+-		} //updateBearingDistance
++		}
++		// The following call is not very clean as it mixes UI with base classes
++		// However, calling it from here allows us to recenter the
++		// radar panel with only one call
++		if (Global.mainTab!=null) Global.mainTab.radarP.recenterRadar();
++	} //updateBearingDistance
+ 
+-		/**
+-		 * Method to build the reference between addi wpt
+-		 * and main cache.
+-		 */
+-		   public void buildReferences(){
+-			   CacheHolder ch, mainCh;
+-			   Hashtable dbIndex = new Hashtable((int)(cacheDB.size()/0.75f + 1), 0.75f); // initialize so that von rehashing is neccessary
+-			   Integer index;
+-			   // Build index for faster search and clear all references
+-			   for(int i = cacheDB.size() -1; i &gt;= 0;i--){
+-					ch = (CacheHolder)cacheDB.get(i);
+-					ch.addiWpts.clear();
+-					ch.mainCache = null; 
+-					dbIndex.put((String)ch.wayPoint, new Integer(i));
+-			   }
+-			   // Build refeneces
+-			   int max = cacheDB.size();
+-			   for(int i =  0; i &lt; max ;i++){
+-					ch = (CacheHolder)cacheDB.get(i);
+-					if (ch.isAddiWpt()) {
+-						//search main cache
+-						if (ch.wayPoint.length() == 5){
+-							index = (Integer) dbIndex.get(&quot;GC&quot;+ ch.wayPoint.substring(1));
+-						} 
+-						else {
+-							index = (Integer) dbIndex.get(&quot;GC&quot;+ ch.wayPoint.substring(2));
+-						}
+-						if (index != null) {
+-							mainCh = (CacheHolder) cacheDB.get(index.intValue());
+-							mainCh.addiWpts.add(ch);
+-							ch.mainCache = mainCh;
+-						}// if
+-					}// if
+-			   }// for
+-		   }
+-		   
+-    /** Ensure that all filters have the proper length so that the 'charAt' access in the filter
+-     * do not cause nullPointer Exceptions
+-     */
+-    private void normalizeFilters() {
++	/**
++	 * Method to build the reference between addi wpt
++	 * and main cache.
++	 */
++	public void buildReferences(){
++		CacheHolder ch, mainCh;
++		Hashtable dbIndex = new Hashtable((int)(cacheDB.size()/0.75f + 1), 0.75f); // initialize so that von rehashing is neccessary
++		Integer index;
++		// Build index for faster search and clear all references
++		for(int i = cacheDB.size() -1; i &gt;= 0;i--){
++			ch = (CacheHolder)cacheDB.get(i);
++			ch.addiWpts.clear();
++			ch.mainCache = null; 
++			dbIndex.put((String)ch.wayPoint, new Integer(i));
++		}
++		// Build refeneces
++		int max = cacheDB.size();
++		for(int i =  0; i &lt; max ;i++){
++			ch = (CacheHolder)cacheDB.get(i);
++			if (ch.isAddiWpt()) {
++				//search main cache
++				if (ch.wayPoint.length() == 5){
++					index = (Integer) dbIndex.get(&quot;GC&quot;+ ch.wayPoint.substring(1));
++				} 
++				else {
++					index = (Integer) dbIndex.get(&quot;GC&quot;+ ch.wayPoint.substring(2));
++				}
++				if (index != null) {
++					mainCh = (CacheHolder) cacheDB.get(index.intValue());
++					mainCh.addiWpts.add(ch);
++					ch.mainCache = mainCh;
++				}// if
++			}// if
++		}// for
++	}
++
++	/** Ensure that all filters have the proper length so that the 'charAt' access in the filter
++	 * do not cause nullPointer Exceptions
++	 */
++	private void normalizeFilters() {
+ 		if (filterRose.length()&lt;16) { 
+ 			filterRose=(filterRose+&quot;1111111111111111&quot;).substring(0,16); 
+ 		}  
+@@ -383,6 +398,6 @@
+ 		if (filterDist.length()==0) filterDist=&quot;L&quot;;
+ 		if (filterDiff.length()==0) filterDiff=&quot;L&quot;;
+ 		if (filterTerr.length()==0) filterTerr=&quot;L&quot;;
+-    }
+-		   
++	}
++
+ }
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2007-02-05 21:39:07 UTC (rev 524)
++++ trunk/src/CacheWolf/myTableControl.java	2007-02-05 23:36:06 UTC (rev 525)
+@@ -59,16 +59,10 @@
+ 		
+ 	/** Set all caches either as selected or as deselected, depending on argument */
+ 	private void setSelectForAll(boolean selectStatus) {
+-		CacheHolder ch;
+-		for(int i = cacheDB.size()-1; i &gt;=	0; i--){
+-			ch = (CacheHolder)cacheDB.get(i);
+-			if (ch.is_filtered == false) ch.is_Checked = selectStatus;
+-		}
+-		tbp.myMod.cacheSelectionChanged = true;
++		Global.getProfile().setSelectForAll(selectStatus);
+ 		tbp.refreshTable();
+ 	}
+ 	
+-	
+ 	public void popupMenuEvent(Object selectedItem){
+ 		CacheHolder ch;
+ 		
+
+Modified: trunk/src/CacheWolf/myTableModel.java
+===================================================================
+--- trunk/src/CacheWolf/myTableModel.java	2007-02-05 21:39:07 UTC (rev 524)
++++ trunk/src/CacheWolf/myTableModel.java	2007-02-05 23:36:06 UTC (rev 525)
+@@ -16,7 +16,6 @@
+ */
+ public class myTableModel extends TableModel{
+ 	
+-	public boolean cacheSelectionChanged = true;
+ 	Vector cacheDB;
+ 	String[] colName;
+ 	static Image cacheImages[] = new Image[454];
+@@ -306,7 +305,7 @@
+ 		try{
+ 			// Check whether the click is on the checkbox image
+ 			if (cell.y&gt;=0 &amp;&amp; cell.x==0) {
+-				cacheSelectionChanged = true;
++				Global.getProfile().selectionChanged = true;
+ 				CacheHolder ch = (CacheHolder)cacheDB.get(cell.y);
+ 				ch.is_Checked= !ch.is_Checked;
+ 				// set the ceckbox also for addi wpts
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000318.html">[Cachewolf-svn] r524 - in trunk: resources src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000320.html">[Cachewolf-svn] r526 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#319">[ date ]</a>
+              <a href="thread.html#319">[ thread ]</a>
+              <a href="subject.html#319">[ subject ]</a>
+              <a href="author.html#319">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

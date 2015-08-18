@@ -1,0 +1,183 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r340 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r340%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701040949.l049nc02015146%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000004.html">
+   <LINK REL="Next"  HREF="000006.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r340 - trunk/src/CacheWolf</H1>
+    <B>kalli at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r340%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701040949.l049nc02015146%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r340 - trunk/src/CacheWolf">kalli at mail.berlios.de
+       </A><BR>
+    <I>Thu Jan  4 10:49:38 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000004.html">[Cachewolf-svn] [Feature #2924] Anzeige der GotoPosition in	MovingMap
+</A></li>
+        <LI>Next message: <A HREF="000006.html">[Cachewolf-svn] r341 - trunk/resources
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#5">[ date ]</a>
+              <a href="thread.html#5">[ thread ]</a>
+              <a href="subject.html#5">[ subject ]</a>
+              <a href="author.html#5">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: kalli
+Date: 2007-01-04 10:49:35 +0100 (Thu, 04 Jan 2007)
+New Revision: 340
+
+Modified:
+   trunk/src/CacheWolf/CacheHolder.java
+   trunk/src/CacheWolf/TablePanel.java
+   trunk/src/CacheWolf/myTableControl.java
+Log:
+Feature 002997: Filter fuer addi wpts
+
+Modified: trunk/src/CacheWolf/CacheHolder.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolder.java	2007-01-03 07:34:56 UTC (rev 339)
++++ trunk/src/CacheWolf/CacheHolder.java	2007-01-04 09:49:35 UTC (rev 340)
+@@ -65,7 +65,14 @@
+   public boolean is_HTML = true;
+   public boolean is_Checked = false;
+     
+-  public CacheHolder update(CacheHolder newCh){
++  
++  /**
++ * Method to update an existing cache with new data. This is
++ * necessary to avoid missing old logs.
++ * @param newCh new cache data
++ * @return CacheHolder with updated data
++ */
++public CacheHolder update(CacheHolder newCh){
+ 	  // flags
+ 	  this.is_available = newCh.is_available;
+ 	  this.is_archived = newCh.is_archived;
+@@ -154,7 +161,11 @@
+  	return this;
+   }
+   
+-  public void addUserImage(Profile profile){
++  /**
++   * Adds a user image to the cache data
++   * @param profile
++   */
++	public void addUserImage(Profile profile){
+ 	  File imgFile;
+ 	  String imgDesc, imgDestName;
+ 	  
+@@ -176,6 +187,10 @@
+ 			saveCacheDetails(profile.dataDir);
+ 		}
+   }
++  /**
++   * Adds a new log to the cachedata 
++   * @param logEntry
++   */
+   public void addLog(String logEntry){
+ 	  //Logs
+ 	  //&lt;img src='icon_smile.gif'&gt;&nbsp;2005-10-30 by Schatzpirat&lt;/strong&gt;&lt;br&gt;
+@@ -394,6 +409,22 @@
+ 		}
+ 	}
+ 	
++	/**
++	 * Method foch checking if to caches belongs to each other, e.g.
++	 * an additional waypoint belongs to the main cache.
++	 * Works currently only, if the last 4 or 5 chars of the waypoint are
++	 * the same, this is the gc.com way. 
++	 * @param ch cache to check
++	 * @return true if there is a relation, false otherwise
++	 */
++	public boolean belongsTo (CacheHolder ch) {
++		
++		// avoid self referencing
++		if (this.wayPoint.equals(ch.wayPoint)) return false;
++
++		return this.wayPoint.endsWith(ch.wayPoint.substring(2));
++	}
++	
+   
+   
+ }
+\ No newline at end of file
+
+Modified: trunk/src/CacheWolf/TablePanel.java
+===================================================================
+--- trunk/src/CacheWolf/TablePanel.java	2007-01-03 07:34:56 UTC (rev 339)
++++ trunk/src/CacheWolf/TablePanel.java	2007-01-04 09:49:35 UTC (rev 340)
+@@ -48,7 +48,7 @@
+ 		
+ 		addLast(new ScrollBarPanel(tc = new myTableControl()));
+ 		addLast(statBar,CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		Menu m = new Menu(new String[]{MyLocale.getMsg(1010,&quot;Goto&quot;),MyLocale.getMsg(1011,&quot;Filter&quot;),MyLocale.getMsg(1012,&quot;Delete&quot;),MyLocale.getMsg(1014,&quot;Update&quot;),&quot;-&quot;,MyLocale.getMsg(1015,&quot;Select all&quot;),MyLocale.getMsg(1016,&quot;De-select all&quot;),MyLocale.getMsg(1017,&quot;All add. wpts&quot;)},MyLocale.getMsg(1013,&quot;With selection&quot;));
++		Menu m = new Menu(new String[]{MyLocale.getMsg(1010,&quot;Goto&quot;),MyLocale.getMsg(1011,&quot;Filter&quot;),MyLocale.getMsg(1012,&quot;Delete&quot;),MyLocale.getMsg(1014,&quot;Update&quot;),MyLocale.getMsg(1018,&quot;Sel. add. wpts.&quot;),&quot;-&quot;,MyLocale.getMsg(1015,&quot;Select all&quot;),MyLocale.getMsg(1016,&quot;De-select all&quot;),MyLocale.getMsg(1017,&quot;All add. wpts&quot;)},MyLocale.getMsg(1013,&quot;With selection&quot;));
+ 		tc.setMenu(m);
+ 		tc.profile=profile;
+ 		tc.db = cacheDB;
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2007-01-03 07:34:56 UTC (rev 339)
++++ trunk/src/CacheWolf/myTableControl.java	2007-01-04 09:49:35 UTC (rev 340)
+@@ -52,6 +52,22 @@
+ 			}
+ 			tbp.refreshTable();
+ 		}
++
++		if (selectedItem.toString().equals(MyLocale.getMsg(1018,&quot;Sel. add. wpts.&quot;))){
++			CacheHolder ch_addi;
++			for(int i = 0; i &lt;	db.size(); i++){
++				ch = (CacheHolder)db.get(i);
++				if (ch.is_Checked &amp;&amp; !CacheType.isAddiWpt(ch.type)){
++					// search addi wpts to main cache
++					for (int j = 0; j &lt; db.size(); j++){
++						ch_addi = (CacheHolder)db.get(j);
++						if (ch_addi.belongsTo(ch))ch_addi.is_Checked = true;
++					}
++				}
++			}
++			tbp.refreshTable();
++		}
++
+ 		
+ 		if (selectedItem.toString().equals(MyLocale.getMsg(1011,&quot;Filter&quot;))){
+ 			for(int i = 0; i &lt;	db.size(); i++){
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000004.html">[Cachewolf-svn] [Feature #2924] Anzeige der GotoPosition in	MovingMap
+</A></li>
+	<LI>Next message: <A HREF="000006.html">[Cachewolf-svn] r341 - trunk/resources
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#5">[ date ]</a>
+              <a href="thread.html#5">[ thread ]</a>
+              <a href="subject.html#5">[ subject ]</a>
+              <a href="author.html#5">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

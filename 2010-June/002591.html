@@ -1,0 +1,198 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2635 - trunk/src/CacheWolf/exp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-June/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2635%20-%20trunk/src/CacheWolf/exp&In-Reply-To=%3C201006211846.o5LIk9U9012188%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002590.html">
+   <LINK REL="Next"  HREF="002592.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2635 - trunk/src/CacheWolf/exp</H1>
+    <B>kalli at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2635%20-%20trunk/src/CacheWolf/exp&In-Reply-To=%3C201006211846.o5LIk9U9012188%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2635 - trunk/src/CacheWolf/exp">kalli at mail.berlios.de
+       </A><BR>
+    <I>Mon Jun 21 20:46:09 CEST 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002590.html">[Cachewolf-svn] r2634 - trunk/src/CacheWolf/navi/touchControls
+</A></li>
+        <LI>Next message: <A HREF="002592.html">[Cachewolf-svn] r2636 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2591">[ date ]</a>
+              <a href="thread.html#2591">[ thread ]</a>
+              <a href="subject.html#2591">[ subject ]</a>
+              <a href="author.html#2591">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: kalli
+Date: 2010-06-21 20:46:07 +0200 (Mon, 21 Jun 2010)
+New Revision: 2635
+
+Modified:
+   trunk/src/CacheWolf/exp/GpxExportNg.java
+Log:
+Export of attributes as log added
+
+Modified: trunk/src/CacheWolf/exp/GpxExportNg.java
+===================================================================
+--- trunk/src/CacheWolf/exp/GpxExportNg.java	2010-06-20 23:09:07 UTC (rev 2634)
++++ trunk/src/CacheWolf/exp/GpxExportNg.java	2010-06-21 18:46:07 UTC (rev 2635)
+@@ -131,6 +131,7 @@
+ 
+ 	private static boolean customIcons;
+ 	private static boolean sendToGarmin;
++	private static boolean attrib2Log;
+ 
+ 	private static int exportIds;
+ 	private static int exportTarget;
+@@ -171,6 +172,7 @@
+ 		exportTarget = exportOptions.getOutputTarget();
+ 		sendToGarmin = exportOptions.getSendToGarmin();
+ 		customIcons = exportOptions.getCustomIcons();
++		attrib2Log = exportOptions.getAttrib2Log();
+ 
+ 		if (exportTarget == OUTPUT_SEPARATE || exportTarget == OUTPUT_POI) {
+ 			final Hashtable fileHandles = new Hashtable();
+@@ -739,12 +741,29 @@
+ 			addLog(ch.getCacheDetails(true).OwnLogId, ch.getCacheDetails(true).OwnLog, finderid ,ret);
+ 		}
+ 		else {
++			// add log with attributes
++			if (attrib2Log){
++				addLog (ch.GetCacheID()+Integer.toString(exportlogs), createAttrLog(ch),&quot;&quot;,ret);
++			}
+ 			for (int i = 0; i &lt; exportlogs; i++) {
+ 				addLog(ch.GetCacheID()+Integer.toString(i), logs.getLog(i),&quot;&quot; ,ret);
+ 			}
+ 		}
+ 		return ret.toString();
+ 	}
++	private Log createAttrLog(CacheHolder ch) {
++		Attribute attrib;
++		StringBuffer logText = new StringBuffer();
++		for (int i = 0; i &lt; ch.getCacheDetails(true).attributes.count(); i++) {
++			attrib=ch.getCacheDetails(true).attributes.getAttribute(i);
++			logText.append(attrib.getInc()==1?&quot;Yes: &quot;:&quot;No: &quot;).
++			append(attrib.getMsg()).
++			append(&quot;&lt;br /&gt;&quot;).
++			append(newLine);
++		}
++		Log log = new Log(&quot;icon_note.gif&quot;, &quot;2000-01-01&quot;, &quot;CacheWolf&quot;,logText.toString());
++		return log;
++	}
+ 	
+ 	private StringBuffer addLog(String logId, Log log, String FinderID, StringBuffer ret) {
+ 		Transformer trans = new Transformer(true);
+@@ -912,7 +931,7 @@
+ 	 */
+ 	private class GpxExportNgForm extends Form {
+ 
+-		private mCheckBox cbCustomIcons, cbSendToGarmin, cbSeperateHints;
++		private mCheckBox cbCustomIcons, cbSendToGarmin, cbSeperateHints, cbAttrib2Log;
+ 		private mInput ibMaxLogs, ibPrefix;
+ 		private mButton btnOk, btnCancel;
+ 
+@@ -983,7 +1002,8 @@
+ 			cbCustomIcons = new mCheckBox(MyLocale.getMsg(31415,&quot;Custom Icons&quot;));
+ 			if (!hasGarminMap) cbCustomIcons.modify(ControlConstants.Disabled, 0);
+ 
+-
++			cbAttrib2Log = new mCheckBox(MyLocale.getMsg(31415,&quot;Attrib.-&gt;Log&quot;));
++			
+ 			addNext(new mLabel(MyLocale.getMsg(31415,&quot;GPX Style&quot;)));
+ 			addLast(chStyle);
+ 
+@@ -1000,7 +1020,9 @@
+ 
+             addNext(new mLabel(MyLocale.getMsg(31415,&quot;Prefix&quot;)));
+             addLast(ibPrefix);
+-
++            
++            addLast(cbAttrib2Log);
++            
+             addNext(new mLabel(MyLocale.getMsg(31415,&quot;Max Logs&quot;)));
+             addLast(ibMaxLogs);
+ 
+@@ -1040,6 +1062,10 @@
+ 				if (cbCustomIcons.change(ControlConstants.Disabled, 0))
+ 					cbCustomIcons.repaint();
+ 
++				cbAttrib2Log.state = false;
++				if (cbAttrib2Log.change(ControlConstants.Disabled, 0))
++					cbAttrib2Log.repaint();
++				
+ 				cbSeperateHints.state = false;
+ 				if (cbSeperateHints.change(ControlConstants.Disabled, 0))
+ 					cbSeperateHints.repaint();
+@@ -1063,6 +1089,9 @@
+ 				if (hasGarminMapFrm &amp;&amp; cbCustomIcons.change(0, ControlConstants.Disabled))
+ 					cbCustomIcons.repaint();
+ 
++				if (cbAttrib2Log.change(0, ControlConstants.Disabled))
++					cbAttrib2Log.repaint();
++				
+ 				cbSeperateHints.state = false;
+ 				if (cbSeperateHints.change(ControlConstants.Disabled, 0))
+ 					cbSeperateHints.repaint();
+@@ -1085,6 +1114,9 @@
+ 				if (hasGarminMapFrm &amp;&amp; cbCustomIcons.change(0, ControlConstants.Disabled))
+ 					cbCustomIcons.repaint();
+ 
++				if (cbAttrib2Log.change(ControlConstants.Disabled, 0))
++					cbAttrib2Log.repaint();
++		
+ 				cbSeperateHints.state = false;
+ 				if (cbSeperateHints.change(ControlConstants.Disabled, 0))
+ 					cbSeperateHints.repaint();
+@@ -1257,6 +1289,14 @@
+ 		private String getPrefix() {
+ 			return ibPrefix.getText();
+ 		}
+-
++		
++		/**
++		 * check if user wants to export attributes as log
++		 * 
++		 * @return true if attributes should exported as log, false otherwise
++		 */
++		private boolean getAttrib2Log (){
++			return cbAttrib2Log.state;
++		}
+ 	}
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002590.html">[Cachewolf-svn] r2634 - trunk/src/CacheWolf/navi/touchControls
+</A></li>
+	<LI>Next message: <A HREF="002592.html">[Cachewolf-svn] r2636 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2591">[ date ]</a>
+              <a href="thread.html#2591">[ thread ]</a>
+              <a href="subject.html#2591">[ subject ]</a>
+              <a href="author.html#2591">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

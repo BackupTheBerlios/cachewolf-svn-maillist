@@ -1,0 +1,233 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r452 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r452%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701251145.l0PBjBNk003327%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000219.html">
+   <LINK REL="Next"  HREF="000221.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r452 - trunk/src/CacheWolf</H1>
+    <B>bilbowolf at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r452%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701251145.l0PBjBNk003327%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r452 - trunk/src/CacheWolf">bilbowolf at mail.berlios.de
+       </A><BR>
+    <I>Thu Jan 25 12:45:11 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000219.html">[Cachewolf-svn] r451 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000221.html">[Cachewolf-svn] [Bug #10120] version check
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#220">[ date ]</a>
+              <a href="thread.html#220">[ thread ]</a>
+              <a href="subject.html#220">[ subject ]</a>
+              <a href="author.html#220">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: bilbowolf
+Date: 2007-01-25 12:44:53 +0100 (Thu, 25 Jan 2007)
+New Revision: 452
+
+Modified:
+   trunk/src/CacheWolf/Filter.java
+   trunk/src/CacheWolf/FilterScreen.java
+   trunk/src/CacheWolf/Profile.java
+   trunk/src/CacheWolf/TablePanel.java
+   trunk/src/CacheWolf/myTableModel.java
+Log:
+Blacklist filter funktioniert nun korrekt
+
+Modified: trunk/src/CacheWolf/Filter.java
+===================================================================
+--- trunk/src/CacheWolf/Filter.java	2007-01-25 00:16:35 UTC (rev 451)
++++ trunk/src/CacheWolf/Filter.java	2007-01-25 11:44:53 UTC (rev 452)
+@@ -209,8 +209,11 @@
+ 		for(int i = 0; i &lt; cacheDB.size(); i++){
+ 			ch = (CacheHolder)cacheDB.get(i);
+ 			ch.is_filtered = true;
+-			Vm.debug(ch.CacheName + &quot;: &quot; +ch.is_black);
+-			if(ch.is_black == true) ch.is_filtered = false; 
++			//Vm.debug(ch.CacheName + &quot;: &quot; +ch.is_black);
++			if(ch.is_black == true) {
++				ch.is_filtered = false;
++				//Vm.debug(&quot;==&gt;not filtered!&quot;);
++			}
+ 			cacheDB.set(i,ch);
+ 		}
+ 	}
+@@ -358,6 +361,7 @@
+ 		for(int i = 0; i &lt; cacheDB.size(); i++){
+ 			ch = (CacheHolder)cacheDB.get(i);
+ 			ch.is_filtered = false;
++			if(ch.is_black) ch.is_filtered = true;
+ 			cacheDB.set(i, ch);
+ 		}
+ 	}
+
+Modified: trunk/src/CacheWolf/FilterScreen.java
+===================================================================
+--- trunk/src/CacheWolf/FilterScreen.java	2007-01-25 00:16:35 UTC (rev 451)
++++ trunk/src/CacheWolf/FilterScreen.java	2007-01-25 11:44:53 UTC (rev 452)
+@@ -183,6 +183,7 @@
+ 				Filter flt = new Filter();
+ 				flt.foundByMe = foundChk.getState();
+ 				flt.ownedByMe = ownedChk.getState();
++				
+ 				flt.dist = distIn.getText();
+ 				flt.diff = difIn.getText();
+ 				flt.terr = terrIn.getText();
+@@ -193,7 +194,12 @@
+ 				String filterType = new String();
+ 				String filterVar = new String();
+ 				String filterRose = new String();
+-				
++				filterVar = (archivedChk.getState() == true ? &quot;1&quot; : &quot;0&quot;)+
++							(notAvailableChk.getState() == true ? &quot;1&quot; : &quot;0&quot;) +
++							(foundChk.getState() == true ? &quot;1&quot; : &quot;0&quot;) +
++							(ownedChk.getState() == true ? &quot;1&quot; : &quot;0&quot;);
++							
++							
+ 				int typeMatchPattern = 0;
+ 				if(tradChk.getState()) typeMatchPattern |= Filter.TRADITIONAL;
+ 				if(multiChk.getState()) typeMatchPattern |= Filter.MULTI;
+@@ -253,15 +259,16 @@
+ 							 (NW.getState() == true ? &quot;1&quot;:&quot;0&quot;)+
+ 							 (NNW.getState() == true ? &quot;1&quot;:&quot;0&quot;)+
+ 							 (S.getState() == true ? &quot;1&quot;:&quot;0&quot;);
+-				Vm.showWait(true);
++				
+ 				InfoBox infB = new InfoBox(&quot;Info&quot;,MyLocale.getMsg(713,&quot;Saving filter&quot;));
+ 				infB.exec();
+ 				Profile pfl = Global.getProfile();
+ 				pfl.filterRose = filterRose;
+ 				pfl.filterType = filterType;
++				pfl.filterVar = filterVar;
+ 				pfl.saveIndex(Global.getPref());
+ 				infB.close(0);
+-				Vm.showWait(false);
++				
+ 				if(distChc.selectedIndex == 1) flt.distdirec = Filter.SMALLER;
+ 				else flt.distdirec = Filter.GREATER;
+ 				if(difChc.selectedIndex == 1) flt.diffdirec = Filter.SMALLER;
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2007-01-25 00:16:35 UTC (rev 451)
++++ trunk/src/CacheWolf/Profile.java	2007-01-25 11:44:53 UTC (rev 452)
+@@ -37,7 +37,7 @@
+ 	public String filterType = new String(&quot;11111111110&quot;);
+ 	public String filterRose = new String(&quot;1111111111111111&quot;);
+ 	//filter settings for archived ... owner (section) in filterscreen
+-	public String filterVar = new String(&quot;0000&quot;);
++	public String filterVar = new String(&quot;1111&quot;);
+ 	//TODO Add the current filter settings here so that they are restored when the profile is reloaded
+ 	//TODO Add other settings, such as max. number of logs to spider
+ 	//TODO Add settings for the preferred mapper to allow for maps other than expedia and other resolutions
+@@ -92,7 +92,7 @@
+ 				distOC = &quot;0&quot;;
+ 			}
+ 			
+-			detfile.print(&quot;    &lt;FILTER rose = \&quot;&quot;+filterRose+&quot;\&quot; type = \&quot;&quot;+filterType+&quot;\&quot;/&gt;\n&quot;);
++			detfile.print(&quot;    &lt;FILTER rose = \&quot;&quot;+filterRose+&quot;\&quot; type = \&quot;&quot;+filterType+&quot;\&quot; var = \&quot;&quot;+filterVar+&quot;\&quot;/&gt;\n&quot;);
+ 			detfile.print(&quot;    &lt;SYNCOC date = \&quot;&quot;+last_sync_opencaching+&quot;\&quot; dist = \&quot;&quot;+distOC+&quot;\&quot;/&gt;\n&quot;);
+ 			for(int i = 0; i&lt;cacheDB.size();i++){
+ 				ch = (CacheHolder)cacheDB.get(i);
+@@ -160,6 +160,7 @@
+ 					ch.is_archived = ex.findNext().equals(&quot;true&quot;) ? true : false;
+ 					ch.has_bug = ex.findNext().equals(&quot;true&quot;) ? true : false;
+ 					ch.is_black = ex.findNext().equals(&quot;true&quot;) ? true : false;
++					if(ch.is_black) ch.is_filtered = true;
+ 					ch.is_owned = ex.findNext().equals(&quot;true&quot;) ? true : false;
+ 					ch.is_found = ex.findNext().equals(&quot;true&quot;) ? true : false;
+ 					ch.is_new = ex.findNext().equals(&quot;true&quot;) ? true : false;
+@@ -197,6 +198,7 @@
+ 					ex.setSource(text);
+ 					filterRose = ex.findNext();
+ 					filterType = ex.findNext();
++					filterVar = ex.findNext();
+ //					 Bilbowolf: Pattern for storing filter &lt;FILTER type=&quot;01001101&quot; rose = &quot;010010101&quot; var = &quot;0101&quot; dist = &quot;&lt;12&quot; diff = &quot;&gt;13&quot; terr = &quot;&lt;1&quot;/&gt;
+ 				}
+ 			}
+
+Modified: trunk/src/CacheWolf/TablePanel.java
+===================================================================
+--- trunk/src/CacheWolf/TablePanel.java	2007-01-25 00:16:35 UTC (rev 451)
++++ trunk/src/CacheWolf/TablePanel.java	2007-01-25 11:44:53 UTC (rev 452)
+@@ -116,6 +116,18 @@
+ 		if (statBar!=null) statBar.updateDisplay();
+ 	}
+ 	
++	public void refreshTableBlack(){
++		CacheHolder ch = new CacheHolder();
++		for (int i=0; i&lt;cacheDB.size(); i++){
++			ch = new CacheHolder();
++			ch = (CacheHolder)cacheDB.get(i);
++			if(ch.is_black) ch.is_filtered = false;
++			else ch.is_filtered = true;
++			cacheDB.set(i, ch);
++		}
++		refreshTable();
++	}
++	
+ 	public void refreshTable(){
+ 		myMod.updateRows();
+ 		tc.update(true);
+
+Modified: trunk/src/CacheWolf/myTableModel.java
+===================================================================
+--- trunk/src/CacheWolf/myTableModel.java	2007-01-25 00:16:35 UTC (rev 451)
++++ trunk/src/CacheWolf/myTableModel.java	2007-01-25 11:44:53 UTC (rev 452)
+@@ -142,7 +142,7 @@
+ 		// - filtered caches are moved to the end
+ 		for (int i=0; i&lt;cacheDB.size(); i++){
+ 			ch = (CacheHolder) cacheDB.get(i);
+-			if (ch.is_filtered || ch.is_black) {
++			if (ch.is_filtered) {
+ 				filteredDB.add(ch);
+ 			} else {
+ 				if (ch.isAddiWpt()){
+@@ -239,7 +239,7 @@
+ 					CacheHolder ch = (CacheHolder)cacheDB.get(row);
+ 					//Vm.debug(String.valueOf(row));
+ 					//Vm.debug(String.valueOf(cols[col]));
+-					if(ch.is_filtered == false &amp;&amp; ch.is_black == false){
++					if(ch.is_filtered == false){
+ 						try{
+ 							if(colName[col].equals(nmCheck)) {
+ /* Replaced mCheckBox with two images: One showing the unticked box, one showing the ticked box
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000219.html">[Cachewolf-svn] r451 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000221.html">[Cachewolf-svn] [Bug #10120] version check
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#220">[ date ]</a>
+              <a href="thread.html#220">[ thread ]</a>
+              <a href="subject.html#220">[ subject ]</a>
+              <a href="author.html#220">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,421 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1037 - in trunk/src/CacheWolf: . navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-November/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1037%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C200711012303.lA1N3asU006224%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000929.html">
+   <LINK REL="Next"  HREF="000931.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1037 - in trunk/src/CacheWolf: . navi</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1037%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C200711012303.lA1N3asU006224%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1037 - in trunk/src/CacheWolf: . navi">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Fri Nov  2 00:03:36 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000929.html">[Cachewolf-svn] r1036 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000931.html">[Cachewolf-svn] r1038 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#930">[ date ]</a>
+              <a href="thread.html#930">[ thread ]</a>
+              <a href="subject.html#930">[ subject ]</a>
+              <a href="author.html#930">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-11-02 00:03:31 +0100 (Fri, 02 Nov 2007)
+New Revision: 1037
+
+Added:
+   trunk/src/CacheWolf/navi/GkPoint.java
+Modified:
+   trunk/src/CacheWolf/CWPoint.java
+   trunk/src/CacheWolf/navi/TransformCoordinates.java
+Log:
+Coordinates transformation: done. it's a static class, easy to use. I also added a method getGermanGkCooordinates in CWPoint. Unfortunately there is now mathematical transformation avaible that provides a precision better than 1m for whole germany. For NRW we have precision to 37cm, when using the special implemented functions.
+
+Modified: trunk/src/CacheWolf/CWPoint.java
+===================================================================
+--- trunk/src/CacheWolf/CWPoint.java	2007-11-01 20:10:04 UTC (rev 1036)
++++ trunk/src/CacheWolf/CWPoint.java	2007-11-01 23:03:31 UTC (rev 1037)
+@@ -6,6 +6,7 @@
+ import ewe.sys.Locale;
+ import ewe.sys.Convert;
+ import CacheWolf.navi.TrackPoint;
++import CacheWolf.navi.TransformCoordinates;
+ 
+ import com.bbn.openmap.proj.coords.*;
+ import com.bbn.openmap.proj.*;
+@@ -447,6 +448,10 @@
+ 		return Convert.toString((long)utm.easting).replace(',','.');
+ 	}
+ 	
++	public String getGermanGkCoordinates() {
++		return TransformCoordinates.wgs84ToGkGermany(this).toString(0, &quot;R:&quot;, &quot; H:&quot;);
++	}
++	
+ 	/**
+ 	 * Method to calculate a projected waypoint
+ 	 * @param degrees Bearing
+
+Added: trunk/src/CacheWolf/navi/GkPoint.java
+===================================================================
+--- trunk/src/CacheWolf/navi/GkPoint.java	2007-11-01 20:10:04 UTC (rev 1036)
++++ trunk/src/CacheWolf/navi/GkPoint.java	2007-11-01 23:03:31 UTC (rev 1037)
+@@ -0,0 +1,33 @@
++package CacheWolf.navi;
++
++/**
++ * Point in Gau&#223;-Kr&#252;ger Format
++ * @author Robert Arnold
++ *
++ */
++public class GkPoint {
++	double northing;
++	double easting;
++
++	public GkPoint() { super(); }
++	
++	public GkPoint(double e, double n) {
++		easting = e;
++		northing = n;
++	}
++	
++	public String toString() {
++		return toString(0, &quot;R: &quot;, &quot; H: &quot;);
++	}
++
++	
++	public String toString(int decimalplaces, String prefix, String seperator) {
++		ewe.sys.Double n = new ewe.sys.Double();
++		ewe.sys.Double e = new ewe.sys.Double();
++		n.set(northing);
++		e.set(easting);
++		n.decimalPlaces = decimalplaces;
++		e.decimalPlaces = decimalplaces;
++		return prefix + e.toString().replace(',', '.') + seperator + n.toString().replace(',', '.');
++	}
++}
+\ No newline at end of file
+
+Modified: trunk/src/CacheWolf/navi/TransformCoordinates.java
+===================================================================
+--- trunk/src/CacheWolf/navi/TransformCoordinates.java	2007-11-01 20:10:04 UTC (rev 1036)
++++ trunk/src/CacheWolf/navi/TransformCoordinates.java	2007-11-01 23:03:31 UTC (rev 1037)
+@@ -5,23 +5,115 @@
+ 
+ import java.lang.Math;
+ 
++/**
++ * Class to transform coordinates and shift datums
++ * it uses the 7 parameter Helmert Transformation
++ * programmed according to <A HREF="http://www.geoclub.de/files/GK_nach_GPS.xls">http://www.geoclub.de/files/GK_nach_GPS.xls</A> 
++ * and <A HREF="http://www.geoclub.de/files/GPS_nach_GK.xls">http://www.geoclub.de/files/GPS_nach_GK.xls</A>
++ * The only difference to the excel-model is that shifting is done before rotation
++ * this makes calculations easier, without changing the output.
++ * @author Robert Arnold
++ *
++ */
+ public class TransformCoordinates {
+-//	public Ellipsoid ellipsoid;
+-//	public TransformParameters transParams;
+ 	
+-	static final Ellipsoid Bessel = new Ellipsoid(6377397.155, 6356078.962);
+-	static final Ellipsoid WGS84 = new Ellipsoid(6378137.000, 6356752.314);
+-	static final TransformParameters GKToWGS84 = new TransformParameters(584.8, 67.0, 400.3, -0.105 * Math.PI/180/3600, -0.013 * Math.PI/180/3600, 2.378 * Math.PI/180/3600, 1/(1 - 10.290 * Math.pow(10, -6)) );
+-	static final TransformParameters WGS84ToGK = new TransformParameters(-584.8, -67.0, -400.3, 0.105 * Math.PI/180/3600, 0.013 * Math.PI/180/3600, -2.378 * Math.PI/180/3600, 1- 10.290 * Math.pow(10, -6) );
++	private static final Ellipsoid BESSEL = new Ellipsoid(6377397.155, 6356078.962);
++	private static final Ellipsoid WGS84 = new Ellipsoid(6378137.000, 6356752.314);
+ 	
+-	public static GKPoint WGS84ToGK(CWPoint ll) {
++
++	//	 taken from <A HREF="http://www.geoclub.de/files/GK_nach_GPS.xls">http://www.geoclub.de/files/GK_nach_GPS.xls</A> &quot;Parametersatz 4 = Deutschland Nord&quot;
++	private static final TransformParameters GK_NORD_GERMANY_TO_WGS84 = new TransformParameters(590.5, 69.5, 411.6, 0.796, 0.052, 3.601, 8.300, false);
++	/** use this for nord Germany, maximum deviation unknown */
++	public static final TransformParameters GK_NORD_GERMANY =  GK_NORD_GERMANY_TO_WGS84; 
++
++	//	 taken from <A HREF="http://www.geoclub.de/files/GK_nach_GPS.xls">http://www.geoclub.de/files/GK_nach_GPS.xls</A> &quot;Parametersatz 3 = Mitte Deutschland&quot;
++	private static final TransformParameters GK_MID_GERMANY_TO_WGS84 = new TransformParameters(584.8, 67.0, 400.3, -0.105, -0.013, 2.378, 10.290, false);
++	/** use this for mid Germany, maximum deviation unknown */
++	public static final TransformParameters GK_MID_GERMANY =  GK_MID_GERMANY_TO_WGS84; 
++
++	//	 taken from <A HREF="http://www.geoclub.de/files/GK_nach_GPS.xls">http://www.geoclub.de/files/GK_nach_GPS.xls</A> &quot;Parametersatz 5 = Deutschland S&#252;d&quot;
++	private static final TransformParameters GK_SOUTH_GERMANY_TO_WGS84 = new TransformParameters(597.1, 71.4, 412.1, -0.894, -0.068, 1.563, 7.580, false);
++	/** use this for south Germany, maximum deviation unknown */
++	public static final TransformParameters GK_SOUTH_GERMANY =  GK_SOUTH_GERMANY_TO_WGS84; 
++
++	// taken from <A HREF="http://www.lverma.nrw.de/produkte/druckschriften/verwaltungsvorschriften/images/gps/TrafopsNRW.pdf">http://www.lverma.nrw.de/produkte/druckschriften/verwaltungsvorschriften/images/gps/TrafopsNRW.pdf</A> for NRW this transform has deviations lower than 34cm.
++	private static final TransformParameters GK_NRW_GERMANY_TO_WGS84 = new TransformParameters(566.1, 116.3, 390.1, -1.11, -0.24, 3.76, 12.6, false);
++	/** use this for NRW in Germany. Deviations less than 34 cm */
++	public static final TransformParameters GK_NRW_GERMANY =  GK_NRW_GERMANY_TO_WGS84; 
++	
++	// taken from <A HREF="http://www.lverma.nrw.de/produkte/druckschriften/verwaltungsvorschriften/images/gps/TrafopsNRW.pdf">http://www.lverma.nrw.de/produkte/druckschriften/verwaltungsvorschriften/images/gps/TrafopsNRW.pdf</A> for NRW this transform has deviations lower than 113cm.
++	// these matches to  <A HREF="http://www.geoclub.de/files/GK_nach_GPS.xls">http://www.geoclub.de/files/GK_nach_GPS.xls</A> &quot;Parametersatz 3 = Deutschland 1995&quot;
++	private static final TransformParameters GK_GERMANY_1995_TO_WGS84 = new TransformParameters(582, 105, 414, -1.04, -0.35, +3.08, 8.3, false);
++	/** Use this for Germany if there is no more specific available. Deviations less than 113 cm */
++	public static final TransformParameters GK_GERMANY_1995 =  GK_GERMANY_1995_TO_WGS84; 
++
++	// taken from <A HREF="http://www.geodatenzentrum.de/geodaten/gdz_home1.gdz_home_start?gdz_home_para1=Technische%A0Hinweise&amp;gdz_home_para2=Technische%A0Hinweise&amp;gdz_home_menu_nr=10&amp;gdz_home_menu_nr2=1&amp;gdz_home_para3=/auftrag/html/gdz_tech_geo_deu.htm&amp;gdz_home_spr=deu&amp;gdz_home_para0=0">http://www.geodatenzentrum.de/geodaten/gdz_home1.gdz_home_start?gdz_home_para1=Technische%A0Hinweise&amp;gdz_home_para2=Technische%A0Hinweise&amp;gdz_home_menu_nr=10&amp;gdz_home_menu_nr2=1&amp;gdz_home_para3=/auftrag/html/gdz_tech_geo_deu.htm&amp;gdz_home_spr=deu&amp;gdz_home_para0=0</A>
++	private static final TransformParameters GK_GERMANY_BKG_TO_WGS84 = new TransformParameters(586, 87, 409, -0.52, -0.15, 2.82, 9, false);
++	/** Use this for Germany if there is no more specific available. Deviations unknown. Data source: Bundesamt f&#252;r Kartographie und Geod&#228;sie, taken from website on: 1-11-2007 */
++	public static final TransformParameters GK_GERMANY_BKG =  GK_GERMANY_BKG_TO_WGS84; 
++
++	// take from <A HREF="http://www.geoclub.de/files/GK_nach_GPS.xls">http://www.geoclub.de/files/GK_nach_GPS.xls</A> &quot;Parametersatz 2 = Deutschland 2001&quot;
++	private static final TransformParameters GK_GERMANY_2001_TO_WGS84 = new TransformParameters(598.1, 73.7, 418.2, -0.202, -0.045, 2.455, 6.700, false);
++	/** Use this for Germany if there is no more specific available. maximal deviations unknown */
++	public static final TransformParameters GK_GERMANY_2001 =  GK_GERMANY_2001_TO_WGS84; 
++
++	
++
++	private TransformCoordinates() {} // as all members are static, so avoid instantiation
++	
++	/**
++	 * This is the most abstract method: If you don't know 
++	 * when to use another one (if you are in need to do so, you will
++	 * know), use this one.
++	 * @param gk
++	 * @return
++	 */
++	public static CWPoint gkGermanyToWgs84(GkPoint gk) {
++		return  gkToWgs84(gk, GK_GERMANY_2001); 	//TODO use more lokalized transformparameters, which can be obtained from the Landesvermessungs&#228;mter
++	}
++	
++	/**
++	 * This is the most abstract method: If you don't know 
++	 * when to use another one (if you are in need to do so, you will
++	 * know), use this one.
++	 * @param gk
++	 * @return
++	 */
++	public static GkPoint wgs84ToGkGermany(CWPoint ll) {
++		return  wgs84ToGk(ll, GK_GERMANY_2001); 	//TODO use more lokalized transformparameters, which can be obtained from the Landesvermessungs&#228;mter
++	}
++
++	/**
++	 * Call this routine to convert from wgs84 into German Gau&#223;-Kr&#252;ger-Coordinates 
++	 * using the Gau&#223;-Kr&#252;ger Projection and the Bessel ellipsoid
++	 * 	 *  
++	 * @param ll
++	 * @param Gau&#223;-Kr&#252;ger-to-WGS84 transformation parameters, they will be automatically inverted
++	 * @return
++	 */
++	public static GkPoint wgs84ToGk(CWPoint ll, TransformParameters gk2wgs84) {
+ 		XyzCoordinates wgsxyz = latLon2xyz(ll, 0, WGS84);
+-		XyzCoordinates gkxyz = transform(wgsxyz, WGS84ToGK);
+-		CWPoint gkll = Xyz2Latlon(gkxyz, Bessel);
+-		return projectLatlon2GK(gkll, Bessel);
++		XyzCoordinates gkxyz = transform(wgsxyz, new TransformParameters(gk2wgs84, true));
++		CWPoint gkll = Xyz2Latlon(gkxyz, BESSEL);
++		return projectLatlon2GK(gkll, BESSEL, 3);
+ 	}
++	/**
++	 * Call this method to convert any Gau&#223;-Kr&#252;ger coordinates into
++	 * wgs84.
++	 * @param gk point to convert
++	 * @param GK2WGS84 Gau&#223;-Kr&#252;ger-to-WGS84 transformation parameters
++	 * @return
++	 */
++	public static CWPoint gkToWgs84(GkPoint gk, TransformParameters gk2wgs84) {
++		CWPoint gkll = GK2LatLon(gk, BESSEL, 3);
++		XyzCoordinates wgsxyz = latLon2xyz(gkll, 0, BESSEL);
++		XyzCoordinates wgs84xyz = transform(wgsxyz, gk2wgs84);
++		CWPoint wgsll = Xyz2Latlon(wgs84xyz, WGS84);
++		return wgsll;
++	}
+ 	
+-	public static XyzCoordinates latLon2xyz(CWPoint ll, double alt, Ellipsoid ellipsoid) {
++	private static XyzCoordinates latLon2xyz(CWPoint ll, double alt, Ellipsoid ellipsoid) {
++		if (!ll.isValid()) throw new IllegalArgumentException(&quot;latLon2xyz: invalid lat-lon&quot;);
+ 		double e2 = (ellipsoid.a * ellipsoid.a - ellipsoid.b * ellipsoid.b)/(ellipsoid.a * ellipsoid.a);
+ 		double N = ellipsoid.a/ Math.sqrt(1 - e2 * Math.pow(Math.sin(ll.latDec / 180*Math.PI), 2));
+ 		XyzCoordinates ret = new XyzCoordinates(0,0,0);
+@@ -31,7 +123,7 @@
+ 		return ret;
+ 	}
+ 	
+-	public static XyzCoordinates transform(XyzCoordinates from, TransformParameters transParams) {
++	private static XyzCoordinates transform(XyzCoordinates from, TransformParameters transParams) {
+ 		Matrix coos = new Matrix(3, 1);
+ 		coos.matrix[0][0] = from.x;
+ 		coos.matrix[1][0] = from.y;
+@@ -62,7 +154,7 @@
+ 		return new XyzCoordinates(coos.matrix[0][0], coos.matrix[1][0], coos.matrix[2][0]);
+ 	}
+ 	
+-	public static CWPoint Xyz2Latlon(XyzCoordinates from, Ellipsoid ellipsoid) {
++	private static CWPoint Xyz2Latlon(XyzCoordinates from, Ellipsoid ellipsoid) {
+ 		double e2 = (ellipsoid.a * ellipsoid.a - ellipsoid.b * ellipsoid.b)/(ellipsoid.a * ellipsoid.a);
+ 		double s = Math.sqrt( Math.pow(from.x,2) + Math.pow(from.y,2));
+ 		double T = Math.atan( from.z * ellipsoid.a / (s * ellipsoid.b));
+@@ -77,10 +169,19 @@
+ 		return ret;
+ 	}
+ 	
+-	public static GKPoint projectLatlon2GK(CWPoint ll, Ellipsoid ellipsoid) {
++	/**
++	 * Project latlon to Gau&#223;-Kr&#252;ger-Coordinates on ellipsoid
++	 * @param latlon
++	 * @param ellipsoid
++	 * @return
++	 */
++	private static GkPoint projectLatlon2GK(CWPoint latlon, Ellipsoid ellipsoid, int stripewidth) {
++		if (!latlon.isValid()) throw new IllegalArgumentException(&quot;projectLatlon2GK: lat-lon not valid&quot;);
++		CWPoint ll = new CWPoint(latlon); // copy the point, in order to avoid modifying the parameter latlon
++		if (ll.lonDec &lt; 0) ll.lonDec += 360;
+ 		int stripe;
+-		for (stripe=0; stripe &lt;= 360; stripe += 3) { // TODO -180 bis +180
+-			if (Math.abs(ll.lonDec - stripe) &lt; 1.5) break;
++		for (stripe = 0; stripe &lt;= 360; stripe += stripewidth) {
++			if (Math.abs(ll.lonDec - stripe) &lt;= ((float)stripewidth) / 2) break;
+ 		}
+ 		double e2 = (ellipsoid.a * ellipsoid.a - ellipsoid.b * ellipsoid.b)/(ellipsoid.a * ellipsoid.a);
+ 		double l = (ll.lonDec - stripe) /180*Math.PI; // TODO see is int to double works
+@@ -101,15 +202,55 @@
+ 		double h2 = t/24 * N * Math.pow(Math.cos(B),4) * (5 - t*t + 9 * nue*nue + 4*Math.pow(nue, 4)) * Math.pow(l,4);
+ 		double northing = arclength + h1 + h2;
+ 		
+-		
+ 		double r1 = N * Math.cos(B) * l;
+ 		double r2 = N/6 * Math.pow(Math.cos(B), 3) * (1-t*t+nue*nue)*l*l*l;
+-		double easting = r1 + r2 + stripe / 3 * 1000000 + 500000;
+-		GKPoint ret = new GKPoint();
++		double easting = r1 + r2 + stripe / stripewidth * 1000000 + 500000;
++		GkPoint ret = new GkPoint();
+ 		ret.easting = easting;
+ 		ret.northing = northing;
+ 		return ret;
+ 	}
++	
++	/**
++	 * Converts Gau&#223;-Kr&#252;ger-coordinates into lat/lon on the respective ellipsoid
++	 * @param gkp
++	 * @param ellipsoid
++	 * @param stripewidth width in degree of the stripe of the Gau&#223;-Kr&#252;ger-System (3 degreee usually used in Gau&#223;-Kr&#252;ger, 6 degree usually in UTM)
++	 * @return
++	 */
++	private static CWPoint GK2LatLon (GkPoint gkp, Ellipsoid ellipsoid, int stripewidth) {
++		double Y0 = Math.floor(gkp.easting / 1000000);
++		double L0 = Y0 * stripewidth; // decimal degree of the center of the stripe
++		double y = gkp.easting - 1000000 * Y0 - 500000;
++		
++		double e2 = (ellipsoid.a * ellipsoid.a - ellipsoid.b * ellipsoid.b)/(ellipsoid.a * ellipsoid.a);
++		// note: n1-n6 are similiar to the n1-n6 in projectLatlon2GK, but some term have different factors
++		double n1 = (ellipsoid.a-ellipsoid.b)/(ellipsoid.a+ellipsoid.b);
++		double n2 = (ellipsoid.a+ellipsoid.b)/2 * (1+ Math.pow(n1, 2)/4 + Math.pow(n1, 4)/64);
++		double n3 = n1 * 3/2 - Math.pow(n1, 3) * 27/32  + Math.pow(n1, 5) * 269/32;
++		double n4 = Math.pow(n1, 2) * 21/16 - Math.pow(n1, 4) * 55/32;
++		double n5 = Math.pow(n1, 3) * 151/96 - Math.pow(n1, 5) * 417/128;
++		double n6 = Math.pow(n1, 4) * 1097/512;
++
++		double B0 = gkp.northing / n2;
++		double Bf = B0 + n3 * Math.sin(B0*2) + n4 * Math.sin(B0*4) + n5 * Math.sin(B0*6) + n6 * Math.sin(B0*8);
++		
++		double Nf = ellipsoid.a / Math.sqrt (1- e2 * Math.pow(Math.sin(Bf), 2));
++		double nuef = Math.sqrt(ellipsoid.a * ellipsoid.a / ellipsoid.b / ellipsoid.b * e2 * Math.pow(Math.cos(Bf), 2));
++		double tf = Math.tan(Bf);
++		
++		double la1 = tf / 2 / Nf/Nf * (-1-nuef*nuef) * y*y;
++		double la2 = tf /24 / Math.pow(Nf, 4) * (5 + 3*tf*tf + 6*nuef*nuef - 6*tf*tf * nuef*nuef - 4*Math.pow(nuef, 4) - 9*tf*tf*Math.pow(nuef, 4)) * Math.pow(y, 4);
++	// these deal this less than the overall calculation precision double la3 = tf /720 / Math.pow(Nf, 6) * (-61 - 90*tf*tf - 45*Math.pow(tf,4) - 107*nuef*nuef + 162*tf*tf * Math.pow(nuef, 2) + 45*Math.pow(tf,4)*tf*Math.pow(nuef, 2)) * Math.pow(y, 6);
++	// these deal this less than the overall calculation precision double la4 = tf /40320 / Math.pow(Nf, 8) * (1385+3663*tf*tf - 4095*Math.pow(tf,4) + 1575*Math.pow(nuef, 6)) * Math.pow(y, 8);
++		double lat = (Bf + la1 + la2) * 180 / Math.PI;
++
++		double lo1 = 1 / Nf / Math.cos(Bf) * y;
++		double lo2 = 1 / Math.pow(Nf, 3) / Math.cos(Bf) *  (-1 -tf*tf*2 - nuef*nuef) * Math.pow(y, 3) / 6;
++		double lon = L0 + (lo1 + lo2) * 180/Math.PI;
++		return new CWPoint(lat, lon);
++	}
++	
+ }
+ 
+ class XyzCoordinates {
+@@ -130,22 +271,41 @@
+ }
+ 
+ class TransformParameters {
+-	// shift parameter
++	// shift parameter in meter
+ 	double dx, dy, dz, 
+ 	// rotation parameter in rad
+-	ex, ey, ez, 
++	ex, ey, ez,
+ 	// scale as multiplicator
+ 	s;
+ 	
+-	public TransformParameters(double dxi, double dyi, double dzi, double exi, double eyi, double ezi, double si) {
+-		dx = dxi; dy = dyi; dz = dzi; ex = exi; ey =eyi; ez = ezi; s = si;
++	/**
++	 * 
++	 * @param d shift in meter
++	 * @param exi rotation in seconds
++	 * @param si deviation of scale multiplied by 10^6 
++	 * @param invert
++	 */
++	public TransformParameters(double dxi, double dyi, double dzi, double exi, double eyi, double ezi, double si, boolean invert) {
++		dx = dxi; dy = dyi; dz = dzi; 
++		ex = exi * Math.PI/180/3600;
++		ey = eyi * Math.PI/180/3600; 
++		ez = ezi * Math.PI/180/3600;
++		s = 1/(1 - si * Math.pow(10, -6));
++		if (invert) invert();
+ 	}
+-}
++	
++	public TransformParameters(TransformParameters tp, boolean invert) {
++		dx = tp.dx;	dy = tp.dy;	dz = tp.dz;
++		ex = tp.ex;	ey = tp.ey;	ez = tp.ez;
++		s = tp.s;
++		if (invert) invert();
++	}
+ 
+-class GKPoint {
+-	double northing;
+-	double easting;
+-	public String toString() {
+-		return Double.toString(easting) + &quot;;&quot; + Double.toString(northing);
++	public void invert() {
++		dx *= -1; dy *= -1;	dz *= -1;
++		ex *= -1; ey *= -1;	ez *= -1;
++		s = 1/s;
+ 	}
+ }
++
++
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000929.html">[Cachewolf-svn] r1036 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000931.html">[Cachewolf-svn] r1038 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#930">[ date ]</a>
+              <a href="thread.html#930">[ thread ]</a>
+              <a href="subject.html#930">[ subject ]</a>
+              <a href="author.html#930">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

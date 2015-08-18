@@ -1,0 +1,970 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2722 - in trunk/src/CacheWolf: . navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-August/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2722%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C20100807113755.75F09480F11%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002707.html">
+   <LINK REL="Next"  HREF="002709.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2722 - in trunk/src/CacheWolf: . navi</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2722%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C20100807113755.75F09480F11%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2722 - in trunk/src/CacheWolf: . navi">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Sat Aug  7 01:37:55 CEST 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002707.html">[Cachewolf-svn] r2721 - trunk/res_noewe
+</A></li>
+        <LI>Next message: <A HREF="002709.html">[Cachewolf-svn] r2723 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2708">[ date ]</a>
+              <a href="thread.html#2708">[ thread ]</a>
+              <a href="subject.html#2708">[ subject ]</a>
+              <a href="author.html#2708">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2010-08-07 13:37:55 +0200 (Sat, 07 Aug 2010)
+New Revision: 2722
+
+Modified:
+   trunk/src/CacheWolf/GPSPortOptions.java
+   trunk/src/CacheWolf/Preferences.java
+   trunk/src/CacheWolf/PreferencesScreen.java
+   trunk/src/CacheWolf/navi/CWGPSPoint.java
+   trunk/src/CacheWolf/navi/GotoPanel.java
+   trunk/src/CacheWolf/navi/Navigate.java
+Log:
+included gpsd-support &gt; V2.91
+
+Modified: trunk/src/CacheWolf/GPSPortOptions.java
+===================================================================
+--- trunk/src/CacheWolf/GPSPortOptions.java	2010-08-07 11:32:06 UTC (rev 2721)
++++ trunk/src/CacheWolf/GPSPortOptions.java	2010-08-07 11:37:55 UTC (rev 2722)
+@@ -35,6 +35,13 @@
+ import ewe.sys.*;
+ import ewe.util.*;
+ 
++// Stuff needed by the GpsdThread class:
++import net.ax86.GPS;
++import net.ax86.GPSException;
++import org.json.JSONObject;
++import org.json.JSONException;
++
++
+ /**
+  * Thread for reading data from COM-port
+  *
+@@ -95,7 +102,100 @@
+ 	}
+ }
+ 
+-class GpsdThread extends mThread{
++/**
++ * Thread for reading data from gpsd and simply displaying it to the user.
++ *
++ * This is a modified version of {@link CacheWolf.navi.GpsdThread}.
++ *
++ * @author Tilman Blumenbach
++ */
++class GpsdThread extends mThread {
++	GPS gpsObj;
++	TextDisplay out;
++	boolean run;
++
++
++	public GpsdThread(TextDisplay td) throws IOException, JSONException, GPSException {
++		JSONObject response;
++		int proto_major;
++
++		gpsObj = new GPS(Global.getPref().gpsdHost, Global.getPref().gpsdPort);
++		gpsObj.stream( GPS.WATCH_ENABLE );
++
++		// Check major protocol version:
++		response = gpsObj.read();
++
++		if( ! response.getString( &quot;class&quot; ).equals( &quot;VERSION&quot; ) ) {
++			throw new GPSException( &quot;Expected VERSION object at connect.&quot; );
++		} else if( ( proto_major = response.getInt( &quot;proto_major&quot; ) ) != 3 ) {
++			throw new GPSException( &quot;Invalid protocol API version; got &quot; +
++					proto_major + &quot;, wanted 3.&quot; );
++		}
++
++		out = td;
++		// Show data to user:
++		out.appendText(response.toString(2) + &quot;\n&quot;, true);
++	}
++
++
++	public void run() {
++		JSONObject response;
++
++		run = true;
++		while (run) {
++			try {
++				sleep(1000);
++			} catch (InterruptedException e) {
++				Global.getPref().log(&quot;Ignored Exception&quot;, e, true);
++			}
++
++			if( gpsObj == null ) {
++				continue;
++			}
++
++			try {
++				/* Tblue&gt; This is ugly, but BufferedReader::ready() seems to
++				 *        be broken in Ewe, so instead of only polling when
++				 *        there is no data from gpsd, we poll on every iteration.
++				 *        Not ideal, but works for now.
++				 */
++				gpsObj.poll();
++
++				/* Tblue&gt; TODO: I think this call should not block, but
++				 *              my GPS class does not yet support non-blocking
++				 *              reads... Seems to work, anyway.
++				 */
++				response = gpsObj.read();
++				out.appendText(response.toString(2) + &quot;\n&quot;, true);
++
++				// Keep up with new devices:
++				if( response.getString( &quot;class&quot; ).equals( &quot;DEVICE&quot; ) &amp;&amp;
++				    response.has( &quot;activated&quot; ) &amp;&amp; response.getDouble( &quot;activated&quot; ) != 0 )
++				{	// This is a new device, we need to tell gpsd we want to watch it:
++					Global.getPref().log( &quot;New GPS device, sending WATCH command.&quot; );
++					gpsObj.stream( GPS.WATCH_ENABLE );
++				}
++			} catch( Exception e ) {
++				// We will just ignore this JSON object:
++				Global.getPref().log(&quot;Ignored Exception&quot;, e, true);
++			}
++		} // while
++	}
++
++
++	public boolean stop() {
++		run = false;
++
++		if( gpsObj == null ) {
++			return true;
++		}
++
++		gpsObj.cleanup();
++		return false; 
++	}
++}
++
++class OldGpsdThread extends mThread{
+ 	Socket gpsdSocket;
+ 	boolean run;
+ 	TextDisplay out;
+@@ -103,7 +203,7 @@
+ 	String lastError = new String();
+ 	public String lastgot;
+ 	
+-	public GpsdThread(TextDisplay td) throws IOException {
++	public OldGpsdThread(TextDisplay td) throws IOException {
+ 		try{
+ 			gpsdSocket = new Socket(Global.getPref().gpsdHost, Global.getPref().gpsdPort);
+ 		} catch (IOException e) {
+@@ -177,17 +277,25 @@
+ 	mLabel  labelForwardHost;
+ 	public mCheckBox forwardGpsChkB;
+ 	public mInput inputBoxGpsdHost;
++	mLabel  labelUseGpsd;
++	public mChoice chcUseGpsd;
+ 	mLabel  labelGpsdHost;
+-	public mCheckBox gpsdChkB;
+ 	public mInput inputBoxLogTimer;
+ 	mLabel  labelLogTimer;
+ 	public mCheckBox logGpsChkB;
+ 	mySerialThread serThread;
+ 	GpsdThread gpsdThread = null;
++	OldGpsdThread oldGpsdThread = null;
+ 	boolean gpsRunning = false;
+ 	MyEditor ed = new MyEditor();
+ 
+-	
++	private String[] useGpsdChoices = new String[]{
++		MyLocale.getMsg(641, &quot;No&quot;),
++		MyLocale.getMsg(99999, &quot;Yes (&lt; v2.91)&quot;),
++		MyLocale.getMsg(99999, &quot;Yes (&gt;= v2.91)&quot;),
++	};
++
++
+ 	public Editor getEditor(){
+ 		// The following lines are mainly copied from SerialPortOptions.
+ 		// Reason: We want to use MyEditor instead of the default Editor,
+@@ -224,29 +332,34 @@
+ 		
+ 		forwardGpsChkB = new mCheckBox(&quot;&quot;);
+ 		ed.addField(ed.addNext(forwardGpsChkB, CellConstants.DONTSTRETCH, (CellConstants.EAST | CellConstants.DONTFILL)), &quot;forwardGpsChkB&quot;);
+-		labelForwardHost = new mLabel(MyLocale.getMsg(7105, &quot;Forward GPS data to host&quot;));
++		labelForwardHost = new mLabel(MyLocale.getMsg(7105, &quot;Forward GPS data to host (serial port only)&quot;));
+ 		ed.addField(ed.addNext(labelForwardHost, CellConstants.DONTSTRETCH, (CellConstants.WEST | CellConstants.DONTFILL)), &quot;labelForwardIP&quot;);
+ 		inputBoxForwardHost = new mInput(&quot;tcpForwardHost&quot;);
+ 		inputBoxForwardHost.setPromptControl(labelForwardHost);
+ 		inputBoxForwardHost.setToolTip(MyLocale.getMsg(7106, &quot;All data from GPS will be sent to TCP-port 23\n and can be redirected there to a serial port\n by HW Virtual Serial Port&quot;));
+ 		ed.addField(ed.addLast(inputBoxForwardHost,0 , (CellConstants.WEST | CellConstants.HFILL)), &quot;tcpForwardHost&quot;);
+ 
+-		gpsdChkB = new mCheckBox(&quot;&quot;);
+-		ed.addField(ed.addNext(gpsdChkB, CellConstants.DONTSTRETCH, (CellConstants.EAST | CellConstants.DONTFILL)), &quot;gpsdChkB&quot;);
+-		labelGpsdHost = new mLabel(MyLocale.getMsg(7121, &quot;Receive GPS from gpsd host&quot;));
+-		ed.addField(ed.addNext(labelGpsdHost, CellConstants.DONTSTRETCH, (CellConstants.WEST | CellConstants.DONTFILL)), &quot;labelGpsd&quot;);
+-		inputBoxGpsdHost = new mInput(&quot;GpsdHost&quot;);
+-		inputBoxGpsdHost.setPromptControl(labelGpsdHost);
+-		inputBoxGpsdHost.setToolTip(MyLocale.getMsg(7122, &quot;GPS data will be received from a gpsd server, not from a serial port&quot;));
+-		ed.addField(ed.addLast(inputBoxGpsdHost,0 , (CellConstants.WEST | CellConstants.HFILL)), &quot;GpsdHost&quot;);
+-
+ 		logGpsChkB = new mCheckBox(&quot;&quot;);
+ 		ed.addField(ed.addNext(logGpsChkB, CellConstants.DONTSTRETCH, (CellConstants.EAST | CellConstants.DONTFILL)), &quot;logGpsChkB&quot;);
+-		labelLogTimer = new mLabel(MyLocale.getMsg(7107, &quot;Interval in sec for logging&quot;));
++		labelLogTimer = new mLabel(MyLocale.getMsg(7107, &quot;Interval in sec for logging (serial port only)&quot;));
+ 		ed.addField(ed.addNext(labelLogTimer, CellConstants.DONTSTRETCH, (CellConstants.WEST | CellConstants.DONTFILL)), &quot;labelLogTimer&quot;);
+ 		inputBoxLogTimer = new mInput(&quot;GPSLogTimer&quot;);
+ 		inputBoxLogTimer.setPromptControl(labelLogTimer);
+-		ed.addField(ed.addLast(inputBoxLogTimer,0 , (CellConstants.WEST | CellConstants.HFILL)), &quot;GPSLogTimer&quot;);
++		ed.addField(ed.addLast(inputBoxLogTimer, 0, (CellConstants.WEST | CellConstants.HFILL)), &quot;GPSLogTimer&quot;);
++
++		labelUseGpsd = new mLabel(MyLocale.getMsg(7121, &quot;Receive GPS data from gpsd:&quot;));
++		ed.addField(ed.addNext(labelUseGpsd, CellConstants.DONTSTRETCH, (CellConstants.EAST | CellConstants.DONTFILL)), &quot;labelUseGpsd&quot;);
++		chcUseGpsd = new mChoice( useGpsdChoices, 0 );
++		chcUseGpsd.setPromptControl(labelUseGpsd);
++		chcUseGpsd.setToolTip(MyLocale.getMsg(7122, &quot;GPS data will be received from a gpsd server, not from a serial port&quot;));
++		ed.addField(ed.addLast(chcUseGpsd, 0, (CellConstants.WEST | CellConstants.HFILL)), &quot;UseGpsd&quot;);
++
++		labelGpsdHost = new mLabel(MyLocale.getMsg(99999, &quot;gpsd host:&quot;));
++		ed.addField(ed.addNext(labelGpsdHost, CellConstants.DONTSTRETCH, (CellConstants.EAST | CellConstants.DONTFILL)), &quot;labelGpsdHost&quot;);
++		inputBoxGpsdHost = new mInput(&quot;GpsdHost&quot;);
++		inputBoxGpsdHost.setPromptControl(labelGpsdHost);
++		ed.addField(ed.addLast(inputBoxGpsdHost, 0, (CellConstants.WEST | CellConstants.HFILL)), &quot;GpsdHost&quot;);
++
+ 		this.ed.firstFocus = btnUpdatePortList;
+ 		gpsRunning = false;
+ 		return ed;
+@@ -306,37 +419,67 @@
+ 		if (field.equals(&quot;test&quot;)){
+ 			if (!gpsRunning){
+ 				ed_.fromControls();
+-				if(Global.getPref().useGPSD){
+-					txtOutput.setText(MyLocale.getMsg(99999, &quot;Displaying data from gpsd directly:\n&quot;));
+-					try {
+-						btnScan.set(ControlConstants.Disabled, true);
+-						btnScan.repaintNow();
+-						gpsdThread = new GpsdThread(txtOutput);
+-						gpsdThread.start();
+-						btnTest.setText(Gui.getTextFrom(MyLocale.getMsg(7118, &quot;Stop&quot;)));
+-						gpsRunning = true;
+-					} catch (IOException e) {
+-						(new MessageBox(MyLocale.getMsg(4403, &quot;Error&quot;), 
+-							MyLocale.getMsg(99999, &quot;Could not connect to GPSD.&quot;) 
+-							+ e.getMessage()
+-							+ MyLocale.getMsg(99999, &quot;\npossible reasons:\nGPSD is not running or GPSD host is not reachable&quot;), 
+-							FormBase.OKB)).execute(); 
+-					}
+-				}else{
+-					txtOutput.setText(MyLocale.getMsg(7117, &quot;Displaying data from serial port directly:\n&quot;));
+-					try {
+-						btnScan.set(ControlConstants.Disabled, true);
+-						btnScan.repaintNow();
+-						this.portName = Common.fixSerialPortName(portName);
+-						serThread = new mySerialThread(this, txtOutput);
+-						serThread.start();
+-						btnTest.setText(Gui.getTextFrom(MyLocale.getMsg(7118, &quot;Stop&quot;)));
+-						gpsRunning = true;
+-					} catch (IOException e) {
+-						btnScan.set(ControlConstants.Disabled, false);
+-						btnScan.repaintNow();
+-						txtOutput.appendText(MyLocale.getMsg(7108, &quot;Failed to open serial port: &quot;) + this.portName + &quot;, IOException: &quot; + e.getMessage() + &quot;\n&quot;, true);
+-					}
++
++				switch(Global.getPref().useGPSD) {
++					case Preferences.GPSD_FORMAT_NEW:
++						txtOutput.setText(MyLocale.getMsg(99999, &quot;Displaying data from gpsd directly (JSON):\n&quot;));
++						try {
++							btnScan.set(ControlConstants.Disabled, true);
++							btnScan.repaintNow();
++							gpsdThread = new GpsdThread(txtOutput);
++							gpsdThread.start();
++							btnTest.setText(Gui.getTextFrom(MyLocale.getMsg(7118, &quot;Stop&quot;)));
++							gpsRunning = true;
++						} catch (IOException e) {
++							(new MessageBox(MyLocale.getMsg(4403, &quot;Error&quot;), 
++								MyLocale.getMsg(99999, &quot;Could not connect to GPSD: &quot;) 
++								+ e.getMessage()
++								+ MyLocale.getMsg(99999, &quot;\nPossible reasons:\nGPSD is not running or GPSD host is not reachable&quot;), 
++								FormBase.OKB)).execute(); 
++						} catch( Exception e ) {
++							// Other error (JSON/GPS).
++							(new MessageBox(MyLocale.getMsg(4403, &quot;Error&quot;),
++								MyLocale.getMsg(99999, &quot;Could not initialize GPSD connection: &quot;) 
++								+ e.getMessage(),
++								FormBase.OKB)).execute();
++						}
++						break;
++
++					case Preferences.GPSD_FORMAT_OLD:
++						txtOutput.setText(MyLocale.getMsg(99999, &quot;Displaying data from gpsd directly (old protocol):\n&quot;));
++						try {
++							btnScan.set(ControlConstants.Disabled, true);
++							btnScan.repaintNow();
++							oldGpsdThread = new OldGpsdThread(txtOutput);
++							oldGpsdThread.start();
++							btnTest.setText(Gui.getTextFrom(MyLocale.getMsg(7118, &quot;Stop&quot;)));
++							gpsRunning = true;
++						} catch (IOException e) {
++							(new MessageBox(MyLocale.getMsg(4403, &quot;Error&quot;), 
++								MyLocale.getMsg(99999, &quot;Could not connect to GPSD: &quot;) 
++								+ e.getMessage()
++								+ MyLocale.getMsg(99999, &quot;\nPossible reasons:\nGPSD is not running or GPSD host is not reachable&quot;), 
++								FormBase.OKB)).execute(); 
++						}
++						break;
++
++					case Preferences.GPSD_DISABLED:
++					default:
++						txtOutput.setText(MyLocale.getMsg(7117, &quot;Displaying data from serial port directly:\n&quot;));
++						try {
++							btnScan.set(ControlConstants.Disabled, true);
++							btnScan.repaintNow();
++							this.portName = Common.fixSerialPortName(portName);
++							serThread = new mySerialThread(this, txtOutput);
++							serThread.start();
++							btnTest.setText(Gui.getTextFrom(MyLocale.getMsg(7118, &quot;Stop&quot;)));
++							gpsRunning = true;
++						} catch (IOException e) {
++							btnScan.set(ControlConstants.Disabled, false);
++							btnScan.repaintNow();
++							txtOutput.appendText(MyLocale.getMsg(7108, &quot;Failed to open serial port: &quot;) + this.portName + &quot;, IOException: &quot; + e.getMessage() + &quot;\n&quot;, true);
++						}
++						break;
+ 				}
+ 			}
+ 			else {
+@@ -344,6 +487,8 @@
+ 					serThread.stop();
+ 				if(gpsdThread!=null)
+ 					gpsdThread.stop();
++				if(oldGpsdThread!=null)
++					oldGpsdThread.stop();
+ 				btnTest.setText(Gui.getTextFrom(MyLocale.getMsg(7104,&quot;Test$t&quot;)));
+ 				gpsRunning = false;
+ 				btnScan.set(ControlConstants.Disabled, false);
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2010-08-07 11:32:06 UTC (rev 2721)
++++ trunk/src/CacheWolf/Preferences.java	2010-08-07 11:37:55 UTC (rev 2722)
+@@ -43,6 +43,9 @@
+ 	public final int DEFAULT_LOGS_PER_PAGE=5;
+ 	public final int DEFAULT_INITIAL_HINT_HEIGHT=10;
+ 	public final int DEFAULT_GPSD_PORT=2947;
++	public static final int GPSD_DISABLED   = 0; // do not use gpsd
++	public static final int GPSD_FORMAT_OLD = 1; // use old protocol
++	public static final int GPSD_FORMAT_NEW = 2; // use new protocol (JSON)
+ 	public static final int YES = 0;
+ 	public static final int NO = 1;
+ 	public static final int ASK = 2;
+@@ -167,8 +170,8 @@
+ 	public boolean forwardGPS = false;
+ 	/** IP address for forwarding GPS data */
+ 	public String forwardGpsHost = &quot;192.168.1.15&quot;;
+-	/** True if the GPS data should be received from a GPSD on this or another host */
+-	public boolean useGPSD = false;
++	/** Should GPS data be received from a GPSD on this or another host? */
++	public int useGPSD = GPSD_DISABLED;
+ 	/** IP address of GPSD host */
+ 	public String gpsdHost = &quot;127.0.0.1&quot;;
+ 	/** Port for forwarding GPS data */
+@@ -438,7 +441,7 @@
+ 			forwardGpsHost = atts.getValue(&quot;destinationHost&quot;);
+ 		}
+ 		else if(name.equals(&quot;gpsd&quot;)) {
+-			useGPSD = Convert.toBoolean(atts.getValue(&quot;active&quot;));
++			useGPSD = Convert.toInt(atts.getValue(&quot;active&quot;));
+ 			gpsdHost = atts.getValue(&quot;host&quot;);
+ 			gpsdPort = Convert.toInt(atts.getValue(&quot;port&quot;));
+ 		}
+@@ -685,7 +688,7 @@
+ 			outp.print(&quot;    &lt;proxy prx = \&quot;&quot; + SafeXML.clean(myproxy) + &quot;\&quot; prt = \&quot;&quot; + SafeXML.clean(myproxyport) + &quot;\&quot; active = \&quot;&quot; + SafeXML.strxmlencode(proxyActive) + &quot;\&quot; /&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;port portname = \&quot;&quot; + SafeXML.clean(mySPO.portName) + &quot;\&quot; baud = \&quot;&quot; + SafeXML.strxmlencode(mySPO.baudRate) + &quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;portforward active= \&quot;&quot; + SafeXML.clean(Convert.toString(forwardGPS)) + &quot;\&quot; destinationHost = \&quot;&quot; + SafeXML.clean(forwardGpsHost) + &quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;    &lt;gpsd active= \&quot;&quot; + SafeXML.clean(Convert.toString(useGPSD)) + &quot;\&quot; host = \&quot;&quot; + SafeXML.clean(gpsdHost) + &quot;\&quot; port = \&quot;&quot; + SafeXML.strxmlencode(gpsdPort) + &quot;\&quot;/&gt;\n&quot;);
++			outp.print(&quot;    &lt;gpsd active= \&quot;&quot; + SafeXML.strxmlencode(useGPSD) + &quot;\&quot; host = \&quot;&quot; + SafeXML.clean(gpsdHost) + &quot;\&quot; port = \&quot;&quot; + SafeXML.strxmlencode(gpsdPort) + &quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;portlog active= \&quot;&quot; + SafeXML.clean(Convert.toString(logGPS)) + &quot;\&quot; logTimer = \&quot;&quot; + SafeXML.clean(logGPSTimer) + &quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;font size =\&quot;&quot; + SafeXML.strxmlencode(fontSize) + &quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;screen menuattop=\&quot;&quot;+menuAtTop+&quot;\&quot; tabsattop=\&quot;&quot;+tabsAtTop+&quot;\&quot; showstatus=\&quot;&quot;+showStatus+&quot;\&quot; hasclosebutton=\&quot;&quot;+hasCloseButton+
+
+Modified: trunk/src/CacheWolf/PreferencesScreen.java
+===================================================================
+--- trunk/src/CacheWolf/PreferencesScreen.java	2010-08-07 11:32:06 UTC (rev 2721)
++++ trunk/src/CacheWolf/PreferencesScreen.java	2010-08-07 11:37:55 UTC (rev 2722)
+@@ -362,7 +362,7 @@
+ 				Editor s = gpo.getEditor();
+ 				gpo.forwardGpsChkB.setState(pref.forwardGPS);
+ 				gpo.inputBoxForwardHost.setText(pref.forwardGpsHost);
+-				gpo.gpsdChkB.setState(pref.useGPSD);
++				gpo.chcUseGpsd.select(pref.useGPSD);
+ 				if(pref.gpsdPort!=pref.DEFAULT_GPSD_PORT){
+ 					gpo.inputBoxGpsdHost.setText(pref.gpsdHost + &quot;:&quot; + Convert.toString(pref.gpsdPort));
+ 				}else{
+@@ -376,7 +376,7 @@
+ 					pref.mySPO.baudRate = gpo.baudRate;
+ 					pref.forwardGPS = gpo.forwardGpsChkB.getState();
+ 					pref.forwardGpsHost = gpo.inputBoxForwardHost.getText();
+-					pref.useGPSD = gpo.gpsdChkB.getState();
++					pref.useGPSD = gpo.chcUseGpsd.getInt();
+ 					String gpsdHostString = gpo.inputBoxGpsdHost.getText();	// hostname[:port]
+ 					int posColon = gpsdHostString.indexOf(':');
+ 					if(posColon&gt;=0){
+
+Modified: trunk/src/CacheWolf/navi/CWGPSPoint.java
+===================================================================
+--- trunk/src/CacheWolf/navi/CWGPSPoint.java	2010-08-07 11:32:06 UTC (rev 2721)
++++ trunk/src/CacheWolf/navi/CWGPSPoint.java	2010-08-07 11:37:55 UTC (rev 2722)
+@@ -14,6 +14,10 @@
+ import ewe.sys.*;
+ import ewe.io.*;
+ 
++// Stuff needed by CWGPSPoint::examineGpsd():
++import org.json.JSONObject;
++import org.json.JSONArray;
++import org.json.JSONException;
+ 
+ 
+ /**
+@@ -26,15 +30,15 @@
+ 	public static final int LOGRAW  = 0x02;
+ 	public static final int LOGALL  = LOGNMEA|LOGRAW;
+ 
+-	public double Speed; //Speed
+-	public double Bear;	//Bearing
+-	public String Time; //Time
+-	public String Date;
+-	public int Fix; //Fix
+-	public int numSat; //Satellites in use, -1 indicates no data, -2 that data could not be interpreted
+-	public int numSatsInView; //Satellites in view
++	public double Speed; // Speed: km/h
++	public double Bear;	// Bearing
++	public String Time; // Time: HHmmss.SS
++	public String Date; // Date: ddMMyy
++	public int Fix; // Fix (0: none, 1: GPS, 2: differential GPS). See getFix() for more possible values.
++	public int numSat; // Satellites in use, -1 indicates no data, -2 that data could not be interpreted
++	public int numSatsInView; // Satellites in view
+ 	public double HDOP; // Horizontal dilution of precision
+-	public double Alt; //Altitude
++	public double Alt; // Altitude in meters
+ 
+ 	//Logging
+ 	int logTimer = 0;
+@@ -384,12 +388,95 @@
+ 
+ 
+ 	/**
+-	 * Sets the attributes from a GPSD string
++	 * Sets the attributes from a GPSD &lt;code&gt;POLL&lt;/code&gt; object
++	 *
++	 * @param gps	{@link JSONObject} containing GPS &lt;code&gt;POLL&lt;/code&gt; data.
++	 * @return true if some data could be interpreted false otherwise
++	 *         Tblue&gt; For now, this always returns true. Any ideas what
++	 *                should be treated as not interpretable?
++	 * @throws JSONException When trying to access a not existing key (should not happen!).
++	 */
++	public boolean examineGpsd(JSONObject gps) throws JSONException {
++		JSONArray fixes    = gps.getJSONArray( &quot;fixes&quot; );
++		JSONArray skyviews = gps.getJSONArray( &quot;skyviews&quot; );
++		JSONArray sats;
++		JSONObject a_fix, a_skyview;
++		int fix_mode, i;
++		double my_lat, my_lon;
++		Time TimeObj = new Time();
++
++		lastStrExamined = gps.toString();
++
++		TimeObj.setTime( (long)( gps.getDouble( &quot;timestamp&quot; ) * 1000 ) );
++		this.Time = TimeObj.format( &quot;HHmmss.SS&quot; );
++		this.Date = TimeObj.format( &quot;ddMMyy&quot; );
++
++		if( fixes.length() &gt; 0 ) {
++			// We will only use the first fix.
++			// TODO: Randomize?
++			a_fix = fixes.getJSONObject( 0 );
++			
++			// 0: no mode seen yet, 1: none, 2: 2D, 3: 3D.
++			// Tblue&gt; Does 3D mean differential here?
++			this.Fix = ( fix_mode = a_fix.getInt( &quot;mode&quot; ) ) &gt; 0 ? fix_mode - 1 : 0;
++
++			// Speed is in m/s.
++			if( a_fix.has( &quot;speed&quot; ) ) {
++				this.Speed = ( a_fix.getDouble( &quot;speed&quot; ) / 1000 ) * 60 * 60;
++			}
++
++			if( a_fix.has( &quot;track&quot; ) ) {
++				this.Bear = a_fix.getDouble( &quot;track&quot; );
++			}
++
++			if( a_fix.has( &quot;alt&quot; ) ) {
++				this.Alt = a_fix.getDouble( &quot;alt&quot; );
++			}
++
++			if( a_fix.has( &quot;lat&quot; ) &amp;&amp; a_fix.has( &quot;lon&quot; ) ) {
++				my_lat = a_fix.getDouble( &quot;lat&quot; );
++				my_lon = a_fix.getDouble( &quot;lon&quot; );
++
++				set( my_lat &gt; 0 ? &quot;N&quot; : &quot;S&quot;, String.valueOf( my_lat ), &quot;0&quot;, &quot;0&quot;,
++					 my_lon &gt; 0 ? &quot;E&quot; : &quot;W&quot;, String.valueOf( my_lon ), &quot;0&quot;, &quot;0&quot;,
++					 TransformCoordinates.DD );
++			}
++		}
++
++		if( skyviews.length() &gt; 0 )
++		{
++			// We will only use the first skyview.
++			// TODO: Randomize?
++			a_skyview = skyviews.getJSONObject( 0 );
++
++			if( a_skyview.has( &quot;hdop&quot; ) ) {
++				this.HDOP = a_skyview.getDouble( &quot;hdop&quot; );
++			}
++
++			sats = a_skyview.getJSONArray( &quot;satellites&quot; );
++			this.numSatsInView = sats.length();
++
++			if( this.numSatsInView &gt; 0 )
++			{
++				for( this.numSat = 0, i = 0; i &lt; this.numSatsInView; i++ ) {
++					if( sats.getJSONObject( i ).getBoolean( &quot;used&quot; ) ) {
++						this.numSat++;
++					}
++				}
++			}
++		}
++
++		return true;
++	}
++
++
++	/**
++	 * Sets the attributes from an old-style GPSD string.
+ 	 * @param gps	GPSD string with data to examine
+ 	 *              Format: GPSD,key=value,...
+ 	 * @return true if some data could be interpreted false otherwise
+ 	 */
+-	public boolean examineGpsd(String gps){
++	public boolean examineOldGpsd(String gps){
+ 		boolean valid = false;
+ 		if(!gps.startsWith(&quot;GPSD,&quot;))
+ 			return false;
+@@ -455,6 +542,7 @@
+ 		return valid;
+ 	}
+ 
++
+ 	private boolean checkSumOK(String nmea){
+ 		int startPos = 1; // begin after $
+ 		int endPos = nmea.length() - 3;// without * an two checksum chars
+
+Modified: trunk/src/CacheWolf/navi/GotoPanel.java
+===================================================================
+--- trunk/src/CacheWolf/navi/GotoPanel.java	2010-08-07 11:32:06 UTC (rev 2721)
++++ trunk/src/CacheWolf/navi/GotoPanel.java	2010-08-07 11:37:55 UTC (rev 2722)
+@@ -264,13 +264,13 @@
+ 		}
+ 		// receiving no data
+ 		if (fix == -1) {
+-			if (gpsStatus != RED) (new MessageBox(MyLocale.getMsg(321, &quot;Error&quot;), MyLocale.getMsg(1510, &quot;No data from GPS\nConnection to serial port closed&quot;),FormBase.OKB)).exec();
++			if (gpsStatus != RED) (new MessageBox(MyLocale.getMsg(321, &quot;Error&quot;), MyLocale.getMsg(1510, &quot;No data from GPS.\nConnection to serial port/gpsd closed.&quot;),FormBase.OKB)).exec();
+ 			gpsStatus = RED;
+ 			myNavigation.stopGps();
+ 		}
+ 		// cannot interpret data
+ 		if (fix == -2) {
+-			if (gpsStatus != RED) (new MessageBox(MyLocale.getMsg(321, &quot;Error&quot;), MyLocale.getMsg(1511, &quot;Cannot interpret data from GPS\n possible reasons:\n wrong Port,\n wrong Baudrate,\n not NMEA-Protocol\nConnection to serial port closed\nLast String tried to interprete:\n&quot;)+myNavigation.gpsPos.lastStrExamined, FormBase.OKB)).exec();
++			if (gpsStatus != RED) (new MessageBox(MyLocale.getMsg(321, &quot;Error&quot;), MyLocale.getMsg(1511, &quot;Cannot interpret data from GPS/gpsd!\nPossible reasons:\nWrong port,\nwrong baud rate,\ninvalid protocol (need NMEA/gpsd).\nConnection to serial port closed.\nLast String tried to interpret:\n&quot;)+myNavigation.gpsPos.lastStrExamined, FormBase.OKB)).exec();
+ 			gpsStatus = RED;
+ 			myNavigation.stopGps(); // TODO automatic in myNavigate?
+ 		}
+
+Modified: trunk/src/CacheWolf/navi/Navigate.java
+===================================================================
+--- trunk/src/CacheWolf/navi/Navigate.java	2010-08-07 11:32:06 UTC (rev 2721)
++++ trunk/src/CacheWolf/navi/Navigate.java	2010-08-07 11:37:55 UTC (rev 2722)
+@@ -10,13 +10,20 @@
+ import ewe.io.SerialPortOptions;
+ import ewe.net.Socket;
+ import ewe.sys.mThread;
++import ewe.sys.Vm;
+ import ewe.ui.FormBase;
+ import ewe.ui.MessageBox;
+ import ewe.util.mString;
+ import CacheWolf.CacheHolder;
+ import CacheWolf.navi.MovingMap;
+ 
++// Stuff needed by the GpsdThread class:
++import net.ax86.GPS;
++import net.ax86.GPSException;
++import org.json.JSONObject;
++import org.json.JSONException;
+ 
++
+ /**
+  * Non-Gui Class to handle all things regarding navigation
+  * (GPS, Sun direction etc.)
+@@ -37,6 +44,7 @@
+ 	public GotoPanel gotoPanel = null;
+ 	public MovingMap movingMap = null;
+ 	public GpsdThread gpsdThread = null;
++	public OldGpsdThread oldGpsdThread = null;
+ 	public SerialThread serThread = null;
+ 	public Preferences pref = Global.getPref();
+ 	public UpdateThread tickerThread;
+@@ -55,52 +63,85 @@
+ 	public void startGps(boolean loggingOn, int loggingIntervall) {
+ 		lograw = loggingOn;
+ 		logIntervall = loggingIntervall; // TODO switch on and off during serthread running
+-		if(Global.getPref().useGPSD){
+-			try {
+-				gpsdThread = new GpsdThread(gpsPos);
+-				gpsdThread.start();
+-				startDisplayTimer();
+-				gpsRunning = true;
+-				curTrack = new Track(trackColor); // TODO addTrack here to MovingMap? see MovingMapPanel.snapToGps
+-				if (lograw)	gpsPos.startLog(Global.getProfile().dataDir, logIntervall, CWGPSPoint.LOGALL);
+-				if (gotoPanel != null) gotoPanel.gpsStarted();
+-				if (movingMap != null) movingMap.gpsStarted();
+-			} catch (IOException e) {
+-				(new MessageBox(MyLocale.getMsg(4403, &quot;Error&quot;),
+-					MyLocale.getMsg(4408, &quot;Could not connect to GPSD:&quot;)
+-					+ e.getMessage()
+-					+ MyLocale.getMsg(4409, &quot;\npossible reasons:\nGPSD is not running or GPSD host is not reachable&quot;),
+-					FormBase.OKB)).execute();
+-			}
+-		}else{
+-			if (serThread != null) if (serThread.isAlive()) return; // TODO use gpsRunning
+-			try {
+-				serThread = new SerialThread(pref.mySPO, gpsPos, (pref.forwardGPS ? pref.forwardGpsHost : &quot;&quot;));
+-				if (pref.forwardGPS &amp;&amp; !serThread.tcpForward) {
+-					(new MessageBox(MyLocale.getMsg(4400, &quot;Warning&quot;),
+-							MyLocale.getMsg(4401, &quot;Ignoring error:\n could not forward GPS data to host:\n&quot;)
+-							+ pref.forwardGpsHost+&quot;\n&quot; + serThread.lastError
+-							+ MyLocale.getMsg(4402, &quot;\nstop and start GPS to retry&quot;), FormBase.OKB)).exec();
++		
++		switch(Global.getPref().useGPSD) {
++			// Tblue&gt; TODO: NEW vs. OLD: This is ugly! The only line that's
++			//        different is the one where the object is created!
++			case Preferences.GPSD_FORMAT_NEW:
++				try {
++					gpsdThread = new GpsdThread(gpsPos);
++					gpsdThread.start();
++					startDisplayTimer();
++					gpsRunning = true;
++					curTrack = new Track(trackColor); // TODO addTrack here to MovingMap? see MovingMapPanel.snapToGps
++					if (lograw)	gpsPos.startLog(Global.getProfile().dataDir, logIntervall, CWGPSPoint.LOGALL);
++					if (gotoPanel != null) gotoPanel.gpsStarted();
++					if (movingMap != null) movingMap.gpsStarted();
++				} catch (IOException e) {
++					(new MessageBox(MyLocale.getMsg(4403, &quot;Error&quot;),
++						MyLocale.getMsg(4408, &quot;Could not connect to GPSD: &quot;)
++						+ e.getMessage()
++						+ MyLocale.getMsg(4409, &quot;\nPossible reasons:\nGPSD is not running or GPSD host is not reachable&quot;),
++						FormBase.OKB)).execute();
++				} catch( Exception e ) {
++					// Other error (JSON/GPS).
++					(new MessageBox(MyLocale.getMsg(4403, &quot;Error&quot;),
++						MyLocale.getMsg(99999, &quot;Could not initialize GPSD connection: &quot;) 
++						+ e.getMessage(),
++						FormBase.OKB)).execute();
+ 				}
+-				serThread.start();
+-				startDisplayTimer();
+-				gpsRunning = true;
+-				curTrack = new Track(trackColor); // TODO addTrack here to MovingMap? see MovingMapPanel.snapToGps
+-				if (lograw)	gpsPos.startLog(Global.getProfile().dataDir, logIntervall, CWGPSPoint.LOGALL);
+-				if (gotoPanel != null) gotoPanel.gpsStarted();
+-				if (movingMap != null) movingMap.gpsStarted();
+-			} catch (IOException e) {
+-				(new MessageBox(MyLocale.getMsg(4403, &quot;Error&quot;),
+-						MyLocale.getMsg(4404, &quot;Could not connect to GPS-receiver.\n Error while opening serial Port &quot;)
++				break;
++
++			case Preferences.GPSD_FORMAT_OLD:
++				try {
++					oldGpsdThread = new OldGpsdThread(gpsPos);
++					oldGpsdThread.start();
++					startDisplayTimer();
++					gpsRunning = true;
++					curTrack = new Track(trackColor); // TODO addTrack here to MovingMap? see MovingMapPanel.snapToGps
++					if (lograw)	gpsPos.startLog(Global.getProfile().dataDir, logIntervall, CWGPSPoint.LOGALL);
++					if (gotoPanel != null) gotoPanel.gpsStarted();
++					if (movingMap != null) movingMap.gpsStarted();
++				} catch (IOException e) {
++					(new MessageBox(MyLocale.getMsg(4403, &quot;Error&quot;),
++						MyLocale.getMsg(4408, &quot;Could not connect to GPSD: &quot;)
+ 						+ e.getMessage()
+-						+ MyLocale.getMsg(4405, &quot;\npossible reasons:\n Another (GPS-)program is blocking the port\nwrong port\nOn Loox: active infra-red port is blocking GPS&quot;),
++						+ MyLocale.getMsg(4409, &quot;\nPossible reasons:\nGPSD is not running or GPSD host is not reachable&quot;),
+ 						FormBase.OKB)).execute();
+-			} catch (UnsatisfiedLinkError e) {
+-				(new MessageBox(MyLocale.getMsg(4403, &quot;Error&quot;),
+-						MyLocale.getMsg(4404, &quot;Could not connect to GPS-receiver.\n Error while opening serial Port &quot;)
+-						+ MyLocale.getMsg(4406, &quot;Please copy jave_ewe.dll into the directory of the cachewolf program&quot;),
+-						FormBase.OKB)).execute();
+-			}
++				}
++				break;
++
++			case Preferences.GPSD_DISABLED:
++			default:
++				if (serThread != null) if (serThread.isAlive()) return; // TODO use gpsRunning
++				try {
++					serThread = new SerialThread(pref.mySPO, gpsPos, (pref.forwardGPS ? pref.forwardGpsHost : &quot;&quot;));
++					if (pref.forwardGPS &amp;&amp; !serThread.tcpForward) {
++						(new MessageBox(MyLocale.getMsg(4400, &quot;Warning&quot;),
++								MyLocale.getMsg(4401, &quot;Ignoring error:\n could not forward GPS data to host:\n&quot;)
++								+ pref.forwardGpsHost+&quot;\n&quot; + serThread.lastError
++								+ MyLocale.getMsg(4402, &quot;\nstop and start GPS to retry&quot;), FormBase.OKB)).exec();
++					}
++					serThread.start();
++					startDisplayTimer();
++					gpsRunning = true;
++					curTrack = new Track(trackColor); // TODO addTrack here to MovingMap? see MovingMapPanel.snapToGps
++					if (lograw)	gpsPos.startLog(Global.getProfile().dataDir, logIntervall, CWGPSPoint.LOGALL);
++					if (gotoPanel != null) gotoPanel.gpsStarted();
++					if (movingMap != null) movingMap.gpsStarted();
++				} catch (IOException e) {
++					(new MessageBox(MyLocale.getMsg(4403, &quot;Error&quot;),
++							MyLocale.getMsg(4404, &quot;Could not connect to GPS-receiver.\n Error while opening serial Port &quot;)
++							+ e.getMessage()
++							+ MyLocale.getMsg(4405, &quot;\npossible reasons:\n Another (GPS-)program is blocking the port\nwrong port\nOn Loox: active infra-red port is blocking GPS&quot;),
++							FormBase.OKB)).execute();
++				} catch (UnsatisfiedLinkError e) {
++					(new MessageBox(MyLocale.getMsg(4403, &quot;Error&quot;),
++							MyLocale.getMsg(4404, &quot;Could not connect to GPS-receiver.\n Error while opening serial Port &quot;)
++							+ MyLocale.getMsg(4406, &quot;Please copy jave_ewe.dll into the directory of the cachewolf program&quot;),
++							FormBase.OKB)).execute();
++				}
++				break;
+ 		}
+ 	}
+ 	public void startDisplayTimer() {
+@@ -115,6 +156,7 @@
+ 	public void stopGps() {
+ 		if(serThread!=null)	serThread.stop();
+ 		if(gpsdThread!=null) gpsdThread.stop();
++		if(oldGpsdThread!=null) oldGpsdThread.stop();
+ 		stopDisplayTimer();
+ 		gpsPos.stopLog();
+ 		gpsRunning = false;
+@@ -123,7 +165,10 @@
+ 	}
+ 
+ 	public boolean isGpsPosValid() {
+-		return (serThread != null &amp;&amp; serThread.isAlive() || gpsdThread != null &amp;&amp; gpsdThread.isAlive() ) &amp;&amp; gpsPos.isValid() ; // &amp;&amp; gpsPos.getfiex();
++		return ((serThread != null &amp;&amp; serThread.isAlive()) ||
++		       (gpsdThread != null &amp;&amp; gpsdThread.isAlive()) ||
++		       (oldGpsdThread != null &amp;&amp; oldGpsdThread.isAlive()))
++		        &amp;&amp; gpsPos.isValid() ; // &amp;&amp; gpsPos.getfiex();
+ 	}
+ 
+ 
+@@ -184,14 +229,137 @@
+ }
+ 
+ 
+-class GpsdThread extends mThread{
++/**
++ * Thread for reading data from gpsd.
++ *
++ * @author Tilman Blumenbach
++ */
++class GpsdThread extends mThread {
++	GPS gpsObj;
++	CWGPSPoint myGPS;
++	boolean run;
++
++
++	public GpsdThread(CWGPSPoint GPSPoint) throws IOException, JSONException, GPSException {
++		JSONObject response;
++		int proto_major;
++
++		myGPS = GPSPoint;
++		gpsObj = new GPS(Global.getPref().gpsdHost, Global.getPref().gpsdPort);
++		gpsObj.stream( GPS.WATCH_ENABLE );
++
++		// Check major protocol version:
++		response = gpsObj.read();
++
++		if( ! response.getString( &quot;class&quot; ).equals( &quot;VERSION&quot; ) ) {
++			throw new GPSException( &quot;Expected VERSION object at connect.&quot; );
++		} else if( ( proto_major = response.getInt( &quot;proto_major&quot; ) ) != 3 ) {
++			throw new GPSException( &quot;Invalid protocol API version; got &quot; +
++					proto_major + &quot;, want 3.&quot; );
++		}
++	}
++
++
++	public void run() {
++		JSONObject response;
++		String respClass;
++		int noData = 0;
++		int notInterpreted = 0;
++		boolean gotValidData = false; // redundant, but compiler complains.
++
++		run = true;
++		while (run) {
++			if( gpsObj != null ) {
++				gotValidData = false;
++
++				try {
++					/* Tblue&gt; This is ugly, but BufferedReader::ready() seems to
++					 *        be broken in Ewe, so instead of only polling when
++					 *        there is no data from gpsd (by checking the return
++					 *        value of GPS::waiting(), we poll on every iteration.
++					 *        Not ideal, but works for now.
++					 */
++					gpsObj.poll();
++
++					/* Tblue&gt; TODO: I think this call should not block, but
++					 *              my GPS class does not yet support non-blocking
++					 *              reads...
++					 */
++					response  = gpsObj.read();
++					
++					// If we get here we have got some data:
++					noData = 0;
++
++					respClass = response.getString( &quot;class&quot; );
++					if( respClass.equals( &quot;DEVICE&quot; ) &amp;&amp; response.has( &quot;activated&quot; ) &amp;&amp;
++						response.getDouble( &quot;activated&quot; ) != 0 )
++					{	// This is a new device, we need to tell gpsd we want to watch it:
++						Global.getPref().log( &quot;New GPS device, sending WATCH command.&quot; );
++						gpsObj.stream( GPS.WATCH_ENABLE );
++					} else if( respClass.equals( &quot;POLL&quot; ) ) {
++						gotValidData = myGPS.examineGpsd(response);
++					} else if( respClass.equals( &quot;ERROR&quot; ) ) {
++						Global.getPref().log( &quot;Ignored gpsd error: &quot; + response.getString( &quot;message&quot; ) );
++					}
++				} catch( Exception e ) {
++					// Something bad happened, will just ignore this JSON
++					// object:
++					Global.getPref().log(&quot;Ignored Exception&quot;, e, true);
++					gotValidData = false;
++				}
++
++				if( gotValidData ) {
++					notInterpreted = 0;
++				} else {
++					notInterpreted++;
++				}
++				if (notInterpreted &gt; 22) {
++					myGPS.noInterpretableData();
++				}
++			}
++
++			try {
++				sleep(1000);
++			} catch (InterruptedException e) {
++				Global.getPref().log(&quot;Ignored Exception&quot;, e, true);
++			}
++
++			noData++;
++			if (noData &gt; 5) {
++				myGPS.noDataError();
++			}
++
++/*
++			Vm.debug( &quot;------------------&quot; );
++			Vm.debug( &quot;noData        : &quot; + noData );
++			Vm.debug( &quot;notInterpreted: &quot; + notInterpreted );
++			Vm.debug( &quot;gotValidData  : &quot; + gotValidData );
++*/
++			//myGPS.printAll();
++		} // while
++
++		myGPS.noData();
++	}
++
++
++	public void stop() {
++		run = false;
++
++		if( gpsObj != null ) {
++			gpsObj.cleanup();
++		}
++	}
++}
++
++
++class OldGpsdThread extends mThread{
+ 	Socket gpsdSocket;
+ 	CWGPSPoint myGPS;
+ 	boolean run, tcpForward;
+ 	Socket tcpConn;
+ 	String lastError = new String();
+ 
+-	public GpsdThread(CWGPSPoint GPSPoint) throws IOException {
++	public OldGpsdThread(CWGPSPoint GPSPoint) throws IOException {
+ 		try{
+ 			gpsdSocket = new Socket(Global.getPref().gpsdHost, Global.getPref().gpsdPort);
+ 		} catch (IOException e) {
+@@ -218,13 +386,15 @@
+ 				if (gpsResult!=null) {
+ 					//Vm.debug(&quot;P -&gt; &quot; + gpsResult);
+ 					noData = 0;
+-					if (myGPS.examineGpsd(gpsResult))
++					if (myGPS.examineOldGpsd(gpsResult))
+ 						notinterpreted = 0;
+ 					else
+ 						notinterpreted++;
+ 					if (notinterpreted &gt; 22) myGPS.noInterpretableData();
+ 				}
+ 			}
++
++			//myGPS.printAll();
+ 		} // while
+ 		myGPS.noData();
+ 	}
+@@ -260,6 +430,7 @@
+ 	}
+ }
+ 
++
+ /**
+  * Thread for reading data from COM-port
+  *
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002707.html">[Cachewolf-svn] r2721 - trunk/res_noewe
+</A></li>
+	<LI>Next message: <A HREF="002709.html">[Cachewolf-svn] r2723 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2708">[ date ]</a>
+              <a href="thread.html#2708">[ thread ]</a>
+              <a href="subject.html#2708">[ subject ]</a>
+              <a href="author.html#2708">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

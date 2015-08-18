@@ -1,0 +1,552 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2638 - in trunk: res_noewe src/CacheWolf	src/CacheWolf/imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-June/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2638%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf%0A%09src/CacheWolf/imp&In-Reply-To=%3C201006221935.o5MJZ9S6019669%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002593.html">
+   <LINK REL="Next"  HREF="002595.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2638 - in trunk: res_noewe src/CacheWolf	src/CacheWolf/imp</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2638%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf%0A%09src/CacheWolf/imp&In-Reply-To=%3C201006221935.o5MJZ9S6019669%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2638 - in trunk: res_noewe src/CacheWolf	src/CacheWolf/imp">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Tue Jun 22 21:35:09 CEST 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002593.html">[Cachewolf-svn] r2637 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="002595.html">[Cachewolf-svn] r2639 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2594">[ date ]</a>
+              <a href="thread.html#2594">[ thread ]</a>
+              <a href="subject.html#2594">[ subject ]</a>
+              <a href="author.html#2594">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2010-06-22 21:35:06 +0200 (Tue, 22 Jun 2010)
+New Revision: 2638
+
+Modified:
+   trunk/res_noewe/spider.def
+   trunk/src/CacheWolf/DetailsPanel.java
+   trunk/src/CacheWolf/LogList.java
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+inserting some debug information for better recognition of spiderproblems.
+
+Modified: trunk/res_noewe/spider.def
+===================================================================
+--- trunk/res_noewe/spider.def	2010-06-22 14:28:03 UTC (rev 2637)
++++ trunk/res_noewe/spider.def	2010-06-22 19:35:06 UTC (rev 2638)
+@@ -62,7 +62,7 @@
+ listBlockRex       = &lt;table id=&quot;ctl00_ContentBody_dlResults&quot;((?s).*?)&lt;/table&gt;
+ lineRex            = &lt;tr\ bgcolor='#.{6}'\\s*class=&quot;Data\ BorderTop&quot;&gt;((?s).*?)&lt;/tr&gt;
+ directionRex       = /compass/(.*?).gif
+-logDateRex         = &lt;td&gt;(.*?)&lt;br\ /&gt;&lt;span\ class=&quot;Success&quot;&gt;
++logDateRex         = &lt;td&gt;\\s*(.*?)&lt;br\ /&gt;\\s*&lt;span\ class=&quot;Success&quot;&gt;
+ availableRex       = &lt;span\ class=&quot;Strike&quot;&gt;
+ archivedRex        = &lt;span\ class=&quot;OldWarning\ Strike&quot;&gt;
+ PMRex              = small_profile.gif
+
+Modified: trunk/src/CacheWolf/DetailsPanel.java
+===================================================================
+--- trunk/src/CacheWolf/DetailsPanel.java	2010-06-22 14:28:03 UTC (rev 2637)
++++ trunk/src/CacheWolf/DetailsPanel.java	2010-06-22 19:35:06 UTC (rev 2638)
+@@ -432,8 +432,8 @@
+ 				&amp;&amp; (Global.mainTab.mainCache.startsWith(&quot;GC&quot;)
+ 					|| OC.isOC(Global.mainTab.mainCache) || Global.mainTab.mainCache.startsWith(&quot;CW&quot;))
+ 				&amp;&amp; wpt.startsWith(&quot;CW&quot;)) {
+-			// for what was this?:
+-			Global.mainTab.lastselected = Global.mainTab.mainCache; // I don't know exactly, but it's needed for creating a series of Addis
++			// for creating the Addiname on creating a new Waypoint
++			Global.mainTab.lastselected = Global.mainTab.mainCache; 
+ 
+ 			inpWaypoint.setText(Global.getProfile().getNewAddiWayPointName(
+ 					Global.mainTab.mainCache));
+
+Modified: trunk/src/CacheWolf/LogList.java
+===================================================================
+--- trunk/src/CacheWolf/LogList.java	2010-06-22 14:28:03 UTC (rev 2637)
++++ trunk/src/CacheWolf/LogList.java	2010-06-22 19:35:06 UTC (rev 2638)
+@@ -14,7 +14,10 @@
+ 	
+ 	/** Get the Log at a certain position in the list */
+ 	public Log getLog(int i) {
+-		return (Log) logList.elementAt(i);
++		if (logList.size()&gt;i) {
++			return (Log) logList.elementAt(i);			
++		}
++		else return null;
+ 	}
+ 	
+ 	/** Return the size of the list */
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2010-06-22 14:28:03 UTC (rev 2637)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2010-06-22 19:35:06 UTC (rev 2638)
+@@ -352,10 +352,20 @@
+ 			//Loop pages till maximum distance has been found or no more caches are in the list
+ 			while(maxDistance &gt; 0){
+ 				RexPropListBlock.search(htmlListPage);
+-				String tableOfHtmlListPage = RexPropListBlock.stringMatched(1);
++				String tableOfHtmlListPage;
++				if (RexPropListBlock.didMatch()) {
++					tableOfHtmlListPage = RexPropListBlock.stringMatched(1);
++				}
++				else {
++					pref.log(&quot;check listBlockRex in spider.def\n&quot;+htmlListPage);
++					tableOfHtmlListPage = &quot;&quot;;
++				}
+ 				RexPropLine.search(tableOfHtmlListPage);
+ 				while (maxDistance &gt; 0){
+-					if (!RexPropLine.didMatch()) break;
++					if (!RexPropLine.didMatch()) {
++						if (page_number==1 &amp;&amp; found_on_page==0) pref.log(&quot;check lineRex in spider.def&quot;);
++						break;
++					}
+ 					found_on_page++;
+ 					String CacheDescriptionGC=RexPropLine.stringMatched(1);
+ 					double gotDistance=getDistGC(CacheDescriptionGC);
+@@ -371,7 +381,7 @@
+ 							cachesToLoad.add(chWaypoint);
+ 							}
+ 							else {
+-								pref.log(&quot;no load of : &quot; + chWaypoint);
++								// pref.log(&quot;no load of (Premium Cache/other direction/short Distance ?) &quot; + chWaypoint);
+ 								cachesToUpdate.remove( chWaypoint );
+ 								}
+ 						}
+@@ -432,7 +442,7 @@
+ 			pref.log(&quot;Found &quot; + numArchivedUpdates + &quot; caches with changed archived status.&quot;);
+ 		}
+ 		pref.log(&quot;Found &quot; + numAvailableUpdates + &quot; caches with changed available status.&quot;);
+-		pref.log(&quot;Found &quot; + numLogUpdates + &quot; caches with new found in log.&quot;);
++		pref.log(&quot;Found &quot; + numLogUpdates + &quot; caches with new found in log (inc. blacklisted&quot;);
+ 		pref.log(&quot;Found &quot; + (cachesToUpdate.size()-numAvailableUpdates-numLogUpdates) + &quot; caches possibly archived.&quot;);
+ 		pref.log(&quot;Found &quot; + cachesShouldUpdate.size() + &quot;?=&quot; + (numFoundUpdates+numArchivedUpdates+numAvailableUpdates+numArchivedUpdates) + &quot; caches to update.&quot;);
+ 		pref.log(&quot;Found &quot; + numPrivate + &quot; Premium Caches (for non Premium Member.)&quot;);
+@@ -655,8 +665,9 @@
+ 			if(rexViewstate.didMatch()){
+ 				viewstate = rexViewstate.stringMatched(1);
+ 				//Vm.debug(&quot;ViewState: &quot; + viewstate);
+-			} else
+-				pref.log(&quot;[login]:Viewstate not found before login&quot;);
++			} else {
++				pref.log(&quot;[login]:rexViewstate not found before login\n&quot;);
++			}
+ 
+ 			if(loginPage.indexOf(loginSuccess) &gt; 0)
+ 				pref.log(&quot;[login]:Already logged in&quot;);
+@@ -666,7 +677,7 @@
+ 					// eventvalidation = rexEventvalidation.stringMatched(1);
+ 					//Vm.debug(&quot;EVENTVALIDATION: &quot; + eventvalidation);
+ 				} else
+-					pref.log(&quot;[login]:Eventvalidation not found before login&quot;);
++					pref.log(&quot;[login]:rexEventvalidation not found before login\n&quot;);
+ 				//Ok now login!
+ 				try{
+ 					pref.log(&quot;[login]:Logging in as &quot;+pref.myAlias);
+@@ -705,7 +716,7 @@
+ 
+ 			rexViewstate.search(loginPage);
+ 			if (!rexViewstate.didMatch()) {
+-				pref.log(&quot;[login]:Viewstate not found&quot;);
++				pref.log(&quot;[login]:check rexViewstate in SpiderGC.java --&gt; not found after login\n&quot;+loginPage);
+ 			}
+ 			viewstate = rexViewstate.stringMatched(1);
+ 
+@@ -718,13 +729,13 @@
+ 
+ 			rexCookieID.search(loginPage);
+ 			if (!rexCookieID.didMatch()) {
+-				pref.log(&quot;[login]:CookieID not found. Using old one.&quot;);
++				pref.log(&quot;[login]:check rexCookieID in SpiderGC.java --&gt; CookieID not found. Using old one.\n&quot;+loginPage);
+ 			} else
+ 				cookieID = rexCookieID.stringMatched(1);
+ 			//Vm.debug(cookieID);
+ 			rexCookieSession.search(loginPage);
+ 			if (!rexCookieSession.didMatch()) {
+-				pref.log(&quot;[login]:CookieSession not found. Using old one.&quot;);
++				pref.log(&quot;[login]:check rexCookieSession in SpiderGC.java --&gt; CookieSession not found. Using old one.\n&quot;+loginPage);
+ 				//cookieSession=&quot;&quot;;
+ 			} else
+ 				cookieSession = rexCookieSession.stringMatched(1);
+@@ -837,6 +848,7 @@
+ 			viewstate = rexViewstate.stringMatched(1);
+ 		} else {
+ 			viewstate = &quot;&quot;;
++			pref.log(&quot;[getNextListPage]:check rexViewstate in SpiderGC.java\n&quot;+htmlListPage);
+ 		}
+ 		
+ 		Regex rexViewstate1 = new Regex(&quot;id=\&quot;__VIEWSTATE1\&quot; value=\&quot;(.*?)\&quot; /&gt;&quot;);
+@@ -846,6 +858,7 @@
+ 			viewstate1 = rexViewstate1.stringMatched(1);
+ 		} else {
+ 			viewstate1 = &quot;&quot;;
++			pref.log(&quot;[getNextListPage]:check rexViewstate1 in SpiderGC.java\n&quot;+htmlListPage);
+ 		}
+ 
+ 		/*
+@@ -901,7 +914,9 @@
+ 		if (typeChanged(ch,CacheDescription)) { save=true; ret=true;}
+ 		if (sizeChanged(ch,CacheDescription)) { save=true; ret=true;}
+ 		if (difficultyOrTerrainChanged(ch,CacheDescription)) {save=true; ret=true;}
+-		if (newFoundExists(ch,CacheDescription)) {numLogUpdates++; ret=true;}
++		if (newFoundExists(ch,CacheDescription)) {
++			numLogUpdates++; ret=true;
++			}
+ 		if (save) ch.save();
+ 		return ret;
+ 	}
+@@ -914,7 +929,10 @@
+ 		RexNumFinds.search(doc);
+ 		if (RexNumFinds.didMatch()) {
+ 			 return Convert.toInt(RexNumFinds.stringMatched(1));}
+-		else return 0;
++		else {
++			pref.log(&quot;check RexNumFinds in SpiderGC.java / initialiseProperties\n&quot;+doc);
++			return 0;
++		}
+ 	}
+ 	private int getFoundInDB() {
+ 		CacheHolder ch;
+@@ -938,7 +956,10 @@
+ 		}
+ 		else {
+ 			RexPropDistance.search(doc);
+-			if (!RexPropDistance.didMatch()) return 0;
++			if (!RexPropDistance.didMatch()) {
++				pref.log(&quot;check distRex in spider.def\n&quot;+doc);
++				return 0;
++			}
+ 			if(MyLocale.getDigSeparator().equals(&quot;,&quot;)) return Convert.toDouble(RexPropDistance.stringMatched(1).replace('.',','));
+ 			return Convert.toDouble(RexPropDistance.stringMatched(1));
+ 		}
+@@ -950,7 +971,10 @@
+ 	 */
+ 	private String getWP(String doc) throws Exception {
+ 		RexPropWaypoint.search(doc);
+-		if (!RexPropWaypoint.didMatch()) return &quot;???&quot;;
++		if (!RexPropWaypoint.didMatch()) {
++			pref.log(&quot;check waypointRex in spider.def\n&quot;+doc);
++			return &quot;???&quot;;
++		}
+ 		return &quot;GC&quot;+RexPropWaypoint.stringMatched(1);
+ 	}
+ 
+@@ -984,6 +1008,7 @@
+ 					return true;
+ 				}
+ 		}
++		pref.log(&quot;check TypeRex in spider.def\n&quot;+toCheck);
+ 		return false;
+ 	}
+ 	/*
+@@ -1000,6 +1025,7 @@
+ 					return true;
+ 				}
+ 		}
++		pref.log(&quot;check SizeRex in spider.def\n&quot;+toCheck);
+ 		return false;
+ 	}
+ 	/*
+@@ -1020,6 +1046,9 @@
+ 				ret=true;
+ 			}
+ 		}
++		else {
++			pref.log(&quot;check DandTRex in spider.def\n&quot;+toCheck);
++		}
+ 		return ret;
+ 	}
+ 	
+@@ -1030,7 +1059,10 @@
+ 	 */
+ 	private String getDirection(String doc) throws Exception {
+ 		RexPropDirection.search(doc);
+-		if (!RexPropDirection.didMatch()) return &quot;&quot;;
++		if (!RexPropDirection.didMatch()) {
++			pref.log(&quot;check directionRex in spider.def\n&quot;+doc);
++			return &quot;&quot;;
++		}
+ 		return RexPropDirection.stringMatched(1);
+ 	}
+ 
+@@ -1062,7 +1094,9 @@
+ 		if(!pref.checkLog) return false;
+ 		// String[] CacheDesc=mString.split(cacheDescrition,'\n');
+ 		Time lastLogCW = new Time();
+-		String slastLogCW=ch.getCacheDetails(true).CacheLogs.getLog(0).getDate();
++		Log lastLog = ch.getCacheDetails(true).CacheLogs.getLog(0);
++		if (lastLog == null) return true;
++		String slastLogCW=lastLog.getDate();
+ 		if (slastLogCW.equals(&quot;&quot;)) return true; // or check cacheDescGC also no log?
+ 		lastLogCW.parse(slastLogCW,&quot;yyyy-MM-dd&quot;);
+ 
+@@ -1077,7 +1111,10 @@
+ 		if (RexPropLogDate.didMatch()) {
+ 			stmp=RexPropLogDate.stringMatched(1);
+ 		}
+-		else return false;
++		else {
++			pref.log(&quot;check logDateRex in spider.def\n&quot;+cacheDescrition);
++			return false;
++		}
+ 		if (stmp.indexOf(&quot;day&quot;)&gt;0) {
+ 			lastLogGC.day=java.lang.Math.max(1, lastLogGC.day-7); // simplyfied (update if not newer than last week)
+ 		}
+@@ -1311,10 +1348,14 @@
+ 	private String getLatLon(String doc) throws Exception{
+ 		Regex inRex = new Regex(p.getProp(&quot;latLonRex&quot;));
+ 		inRex.search(doc);
+-		if (!inRex.didMatch()) return &quot;???&quot;;
++		if (!inRex.didMatch()) {
++			pref.log(&quot;check latLonRex in spider.def\n&quot;+doc);
++			return &quot;???&quot;;
++		}
+ 		return inRex.stringMatched(1);
+ 	}
+ 
++	boolean shortDescRex_not_yet_found=true;
+ 	/**
+ 	 * Get the long description
+ 	 * @param doc A previously fetched cachepage
+@@ -1322,12 +1363,24 @@
+ 	 */
+ 	private String getLongDesc(String doc) throws Exception{
+ 		String res = &quot;&quot;;
+-		Regex inRex = new Regex(p.getProp(&quot;shortDescRex&quot;));
+-		Regex rex2 = new Regex(p.getProp(&quot;longDescRex&quot;));
+-		inRex.search(doc);
+-		rex2.search(doc);
+-		res = ((inRex.stringMatched(1) == null)?&quot;&quot;:inRex.stringMatched(1)) + &quot;&lt;br&gt;&quot;;
+-		res += rex2.stringMatched(1);
++		Regex shortDescRex = new Regex(p.getProp(&quot;shortDescRex&quot;));
++		Regex longDescRex = new Regex(p.getProp(&quot;longDescRex&quot;));
++		shortDescRex.search(doc);
++		if (!shortDescRex.didMatch()) {
++			if (shortDescRex_not_yet_found) pref.log(&quot;no shortDesc or check shortDescRex in spider.def\n&quot;+doc);
++		}
++		else {
++			res = shortDescRex.stringMatched(1);
++			shortDescRex_not_yet_found=false;
++		}
++		res += &quot;&lt;br&gt;&quot;;
++		longDescRex.search(doc);
++		if (!longDescRex.didMatch()) {
++			pref.log(&quot;check longDescRex in spider.def\n&quot;+doc);
++		}
++		else {
++			res += longDescRex.stringMatched(1);
++		}
+ 		int spanEnd = res.lastIndexOf(&quot;&lt;/span&gt;&quot;);
+ 		if (spanEnd &gt;= 0) {
+ 			res = res.substring(0, spanEnd);
+@@ -1343,8 +1396,10 @@
+ 	private String getLocation(String doc) throws Exception{
+ 		Regex inRex = new Regex(p.getProp(&quot;cacheLocationRex&quot;));
+ 		inRex.search(doc);
+-		if (!inRex.didMatch()) return &quot;&quot;;
+-
++		if (!inRex.didMatch()) {
++			pref.log(&quot;check cacheLocationRex in spider.def\n&quot;+doc);
++			return &quot;&quot;;
++		}
+ 		return inRex.stringMatched(1);
+ 	}
+ 
+@@ -1356,7 +1411,10 @@
+ 	private String getName(String doc) throws Exception{
+ 		Regex inRex = new Regex(p.getProp(&quot;cacheNameRex&quot;));
+ 		inRex.search(doc);
+-		if (!inRex.didMatch()) return &quot;???&quot;;
++		if (!inRex.didMatch()) {
++			pref.log(&quot;check cacheNameRex in spider.def\n&quot;+doc);
++			return &quot;???&quot;;
++		}
+ 		return inRex.stringMatched(1);
+ 	}
+ 
+@@ -1368,7 +1426,10 @@
+ 	private String getOwner(String doc) throws Exception{
+ 		Regex inRex = new Regex(p.getProp(&quot;cacheOwnerRex&quot;));
+ 		inRex.search(doc);
+-		if (!inRex.didMatch()) return &quot;???&quot;;
++		if (!inRex.didMatch()) {
++			pref.log(&quot;check cacheOwnerRex in spider.def\n&quot;+doc);
++			return &quot;???&quot;;
++		}
+ 		return inRex.stringMatched(1);
+ 	}
+ 
+@@ -1380,7 +1441,10 @@
+ 	private String getDateHidden(String doc) throws Exception{
+ 		Regex inRex = new Regex(p.getProp(&quot;dateHiddenRex&quot;));
+ 		inRex.search(doc);
+-		if (!inRex.didMatch()) return &quot;???&quot;;
++		if (!inRex.didMatch()) {
++			pref.log(&quot;check dateHiddenRex in spider.def\n&quot;+doc);
++			return &quot;???&quot;;
++		}
+ 		return inRex.stringMatched(1);
+ 	}
+ 
+@@ -1392,7 +1456,10 @@
+ 	private String getHints(String doc) throws Exception{
+ 		Regex inRex = new Regex(p.getProp(&quot;hintsRex&quot;));
+ 		inRex.search(doc);
+-		if (!inRex.didMatch()) return &quot;&quot;;
++		if (!inRex.didMatch()) {
++			pref.log(&quot;check hintsRex in spider.def\n&quot;+doc);
++			return &quot;&quot;;
++		}
+ 		return inRex.stringMatched(1);
+ 	}
+ 
+@@ -1405,7 +1472,10 @@
+ 		Regex inRex = new Regex(p.getProp(&quot;sizeRex&quot;));
+ 		inRex.search(doc);
+ 		if(inRex.didMatch()) return inRex.stringMatched(1);
+-		else return &quot;None&quot;;
++		else {
++			pref.log(&quot;check sizeRex in spider.def\n&quot;+doc);
++			return &quot;None&quot;;
++		}
+ 	}
+ 
+ 	/**
+@@ -1417,7 +1487,10 @@
+ 		Regex inRex = new Regex(p.getProp(&quot;difficultyRex&quot;));
+ 		inRex.search(doc);
+ 		if(inRex.didMatch()) return inRex.stringMatched(1);
+-		else return &quot;&quot;;
++		else {
++			pref.log(&quot;check difficultyRex in spider.def\n&quot;+doc);
++			return &quot;&quot;;
++		}
+ 	}
+ 
+ 	/**
+@@ -1429,7 +1502,10 @@
+ 		Regex inRex = new Regex(p.getProp(&quot;terrainRex&quot;));
+ 		inRex.search(doc);
+ 		if(inRex.didMatch()) return inRex.stringMatched(1);
+-		else return &quot;&quot;;
++		else {
++			pref.log(&quot;check terrainRex in spider.def\n&quot;+doc);
++			return &quot;&quot;;
++		}
+ 	}
+ 
+ 	/**
+@@ -1440,7 +1516,10 @@
+ 	private byte getType(String doc){
+ 		RexCacheType.search(doc);
+ 		if(RexCacheType.didMatch()) return CacheType.gcSpider2CwType(RexCacheType.stringMatched(1));
+-		else return 0;
++		else {
++			pref.log(&quot;check cacheTypeRex in spider.def\n&quot;+doc);
++			return 0;
++		}
+ 	}
+ 
+ 	/**
+@@ -1457,8 +1536,10 @@
+ 		String singleLog = &quot;&quot;;
+ 		LogList reslts = new LogList();
+ 		RexLogBlock.search(completeWebPage);
++		if (!RexLogBlock.didMatch()) {
++			pref.log(&quot;check blockRex in spider.def\n&quot;+completeWebPage);			
++		}
+ 		String LogBlock = RexLogBlock.stringMatched(1);
+-		//pref.log(LogBlock);
+ 		exSingleLog.setSource(LogBlock);
+ 		singleLog = exSingleLog.findNext();
+ 		exIcon.setSource(singleLog);
+@@ -1803,6 +1884,7 @@
+ 	 * @param wayPoint The name of the cache
+ 	 * @param is_found Found status of the cached (is inherited by the additional waypoints)
+ 	 */
++	boolean koords_not_yet_found = true; 
+ 	private void getAddWaypoints(String doc, String wayPoint, boolean is_found) throws Exception{
+ 		Extractor exWayBlock = new Extractor(doc,p.getProp(&quot;wayBlockExStart&quot;),p.getProp(&quot;wayBlockExEnd&quot;), 0, false);
+ 		String wayBlock = &quot;&quot;;
+@@ -1848,14 +1930,35 @@
+ 				}
+ 				hd.initStates(idx&lt;0);
+ 				nameRex.search(rowBlock);
++				if (nameRex.didMatch()) {
++					hd.setCacheName(nameRex.stringMatched(1));
++				}
++				else {
++					pref.log(&quot;check nameRex in spider.def\n&quot;+rowBlock);			
++				}
+ 				koordRex.search(rowBlock);
+ 				typeRex.search(rowBlock);
+-				hd.setCacheName(nameRex.stringMatched(1));
+-				if(koordRex.didMatch()) hd.setLatLon(koordRex.stringMatched(1));
+-				if(typeRex.didMatch()) hd.setType(CacheType.gpxType2CwType(&quot;Waypoint|&quot;+typeRex.stringMatched(1)));
++				if(koordRex.didMatch()) {
++					hd.setLatLon(koordRex.stringMatched(1));
++					koords_not_yet_found = false;
++				}
++				else {
++					if (koords_not_yet_found) pref.log(&quot;check koordRex in spider.def\n&quot;+rowBlock);			
++				}
++				if(typeRex.didMatch()) {
++					hd.setType(CacheType.gpxType2CwType(&quot;Waypoint|&quot;+typeRex.stringMatched(1)));
++				}
++				else {
++					pref.log(&quot;check typeRex in spider.def\n&quot;+rowBlock);			
++				}
+ 				rowBlock = exRowBlock.findNext();
+ 				descRex.search(rowBlock);
+-				hd.getCacheDetails(false).setLongDescription(descRex.stringMatched(1));
++				if (descRex.didMatch()) {
++					hd.getCacheDetails(false).setLongDescription(descRex.stringMatched(1));
++				}
++				else {
++					pref.log(&quot;check descRex in spider.def\n&quot;+rowBlock);			
++				}
+ 				hd.setFound(is_found);
+ 				hd.setCacheSize(CacheSize.CW_SIZE_NOTCHOSEN);
+ 				hd.setHard(CacheTerrDiff.CW_DT_UNSET);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002593.html">[Cachewolf-svn] r2637 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="002595.html">[Cachewolf-svn] r2639 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2594">[ date ]</a>
+              <a href="thread.html#2594">[ thread ]</a>
+              <a href="subject.html#2594">[ subject ]</a>
+              <a href="author.html#2594">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

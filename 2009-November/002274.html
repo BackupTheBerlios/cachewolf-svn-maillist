@@ -1,0 +1,185 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2350 - in trunk/src/CacheWolf: . navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-November/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2350%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C200911301509.nAUF991H023319%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002273.html">
+   <LINK REL="Next"  HREF="002275.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2350 - in trunk/src/CacheWolf: . navi</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2350%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C200911301509.nAUF991H023319%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2350 - in trunk/src/CacheWolf: . navi">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Mon Nov 30 16:09:09 CET 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002273.html">[Cachewolf-svn] r2349 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="002275.html">[Cachewolf-svn] r2351 - trunk/res_noewe
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2274">[ date ]</a>
+              <a href="thread.html#2274">[ thread ]</a>
+              <a href="subject.html#2274">[ subject ]</a>
+              <a href="author.html#2274">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2009-11-30 16:09:07 +0100 (Mon, 30 Nov 2009)
+New Revision: 2350
+
+Modified:
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/navi/MovingMap.java
+Log:
+showing Menu icons again on started gps : <A HREF="http://www.geoclub.de/viewtopic.php?f=40&amp;t=39964&amp;sid=ffa7952b99aba61dd88a291db4749132&amp;start=20">http://www.geoclub.de/viewtopic.php?f=40&amp;t=39964&amp;sid=ffa7952b99aba61dd88a291db4749132&amp;start=20</A>
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2009-11-29 18:59:52 UTC (rev 2349)
++++ trunk/src/CacheWolf/MainTab.java	2009-11-30 15:09:07 UTC (rev 2350)
+@@ -364,7 +364,8 @@
+ 		} catch (Exception e) { // TODO swith waiting indication clock off
+ 			e.printStackTrace();
+ 			Global.getPref().log(&quot;Error starting moving map (2): &quot; + e.getMessage(), e, true);
+-			(new MessageBox(&quot;Error&quot;, &quot;Error starting moving map: &quot; + e.getMessage(), FormBase.OKB)).execute(); }
++			(new MessageBox(&quot;Error&quot;, &quot;Error starting moving map: &quot; + e.getMessage(), FormBase.OKB)).execute();
++		}
+ 	}
+ 
+ 	void updatePendingChanges() {
+
+Modified: trunk/src/CacheWolf/navi/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MovingMap.java	2009-11-29 18:59:52 UTC (rev 2349)
++++ trunk/src/CacheWolf/navi/MovingMap.java	2009-11-30 15:09:07 UTC (rev 2350)
+@@ -418,7 +418,8 @@
+ 		running = true;
+ 
+ 		// to load maplist + place a map on screen otherwise no symbol can be placed
+-		updatePosition(centerTo);
++		dontUpdatePos=true; // else overlay symbols are removed on started gps
++		loadBestMap(centerTo);
+ 
+ 		// update cache symbols in map
+ 		if (Global.getProfile().selectionChanged) {
+@@ -441,6 +442,7 @@
+ 		}
+ 
+ 		repaint();
++		dontUpdatePos=false;
+ 		return ret;
+ 	}
+ 
+@@ -988,12 +990,7 @@
+ 		}
+ 		//Vm.debug(&quot;update only position&quot;);
+ 	}
+-	/**
+-	 * Method to laod the best map for lat/lon and move the map so that the posCircle is at lat/lon
+-	 */
+-	public void updatePosition(CWPoint where){
+-		if (dontUpdatePos || loadingMapList) return; // avoid multi-threading problems
+-		//Vm.debug(&quot;updatepos, lat: &quot;+where.latDec+&quot; lon: &quot;+where.lonDec);
++	private void loadBestMap(CWPoint where) {
+ 		if (!mapsloaded || !this.maps.getMapsPath().equals(pref.getCustomMapsPath())) {
+ 			loadMaps(pref.getCustomMapsPath(), where.latDec);
+ 			lastCompareX = Integer.MAX_VALUE;
+@@ -1003,6 +1000,14 @@
+ 			forceMapLoad = false;
+ 			return;
+ 		}
++	}
++	/**
++	 * Method to laod the best map for lat/lon and move the map so that the posCircle is at lat/lon
++	 */
++	public void updatePosition(CWPoint where){
++		if (dontUpdatePos || loadingMapList) return; // avoid multi-threading problems
++		//Vm.debug(&quot;updatepos, lat: &quot;+where.latDec+&quot; lon: &quot;+where.lonDec);
++		loadBestMap(where);
+ 		if (width==0 || height==0) { Vm.debug(&quot;no window shown&quot;); return; } // why is this called with these values
+ 		updateOnlyPosition(where, true);
+ 
+@@ -1117,11 +1122,12 @@
+ 			}
+ 		}
+ 	}
+-
++	boolean reflectResourceException=true;
+ 	private void fillWhiteArea(boolean screenNotCompletlyCovered) {
+ 		// Clean up any additional images, tiles will removed and any
+ 		// other item be added again later
+ 		Vm.showWait(true);
++		dontUpdatePos=true; // no new Position while filling 
+ 		Vector icons = new Vector(mmp.images.size());
+ 		int s = mmp.images.size(); // avoid calling size() in each iteration
+ 		for (int i = 0; i &lt; s ;  i++) {
+@@ -1160,11 +1166,19 @@
+ 			try {
+ 				updateTileForWhiteArea(rectangles);
+ 			} catch (ewe.sys.SystemResourceException sre) {
+-				setFillWhiteArea(false);
+-				(new MessageBox(
+-						&quot;Error&quot;,
+-						&quot;Not enough ressources to fill white ares, disabling this&quot;,
+-						MessageBox.OKB)).execute();
++				// next time there may be no problem, and ask only once
++				if (reflectResourceException) {
++					if (new MessageBox(
++							&quot;Error&quot;,
++							&quot;Not enough ressources to fill white ares, disabling this&quot;,
++							MessageBox.YESB | MessageBox.NOB).execute() == MessageBox.IDYES) {
++						setFillWhiteArea(false);
++						reflectResourceException=true;
++					}
++					else {
++						reflectResourceException=false;						
++					}
++				}
+ 			}
+ 		}
+ 		// Remove all tiles not needed from the cache to reduce memory
+@@ -1172,6 +1186,7 @@
+ 		// At Last redraw all icons on the map
+ 		mmp.images.addAll(icons);
+ 		Vm.showWait(false);		
++		dontUpdatePos=false; // do next Position 
+ 		repaint();
+ 	}
+ 	private void updateTileForWhiteArea(Vector rectangles) {
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002273.html">[Cachewolf-svn] r2349 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="002275.html">[Cachewolf-svn] r2351 - trunk/res_noewe
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2274">[ date ]</a>
+              <a href="thread.html#2274">[ thread ]</a>
+              <a href="subject.html#2274">[ subject ]</a>
+              <a href="author.html#2274">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

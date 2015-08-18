@@ -1,0 +1,308 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r464 - in trunk/src: CacheWolf exp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r464%20-%20in%20trunk/src%3A%20CacheWolf%20exp&In-Reply-To=%3C200701271728.l0RHSOxV003865%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000242.html">
+   <LINK REL="Next"  HREF="000244.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r464 - in trunk/src: CacheWolf exp</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r464%20-%20in%20trunk/src%3A%20CacheWolf%20exp&In-Reply-To=%3C200701271728.l0RHSOxV003865%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r464 - in trunk/src: CacheWolf exp">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sat Jan 27 18:28:24 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000242.html">[Cachewolf-svn] r463 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000244.html">[Cachewolf-svn] r465 - in trunk: resources src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#243">[ date ]</a>
+              <a href="thread.html#243">[ thread ]</a>
+              <a href="subject.html#243">[ subject ]</a>
+              <a href="author.html#243">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-01-27 18:28:07 +0100 (Sat, 27 Jan 2007)
+New Revision: 464
+
+Added:
+   trunk/src/exp/LocExporter.java
+Modified:
+   trunk/src/CacheWolf/MainMenu.java
+Log:
+Fix: Garmin Export ueber GPSBabel (com: oder usb:)
+Benutzt jetzt .loc Datei und kann Symbole fuer
+&quot;Geocache&quot; bzw. &quot;Geocache gefunden&quot; setzen
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2007-01-27 15:37:27 UTC (rev 463)
++++ trunk/src/CacheWolf/MainMenu.java	2007-01-27 17:28:07 UTC (rev 464)
+@@ -274,13 +274,14 @@
+ 			}
+ 			if(mev.selectedItem == exportGPS){
+ 				Vm.showWait(true);
+-				PCX5Exporter pcx = new PCX5Exporter(pref, profile);
+-				pcx.doIt(PCX5Exporter.MODE_AUTO);
++				LocExporter loc = new LocExporter();
++				String tmpFileName = File.getProgramDirectory() + &quot;/temp.loc&quot;;
++				loc.setTmpFileName(tmpFileName);
++				loc.doIt(LocExporter.MODE_AUTO);
+ 				ProgressBarForm.display(MyLocale.getMsg(950,&quot;Transfer&quot;),MyLocale.getMsg(951,&quot;Sending to GPS&quot;), null);
+-				String cwd = File.getProgramDirectory() + &quot;/temp.pcx&quot;;
+ 				try{
+-					ewe.sys.Process p = Vm.exec(&quot;gpsbabel -s -i pcx -f \&quot;&quot;+ cwd +&quot;\&quot; -o garmin -F &quot; + pref.garminConn +&quot;:&quot;);
+-					Vm.debug(&quot;gpsbabel -s -i pcx -f  \&quot;&quot;+ cwd +&quot;\&quot; -o garmin -F &quot; + pref.garminConn +&quot;:&quot;);
++					ewe.sys.Process p = Vm.exec(&quot;gpsbabel -i geo -f \&quot;&quot;+ tmpFileName +&quot;\&quot; -o garmin -F &quot; + pref.garminConn +&quot;:&quot;);
++					Vm.debug(&quot;gpsbabel -i geo -f  \&quot;&quot;+ tmpFileName +&quot;\&quot; -o garmin -F &quot; + pref.garminConn +&quot;:&quot;);
+ 					p.waitFor();
+ 				}catch(IOException ioex){};
+ 				ProgressBarForm.clear();
+
+Added: trunk/src/exp/LocExporter.java
+===================================================================
+--- trunk/src/exp/LocExporter.java	2007-01-27 15:37:27 UTC (rev 463)
++++ trunk/src/exp/LocExporter.java	2007-01-27 17:28:07 UTC (rev 464)
+@@ -0,0 +1,203 @@
++package exp;
++import CacheWolf.*;
++import ewe.util.Hashtable;
++
++/**
++*	Class to export the cache database into an geocaching .loc file that may be exported
++*	by GPSBabel to a Garmin GPS.
++*/
++public class LocExporter extends Exporter{
++	public static int MODE_AUTO = TMP_FILE;
++	
++	public LocExporter(){
++		super();
++		this.setMask(&quot;*.loc&quot;);
++		this.setHowManyParams(NO_PARAMS);
++	}
++	
++	public String header () {
++		return &quot;&lt;?xml version=\&quot;1.0\&quot;?&gt;&lt;loc version=\&quot;1.0\&quot; src=\&quot;EasyGPS\&quot;&gt;\r\n&quot;;
++	}
++	
++	public String record(CacheHolder ch){
++		StringBuffer strBuf = new StringBuffer(200);
++		strBuf.append(&quot;&lt;waypoint&gt;\r\n   &lt;name id=\&quot;&quot;);
++		strBuf.append(simplifyString(ch.wayPoint));
++		strBuf.append(&quot;\&quot;&gt;&lt;![CDATA[&quot;);
++		strBuf.append(simplifyString(ch.CacheName));
++		strBuf.append(&quot;]]&gt;&lt;/name&gt;\r\n   &lt;coord lat=\&quot;&quot;);
++		strBuf.append(ch.pos.getLatDeg(CWPoint.DD));
++		strBuf.append(&quot;\&quot; lon=\&quot;&quot;);
++		strBuf.append(ch.pos.getLonDeg(CWPoint.DD));
++		strBuf.append(&quot;\&quot;/&gt;\r\n   &lt;type&gt;&quot;);
++		if (ch.is_found)
++			strBuf.append(&quot;Geocache Found&quot;);
++		else
++			strBuf.append(&quot;Geocache&quot;);
++		strBuf.append(&quot;&lt;/type&gt;\r\n&lt;/waypoint&gt;\r\n&quot;);
++		return strBuf.toString();
++	}
++	public String trailer(){
++		return &quot;&lt;/loc&gt;\r\n&quot;;
++	}
++
++///////////////////////////////////////////////////
++//  Helper functions for string sanitisation
++///////////////////////////////////////////////////
++	
++	private static Hashtable iso2simpleMappings = new Hashtable(250);
++	static {
++		String[] mappingArray = new String[] {
++				&quot;34&quot;,  &quot;'&quot;,
++				&quot;160&quot;, &quot; &quot;,
++				&quot;161&quot;, &quot;i&quot;,
++				&quot;162&quot;, &quot;c&quot;,
++				&quot;163&quot;, &quot;$&quot;,
++				&quot;164&quot;, &quot;o&quot;,
++				&quot;165&quot;, &quot;$&quot;,
++				&quot;166&quot;, &quot;!&quot;,
++				&quot;167&quot;, &quot;$&quot;,
++				&quot;168&quot;, &quot; &quot;,
++				&quot;169&quot;, &quot; &quot;,
++				&quot;170&quot;, &quot; &quot;,
++				&quot;171&quot;, &quot;&lt;&quot;,
++				&quot;172&quot;, &quot; &quot;,
++				&quot;173&quot;, &quot;-&quot;,
++				&quot;174&quot;, &quot; &quot;,
++				&quot;175&quot;, &quot;-&quot;,
++				&quot;176&quot;, &quot; &quot;,
++				&quot;177&quot;, &quot;+/-&quot;,
++				&quot;178&quot;, &quot;2&quot;,
++				&quot;179&quot;, &quot;3&quot;,
++				&quot;180&quot;, &quot;'&quot;,
++				&quot;181&quot;, &quot; &quot;,
++				&quot;182&quot;, &quot; &quot;,
++				&quot;183&quot;, &quot; &quot;,
++				&quot;184&quot;, &quot;,&quot;,
++				&quot;185&quot;, &quot;1&quot;,
++				&quot;186&quot;, &quot; &quot;,
++				&quot;187&quot;, &quot;&gt;&quot;,
++				&quot;188&quot;, &quot;1/4&quot;,
++				&quot;189&quot;, &quot;1/2&quot;,
++				&quot;190&quot;, &quot;3/4&quot;,
++				&quot;191&quot;, &quot;?&quot;,
++				&quot;192&quot;, &quot;A&quot;,
++				&quot;193&quot;, &quot;A&quot;,
++				&quot;194&quot;, &quot;A&quot;,
++				&quot;195&quot;, &quot;A&quot;,
++				&quot;196&quot;, &quot;Ae&quot;,
++				&quot;197&quot;, &quot;A&quot;,
++				&quot;198&quot;, &quot;AE&quot;,
++				&quot;199&quot;, &quot;C&quot;,
++				&quot;200&quot;, &quot;E&quot;,
++				&quot;201&quot;, &quot;E&quot;,
++				&quot;202&quot;, &quot;E&quot;,
++				&quot;203&quot;, &quot;E&quot;,
++				&quot;204&quot;, &quot;I&quot;,
++				&quot;205&quot;, &quot;I&quot;,
++				&quot;206&quot;, &quot;I&quot;,
++				&quot;207&quot;, &quot;I&quot;,
++				&quot;208&quot;, &quot;D&quot;,
++				&quot;209&quot;, &quot;N&quot;,
++				&quot;210&quot;, &quot;O&quot;,
++				&quot;211&quot;, &quot;O&quot;,
++				&quot;212&quot;, &quot;O&quot;,
++				&quot;213&quot;, &quot;O&quot;,
++				&quot;214&quot;, &quot;Oe&quot;,
++				&quot;215&quot;, &quot;x&quot;,
++				&quot;216&quot;, &quot;O&quot;,
++				&quot;217&quot;, &quot;U&quot;,
++				&quot;218&quot;, &quot;U&quot;,
++				&quot;219&quot;, &quot;U&quot;,
++				&quot;220&quot;, &quot;Ue&quot;,
++				&quot;221&quot;, &quot;Y&quot;,
++				&quot;222&quot;, &quot; &quot;,
++				&quot;223&quot;, &quot;ss&quot;,
++				&quot;224&quot;, &quot;a&quot;,
++				&quot;225&quot;, &quot;a&quot;,
++				&quot;226&quot;, &quot;a&quot;,
++				&quot;227&quot;, &quot;a&quot;,
++				&quot;228&quot;, &quot;ae&quot;,
++				&quot;229&quot;, &quot;a&quot;,
++				&quot;230&quot;, &quot;ae&quot;,
++				&quot;231&quot;, &quot;c&quot;,
++				&quot;232&quot;, &quot;e&quot;,
++				&quot;233&quot;, &quot;e&quot;,
++				&quot;234&quot;, &quot;e&quot;,
++				&quot;235&quot;, &quot;e&quot;,
++				&quot;236&quot;, &quot;i&quot;,
++				&quot;237&quot;, &quot;i&quot;,
++				&quot;238&quot;, &quot;i&quot;,
++				&quot;239&quot;, &quot;i&quot;,
++				&quot;240&quot;, &quot;o&quot;,
++				&quot;241&quot;, &quot;n&quot;,
++				&quot;242&quot;, &quot;o&quot;,
++				&quot;243&quot;, &quot;o&quot;,
++				&quot;244&quot;, &quot;o&quot;,
++				&quot;245&quot;, &quot;o&quot;,
++				&quot;246&quot;, &quot;oe&quot;,
++				&quot;247&quot;, &quot;/&quot;,
++				&quot;248&quot;, &quot;o&quot;,
++				&quot;249&quot;, &quot;u&quot;,
++				&quot;250&quot;, &quot;u&quot;,
++				&quot;251&quot;, &quot;u&quot;,
++				&quot;252&quot;, &quot;ue&quot;,
++				&quot;253&quot;, &quot;y&quot;,
++				&quot;254&quot;, &quot;p&quot;,
++				&quot;255&quot;, &quot;y&quot;
++		};
++		for (int i = 0; i &lt; mappingArray.length; i = i + 2) {
++			iso2simpleMappings.put( Integer.valueOf( mappingArray[i]), mappingArray[i+1]);
++		}
++	}
++
++	
++	protected static String char2simpleChar( char c )
++    {
++        if ( c &lt; 127 ) {
++            // leave alone as equivalent string.
++            return null;
++        } else {
++            String s=(String) iso2simpleMappings.get( new Integer(c));
++            if (s==null) // not in table, replace with empty string just to be sure
++            	return &quot;&quot;;
++            else
++            	return s;
++        }
++    } // end charToEntity
++	
++    public static String simplifyString( String text ) {
++        if ( text == null ) return null;
++        int originalTextLength = text.length();
++        StringBuffer sb = new StringBuffer( 50 );
++        int charsToAppend = 0;
++        for ( int i = 0; i &lt; originalTextLength; i++ ) {
++            char c = text.charAt( i );
++            String entity = char2simpleChar( c );
++            if ( entity == null ) {
++                // we could sb.append( c ), but that would be slower
++                // than saving them up for a big append.
++                charsToAppend++;
++            } else {
++                if ( charsToAppend != 0 ) {
++                    sb.append( text.substring( i - charsToAppend, i ) );
++                    charsToAppend = 0;
++                }
++                sb.append( entity );
++            }
++        } // end for
++        // append chars to the right of the last entity.
++        if ( charsToAppend != 0 ) {
++            sb.append( text.substring( originalTextLength - charsToAppend,
++                                       originalTextLength ) );
++        }
++        // if result is not longer, we did not do anything. Save RAM.
++        return ( sb.length() == originalTextLength ) ? text : sb.toString();
++    } // end insertEntities
++	
++	
++	
++	
++	
++	
++}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000242.html">[Cachewolf-svn] r463 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000244.html">[Cachewolf-svn] r465 - in trunk: resources src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#243">[ date ]</a>
+              <a href="thread.html#243">[ thread ]</a>
+              <a href="subject.html#243">[ subject ]</a>
+              <a href="author.html#243">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

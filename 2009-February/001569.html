@@ -1,0 +1,274 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1659 - trunk/src/CacheWolf/navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1659%20-%20trunk/src/CacheWolf/navi&In-Reply-To=%3C200902281320.n1SDKJi1032295%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001568.html">
+   <LINK REL="Next"  HREF="001570.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1659 - trunk/src/CacheWolf/navi</H1>
+    <B>mik77 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1659%20-%20trunk/src/CacheWolf/navi&In-Reply-To=%3C200902281320.n1SDKJi1032295%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1659 - trunk/src/CacheWolf/navi">mik77 at mail.berlios.de
+       </A><BR>
+    <I>Sat Feb 28 14:20:19 CET 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001568.html">[Cachewolf-svn] r1658 - trunk/src/CacheWolf/navi
+</A></li>
+        <LI>Next message: <A HREF="001570.html">[Cachewolf-svn] r1660 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1569">[ date ]</a>
+              <a href="thread.html#1569">[ thread ]</a>
+              <a href="subject.html#1569">[ subject ]</a>
+              <a href="author.html#1569">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mik77
+Date: 2009-02-28 14:20:16 +0100 (Sat, 28 Feb 2009)
+New Revision: 1659
+
+Modified:
+   trunk/src/CacheWolf/navi/Metrics.java
+   trunk/src/CacheWolf/navi/MovingMap.java
+Log:
+ - introduced imperial system to moving map
+ - metrics conversions completed
+
+Modified: trunk/src/CacheWolf/navi/Metrics.java
+===================================================================
+--- trunk/src/CacheWolf/navi/Metrics.java	2009-02-27 17:32:00 UTC (rev 1658)
++++ trunk/src/CacheWolf/navi/Metrics.java	2009-02-28 13:20:16 UTC (rev 1659)
+@@ -33,19 +33,44 @@
+ 			switch (sourceUnit) {
+ 			case KILOMETER:
+ 				switch (targetUnit) {
++				case METER:
++					result = value * 1000;
++					break;
+ 				case MILES:
+ 					result = value / FCT_MILE2KILOMETER;
+ 					break;
+-				case METER:
+-					result = value * 1000;
++				case YARDS:
++					result = (value / FCT_MILE2KILOMETER) * FCT_MILE2YARD;
+ 					break;
++				case FEET:
++					result = (value / FCT_MILE2KILOMETER) * FCT_MILE2FOOT;
++					break;
+ 				}
+ 				break;
++			case METER:
++				switch (targetUnit) {
++				case KILOMETER:
++					result = value / 1000;
++					break;
++				case MILES:
++					result = (value / 1000) / FCT_MILE2KILOMETER;
++					break;
++				case YARDS:
++					result = ((value / 1000) / FCT_MILE2KILOMETER) * FCT_MILE2YARD;
++					break;
++				case FEET:
++					result = ((value / 1000) / FCT_MILE2KILOMETER) * FCT_MILE2FOOT;
++					break;
++				}
++				break;
+ 			case MILES:
+ 				switch (targetUnit) {
+ 				case KILOMETER:
+ 					result = value * FCT_MILE2KILOMETER;
+ 					break;
++				case METER:
++					result = value * FCT_MILE2KILOMETER * 1000;
++					break;
+ 				case YARDS:
+ 					result = value * FCT_MILE2YARD;
+ 					break;
+@@ -56,6 +81,12 @@
+ 				break;
+ 			case YARDS:
+ 				switch (targetUnit) {
++				case KILOMETER:
++					result = (value / FCT_MILE2YARD) * FCT_MILE2KILOMETER;
++					break;
++				case METER:
++					result = (value / FCT_MILE2YARD) * FCT_MILE2KILOMETER * 1000;
++					break;
+ 				case MILES:
+ 					result = value / FCT_MILE2YARD;
+ 					break;
+@@ -66,6 +97,12 @@
+ 				break;
+ 			case FEET:
+ 				switch (targetUnit) {
++				case KILOMETER:
++					result = (value / FCT_MILE2FOOT) * FCT_MILE2KILOMETER;
++					break;
++				case METER:
++					result = (value / FCT_MILE2FOOT) * FCT_MILE2KILOMETER * 1000;
++					break;
+ 				case MILES:
+ 					result = value / FCT_MILE2FOOT;
+ 					break;
+
+Modified: trunk/src/CacheWolf/navi/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MovingMap.java	2009-02-27 17:32:00 UTC (rev 1658)
++++ trunk/src/CacheWolf/navi/MovingMap.java	2009-02-28 13:20:16 UTC (rev 1659)
+@@ -12,6 +12,7 @@
+ import ewe.graphics.*;
+ import ewe.io.IOException;
+ import ewe.sys.*;
++import ewe.sys.Double;
+ import ewe.filechooser.FileChooser;
+ import ewe.filechooser.FileChooserBase;
+ import ewe.fx.*;
+@@ -235,21 +236,57 @@
+ 		
+ 		if (currentMap != null)
+ 		{
+-			float lineLengthMeters = 40 * currentMap.scale;
+-			float digits = (float)java.lang.Math.floor( java.lang.Math.log(lineLengthMeters) / java.lang.Math.log(10.0) );
+-			lineLengthMeters = (float)java.lang.Math.ceil( lineLengthMeters / (float)java.lang.Math.pow(10, digits) ) * (float)java.lang.Math.pow(10, digits);
+-			int lineLengthPixels = java.lang.Math.round( lineLengthMeters / currentMap.scale );
++			double lineLengthMeters = 40 * currentMap.scale;
++			
++			int metricSystem = Global.getPref().metricSystem;
++			double localizedLineLength = 0;
++			int bigUnit = -1; 
++			int smallUnit = -1;
++			double threshold = -1;
++			// Allow for different metric systems
++			if (metricSystem == Metrics.IMPERIAL) {
++				bigUnit = Metrics.MILES;
++				smallUnit = Metrics.FEET;
++				threshold = 501;
++				
++				localizedLineLength = Metrics.convertUnit( lineLengthMeters, Metrics.METER, smallUnit);
++			} else {
++				bigUnit = Metrics.KILOMETER;
++				smallUnit = Metrics.METER;
++				threshold = 1000;
++				
++				localizedLineLength = lineLengthMeters;
++			}
++			
++			int currentUnit = smallUnit;
++						
++			float digits = (float)java.lang.Math.floor( java.lang.Math.log(localizedLineLength) / java.lang.Math.log(10.0) );
++			localizedLineLength = (float)java.lang.Math.ceil( localizedLineLength / (float)java.lang.Math.pow(10, digits) ) * (float)java.lang.Math.pow(10, digits);
+ 
+-			String lineLengthString;
+-			if (lineLengthMeters &lt; 1000)
++			if (localizedLineLength &gt;= threshold)
+ 			{
+-				lineLengthString = Convert.toString((int) lineLengthMeters) + &quot;m&quot;;
++				currentUnit = bigUnit;
++				localizedLineLength = Metrics.convertUnit( lineLengthMeters, Metrics.METER, currentUnit);
++				
++				digits = (float)java.lang.Math.floor( java.lang.Math.log(localizedLineLength) / java.lang.Math.log(10.0) );
++				localizedLineLength = (float)java.lang.Math.ceil( localizedLineLength / (float)java.lang.Math.pow(10, digits) ) * (float)java.lang.Math.pow(10, digits);
+ 			}
+-			else
+-			{
+-				lineLengthString = Convert.toString((int) lineLengthMeters / 1000) + &quot;km&quot;;
++			
++			String lineLengthString = Convert.toString((int) localizedLineLength) + Metrics.getUnit(currentUnit);
++			
++			if	(digits &lt; 0){
++				Double tmp = new Double();
++				tmp.set(localizedLineLength);
++				
++				int decimals = (int)(-1 * digits);
++				
++				lineLengthString = tmp.toString(decimals+2,decimals,0) + Metrics.getUnit(currentUnit);
++//				lineLengthString = MyLocale.formatDouble(tmp,&quot;0.000&quot;) + Metrics.getUnit(currentUnit);
+ 			}
++
++			lineLengthMeters = Metrics.convertUnit( localizedLineLength, currentUnit, Metrics.METER);
+ 			
++			int lineLengthPixels = (int)java.lang.Math.round( lineLengthMeters / currentMap.scale );			
+ 			int backgroundStartX = ScaleImage.location.width - (lineLengthPixels + fm.getTextWidth(lineLengthString) + 7);
+ 			
+ 			ScaleImageGraphics.setColor(new Color(250,250,250));
+@@ -275,17 +312,33 @@
+ 			{
+ 				lastDistance = currentDistance;
+ 				ewe.sys.Double dd = new ewe.sys.Double();
+-				dd.set(currentDistance);
+ 				String d;
+-				if (dd.value &lt; 1) {
+-					dd.value = dd.value * 1000; 
+-					dd.decimalPlaces = 0;
+-					d = MyLocale.getMsg(4206, &quot;Dist: &quot;) + dd.toString() + &quot;m&quot;;
+-				} 
+-				else {
+-					dd.decimalPlaces = 2;
+-					d = MyLocale.getMsg(4206, &quot;Dist: &quot;) + dd.toString() + &quot;km&quot;;
++				
++				int metricSystem = Global.getPref().metricSystem;
++				double localizedDistance = 0;
++				int bigUnit = -1; 
++				int smallUnit = -1;
++				double threshold = -1;
++				// Allow for different metric systems
++				if (metricSystem == Metrics.METRIC) {
++					bigUnit = Metrics.KILOMETER;
++					smallUnit = Metrics.METER;
++					threshold = 1.0;
++					localizedDistance = currentDistance;
++				} else if (metricSystem == Metrics.IMPERIAL) {
++					// Why these values? See: <A HREF="http://tinyurl.com/b4nn9m">http://tinyurl.com/b4nn9m</A>
++					bigUnit = Metrics.MILES;
++					smallUnit = Metrics.FEET;
++					threshold = 0.1;
++					localizedDistance = Metrics.convertUnit(currentDistance, Metrics.KILOMETER, Metrics.MILES);
+ 				}
++				dd.set(localizedDistance);
++				if (dd.value &gt;= threshold){
++					d = MyLocale.formatDouble(dd,&quot;0.000&quot;) + Metrics.getUnit(bigUnit);
++				} else {
++					dd.set(Metrics.convertUnit(dd.value, bigUnit, smallUnit));
++					d = dd.toString(3,0,0) + Metrics.getUnit(smallUnit);
++				}
+ 				
+ 				int backgroundWidth = fm.getTextWidth(d) + 4;
+ 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001568.html">[Cachewolf-svn] r1658 - trunk/src/CacheWolf/navi
+</A></li>
+	<LI>Next message: <A HREF="001570.html">[Cachewolf-svn] r1660 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1569">[ date ]</a>
+              <a href="thread.html#1569">[ thread ]</a>
+              <a href="subject.html#1569">[ subject ]</a>
+              <a href="author.html#1569">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

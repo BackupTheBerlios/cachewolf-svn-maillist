@@ -1,0 +1,116 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2315 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-October/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2315%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200910282338.n9SNc9xZ008606%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002238.html">
+   <LINK REL="Next"  HREF="002240.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2315 - trunk/src/CacheWolf</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2315%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200910282338.n9SNc9xZ008606%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2315 - trunk/src/CacheWolf">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Thu Oct 29 00:38:09 CET 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002238.html">[Cachewolf-svn] r2314 - in trunk: res_noewe/symbols/Harry1999	src/CacheWolf/navi
+</A></li>
+        <LI>Next message: <A HREF="002240.html">[Cachewolf-svn] r2316 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2239">[ date ]</a>
+              <a href="thread.html#2239">[ thread ]</a>
+              <a href="subject.html#2239">[ subject ]</a>
+              <a href="author.html#2239">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2009-10-29 00:38:06 +0100 (Thu, 29 Oct 2009)
+New Revision: 2315
+
+Modified:
+   trunk/src/CacheWolf/Rebuild.java
+Log:
+modification for older cache.xml that do not have the &lt;CACHE  ... /&gt; tag.
+
+Modified: trunk/src/CacheWolf/Rebuild.java
+===================================================================
+--- trunk/src/CacheWolf/Rebuild.java	2009-10-28 15:59:58 UTC (rev 2314)
++++ trunk/src/CacheWolf/Rebuild.java	2009-10-28 23:38:06 UTC (rev 2315)
+@@ -10,6 +10,7 @@
+ public class Rebuild {
+ 	String [] xmlFiles;
+ 	private int cacheXmlVersion;
++	private int startOfCacheDetails;
+ 
+ 	public Rebuild() { // Public constructor
+ 	}
+@@ -37,6 +38,11 @@
+ 				//ewe.sys.Vm.debug(&quot;Orphan: &quot;+wayPoint);
+ 				orphans++;
+ 				int cacheIndex=prof.getCacheIndex(wayPoint); 
++				getCacheDetails(prof.dataDir+xmlFiles[i]);
++				if (startOfCacheDetails &lt; 0) {
++					CacheHolder ch=prof.cacheDB.get(cacheIndex);
++					ch.save();
++				}
+ 				if (cacheIndex &gt; -1) prof.cacheDB.removeElementAt(cacheIndex);
+ 			}
+ 		}
+@@ -48,7 +54,8 @@
+ 					h.progress = ((float)nProcessed++)/(float)(orphans);
+ 					h.changed();
+ 					String details=getCacheDetails(prof.dataDir+xmlFiles[i]);
+-					if (details!=null) { // In older Versions of CW the &lt;CACHE... /&gt; line was not stored in the cache.xml
++					if (details!=null) { 
++						// In older Versions of CW the &lt;CACHE... /&gt; line was not stored in the cache.xml
+ 						CacheHolder ch=new CacheHolder(details, cacheXmlVersion);
+ 						prof.cacheDB.add(ch);
+ 						nAdded++;
+@@ -96,7 +103,9 @@
+ 			int vstart;
+ 			cacheXmlVersion = 1; // Initial guess
+ 			// Check that we have not accidentally listed another xml file in the directory
+-			if (text.indexOf(&quot;&lt;CACHEDETAILS&gt;&quot;)&lt;0 || (start=text.indexOf(&quot;&lt;CACHE &quot;))&lt;0) return null;
++			startOfCacheDetails=text.indexOf(&quot;&lt;CACHE &quot;);
++			if ((start=startOfCacheDetails)&lt;0) return null;
++			if (text.indexOf(&quot;&lt;CACHEDETAILS&gt;&quot;)&lt;0) return null; // startOfCacheDetails must be set in advance
+ 			if ((vstart = text.indexOf(&quot;&lt;VERSION value = \&quot;&quot;)) &gt;= 0) {
+ 				cacheXmlVersion = Integer.valueOf(text.substring(vstart+18, text.indexOf(&quot;\&quot;&quot;, vstart+18))).intValue();
+ 			}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002238.html">[Cachewolf-svn] r2314 - in trunk: res_noewe/symbols/Harry1999	src/CacheWolf/navi
+</A></li>
+	<LI>Next message: <A HREF="002240.html">[Cachewolf-svn] r2316 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2239">[ date ]</a>
+              <a href="thread.html#2239">[ thread ]</a>
+              <a href="subject.html#2239">[ subject ]</a>
+              <a href="author.html#2239">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

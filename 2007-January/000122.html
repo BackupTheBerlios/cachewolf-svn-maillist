@@ -1,0 +1,591 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r393 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r393%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701141601.l0EG1TjN005063%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000121.html">
+   <LINK REL="Next"  HREF="000123.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r393 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r393%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701141601.l0EG1TjN005063%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r393 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Sun Jan 14 17:01:29 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000121.html">[Cachewolf-svn] r392 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000123.html">[Cachewolf-svn] r394 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#122">[ date ]</a>
+              <a href="thread.html#122">[ thread ]</a>
+              <a href="subject.html#122">[ subject ]</a>
+              <a href="author.html#122">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-01-14 17:01:23 +0100 (Sun, 14 Jan 2007)
+New Revision: 393
+
+Modified:
+   trunk/src/CacheWolf/CWPoint.java
+   trunk/src/CacheWolf/GotoPanel.java
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/MovingMap.java
+   trunk/src/CacheWolf/Parser.java
+   trunk/src/CacheWolf/TrackPoint.java
+   trunk/src/CacheWolf/myTableControl.java
+Log:
+zeige nur g?\195?\188ltige Koordinateauf GotoPanel
+parse goto(String) per regEx
+wenn weder gps-pos noch goto-pos valid, positionire das Zentrum in MovingMap in die Mitte des Screens
+
+Modified: trunk/src/CacheWolf/CWPoint.java
+===================================================================
+--- trunk/src/CacheWolf/CWPoint.java	2007-01-14 15:37:45 UTC (rev 392)
++++ trunk/src/CacheWolf/CWPoint.java	2007-01-14 16:01:23 UTC (rev 393)
+@@ -47,7 +47,7 @@
+ 	 */
+ 	
+ 	public CWPoint() {
+-		super(0,0);
++		super(-361,-361); // construct with unvalid == unset lat/lon 
+ 		this.utmValid = false;
+ 		
+ 	}
+@@ -79,7 +79,7 @@
+ 	 * @param format only CWPoint.CW or CWPoint.REGEX is supported
+ 	 */
+ 	public CWPoint(String coord, int format) {
+-		super(0,0);
++		super(-361,-361);
+ 		set(coord, format);
+ 	}
+ 
+@@ -169,30 +169,29 @@
+ 
+ 		if (coord!=null) {
+ 			switch (format){
+-				case CW: 	ParseLatLon pll = new ParseLatLon (coord);
+-							try {
+-								pll.parse();
+-								this.latDec = pll.lat2;
+-								this.lonDec = pll.lon2;
+-							} catch (Exception e) {
+-								this.latDec = 0;
+-								this.lonDec = 0;
+-							}
+-							break;
+-		
+-				case REGEX: set(coord);
+-							break;
+-		
+-				default: 	this.latDec = 0; this.lonDec = 0;
++			case CW: 	ParseLatLon pll = new ParseLatLon (coord);
++				try {
++					pll.parse();
++					this.latDec = pll.lat2;
++					this.lonDec = pll.lon2;
++				} catch (Exception e) {
++					this.latDec = 91;
++					this.lonDec = 361;
++					break;
++				}
++			case REGEX: set(coord);
++			break;
++
++			default: 	this.latDec = 91; this.lonDec = 361;
+ 			}
+-		} else {
+-			this.latDec = 0; this.lonDec = 0;
++		} else { 
++			this.latDec = 91; this.lonDec = 361;
+ 		}
+ 		this.utmValid = false;
+ 	}
+-	
+ 
+ 
++
+ 	/**
+ 	 * set lat and lon by parsing coordinates with regular expression 
+ 	 * @param coord  String of type N 49&#176; 33.167 E 011&#176; 21.608
+@@ -218,8 +217,8 @@
+ 									&quot;)|(?:&quot; +
+ 									&quot;([0-9]{1,2}[C-HJ-PQ-X])\\s*[EeOo]?\\s*([0-9]{1,7})\\s+[Nn]?\\s*([0-9]{1,7})&quot; +
+ 									&quot;)&quot;); 
+-				this.latDec = 0;
+-				this.lonDec = 0;
++				this.latDec = -91; // return unset / unvalid values if parsing was not successfull
++				this.lonDec = -361;
+ 				rex.search(coord);
+ 				if (rex.stringMatched(1)!= null) { // Std format
+ 					// Handle &quot;E&quot; oder &quot;O&quot; for longitiude
+@@ -241,7 +240,7 @@
+ 					set(rex.stringMatched(17),rex.stringMatched(19),rex.stringMatched(18)); //parse sequence is E N, but set needs N E
+ 				}
+ 				//else Vm.debug(&quot;CWPoint: &quot;+coord+&quot; could not be parsed&quot;);
+-				makeValid();
++				//makeValid(); // TODO was solld as hier?
+ 			}	/**
+ 	 * set lat and lon 
+ 	 * @param strLatNS &quot;N&quot; or &quot;S&quot;
+@@ -268,9 +267,9 @@
+ 						this.lonDec = Math.abs(Common.parseDouble(strLonDeg)) + Math.abs((Common.parseDouble(strLonMin)/60))+Math.abs((Common.parseDouble(strLonSec)/3600));
+ 						break;
+ 			
+-			default: 	this.latDec = 0; this.lonDec = 0;
++			default: 	this.latDec = 91; this.lonDec = 361;
+ 		}
+-		makeValid();
++		//makeValid();
+ 		// To avoid changing sign twice if we have something like W -34.2345
+ 		if (strLatNS.trim().equals(&quot;S&quot;) &amp;&amp; this.latDec&gt;0) this.latDec *= -1;
+ 		if (strLonEW.trim().equals(&quot;W&quot;) &amp;&amp; this.lonDec&gt;0) this.lonDec *= -1;
+@@ -281,7 +280,8 @@
+ 	 * Returns true if the coordinates are valid
+ 	 */
+ 	public boolean isValid() {
+-		return latDec!=0 || lonDec!=0;  // Not a very good way, but will have to do for now
++		return 	latDec &lt;= 90.0 &amp;&amp; latDec &gt;= -90.0 &amp;&amp;
++				lonDec &lt;= 360 &amp;&amp; lonDec &gt;= -360;
+ 	}
+ 	
+ 	/**
+@@ -309,10 +309,12 @@
+ 		utm.northing = (float) Common.parseDouble(strNorthing);
+ 		utm.easting = (float) Common.parseDouble(strEasting);
+ 		
+-		ll = utm.toLatLonPoint();
+-		this.utmValid = true;
+-		this.latDec = ll.getLatitude();
+-		this.lonDec = ll.getLongitude();
++		ll = utm.toLatLonPoint(); // returns null if unvalit UTM-coordinates
++		if (ll != null) { 
++			this.utmValid = true;
++			this.latDec = ll.getLatitude();
++			this.lonDec = ll.getLongitude();
++		} else {this.latDec = 91; this.lonDec = 361; }
+ 	}
+ 
+ 	/**
+@@ -466,9 +468,10 @@
+ 	/**
+ 	 * Method to calculate the bearing of a waypoint
+ 	 * @param dest waypoint
+-	 * @return  bearing of waypoint
++	 * @return  bearing of waypoint 361 if this or dest is not valid
+ 	 */	
+ 	public double getBearing(CWPoint dest){
++		if (!this.isValid() || dest == null || !dest.isValid()) return 361;
+ 		float az;
+ 		LatLonPoint src = new LatLonPoint(this.latDec, this.lonDec);
+ 		
+@@ -548,7 +551,7 @@
+ 	 * @return  string representation of CWPoint 
+ 	 */	
+ 	public String toString(int format){
+-		
++		if (!isValid()) return &quot;not set&quot;;
+ 		switch (format) {
+ 		case DD:	return getNSLetter() + &quot; &quot; + STRreplace.replace(getLatDeg(format),&quot;-&quot;,&quot;&quot;) + &quot;&#176; &quot;
+ 						+  getEWLetter() + &quot; &quot; + STRreplace.replace(getLonDeg(format),&quot;-&quot;,&quot;&quot;)+ &quot;&#176;&quot;;
+
+Modified: trunk/src/CacheWolf/GotoPanel.java
+===================================================================
+--- trunk/src/CacheWolf/GotoPanel.java	2007-01-14 15:37:45 UTC (rev 392)
++++ trunk/src/CacheWolf/GotoPanel.java	2007-01-14 16:01:23 UTC (rev 393)
+@@ -212,7 +212,7 @@
+ 		CoordsP.addLast(lblPosition = new mLabel(gpsPosition.toString(currFormat)),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 		CoordsP.addNext(lblDST = new mLabel(MyLocale.getMsg(1500,&quot;DST:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		lblDST.backGround = BLUE;
+-		CoordsP.addLast(btnGoto = new mButton(toPoint.toString(currFormat)),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
++		CoordsP.addLast(btnGoto = new mButton(getGotoBtnText()),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 
+ 		//Rose for bearing
+ 		compassRose = new GotoRose(&quot;rose.png&quot;);
+@@ -312,27 +312,58 @@
+ 	 */ 
+ 	public void setDestination(CWPoint dest){
+ 		toPoint.set(dest);
+-		btnGoto.setText(toPoint.toString(currFormat));
+-		mainT.select(this);
++		if (!toPoint.isValid()) (new MessageBox(&quot;Error&quot;, &quot;coordinates are out of range: \n&quot;+&quot;latitude: &quot;+toPoint.latDec+&quot;\n longditue: &quot;+toPoint.lonDec, MessageBox.OKB)).execute();
++		btnGoto.setText(getGotoBtnText());
++		updateDistance();
+ 	}
++	
++	public void setDestination(String LatLon) {
++		toPoint.set(LatLon);
++		setDestination(toPoint);
++	}
+ 
+ 	/**
+-	 * set the coords of the destination  
++	 * set the coords of the destination and switch to gotoPanel  
+ 	 * @param LatLon destination
+ 	 */ 
+-	public void setDestination(String LatLon) {
++	public void setDestinationAndSwitch(String LatLon) {
+ 		toPoint.set(LatLon,CWPoint.CW);
+-		btnGoto.setText(toPoint.toString(currFormat));
++		setDestination(toPoint);
+ 		mainT.select(this);
+ 	}
++	
++	/**
++	 * updates distance and bearing
++	 *
++	 */
++	
++	public void updateDistance() {
++		//update distance
++		Double tmp = new Double();
++		if (gpsPosition.isValid() &amp;&amp; toPoint.isValid() ) {
++			tmp.set(gpsPosition.getDistance(toPoint));
++			if (tmp.value &gt;= 1){
++				lblDist.setText(MyLocale.formatDouble(tmp,&quot;0.000&quot;)+ &quot; km&quot;);
++			}
++			else {
++				tmp.set(tmp.value * 1000);
++				lblDist.setText(tmp.toString(3,0,0) + &quot; m&quot;);
++			}
++		}
++		else lblDist.setText(&quot;--- km&quot;);
++		// update goto-bearing
++		tmp.set(gpsPosition.getBearing(toPoint));
++		if (tmp.value &lt;= 360) 
++			lblBearWayP.setText(tmp.toString(0,0,0) + &quot; Grad&quot;);
++		else lblBearWayP.setText(&quot;---&quot; + &quot; Grad&quot;);
++		compassRose.setWaypointDirection((float)tmp.value);
++	}
+ 
+ 	/**
+ 	 * method which is called if a timer is set up  
+ 	 */ 
+ 	public void ticked() {
+ 		Double bearMov = new Double();
+-		Double bearWayP = new Double();
+-		Double dist = new Double();
+ 		Double speed = new Double();
+ 		Double sunAzimut = new Double();
+ 		Vm.debug(&quot;ticked: voher&quot;);
+@@ -367,21 +398,8 @@
+ 
+ 			bearMov.set(gpsPosition.getBear());
+ 			lblBearMov.setText(bearMov.toString(0,0,0) + &quot; Grad&quot;);
+-			bearWayP.set(gpsPosition.getBearing(toPoint));
+-			lblBearWayP.setText(bearWayP.toString(0,0,0) + &quot; Grad&quot;);
+-
+-			dist.set(gpsPosition.getDistance(toPoint));
+-
+-			if (dist.value &gt;= 1){
+-				lblDist.setText(MyLocale.formatDouble(dist,&quot;0.000&quot;)+ &quot; km&quot;);
+-			}
+-			else {
+-				dist.set(dist.value * 1000);
+-				lblDist.setText(dist.toString(3,0,0) + &quot; m&quot;);
+-			}
+-
+-			compassRose.setDirections((float)bearWayP.value, (float)sunAzimut.value, (float)bearMov.value);
+-			
++			compassRose.setSunMoveDirections((float)sunAzimut.value, (float)bearMov.value);
++			updateDistance();
+ 			// Set background to signal quality
+ 			lblSats.backGround = GREEN;
+ 		}
+@@ -522,8 +540,12 @@
+ 		}
+ 		currTrack = new Track(RED);
+ 	}
++	
++	private String getGotoBtnText() {
++		if (toPoint == null) return &quot;not set&quot;;
++		else return toPoint.toString(currFormat);
++	}
+ 
+-
+ 	/**
+ 	 * Eventhandler
+ 	 */
+@@ -535,7 +557,7 @@
+ 			if (ev.target == chkFormat){
+ 				currFormat = chkFormat.getSelectedIndex();
+ 				lblPosition.setText(gpsPosition.toString(currFormat));
+-				btnGoto.setText(toPoint.toString(currFormat));
++				btnGoto.setText(getGotoBtnText());
+ 			}
+ 
+ 			// start/stop GPS connection
+@@ -561,12 +583,14 @@
+ 				if (serThread == null || !serThread.isAlive() ) {
+ 					// setze Zielpunkt als Ausgangspunkt, wenn GPS aus ist und lade entsprechende Karte
+ 					mmp.ignoreGps = false;
+-					mmp.updatePosition(toPoint.latDec, toPoint.lonDec);
++					if (toPoint.isValid())	mmp.updatePosition(toPoint.latDec, toPoint.lonDec);
++					else mmp.updatePosition(Global.getPref().curCentrePt.latDec, Global.getPref().curCentrePt.lonDec); // if not goto-point defined move map to centere point
+ 					mmp.ignoreGps = true;
+ 				}
+ 				if (currTrack != null) mmp.addTrack(currTrack);
+ 				if (runbefore) mmp.addOverlaySet(); // draw new trackpoints but only do so if OverlaySet needs to be updated, otherwise it is anyway newly created
+-				mmp.setGotoPosition(toPoint.latDec, toPoint.lonDec);
++				if (toPoint.isValid()) mmp.setGotoPosition(toPoint.latDec, toPoint.lonDec);
++				else mmp.removeGotoPosition();
+ 				// update cache symbols in map
+ 				if (mainT.tbP.myMod.cacheSelectionChanged) {
+ 					mainT.tbP.myMod.cacheSelectionChanged = false;
+@@ -591,11 +615,10 @@
+ 			// change destination waypoint
+ 			if (ev.target == btnGoto){
+ 				CoordsScreen cs = new CoordsScreen();
+-				cs.setFields(toPoint, currFormat);
+-				if (cs.execute()== CoordsScreen.IDOK){
+-					toPoint = cs.getCoords();
+-					btnGoto.setText(toPoint.toString(currFormat));
+-				}
++				if (toPoint.isValid())	cs.setFields(toPoint, currFormat);
++				else cs.setFields(new CWPoint(0,0), currFormat);
++				if (cs.execute() == CoordsScreen.IDOK)
++					setDestination(cs.getCoords());
+ 			}
+ 		}
+ 		super.onEvent(ev);
+@@ -623,8 +646,11 @@
+ 		super(fn);
+ 	}
+ 	
+-	public void setDirections(float gd, float sd, float md ) {
+-		gotoDir = gd;
++	public void setWaypointDirection(float wd) {
++		gotoDir = wd;
++	}
++	
++	public void setSunMoveDirections(float sd, float md ) {
+ 		sunDir = sd;
+ 		moveDir = md;
+ 		refresh();
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2007-01-14 15:37:45 UTC (rev 392)
++++ trunk/src/CacheWolf/MainTab.java	2007-01-14 16:01:23 UTC (rev 393)
+@@ -87,7 +87,7 @@
+ 	}
+ 	
+ 	public void gotoPoint(String LatLon) {
+-		gotoP.setDestination(LatLon);
++		gotoP.setDestinationAndSwitch(LatLon);
+ 	}
+ 	
+ 	public void onEvent(Event ev)
+
+Modified: trunk/src/CacheWolf/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/MovingMap.java	2007-01-14 15:37:45 UTC (rev 392)
++++ trunk/src/CacheWolf/MovingMap.java	2007-01-14 16:01:23 UTC (rev 393)
+@@ -497,9 +497,13 @@
+ 		}
+ 
+ 		public void setGotoPosition(double lat, double lon) {
+-			removeMapSymbol(&quot;goto&quot;);
++			removeGotoPosition();
+ 			gotoPos=addSymbol(&quot;goto&quot;, &quot;goto_map.png&quot;, lat, lon);
+ 		}
++		
++		public void removeGotoPosition() {
++			removeMapSymbol(&quot;goto&quot;);
++		}
+ 
+ 		public CWPoint getGotoPos(){
+ 			return new CWPoint(gotoPos.lat, gotoPos.lon);
+@@ -724,7 +728,7 @@
+ 		 * @param w
+ 		 * @param h
+ 		 */
+-		public void zoom(Point firstclickpoint, int w, int h) {
++		public void zoomScreenRect(Point firstclickpoint, int w, int h) {
+ 			Vm.showWait(true);
+ 			int newImageWidth = this.width * 2; // (maximal) size of the zoomed image 
+ 			int newImageHeight= this.height * 2;
+@@ -748,14 +752,14 @@
+ 			int yinunscaledimage = (int) ((firstclickpoint.y - mappos.y + h/2) / currentMap.zoomFactor + currentMap.shift.y - newImageHeight /2);
+ 			Rect newImageRect = new Rect(xinunscaledimage , yinunscaledimage, newImageWidth, newImageHeight);
+ 			if (mapImage1to1 != null &amp;&amp; mmp.mapImage != null &amp;&amp; mapImage1to1.image != null)
+-				{
++			{
+ 				// try to avoid overlapping by shifting
+ 				if (newImageRect.x &lt; 0) 
+ 					newImageRect.x = 0; // align left if left overlapping
+ 				if (newImageRect.y &lt; 0) 
+ 					newImageRect.y = 0;
+- 				if (newImageRect.x + newImageRect.width &gt;= mapImage1to1.getWidth()) 
+- 					newImageRect.x = mapImage1to1.getWidth()- newImageWidth; // align right if right overlaping
++				if (newImageRect.x + newImageRect.width &gt;= mapImage1to1.getWidth()) 
++					newImageRect.x = mapImage1to1.getWidth()- newImageWidth; // align right if right overlaping
+ 				if (newImageRect.y + newImageRect.height &gt;= mapImage1to1.getHeight()) 
+ 					newImageRect.y = mapImage1to1.getHeight()- newImageWidth;
+ 				// crop if after shifting still overlapping
+@@ -763,42 +767,48 @@
+ 					newImageRect.x = 0;
+ 				if (newImageRect.y &lt; 0) 
+ 					newImageRect.y = 0;
+- 				if (newImageRect.x + newImageRect.width &gt;= mapImage1to1.getWidth()) 
+- 					newImageRect.width = mapImage1to1.getWidth() - newImageRect.x;
++				if (newImageRect.x + newImageRect.width &gt;= mapImage1to1.getWidth()) 
++					newImageRect.width = mapImage1to1.getWidth() - newImageRect.x;
+ 				if (newImageRect.y + newImageRect.height &gt;= mapImage1to1.getHeight()) 
+ 					newImageRect.height= mapImage1to1.getHeight()- newImageRect.y;
++			}
++			zoomUnscaled(zoomFactor, newImageRect, center);
++		}
+ 
+-				int saveprop = mmp.mapImage.properties;
+-				AniImage tmp = null; // = mmp.mapImage;
+-				mmp.removeImage(mmp.mapImage);
+-				if (mmp.mapImage != mapImage1to1) {
+-					mmp.mapImage .free();
+-					mmp.mapImage = null;
+-				} else tmp = mapImage1to1;
+-				Vm.getUsedMemory(true);
+-				try {
+-					tmp = new AniImage(mapImage1to1.scale((int) (newImageRect.width*zoomFactor*currentMap.zoomFactor), (int)(newImageRect.height*zoomFactor*currentMap.zoomFactor), newImageRect, 0));
+-					currentMap.zoom(zoomFactor, newImageRect.x, newImageRect.y);
+-				} catch (OutOfMemoryError e) {Vm.debug(e.toString());}
+-				Vm.getUsedMemory(true);
+-				mmp.mapImage = tmp; // use old image in case of OutOfMemoryError
+-				mmp.mapImage.properties = saveprop;
+-				mmp.addImage(mmp.mapImage);
+-				mmp.images.moveToBack(mmp.mapImage);
+-				}
++/**
++ * do the actual scaling
++ * @param zoomFactor
++ * @param newImageRect Rect in the 1:1 image that contains the area to be zoomed into
++ * @param center
++ */		
++		public void zoomUnscaled (float zoomFactor, Rect newImageRect, CWPoint center) {
++			int saveprop = mmp.mapImage.properties;
++			AniImage tmp = null; // = mmp.mapImage;
++			mmp.removeImage(mmp.mapImage);
++			if (mmp.mapImage != mapImage1to1) {
++				mmp.mapImage .free();
++				mmp.mapImage = null;
++			} else tmp = mapImage1to1;
++			Vm.getUsedMemory(true);
++			try {
++				tmp = new AniImage(mapImage1to1.scale((int) (newImageRect.width*zoomFactor*currentMap.zoomFactor), (int)(newImageRect.height*zoomFactor*currentMap.zoomFactor), newImageRect, 0));
++				currentMap.zoom(zoomFactor, newImageRect.x, newImageRect.y);
++			} catch (OutOfMemoryError e) {(new MessageBox(&quot;Error&quot;, &quot;Out of memory error&quot;, MessageBox.OKB)).execute();}
++			Vm.getUsedMemory(true);
++			mmp.mapImage = tmp; // use old image in case of OutOfMemoryError
++			mmp.mapImage.properties = saveprop;
++			mmp.addImage(mmp.mapImage);
++			mmp.images.moveToBack(mmp.mapImage);
+ 			if (mapImage1to1 != null &amp;&amp; mmp.mapImage != null &amp;&amp; mapImage1to1.image != null)
+ 			{
+-				mappos = getMapPositionOnScreen();
++				Point mappos = getMapPositionOnScreen();
+ 				mmp.mapImage.move(mappos.x,mappos.y);
+ 			}
+-			//updatePosition(center.latDec, center.lonDec);
+ 			destroyOverlaySet();
+ 			setCenterOfScreen(center);
+ 			addOverlaySet();
+-			//updateSymbolPositions();
+ 			this.repaintNow();
+ 			Vm.showWait(false);
+-			//CWPoint test = ScreenXY2LatLon(0, 0);
+ 		}
+ 		
+ 
+@@ -885,7 +895,7 @@
+ 			if (mm.zoomingMode &amp;&amp; ev.type == PenEvent.PEN_UP ) {
+ 				paintingZoomArea = false;
+ 				mm.zoomingMode = false;
+-				mm.zoom(saveMapLoc, lastZoomWidth, lastZoomHeight);
++				mm.zoomScreenRect(saveMapLoc, lastZoomWidth, lastZoomHeight);
+ 			}
+ 			
+ 			if (mm.zoomingMode &amp;&amp; paintingZoomArea &amp;&amp; (ev.type == PenEvent.PEN_MOVED_ON || ev.type == PenEvent.PEN_MOVE || ev.type == PenEvent.PEN_DRAG)) {
+
+Modified: trunk/src/CacheWolf/Parser.java
+===================================================================
+--- trunk/src/CacheWolf/Parser.java	2007-01-14 15:37:45 UTC (rev 392)
++++ trunk/src/CacheWolf/Parser.java	2007-01-14 16:01:23 UTC (rev 393)
+@@ -373,8 +373,7 @@
+ 		String coord=popCalcStackAsString();
+ 		if (!isValidCoord(coord)) err(&quot;Invalid coordinate: &quot;+coord);
+ 		// Don't want to switch to goto panel, just set the values
+-		gotoP.toPoint.set(coord);
+-		gotoP.btnGoto.setText(gotoP.toPoint.toString(gotoP.currFormat));
++		gotoP.setDestination(coord);
+ 		if (nargs==2) { // Now set the value of the addi waypoint (it must exist already)
+     		int i=Global.getProfile().getCacheIndex(waypointName);
+     		if (i&lt;0) err(&quot;Goto: Waypoint does not exist: &quot;+waypointName);
+
+Modified: trunk/src/CacheWolf/TrackPoint.java
+===================================================================
+--- trunk/src/CacheWolf/TrackPoint.java	2007-01-14 15:37:45 UTC (rev 392)
++++ trunk/src/CacheWolf/TrackPoint.java	2007-01-14 16:01:23 UTC (rev 393)
+@@ -19,8 +19,8 @@
+ 	double lonDec;
+ 	
+ 	public TrackPoint(){
+-		latDec = 0;
+-		lonDec = 0;
++		latDec = -91;
++		lonDec = -361;
+ 	}
+ 	
+ 	public TrackPoint(TrackPoint t) {
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2007-01-14 15:37:45 UTC (rev 392)
++++ trunk/src/CacheWolf/myTableControl.java	2007-01-14 16:01:23 UTC (rev 393)
+@@ -105,7 +105,7 @@
+ 		
+ 		if (selectedItem.toString().equals(MyLocale.getMsg(1010,&quot;Goto&quot;))){
+ 			ch = (CacheHolder)tbp.cacheDB.get(tbp.getSelectedCache());
+-			tbp.myGotoPanel.setDestination((ch.LatLon));
++			tbp.myGotoPanel.setDestinationAndSwitch((ch.LatLon));
+ 		}
+ 		if (selectedItem.toString().equalsIgnoreCase(MyLocale.getMsg(1020,&quot;Open online in Browser&quot;))){
+ 			ch = (CacheHolder)tbp.cacheDB.get(tbp.getSelectedCache());
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000121.html">[Cachewolf-svn] r392 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000123.html">[Cachewolf-svn] r394 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#122">[ date ]</a>
+              <a href="thread.html#122">[ thread ]</a>
+              <a href="subject.html#122">[ subject ]</a>
+              <a href="author.html#122">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

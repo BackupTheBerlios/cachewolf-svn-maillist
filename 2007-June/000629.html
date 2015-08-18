@@ -1,0 +1,625 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r747 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-June/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r747%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200706151809.l5FI9lX5025779%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000628.html">
+   <LINK REL="Next"  HREF="000630.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r747 - trunk/src/CacheWolf</H1>
+    <B>kalli at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r747%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200706151809.l5FI9lX5025779%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r747 - trunk/src/CacheWolf">kalli at mail.berlios.de
+       </A><BR>
+    <I>Fri Jun 15 20:09:47 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000628.html">[Cachewolf-svn] r746 - branches/bugfix_09n/src/CacheWolf	trunk/resources trunk/resources/attributes
+</A></li>
+        <LI>Next message: <A HREF="000630.html">[Cachewolf-svn] r748 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#629">[ date ]</a>
+              <a href="thread.html#629">[ thread ]</a>
+              <a href="subject.html#629">[ subject ]</a>
+              <a href="author.html#629">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: kalli
+Date: 2007-06-15 20:09:36 +0200 (Fri, 15 Jun 2007)
+New Revision: 747
+
+Modified:
+   trunk/src/CacheWolf/CacheHolder.java
+   trunk/src/CacheWolf/OCXMLImporter.java
+   trunk/src/CacheWolf/OCXMLImporterScreen.java
+   trunk/src/CacheWolf/Profile.java
+   trunk/src/CacheWolf/SpiderGC.java
+   trunk/src/CacheWolf/myTableControl.java
+Log:
+FR #3495: Einzelne OC-Caches syncen. Die Anzeigen in der InfoBox k?\195?\182nnten noch verbessert werden.
+
+Modified: trunk/src/CacheWolf/CacheHolder.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolder.java	2007-06-14 05:57:09 UTC (rev 746)
++++ trunk/src/CacheWolf/CacheHolder.java	2007-06-15 18:09:36 UTC (rev 747)
+@@ -57,6 +57,7 @@
+ public Vector addiWpts = new Vector();
+ public CacheHolder mainCache;
+ public String sort;
++public String lastSyncOC = EMPTY;
+ 
+ CacheHolder() {}
+ CacheHolder(String wpt) {this.wayPoint=wpt; }
+@@ -97,6 +98,7 @@
+ 	this.has_bug = ch.has_bug;
+ 	this.is_HTML = ch.is_HTML;
+ 	this.sort=ch.sort;
++	this.lastSyncOC = ch.lastSyncOC;
+ 	
+ }
+ 
+
+Modified: trunk/src/CacheWolf/OCXMLImporter.java
+===================================================================
+--- trunk/src/CacheWolf/OCXMLImporter.java	2007-06-14 05:57:09 UTC (rev 746)
++++ trunk/src/CacheWolf/OCXMLImporter.java	2007-06-15 18:09:36 UTC (rev 747)
+@@ -41,6 +41,7 @@
+ 	int picCnt;
+ 	boolean incUpdate = true; // complete or incremental Update
+ 	boolean ignoreDesc = false;
++	boolean askForOptions = true;
+ 	Hashtable DBindexWpt = new Hashtable();
+ 	Hashtable DBindexID = new Hashtable();
+ 
+@@ -76,157 +77,136 @@
+ 	}
+ 	
+ 	public boolean syncSingle(int number, InfoBox infB) {
+-		String finalMessage = new String();
+ 		boolean success=true;
+ 
+-		CacheHolder ch = (CacheHolder)cacheDB.get(number);
+-		CacheHolderDetail chD=new CacheHolderDetail(ch);
++		ch = (CacheHolder)cacheDB.get(number);
++		chD= new CacheHolderDetail(ch);
+ 
+-		try{
+-			BufferedReader r;
+-			String file = new String();
+-			String url = new String();
++		if (askForOptions) {
++			OCXMLImporterScreen importOpt = new OCXMLImporterScreen( MyLocale.getMsg(1600, &quot;Opencaching.de Download&quot;),OCXMLImporterScreen.SINGLE);
++			if (importOpt.execute() == OCXMLImporterScreen.IDCANCEL) {	return false; }
++			askForOptions = false;
++		}
+ 
+-			picCnt = 0;
+-			//Build url
+-			url =&quot;<A HREF="http://">http://</A>&quot; + OPENCACHING_HOST + &quot;/xml/ocxml11.php?&quot;
+-				+ &quot;modifiedsince=&quot; + &quot;20050801000000&quot;
+-				+ &quot;&amp;cache=1&quot;
+-				+ &quot;&amp;cachedesc=1&quot;
+-				+ &quot;&amp;picture=1&quot;
+-				+ &quot;&amp;cachelog=1&quot;
+-				+ &quot;&amp;removedobject=0&quot;
+-				+ &quot;&amp;wp=&quot; + ch.wayPoint
+-				+ &quot;&amp;charset=utf-8&quot;
+-				+ &quot;&amp;cdata=0&quot;
+-				+ &quot;&amp;session=0&quot;;
+-			inf = new InfoBox(&quot;Opencaching download&quot;, MyLocale.getMsg(1608,&quot;downloading data\n from opencaching&quot;), InfoBox.PROGRESS_WITH_WARNINGS, false);
+-//			inf = infB;
+-			inf.setPreferredSize(220, 300);
+-			inf.relayout(false);
+-			inf.exec();
+-			//Vm.debug(url);
+-			//get file
+-			file = fetch(url, &quot;dummy&quot;);
+-			//file = &quot;628-0-1.zip&quot;;
++		inf = new InfoBox(&quot;Opencaching download&quot;, MyLocale.getMsg(1608,&quot;downloading data\n from opencaching&quot;), InfoBox.PROGRESS_WITH_WARNINGS, false);
++		inf.setPreferredSize(220, 300);
++		inf.relayout(false);
++		inf.exec();
+ 
+-			//parse
+-			File tmpFile = new File(profile.dataDir + file);
+-			if (tmpFile.getLength() == 0 ) throw new IOException(&quot;no updates available&quot;);
++		
++		String lastS = ch.lastSyncOC;
++		if (lastS.length() &lt; 14) lastS = &quot;20050801000000&quot;;
+ 
+-			ZipFile zif = new ZipFile (profile.dataDir + file);
+-			ZipEntry zipEnt;
+-			Enumeration zipEnum = zif.entries();
+-			// there could be more than one file in the archive
+-			inf.setInfo(&quot;...unzipping update file&quot;); 
+-			while (zipEnum.hasMoreElements())
+-			{
+-				zipEnt = (ZipEntry) zipEnum.nextElement();
+-				// skip over PRC-files and empty files
+-				if (zipEnt.getSize()&gt; 0 &amp;&amp; zipEnt.getName().endsWith(&quot;xml&quot;)){
+-					r = new BufferedReader (new InputStreamReader(zif.getInputStream(zipEnt), IO.JAVA_UTF8_CODEC));
+-					parse(r);
+-					r.close();
+-				}
+-			}
+-			zif.close();
+-		}catch (ZipException e){
+-			finalMessage = MyLocale.getMsg(1614,&quot;Error while unzipping udpate file&quot;);
+-			success = false;
+-		}catch (IOException e){
+-			if (e.getMessage().equalsIgnoreCase(&quot;no updates available&quot;)) { finalMessage = &quot;No updates available&quot;; success = false; }
+-			else {
+-				if (e.getMessage().equalsIgnoreCase(&quot;could not connect&quot;) ||
+-						e.getMessage().equalsIgnoreCase(&quot;unkown host&quot;)) { // is there a better way to find out what happened?
+-					finalMessage = MyLocale.getMsg(1616,&quot;Error: could not download udpate file from opencaching.de&quot;);
+-				} else { finalMessage = &quot;IOException: &quot;+e.getMessage(); }
+-				success = false;
+-			}
+-		}catch (IllegalArgumentException e) {
+-			finalMessage = MyLocale.getMsg(1621,&quot;Error parsing update file\n this is likely a bug in opencaching.de\nplease try again later\n, state:&quot;)+&quot; &quot;+state+&quot;, waypoint: &quot;+ chD.wayPoint;
+-			success = false;
+-			Vm.debug(&quot;Parse error: &quot; + state + &quot; &quot; + chD.wayPoint);
+-			e.printStackTrace();
+-		}catch (Exception e){ // here schould be used the correct exepion
+-			if (chD != null)	finalMessage = MyLocale.getMsg(1615,&quot;Error parsing update file, state:&quot;)+&quot; &quot;+state+&quot;, waypoint: &quot;+ chD.wayPoint;
+-			else finalMessage = MyLocale.getMsg(1615,&quot;Error parsing update file, state:&quot;)+&quot; &quot;+state+&quot;, waypoint: &lt;unkown&gt;&quot;;
+-			success = false;
+-			Vm.debug(&quot;Parse error: &quot; + state + &quot; Exception:&quot; + e.toString()+&quot;   &quot;+chD.ocCacheID);
+-			e.printStackTrace();
+-		}
+-		inf.setInfo(finalMessage);
+-		if (success) inf.close(0);
+-		else 		 inf.addOkButton();
++		dateOfthisSync = new Time();
++		dateOfthisSync.parse(lastS, &quot;yyyyMMddHHmmss&quot;);
++	
+ 
++		String url = new String();
++		picCnt = 0;
++		//Build url
++		url =&quot;<A HREF="http://">http://</A>&quot; + OPENCACHING_HOST + &quot;/xml/ocxml11.php?&quot;
++			+ &quot;modifiedsince=&quot; + lastS
++			+ &quot;&amp;cache=1&quot;
++			+ &quot;&amp;cachedesc=1&quot;
++			+ &quot;&amp;picture=1&quot;
++			+ &quot;&amp;cachelog=1&quot;
++			+ &quot;&amp;removedobject=0&quot;
++			+ &quot;&amp;wp=&quot; + ch.wayPoint
++			+ &quot;&amp;charset=utf-8&quot;
++			+ &quot;&amp;cdata=0&quot;
++			+ &quot;&amp;session=0&quot;;
++		success = syncOC(url);
++		inf.close(0);
+ 		return success;
+ 	}
+ 
+ 	public void doIt(){
++		boolean success=true;
++		String finalMessage;
++
++		
++		String url = new String();
++
++		String lastS =  profile.last_sync_opencaching;
++		CWPoint center = pref.curCentrePt; // No need to clone curCentrePt as center is only read
++		if (!center.isValid()) {
++			(new MessageBox(&quot;Error&quot;, &quot;Coordinates for center must be set&quot;, MessageBox.OKB)).execute();
++			return;
++		}
++		OCXMLImporterScreen importOpt = new OCXMLImporterScreen( MyLocale.getMsg(1600, &quot;Opencaching.de Download&quot;),OCXMLImporterScreen.ALL);
++		if (importOpt.execute() == OCXMLImporterScreen.IDCANCEL) {	return; }
++		Vm.showWait(true);
++		String dist = importOpt.distanceInput.getText();
++		if (dist.length()== 0) return;
++		//check, if distance is greater than before
++		if (Convert.toInt(dist) &gt; Convert.toInt(profile.distOC) ||
++				pref.downloadmissingOC  ){
++			// resysnc
++			lastS = &quot;20050801000000&quot;;
++			incUpdate = false;
++		}
++		profile.distOC = dist;
++		// Clear status of caches in db
++		for(int i = 0; i&lt;cacheDB.size();i++){
++			ch = (CacheHolder)cacheDB.get(i);
++			ch.is_update = false;
++			ch.is_new = false;
++			ch.is_log_update = false;
++		}	
++		picCnt = 0;
++		//Build url
++		url =&quot;<A HREF="http://">http://</A>&quot; + OPENCACHING_HOST + &quot;/xml/ocxml11.php?&quot;
++			+ &quot;modifiedsince=&quot; + lastS
++			+ &quot;&amp;cache=1&quot;
++			+ &quot;&amp;cachedesc=1&quot;
++			+ &quot;&amp;picture=1&quot;
++			+ &quot;&amp;cachelog=1&quot;
++			+ &quot;&amp;removedobject=0&quot;
++			+ &quot;&amp;lat=&quot; + center.getLatDeg(CWPoint.DD)
++			+ &quot;&amp;lon=&quot; + center.getLonDeg(CWPoint.DD)
++			+ &quot;&amp;distance=&quot; + dist
++			+ &quot;&amp;charset=utf-8&quot;
++			+ &quot;&amp;cdata=0&quot;
++			+ &quot;&amp;session=0&quot;;
++		inf = new InfoBox(&quot;Opencaching download&quot;, MyLocale.getMsg(1608,&quot;downloading data\n from opencaching&quot;), InfoBox.PROGRESS_WITH_WARNINGS, false);
++		inf.setPreferredSize(220, 300);
++		inf.relayout(false);
++		inf.exec();
++
++		success = syncOC(url);
++		Vm.showWait(false);
++		if (success) {
++			profile.last_sync_opencaching = dateOfthisSync.format(&quot;yyyyMMddHHmmss&quot;);
++			//pref.savePreferences();
++			finalMessage = MyLocale.getMsg(1607,&quot;Update from opencaching successful&quot;);
++			inf.setInfo(finalMessage);
++		}
++		profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
++		inf.addOkButton();
++	}
++	
++	private boolean syncOC(String url) {
+ 		String finalMessage = new String();
+ 		boolean success=true;
+-		try{
+-			BufferedReader r;
+-			String file = new String();
+-			String url = new String();
++		File tmpFile = null;
++		BufferedReader r;
++		String file = new String();
+ 
+-			String lastS =  profile.last_sync_opencaching;
+-			CWPoint center = pref.curCentrePt; // No need to clone curCentrePt as center is only read
+-			if (!center.isValid()) {
+-				(new MessageBox(&quot;Error&quot;, &quot;Coordinates for center must be set&quot;, MessageBox.OKB)).execute();
+-				return;
+-			}
+-			OCXMLImporterScreen importOpt = new OCXMLImporterScreen( MyLocale.getMsg(1600, &quot;Opencaching.de Download&quot;),OCXMLImporterScreen.ALL);
+-			if (importOpt.execute() == OCXMLImporterScreen.IDCANCEL) {	return; }
+-			Vm.showWait(true);
+-			String dist = importOpt.distanceInput.getText();
+-			if (dist.length()== 0) return;
+-			//check, if distance is greater than before
+-			if (Convert.toInt(dist) &gt; Convert.toInt(profile.distOC) ||
+-					pref.downloadmissingOC  ){
+-				// resysnc
+-				lastS = &quot;20050801000000&quot;;
+-				incUpdate = false;
+-			}
+-			profile.distOC = dist;
+-			// Clear status of caches in db
+-			for(int i = 0; i&lt;cacheDB.size();i++){
+-				ch = (CacheHolder)cacheDB.get(i);
+-				ch.is_update = false;
+-				ch.is_new = false;
+-				ch.is_log_update = false;
+-			}	
+-			picCnt = 0;
+-			//Build url
+-			url =&quot;<A HREF="http://">http://</A>&quot; + OPENCACHING_HOST + &quot;/xml/ocxml11.php?&quot;
+-				+ &quot;modifiedsince=&quot; + lastS
+-				+ &quot;&amp;cache=1&quot;
+-				+ &quot;&amp;cachedesc=1&quot;
+-				+ &quot;&amp;picture=1&quot;
+-				+ &quot;&amp;cachelog=1&quot;
+-				+ &quot;&amp;removedobject=0&quot;
+-				+ &quot;&amp;lat=&quot; + center.getLatDeg(CWPoint.DD)
+-				+ &quot;&amp;lon=&quot; + center.getLonDeg(CWPoint.DD)
+-				+ &quot;&amp;distance=&quot; + dist
+-				+ &quot;&amp;charset=utf-8&quot;
+-				+ &quot;&amp;cdata=0&quot;
+-				+ &quot;&amp;session=0&quot;;
+-			inf = new InfoBox(&quot;Opencaching download&quot;, MyLocale.getMsg(1608,&quot;downloading data\n from opencaching&quot;), InfoBox.PROGRESS_WITH_WARNINGS, false);
+-			inf.setPreferredSize(220, 300);
+-			inf.relayout(false);
+-			inf.exec();
+-			//Vm.debug(url);
+-			//get file
++		//inf = new InfoBox(&quot;Opencaching download&quot;, MyLocale.getMsg(1608,&quot;downloading data\n from opencaching&quot;), InfoBox.PROGRESS_WITH_WARNINGS, false);
++		
++		picCnt = 0;
++		try{
+ 			file = fetch(url, &quot;dummy&quot;);
+-			//file = &quot;628-0-1.zip&quot;;
+ 
+ 			//parse
+-			File tmpFile = new File(profile.dataDir + file);
+-			if (tmpFile.getLength() == 0 ) throw new IOException(&quot;no updates available&quot;);
++			tmpFile = new File(profile.dataDir + file);
++			if (tmpFile.getLength() == 0 ) {
++				throw new IOException(&quot;no updates available&quot;);
++			}
+ 
+ 			ZipFile zif = new ZipFile (profile.dataDir + file);
+ 			ZipEntry zipEnt;
+ 			Enumeration zipEnum = zif.entries();
+-			// there could be more than one file in the archive
+ 			inf.setInfo(&quot;...unzipping update file&quot;); 
+ 			while (zipEnum.hasMoreElements())
+ 			{
+@@ -262,19 +242,12 @@
+ 			success = false;
+ 			Vm.debug(&quot;Parse error: &quot; + state + &quot; Exception:&quot; + e.toString()+&quot;   &quot;+chD.ocCacheID);
+ 			e.printStackTrace();
++		} finally {
++			if (tmpFile != null) tmpFile.delete();
+ 		}
+-		Vm.showWait(false);
+-		if (success) {
+-			profile.last_sync_opencaching = dateOfthisSync.format(&quot;yyyyMMddHHmmss&quot;);
+-			//pref.savePreferences();
+-			finalMessage = MyLocale.getMsg(1607,&quot;Update from opencaching successful&quot;);
+-		}
+-		profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
+ 		inf.setInfo(finalMessage);
+-		inf.addOkButton();
+-		//inf.close(0);
+-//		MessageBox mb = new MessageBox(&quot;Opencaching&quot;,finalMessage,MessageBox.OKB);
+-		//	mb.execute();
++
++		return success;
+ 	}
+ 
+ 	public void startElement(String name, AttributeList atts){
+@@ -418,6 +391,7 @@
+ 
+ 	private void endCache(String name){
+ 		if (name.equals(&quot;cache&quot;)){
++			chD.lastSyncOC = dateOfthisSync.format(&quot;yyyyMMddHHmmss&quot;);
+ 			int index;
+ 			index = searchWpt(chD.wayPoint);
+ 			if (index == -1){
+@@ -439,33 +413,7 @@
+ 				chD.Images.clear();
+ 				chD.ImagesText.clear();
+ 			}
+-			/*			if(holder.LatLon.length() &gt; 1 &amp;&amp; holder.is_archived == false &amp;&amp;
+-					pref.downloadMapsOC){
+ 
+-				ParseLatLon pll = new ParseLatLon(holder.LatLon,&quot;.&quot;);
+-				pll.parse();
+-
+- 				MapLoader mpl = new MapLoader(pref.myproxy, pref.myproxyport);
+-				// MapLoader tests itself if the file already exists and doesnt download if so.
+-				String filename = Global.getPref().baseDir + &quot;/maps/expedia/&quot; + holder.wayPoint + &quot;_map.gif&quot;;
+-				if (!(new File(filename).getParentFile().isDirectory())) { // dir exists? 
+-					if (new File(filename).getParentFile().mkdir() == false) // dir creation failed?
+-					{ pref.downloadMapsOC = false;
+-					(new MessageBox(&quot;Warning&quot;, &quot;Ignoring error (stopping to download maps):\n cannot create maps directory: \n&quot;+new File(filename).getParentFile(), MessageBox.OKB)).exec(); 
+-					}
+-				}
+-				if (!fileExits(filename)){
+-					inf.setInfo(MyLocale.getMsg(1609,&quot;Importing Cache:&quot;)+&quot; &quot; + numCacheImported + &quot;\n&quot;+MyLocale.getMsg(1610,&quot;Downloading missing map&quot;)+&quot; 1&quot;);
+-					//mpl.loadTo(filename, &quot;3&quot;); 
+-					}
+-				//filename = profile.dataDir + &quot;/&quot; + holder.wayPoint + &quot;_map_2.gif&quot;;
+-				filename = Global.getPref().baseDir + &quot;/maps/expedia/&quot; + holder.wayPoint + &quot;_map_2.gif&quot;;
+-				if (!fileExits(filename)){
+-					inf.setInfo(MyLocale.getMsg(1609,&quot;Importing Cache: &quot;)+&quot; &quot; + numCacheImported + &quot;\n&quot;+MyLocale.getMsg(1610,&quot;Downloading missing map&quot;)+&quot; 2&quot;);
+-					//mpl.loadTo(filename, &quot;10&quot;); 
+-					}
+-			} */
+-
+ 			// save all
+ 			chD.saveCacheDetails(profile.dataDir); 
+ 			// profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR); // this is done after .xml is completly processed
+
+Modified: trunk/src/CacheWolf/OCXMLImporterScreen.java
+===================================================================
+--- trunk/src/CacheWolf/OCXMLImporterScreen.java	2007-06-14 05:57:09 UTC (rev 746)
++++ trunk/src/CacheWolf/OCXMLImporterScreen.java	2007-06-15 18:09:36 UTC (rev 747)
+@@ -18,9 +18,12 @@
+ 	mInput distanceInput;
+ 	mCheckBox imagesCheckBox, /*mapsCheckBox, */ missingCheckBox, foundCheckBox;
+ 	mLabel distLbl;
++	mLabel distUnit;
+ 	static int IMAGESANDMAPS = 0;
+ 	static int ALL = 1;
+ 	static int INCLUDEFOUND = 2;
++	static int SINGLE = 3;
++
+ 	
+ 	public OCXMLImporterScreen(String title, int options) {
+ 		super();
+@@ -28,10 +31,13 @@
+ 		
+ 
+ 		this.title = title;
+-		this.addNext(distLbl = new mLabel(MyLocale.getMsg(1601,&quot;Distance:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		distanceInput = new mInput();
+-		distanceInput.setText(Global.getProfile().distOC);
+-		this.addLast(distanceInput,CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));	
++		if (options != SINGLE) {
++			this.addNext(distLbl = new mLabel(MyLocale.getMsg(1601,&quot;Distance:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++			distanceInput = new mInput();
++			distanceInput.setText(Global.getProfile().distOC);
++			this.addNext(distanceInput,CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++			this.addLast(distUnit = new mLabel(&quot; km&quot;),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		}
+ 		
+ 		imagesCheckBox = new mCheckBox();
+ 		imagesCheckBox.setText(MyLocale.getMsg(1602,&quot;Download Images&quot;));
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2007-06-14 05:57:09 UTC (rev 746)
++++ trunk/src/CacheWolf/Profile.java	2007-06-15 18:09:36 UTC (rev 747)
+@@ -152,7 +152,7 @@
+ 					detfile.print(&quot;    &lt;CACHE name = \&quot;&quot;+SafeXML.clean(ch.CacheName)+&quot;\&quot; owner = \&quot;&quot;+SafeXML.clean(ch.CacheOwner)+
+ 							//&quot;\&quot; lat = \&quot;&quot;+ SafeXML.clean(ch.LatLon) +
+ 							&quot;\&quot; lat = \&quot;&quot;+ ch.pos.latDec + &quot;\&quot; lon = \&quot;&quot;+ch.pos.lonDec+
+-							&quot;\&quot; hidden = \&quot;&quot;+ch.DateHidden+&quot;\&quot; wayp = \&quot;&quot;+SafeXML.clean(ch.wayPoint)+&quot;\&quot; status = \&quot;&quot;+ch.CacheStatus+&quot;\&quot; type = \&quot;&quot;+ch.type+&quot;\&quot; dif = \&quot;&quot;+ch.hard+&quot;\&quot; terrain = \&quot;&quot; + ch.terrain + &quot;\&quot; dirty = \&quot;&quot; + ch.dirty + &quot;\&quot; size = \&quot;&quot;+ch.CacheSize+&quot;\&quot; online = \&quot;&quot; + Convert.toString(ch.is_available) + &quot;\&quot; archived = \&quot;&quot; + Convert.toString(ch.is_archived) + &quot;\&quot; has_bug = \&quot;&quot; + Convert.toString(ch.has_bug) + &quot;\&quot; black = \&quot;&quot; + Convert.toString(ch.is_black) + &quot;\&quot; owned = \&quot;&quot; + Convert.toString(ch.is_owned) + &quot;\&quot; found = \&quot;&quot; + Convert.toString(ch.is_found) + &quot;\&quot; is_new = \&quot;&quot; + Convert.toString(ch.is_new) +&quot;\&quot; is_log_update = \&quot;&quot; + Convert.toString(ch.is_log_update) + &quot;\&quot; is_update = \&quot;&quot; + Convert.toString(ch.is_update) + &quot;\&quot; is_HTML = \&quot;&quot; + Convert.toString(ch.is_HTML) + &quot;\&quot; DNFLOGS = \&quot;&quot; + ch.noFindLogs + &quot;\&quot; ocCacheID = \&quot;&quot; + ch.ocCacheID + &quot;\&quot; is_INCOMPLETE = \&quot;&quot;+Convert.toString(ch.is_incomplete)+&quot;\&quot; /&gt;\n&quot;);
++							&quot;\&quot; hidden = \&quot;&quot;+ch.DateHidden+&quot;\&quot; wayp = \&quot;&quot;+SafeXML.clean(ch.wayPoint)+&quot;\&quot; status = \&quot;&quot;+ch.CacheStatus+&quot;\&quot; type = \&quot;&quot;+ch.type+&quot;\&quot; dif = \&quot;&quot;+ch.hard+&quot;\&quot; terrain = \&quot;&quot; + ch.terrain + &quot;\&quot; dirty = \&quot;&quot; + ch.dirty + &quot;\&quot; size = \&quot;&quot;+ch.CacheSize+&quot;\&quot; online = \&quot;&quot; + Convert.toString(ch.is_available) + &quot;\&quot; archived = \&quot;&quot; + Convert.toString(ch.is_archived) + &quot;\&quot; has_bug = \&quot;&quot; + Convert.toString(ch.has_bug) + &quot;\&quot; black = \&quot;&quot; + Convert.toString(ch.is_black) + &quot;\&quot; owned = \&quot;&quot; + Convert.toString(ch.is_owned) + &quot;\&quot; found = \&quot;&quot; + Convert.toString(ch.is_found) + &quot;\&quot; is_new = \&quot;&quot; + Convert.toString(ch.is_new) +&quot;\&quot; is_log_update = \&quot;&quot; + Convert.toString(ch.is_log_update) + &quot;\&quot; is_update = \&quot;&quot; + Convert.toString(ch.is_update) + &quot;\&quot; is_HTML = \&quot;&quot; + Convert.toString(ch.is_HTML) + &quot;\&quot; DNFLOGS = \&quot;&quot; + ch.noFindLogs + &quot;\&quot; ocCacheID = \&quot;&quot; + ch.ocCacheID + &quot;\&quot; is_INCOMPLETE = \&quot;&quot;+Convert.toString(ch.is_incomplete)+ &quot;\&quot; lastSyncOC = \&quot;&quot; + ch.lastSyncOC + &quot;\&quot; /&gt;\n&quot;);
+ 				}
+ 			}
+ 			detfile.print(&quot;&lt;/CACHELIST&gt;\n&quot;);
+@@ -224,6 +224,7 @@
+ 					ch.noFindLogs = Convert.toInt(ex.findNext());
+ 					ch.ocCacheID = ex.findNext();
+ 					ch.is_incomplete = ex.findNext().equals(&quot;true&quot;) ? true : false;
++					ch.lastSyncOC = ex.findNext();
+ 					// remove &quot;/&gt;
+ 					ch.ocCacheID = STRreplace.replace(ch.ocCacheID,&quot;\&quot;/&gt;&quot;, null);
+ 					// remove additional &quot; if present
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2007-06-14 05:57:09 UTC (rev 746)
++++ trunk/src/CacheWolf/SpiderGC.java	2007-06-15 18:09:36 UTC (rev 747)
+@@ -54,6 +54,7 @@
+ 	Vector cachesToLoad = new Vector();
+ 	Hashtable indexDB;
+ 	InfoBox infB;
++	private boolean loggedIn = false;
+ 	private static Properties p=null; 
+ 	
+ 	public SpiderGC(Preferences prf, Profile profile, boolean bypass){
+@@ -79,6 +80,7 @@
+ 	 */
+ 	public int login(){
+ 		pref.logInit();
++		loggedIn = false;
+ 		//Access the page once to get a viewstate
+ 		String start,doc,loginPage;
+ 		//Get password
+@@ -138,8 +140,10 @@
+ 		infB.close(0);
+ 		if (loginAborted)
+ 			return Form.IDCANCEL;
+-		else
++		else {
++			loggedIn = true;
+ 			return Form.IDOK;
++		}
+ 	}
+ 	
+ 	/**
+@@ -157,6 +161,11 @@
+ 		CacheHolder ch = (CacheHolder)cacheDB.get(number);
+ 		if (ch.isAddiWpt()) return false;  // No point re-spidering an addi waypoint, comes with parent
+ 
++		// check if we need to login
++		if (!loggedIn){
++			if (this.login()==Form.IDOK) loggedIn = true;
++			else return false;
++		}
+ 		CacheHolderDetail chD=new CacheHolderDetail(ch);
+ 		try{
+ 			// Get all existing details of the cache
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2007-06-14 05:57:09 UTC (rev 746)
++++ trunk/src/CacheWolf/myTableControl.java	2007-06-15 18:09:36 UTC (rev 747)
+@@ -117,43 +117,42 @@
+ 			OCXMLImporter ocSync = new OCXMLImporter(pref, profile);
+ 			//Vm.debug(&quot;ByPass? &quot; + profile.byPassIndexActive);
+ 			Vm.showWait(true);
+-			if (spider.login()==Form.IDOK) {
+-				boolean alreadySaid = false;
+-				boolean alreadySaid2 = false;
+-				boolean test = true;
+-				InfoBox infB = new InfoBox(&quot;Info&quot;, &quot;Loading&quot;);
+-				infB.exec();
+-				for(int i = 0; i &lt;	cacheDB.size(); i++){
+-					ch = (CacheHolder)cacheDB.get(i);
+-					if(ch.is_Checked == true) {
+-						if ( ch.wayPoint.length()&gt;1)
++			boolean alreadySaid = false;
++			boolean alreadySaid2 = false;
++			boolean test = true;
++			InfoBox infB = new InfoBox(&quot;Info&quot;, &quot;Loading&quot;, InfoBox.PROGRESS_WITH_WARNINGS);
++			infB.exec();
++			for(int i = 0; i &lt;	cacheDB.size(); i++){
++				ch = (CacheHolder)cacheDB.get(i);
++				if(ch.is_Checked == true) {
++					if ( ch.wayPoint.length()&gt;1)
+ 
+ //						if ( (ch.wayPoint.length() &gt; 1 &amp;&amp; ch.wayPoint.substring(0,2).equalsIgnoreCase(&quot;GC&quot;)))
+-	//						Notiz: Wenn es ein addi Wpt ist, sollte eigentlich der Maincache gespidert werden
+-	//						Alter code pr&#252;ft aber nur ob ein Maincache von GC existiert und versucht dann den addi direkt zu spidern, was nicht funktioniert
+-	//						TODO: Diese Meldungen vor dem Einloggen darstellen						
+-						{
+-					    infB.setInfo(&quot;Loading: &quot; + ch.wayPoint);
+-					    if (ch.wayPoint.substring(0,2).equalsIgnoreCase(&quot;GC&quot;))
+-					    	test = spider.spiderSingle(i, infB);
+-					    else
+-					    	test = ocSync.syncSingle(i, infB);
+-						if (!test) {
+-							infB.close(0);
+-							break;
+-						}
+-						} else if (ch.isAddiWpt() &amp;&amp; !ch.mainCache.is_Checked) { // Is the father ticked?
+-							if (!alreadySaid2) {
+-								alreadySaid2=true;
+-								(new MessageBox(&quot;Information&quot;,&quot;Hilfswegpunkte k&#246;nnnen nicht direkt gespidert werden\nBitte zus&#228;tzlich den Vater anhaken&quot;, MessageBox.OKB)).exec();
+-							}
+-						} else if (ch.mainCache != null &amp;&amp;	ch.mainCache.wayPoint.length() &gt; 1 	&amp;&amp; !ch.mainCache.wayPoint.substring(0,2).equalsIgnoreCase(&quot;GC&quot;) &amp;&amp; 
+-								!alreadySaid) {
++//						Notiz: Wenn es ein addi Wpt ist, sollte eigentlich der Maincache gespidert werden
++//						Alter code pr&#252;ft aber nur ob ein Maincache von GC existiert und versucht dann den addi direkt zu spidern, was nicht funktioniert
++//						TODO: Diese Meldungen vor dem Einloggen darstellen						
++					{
++				    infB.setInfo(&quot;Loading: &quot; + ch.wayPoint);
++				    if (ch.wayPoint.substring(0,2).equalsIgnoreCase(&quot;GC&quot;))
++				    	test = spider.spiderSingle(i, infB);
++				    else if ((ch.wayPoint.substring(0,2).equalsIgnoreCase(&quot;OC&quot;))) 
++				    		test = ocSync.syncSingle(i, infB);
++				    	else {
+ 							alreadySaid = true;
+-							(new MessageBox(&quot;Information&quot;,ch.wayPoint+&quot;&gt;&quot;+ch.mainCache.wayPoint+&quot;: Diese Funktion steht gegenw&#228;rtig nur f&#252;r Geocaching.com zur Verf&#252;gung&quot;, MessageBox.OKB)).exec();
+-						}
++							(new MessageBox(&quot;Information&quot;,ch.wayPoint+ &quot;: Diese Funktion steht gegenw&#228;rtig nur f&#252;r Geocaching.com und Opencaching.de zur Verf&#252;gung&quot;, MessageBox.OKB)).exec();
++				    	}
++					if (!test) {
++						infB.close(0);
++						break;
+ 					}
++					} else if (ch.isAddiWpt() &amp;&amp; !ch.mainCache.is_Checked) { // Is the father ticked?
++						if (!alreadySaid2) {
++							alreadySaid2=true;
++							(new MessageBox(&quot;Information&quot;,&quot;Hilfswegpunkte k&#246;nnnen nicht direkt gespidert werden\nBitte zus&#228;tzlich den Vater anhaken&quot;, MessageBox.OKB)).exec();
++						}
++					} 
+ 				}
++
+ 				infB.close(0);
+ 				profile.hasUnsavedChanges=true;	
+ 				profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000628.html">[Cachewolf-svn] r746 - branches/bugfix_09n/src/CacheWolf	trunk/resources trunk/resources/attributes
+</A></li>
+	<LI>Next message: <A HREF="000630.html">[Cachewolf-svn] r748 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#629">[ date ]</a>
+              <a href="thread.html#629">[ thread ]</a>
+              <a href="subject.html#629">[ subject ]</a>
+              <a href="author.html#629">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

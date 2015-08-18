@@ -1,0 +1,224 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r432 - in trunk: resources src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r432%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200701212142.l0LLgN0M002257%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000196.html">
+   <LINK REL="Next"  HREF="000198.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r432 - in trunk: resources src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r432%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200701212142.l0LLgN0M002257%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r432 - in trunk: resources src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sun Jan 21 22:42:23 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000196.html">[Cachewolf-svn] r431 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000198.html">[Cachewolf-svn] r433 - trunk/src/exp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#197">[ date ]</a>
+              <a href="thread.html#197">[ thread ]</a>
+              <a href="subject.html#197">[ subject ]</a>
+              <a href="author.html#197">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-01-21 22:42:05 +0100 (Sun, 21 Jan 2007)
+New Revision: 432
+
+Modified:
+   trunk/resources/cachewolf.Languages.cfg
+   trunk/src/CacheWolf/MainForm.java
+   trunk/src/CacheWolf/Preferences.java
+   trunk/src/CacheWolf/PreferencesScreen.java
+Log:
+Der OK Button am PDA kann optional deaktiviert werden
+(damit man CW nicht versehentlich schliesst)
+Beenden dann nur ueber das Hauptmenue
+
+Modified: trunk/resources/cachewolf.Languages.cfg
+===================================================================
+--- trunk/resources/cachewolf.Languages.cfg	2007-01-21 21:40:47 UTC (rev 431)
++++ trunk/resources/cachewolf.Languages.cfg	2007-01-21 21:42:05 UTC (rev 432)
+@@ -128,7 +128,9 @@
+ 		627=Tabs oben
+ 		628=Status zeigen
+ 		629=Profil auto. laden
+-		630=Hinweise/Logs:  Logs pro Seite 
++		630=Hinweise/Logs:  Logs pro Seite
++		631=PDA hat Schliessen Button 
++		632=Mehr
+ 		700=Filter setzen
+ 		701=Entfernung
+ 		702=Schwierigkeit
+@@ -422,6 +424,8 @@
+ 		628=Show status
+ 		629=Autoload last profile
+ 		630=HintLogPanel:  Logs per page 
++		631=PDA has close Button
++		632=More
+ 		700=Set filter
+ 		701=Distance
+ 		702=Difficulty
+
+Modified: trunk/src/CacheWolf/MainForm.java
+===================================================================
+--- trunk/src/CacheWolf/MainForm.java	2007-01-21 21:40:47 UTC (rev 431)
++++ trunk/src/CacheWolf/MainForm.java	2007-01-21 21:42:05 UTC (rev 432)
+@@ -32,7 +32,8 @@
+ 		pref.debug = dbg;
+ 		doIt();
+ 	}
+-	
++	protected void checkButtons() {} // Need to disable checkButtons, otherwise OK-Button is always enabled
++
+ 	public void doIt(){
+ 		this.title = &quot;CacheWolf &quot; + Version.getRelease();
+ 		this.exitSystemOnClose = true;
+@@ -42,6 +43,11 @@
+ 			this.windowFlagsToSet = Window.FLAG_FULL_SCREEN;
+ 			this.resizable = false;
+ 			this.moveable = false;
++			this.titleOK=new mButton(&quot;OK&quot;);
++			this.titleOK.borderWidth=0;
++			this.titleOK.foreGround=Color.White;
++			this.titleOK.backGround = Color.DarkBlue;
++			this.windowFlagsToClear=WindowConstants.FLAG_HAS_TITLE;
+ 		} else 
+ 			this.setPreferredSize(800, 600);
+ 		this.resizeOnSIP = true;
+@@ -51,6 +57,8 @@
+ 		infB.waitUntilPainted(1000);
+ 		try{
+ 			pref.readPrefFile();
++			if (this.titleOK!=null &amp;&amp; !pref.hasCloseButton)
++				this.titleOK.modify(ControlConstants.Disabled,0);
+ 			addGuiFont();
+ 			if (!pref.selectProfile(profile,Preferences.PROFILE_SELECTOR_ONOROFF, true)) 
+ 				ewe.sys.Vm.exit(0); // User MUST select or create a profile
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2007-01-21 21:40:47 UTC (rev 431)
++++ trunk/src/CacheWolf/Preferences.java	2007-01-21 21:42:05 UTC (rev 432)
+@@ -60,6 +60,7 @@
+ 	public boolean menuAtTop=true;
+ 	public boolean tabsAtTop=true;
+ 	public boolean showStatus=true;
++	public boolean hasCloseButton=true;
+ 	// This setting determines how many logs are shown per page of hintlogs (default 5)
+ 	public final int DEFAULT_LOGS_PER_PAGE=5;
+ 	public int logsPerPage=DEFAULT_LOGS_PER_PAGE;
+@@ -446,6 +447,8 @@
+ 			menuAtTop=Boolean.valueOf(atts.getValue(&quot;menuattop&quot;)).booleanValue();
+ 			tabsAtTop=Boolean.valueOf(atts.getValue(&quot;tabsattop&quot;)).booleanValue();
+ 			showStatus=Boolean.valueOf(atts.getValue(&quot;showstatus&quot;)).booleanValue();
++			if (atts.getValue(&quot;hasclosebutton&quot;)!=null)
++				hasCloseButton=Boolean.valueOf(atts.getValue(&quot;hasclosebutton&quot;)).booleanValue();
+ 		}
+ 		if (name.equals(&quot;hintlogpanel&quot;)) {
+ 			logsPerPage = Convert.parseInt(atts.getValue(&quot;logsperpage&quot;));
+@@ -520,7 +523,7 @@
+ 			outp.print(&quot;    &lt;fixedsip state = \&quot;&quot;+fixSIP+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;garmin connection = \&quot;&quot;+garminConn+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;lastprofile autoreload=\&quot;&quot;+autoReloadLastProfile+&quot;\&quot;&gt;&quot;+lastProfile+&quot;&lt;/lastprofile&gt;\n&quot;); //RB
+-			outp.print(&quot;    &lt;screen menuattop=\&quot;&quot;+menuAtTop+&quot;\&quot; tabsattop=\&quot;&quot;+tabsAtTop+&quot;\&quot; showstatus=\&quot;&quot;+showStatus+&quot;\&quot;/&gt;\n&quot;);
++			outp.print(&quot;    &lt;screen menuattop=\&quot;&quot;+menuAtTop+&quot;\&quot; tabsattop=\&quot;&quot;+tabsAtTop+&quot;\&quot; showstatus=\&quot;&quot;+showStatus+&quot;\&quot; hasclosebutton=\&quot;&quot;+hasCloseButton+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;imagepanel showdeletedimages=\&quot;&quot;+showDeletedImages+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;hintlogpanel logsperpage=\&quot;&quot;+logsPerPage+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;solver ignorevariablecase=\&quot;&quot;+solverIgnoreCase+&quot;\&quot;/&gt;\n&quot;);
+
+Modified: trunk/src/CacheWolf/PreferencesScreen.java
+===================================================================
+--- trunk/src/CacheWolf/PreferencesScreen.java	2007-01-21 21:40:47 UTC (rev 431)
++++ trunk/src/CacheWolf/PreferencesScreen.java	2007-01-21 21:42:05 UTC (rev 432)
+@@ -17,7 +17,7 @@
+ 	mChoice NS, EW;
+ 	mInput NSDeg, NSm, EWDeg, EWm, DataDir, Proxy, ProxyPort, Alias, nLogs, Browser, fontSize, inpGPS, inpLogsPerPage;
+ 	mCheckBox dif, ter, loc, own, hid, stat, dist, bear, chkAutoLoad, chkShowDeletedImg, chkMenuAtTop, 
+-	          chkTabsAtTop, chkShowStatus;
++	          chkTabsAtTop, chkShowStatus,chkHasCloseButton;
+ 	mTabbedPanel mTab;
+ 	mChoice chcGarminPort;
+ 	
+@@ -25,6 +25,7 @@
+ 	
+ 	CellPanel pnlGeneral = new CellPanel();
+ 	CellPanel pnlDisplay = new CellPanel();
++	CellPanel pnlMore = new CellPanel();
+ 	ScrollBarPanel scp;
+ 	String [] garminPorts= new String[]{&quot;com1&quot;,&quot;com2&quot;,&quot;com3&quot;,&quot;com4&quot;,&quot;usb&quot;};
+ 	
+@@ -132,18 +133,21 @@
+ 		frmHintLog.addNext(inpLogsPerPage=new mInput(),CellConstants.DONTSTRETCH,CellConstants.DONTFILL|CellConstants.WEST);
+ 		inpLogsPerPage.setText(Convert.toString(pref.logsPerPage));
+ 		pnlDisplay.addLast(frmHintLog,CellConstants.STRETCH,CellConstants.FILL);
+-		
++
++		/////////////////////////////////////////////////////////
++		// Third panel - More
++		/////////////////////////////////////////////////////////
++        pnlMore.addLast(chkHasCloseButton=new mCheckBox(MyLocale.getMsg(631,&quot;PDA has close Button&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));	
++        chkHasCloseButton.setState(pref.hasCloseButton);
++
+ 		mTab.addCard(pnlGeneral,MyLocale.getMsg(621,&quot;General&quot;),null);
+ 		mTab.addCard(pnlDisplay,MyLocale.getMsg(622,&quot;Screen&quot;),null);
++		mTab.addCard(pnlMore,MyLocale.getMsg(631,&quot;More&quot;),null);
+ 		//this.addLast(scp.getScrollablePanel(), CellConstants.STRETCH, CellConstants.FILL);
+ 		
+ 		this.addLast(mTab);
+ 		addNext(cancelB = new mButton(MyLocale.getMsg(614,&quot;Cancel&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		addLast(applyB = new mButton(MyLocale.getMsg(615,&quot;Apply&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-
+-	
+-
+-	
+ 	}
+ 	
+ 	public void onEvent(Event ev){
+@@ -187,6 +191,7 @@
+ 				pref.menuAtTop=chkMenuAtTop.getState();
+ 				pref.tabsAtTop=chkTabsAtTop.getState();
+ 				pref.showStatus=chkShowStatus.getState();
++				pref.hasCloseButton=chkHasCloseButton.getState();
+ 				pref.savePreferences();
+ 				pref.dirty = true; // Need to update table in case columns were enabled/disabled
+ 				this.close(0);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000196.html">[Cachewolf-svn] r431 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000198.html">[Cachewolf-svn] r433 - trunk/src/exp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#197">[ date ]</a>
+              <a href="thread.html#197">[ thread ]</a>
+              <a href="subject.html#197">[ subject ]</a>
+              <a href="author.html#197">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

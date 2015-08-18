@@ -1,0 +1,271 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2754 - trunk/src/CacheWolf/imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-August/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2754%20-%20trunk/src/CacheWolf/imp&In-Reply-To=%3C20100827220534.D8D3F480E4C%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002746.html">
+   <LINK REL="Next"  HREF="002747.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2754 - trunk/src/CacheWolf/imp</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2754%20-%20trunk/src/CacheWolf/imp&In-Reply-To=%3C20100827220534.D8D3F480E4C%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2754 - trunk/src/CacheWolf/imp">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Sat Aug 28 12:05:34 CEST 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002746.html">[Cachewolf-svn] r2758 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="002747.html">[Cachewolf-svn] r2759 - in trunk/src/CacheWolf: . imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2742">[ date ]</a>
+              <a href="thread.html#2742">[ thread ]</a>
+              <a href="subject.html#2742">[ subject ]</a>
+              <a href="author.html#2742">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2010-08-28 00:05:34 +0200 (Sat, 28 Aug 2010)
+New Revision: 2754
+
+Modified:
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+1. interrupt of route checking possible
+2. reduced gc traffic for route checking
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2010-08-27 11:55:21 UTC (rev 2753)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2010-08-27 22:05:34 UTC (rev 2754)
+@@ -208,70 +208,70 @@
+ 		}
+ 		
+ 		if (doDownloadGui(0)) {
+-		
+-		pref.log(&quot;Download properties : &quot;+Preferences.NEWLINE
+-				+ &quot;minDistance: &quot; + minDistance+Preferences.NEWLINE
+-				+ &quot;maxDistance: &quot; + maxDistance+Preferences.NEWLINE
+-				+ &quot;directions: &quot; + direction+Preferences.NEWLINE
+-				+ &quot;maxNew: &quot; + pref.maxSpiderNumber +Preferences.NEWLINE
+-				+ &quot;maxUpdate: &quot; + maxUpdate+Preferences.NEWLINE
+-				+ &quot;with Founds       : &quot; + (doNotgetFound ? &quot;no&quot; : &quot;yes&quot;)+Preferences.NEWLINE
+-				+ &quot;alias is premium m: &quot; + (!pref.isPremium ? &quot;no&quot; : &quot;yes&quot;)+Preferences.NEWLINE
+-				+ &quot;Update if new Logs: &quot; + (!pref.checkLog ? &quot;no&quot; : &quot;yes&quot;)+Preferences.NEWLINE
+-				,null);
+-		
+-		
+-		Hashtable cachesToUpdate = new Hashtable(cacheDB.size());
+-		
+-		fillDownloadLists(pref.maxSpiderNumber , maxUpdate, maxDistance, minDistance, directions, cachesToUpdate);
+-		if (infB.isClosed) { Vm.showWait(false); return; }
+-		infB.setInfo(MyLocale.getMsg(5511,&quot;Found &quot;) + cachesToLoad.size() + MyLocale.getMsg(5512,&quot; caches&quot;));
++			
++			pref.log(&quot;Download properties : &quot;+Preferences.NEWLINE
++					+ &quot;minDistance: &quot; + minDistance+Preferences.NEWLINE
++					+ &quot;maxDistance: &quot; + maxDistance+Preferences.NEWLINE
++					+ &quot;directions: &quot; + direction+Preferences.NEWLINE
++					+ &quot;maxNew: &quot; + pref.maxSpiderNumber +Preferences.NEWLINE
++					+ &quot;maxUpdate: &quot; + maxUpdate+Preferences.NEWLINE
++					+ &quot;with Founds       : &quot; + (doNotgetFound ? &quot;no&quot; : &quot;yes&quot;)+Preferences.NEWLINE
++					+ &quot;alias is premium m: &quot; + (!pref.isPremium ? &quot;no&quot; : &quot;yes&quot;)+Preferences.NEWLINE
++					+ &quot;Update if new Logs: &quot; + (!pref.checkLog ? &quot;no&quot; : &quot;yes&quot;)+Preferences.NEWLINE
++					,null);
++			
++			
++			Hashtable cachesToUpdate = new Hashtable(cacheDB.size());
++			
++			fillDownloadLists(pref.maxSpiderNumber , maxUpdate, maxDistance, minDistance, directions, cachesToUpdate);
++			if (infB.isClosed) { Vm.showWait(false); return; }
++			infB.setInfo(MyLocale.getMsg(5511,&quot;Found &quot;) + cachesToLoad.size() + MyLocale.getMsg(5512,&quot; caches&quot;));
+ 
+-		//=======
+-		// Now ready to spider each cache in the lists
+-		//=======
++			//=======
++			// Now ready to spider each cache in the lists
++			//=======
+ 
+-		if ( cachesToUpdate.size() &gt; 0 ) {
+-			switch (pref.spiderUpdates) {
+-			case Preferences.NO:
+-				cachesToUpdate.clear();
+-				break;
+-			case Preferences.ASK:
+-				MessageBox mBox = new MessageBox(MyLocale.getMsg(5517,&quot;Spider Updates?&quot;), cachesToUpdate.size() + MyLocale.getMsg(5518,&quot; caches in database need an update. Update now?&quot;) , FormBase.IDYES |FormBase.IDNO);
+-				if (mBox.execute() != FormBase.IDOK){
++			if ( cachesToUpdate.size() &gt; 0 ) {
++				switch (pref.spiderUpdates) {
++				case Preferences.NO:
+ 					cachesToUpdate.clear();
++					break;
++				case Preferences.ASK:
++					MessageBox mBox = new MessageBox(MyLocale.getMsg(5517,&quot;Spider Updates?&quot;), cachesToUpdate.size() + MyLocale.getMsg(5518,&quot; caches in database need an update. Update now?&quot;) , FormBase.IDYES |FormBase.IDNO);
++					if (mBox.execute() != FormBase.IDOK){
++						cachesToUpdate.clear();
++					}
++					break;
+ 				}
+-				break;
+ 			}
+-		}
+ 
+-		int spiderErrors = 0;
+-		int totalCachesToLoad = cachesToLoad.size() + cachesToUpdate.size();
+-		boolean loadAllLogs = (pref.maxLogsToSpider &gt; 5) || spiderAllFinds;
+-		pref.log(&quot;Download properties : &quot;+Preferences.NEWLINE
+-				+ &quot;maxLogs: &quot; + (loadAllLogs ? &quot;completepage &quot; : &quot;shortpage&quot;) + &quot;save:&quot; + pref.maxLogsToSpider+Preferences.NEWLINE
+-				+ &quot;with pictures     : &quot; + (!pref.downloadPics ? &quot;no&quot; : &quot;yes&quot;)+Preferences.NEWLINE
+-				+ &quot;with tb           : &quot; + (!pref.downloadTBs ? &quot;no&quot; : &quot;yes&quot;)+Preferences.NEWLINE
+-				,null);
++			int spiderErrors = 0;
++			int totalCachesToLoad = cachesToLoad.size() + cachesToUpdate.size();
++			boolean loadAllLogs = (pref.maxLogsToSpider &gt; 5) || spiderAllFinds;
++			pref.log(&quot;Download properties : &quot;+Preferences.NEWLINE
++					+ &quot;maxLogs: &quot; + (loadAllLogs ? &quot;completepage &quot; : &quot;shortpage&quot;) + &quot;save:&quot; + pref.maxLogsToSpider+Preferences.NEWLINE
++					+ &quot;with pictures     : &quot; + (!pref.downloadPics ? &quot;no&quot; : &quot;yes&quot;)+Preferences.NEWLINE
++					+ &quot;with tb           : &quot; + (!pref.downloadTBs ? &quot;no&quot; : &quot;yes&quot;)+Preferences.NEWLINE
++					,null);
+ 
+-		spiderErrors=downloadCaches(cachesToLoad, spiderErrors, totalCachesToLoad, loadAllLogs);
+-		spiderErrors=updateCaches(cachesToUpdate, spiderErrors, totalCachesToLoad, loadAllLogs);
++			spiderErrors=downloadCaches(cachesToLoad, spiderErrors, totalCachesToLoad, loadAllLogs);
++			spiderErrors=updateCaches(cachesToUpdate, spiderErrors, totalCachesToLoad, loadAllLogs);
+ 
+-		if (infB.isClosed) { Vm.showWait(false); return; }
++			if (infB.isClosed) { Vm.showWait(false); return; }
+ 
+-		if ( spiderErrors &gt; 0) {
+-			new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;),spiderErrors + MyLocale.getMsg(5516,&quot; cache descriptions%0acould not be loaded.&quot;),FormBase.DEFOKB).execute();
++			if ( spiderErrors &gt; 0) {
++				new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;),spiderErrors + MyLocale.getMsg(5516,&quot; cache descriptions%0acould not be loaded.&quot;),FormBase.DEFOKB).execute();
++			}
++			if ( maxNumberAbort ) {
++				new MessageBox(MyLocale.getMsg(5519,&quot;Information&quot;),MyLocale.getMsg(5520,&quot;Only the given maximum of caches were loaded.%0aRepeat spidering later to load more caches.%0aNo already existing caches were updated.&quot;),FormBase.DEFOKB).execute();
++			}
++			Global.getProfile().restoreFilter();
++			Global.getProfile().saveIndex(Global.getPref(),true);
++			
+ 		}
+-		if ( maxNumberAbort ) {
+-			new MessageBox(MyLocale.getMsg(5519,&quot;Information&quot;),MyLocale.getMsg(5520,&quot;Only the given maximum of caches were loaded.%0aRepeat spidering later to load more caches.%0aNo already existing caches were updated.&quot;),FormBase.DEFOKB).execute();
+-		}
+-		Global.getProfile().restoreFilter();
+-		Global.getProfile().saveIndex(Global.getPref(),true);
+-		
+-		}
+ 		infB.close(0);
+ 		Vm.showWait(false);
+-	} // End of DoIt spider many / all finds
++	} // End of DoIt
+ 	
+ 	public void doItAlongARoute() {
+ 
+@@ -295,7 +295,7 @@
+ 		Hashtable cachesToUpdate = new Hashtable(); //dummy , won't update
+ 		CacheHolder nextCache=null;
+ 		int n;
+-		while ((n=nextRoutePoint(startPos)) &gt; -1) {
++		while ((n=nextRoutePoint(startPos, lateralDistance)) &gt; -1) {
+ 			// spider around startpos			
+ 			fillDownloadLists(Integer.MAX_VALUE, 0, lateralDistance, 0.0, directions, cachesToUpdate);
+ 			nextCache=cacheDB.get(n);
+@@ -309,17 +309,19 @@
+ 				origin=nextCheckPoint;
+ 				fillDownloadLists(Integer.MAX_VALUE, 0, lateralDistance, 0.0, directions, cachesToUpdate);
+ 				// Global.getPref().log(&quot;next CP = &quot;+nextCheckPoint.toString(),null);
++				if (infB.isClosed) { break; }
+ 			}
+ 			startPos=nextCache.pos;
+ 			// Global.getPref().log(&quot;next WP = &quot;+nextCache.getWayPoint()+&quot; : &quot;+CWPoint.getDirection(degrees),null);
++			if (infB.isClosed) { break; }
+ 		}
+ 		// spider around startpos (means endpos)
+ 		origin=startPos;
+ 		fillDownloadLists(Integer.MAX_VALUE, 0, lateralDistance, 0.0, directions, cachesToUpdate);
+ 		int spiderErrors=0;
++		if (infB.isClosed) { Vm.showWait(false); return; } // or ask for download of intermediate result 
+ 		spiderErrors=downloadCaches(cachesToLoad, spiderErrors, cachesToLoad.size(), true);
+ 
+-		if (infB.isClosed) { Vm.showWait(false); return; }
+ 		infB.close(0);
+ 		Vm.showWait(false);
+ 		if ( spiderErrors &gt; 0) {
+@@ -332,7 +334,7 @@
+ 		Global.getProfile().saveIndex(Global.getPref(),true);
+ 	}
+ 	
+-	private int nextRoutePoint(CWPoint startPos) {
++	private int nextRoutePoint(CWPoint startPos, double lateralDistance) {
+ 		// get next Destination
+ 		double nextDistance = 0;
+ 		int index=-1;
+@@ -344,20 +346,27 @@
+ 				CWPoint tmpPos = ch.pos;
+ 				double tmpDistance=tmpPos.getDistance(startPos);
+ 				if (nextDistance==0) {
++					// Startwert
+ 					index=i;
+ 					nextDistance=tmpDistance;
+ 					nextCache=ch;
++					nextCache.is_Checked=false;
+ 				}
+ 				else {
+-					if (tmpDistance &lt; nextDistance) {
+-						index=i;
+-						nextDistance=tmpDistance;
+-						nextCache=ch;
++					if (tmpDistance &gt; lateralDistance) {
++						if (tmpDistance &lt; nextDistance) {
++							index=i;
++							nextDistance=tmpDistance;
++							nextCache=ch;
++							nextCache.is_Checked=false;
++						}
+ 					}
++					else {
++						ch.is_Checked=false;
++					}
+ 				}
+ 			}
+ 		}
+-		if (nextCache!=null) nextCache.is_Checked=false; // oder i&gt;-1
+ 		return index;
+ 	}
+ 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002746.html">[Cachewolf-svn] r2758 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="002747.html">[Cachewolf-svn] r2759 - in trunk/src/CacheWolf: . imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2742">[ date ]</a>
+              <a href="thread.html#2742">[ thread ]</a>
+              <a href="subject.html#2742">[ subject ]</a>
+              <a href="author.html#2742">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

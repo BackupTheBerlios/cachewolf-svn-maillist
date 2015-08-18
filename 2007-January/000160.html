@@ -1,0 +1,833 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r407 - in trunk: resources src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r407%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200701200546.l0K5kSP4014883%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000159.html">
+   <LINK REL="Next"  HREF="000161.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r407 - in trunk: resources src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r407%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200701200546.l0K5kSP4014883%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r407 - in trunk: resources src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Sat Jan 20 06:46:28 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000159.html">[Cachewolf-svn] [Feature #2932] auch .bmp und jpg als kalibrierte	Karte
+</A></li>
+        <LI>Next message: <A HREF="000161.html">[Cachewolf-svn] r408 - trunk/src/exp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#160">[ date ]</a>
+              <a href="thread.html#160">[ thread ]</a>
+              <a href="subject.html#160">[ subject ]</a>
+              <a href="author.html#160">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-01-20 06:46:20 +0100 (Sat, 20 Jan 2007)
+New Revision: 407
+
+Modified:
+   trunk/resources/cachewolf.Languages.cfg
+   trunk/src/CacheWolf/Common.java
+   trunk/src/CacheWolf/Map.java
+   trunk/src/CacheWolf/MapInfoObject.java
+   trunk/src/CacheWolf/MapLoaderGui.java
+   trunk/src/CacheWolf/MovingMap.java
+   trunk/src/CacheWolf/Preferences.java
+   trunk/src/CacheWolf/SelectMap.java
+Log:
+fixed: [ Bug #10069 ] MovingMap: Import l?\195?\164uft ins falsche (alte) Verzeichnis
+erledigt: [ Feature Request #2932 ] auch .bmp und jpg als kalibrierte Karte
+Konflikt von Nummern des Solvers mit der MovingMap in Languages.cfg beseitig (danke an Salzkammergut fuer den Hinweis!)
+
+Modified: trunk/resources/cachewolf.Languages.cfg
+===================================================================
+--- trunk/resources/cachewolf.Languages.cfg	2007-01-19 19:13:11 UTC (rev 406)
++++ trunk/resources/cachewolf.Languages.cfg	2007-01-20 05:46:20 UTC (rev 407)
+@@ -240,8 +240,6 @@
+ 		1619=: konnte Bild von folgender URL nicht downloaden:+
+ 		1620=download eingebundener Bilder:+
+ 		1621=Fehler beim Interpretieren\n der Update-Datei,\nDies ist vermutlich ein Fehler bei Opencaching.de\nSp&#228;ter erneut versuchen\n Status:
+-		1700=Georeferenzierte Karten herunterladen
+-		1701=Kacheln herunterladen
+ 		1700=Fehler in Zeile: 
+ 		1701=Spalte: 
+ 		1702=Variable nicht definiert: 
+@@ -275,6 +273,8 @@
+ 		1730=Fehlendes &quot; am Ende der Zeichenkette
+ 		1731=Unerlaubtes Formatierungzeichen
+ 		1732=Unerlaubtes Zeichen		
++		1800=Georeferenzierte Karten herunterladen
++		1801=Kacheln herunterladen
+ 		2000=GPX Export
+ 		2001=von
+ 		3000=Schlie%dfen
+@@ -532,8 +532,6 @@
+ 		1619=: could not download image from URL:+
+ 		1620=downloading embedded images:+
+ 		1621=Error while interpreting data\n from Opencaching.de,\nThis is most probaly a bug at Opencaching.de\nRetry later\n Status:
+-		1700=Download georeferenced maps
+-		1701=Download tiles
+ 		1700=Error on line: 
+ 		1701= position: 
+ 		1702=Variable not defined: 
+@@ -567,6 +565,8 @@
+ 		1730=Unterminated string
+ 		1731=Invalid format character
+ 		1732=Invalid character		
++		1800=Download georeferenced maps
++		1801=Download tiles
+ 		2000=GPX Export
+ 		2001=of
+ 		3000=Close
+
+Modified: trunk/src/CacheWolf/Common.java
+===================================================================
+--- trunk/src/CacheWolf/Common.java	2007-01-19 19:13:11 UTC (rev 406)
++++ trunk/src/CacheWolf/Common.java	2007-01-20 05:46:20 UTC (rev 407)
+@@ -1,5 +1,6 @@
+ package CacheWolf;
+ 
++import ewe.io.File;
+ import ewe.sys.Convert;
+ 
+ public final class Common {
+@@ -103,10 +104,28 @@
+ 		strBuf.append(strHex);
+ 		return strBuf.toString();
+ 	}
++	
+ 	public static String ClearForFileName(String str) {
+ 		String ret = str.replace('?', '_');
+ 		return ret;
+ 	}
+-
+-
++	
++	/**
++	 * finds the correct (existing) extension to an image filename
++	 * @param filename without extension
++	 * @return filename with extension 
++	 */
++	static public String getImageName(String name) {
++		String fileName;
++		File tmp;
++		String[] t = {&quot;.png&quot;, &quot;.gif&quot;, &quot;.jpg&quot;, &quot;.bmp&quot;};
++		int i;
++		for (i = 0; i&lt;t.length; i++) {
++			tmp = new File(name+t[i]);
++			if (tmp.exists()) break;
++		}
++		if (i &gt;=t.length) fileName = null;
++		else fileName = name+t[i];
++		return fileName;
++	}
+ }
+
+Modified: trunk/src/CacheWolf/Map.java
+===================================================================
+--- trunk/src/CacheWolf/Map.java	2007-01-19 19:13:11 UTC (rev 406)
++++ trunk/src/CacheWolf/Map.java	2007-01-20 05:46:20 UTC (rev 407)
+@@ -18,8 +18,6 @@
+ */
+ public class Map extends Form {
+ 	Preferences pref;
+-	Locale l = Vm.getLocale();
+-	LocalResource lr = l.getLocalResource(&quot;cachewolf.Languages&quot;,true);
+ 	String mapsPath = new String();
+ 	String thisMap = new String();
+ 	public String selectedMap = new String();
+@@ -27,8 +25,6 @@
+ 	mLabel infLabel = new mLabel(&quot;                          &quot;);
+ 	Vector GCPs = new Vector();
+ 	MapInfoObject wfl = new MapInfoObject();
+-//	double[] affine = {0,0,0,0,0,0};
+-//	double bottomlon, bottomlat = 0; // die werden im Moment nicht verwendet, nur berechnet nicht eingelesen von .wfl-datei und auch nie benutzt
+ 	mButton infButton;
+ 	ScrollBarPanel scp;
+ 	AniImage mapImg;
+@@ -39,7 +35,7 @@
+ 	*/
+ 	public Map(Preferences pref){
+ 		this.pref = pref;
+-		mapsPath = File.getProgramDirectory() + &quot;/maps/&quot;; // TODO veraltet
++		mapsPath = pref.getMapManuallySavePath()+&quot;/&quot;; //File.getProgramDirectory() + &quot;/maps/&quot;; // TODO veraltet
+ 	}
+ 	
+ 	/**
+@@ -64,25 +60,25 @@
+ 	*/
+ 	public Map(Preferences pref, String mapToLoad, boolean worldfileexists){
+ 		this.pref = pref;
+-		this.title = (String)lr.get(4106,&quot;Calibrate map:&quot;) + &quot; &quot; + mapToLoad;
++		this.title = MyLocale.getMsg(4106,&quot;Calibrate map:&quot;) + &quot; &quot; + mapToLoad;
+ 		this.resizable = true;
+ 		this.moveable = true;
+ 		//this.windowFlagsToSet = Window.FLAG_MAXIMIZE;
+ 		this.setPreferredSize(pref.myAppWidth, pref.myAppHeight);
+ 		thisMap = mapToLoad;
+-		mapsPath = File.getProgramDirectory() + &quot;/maps/&quot;; // TDO veraltet
++		mapsPath = pref.getMapManuallySavePath()+&quot;/&quot;; //File.getProgramDirectory() + &quot;/maps/&quot;; // TDO veraltet
+ 		try {
+ 			wfl.loadwfl(mapsPath, thisMap);
+ 		}catch(FileNotFoundException ex){
+ 			Vm.debug(&quot;Cannot load world file!&quot;);
+ 		}catch (IOException ex) { // is thrown if lat/lon out of range
+-			MessageBox tmpMB=new MessageBox((String)lr.get(312, &quot;Error&quot;), ex.getMessage(), MessageBox.OKB);
++			MessageBox tmpMB=new MessageBox(MyLocale.getMsg(312, &quot;Error&quot;), ex.getMessage(), MessageBox.OKB);
+ 			tmpMB.execute();
+ 			Vm.debug(&quot;Cannot load world file!&quot;);
+ 		}
+ 		mapInteractivePanel pane = new mapInteractivePanel(this);
+ 		scp = new ScrollBarPanel(pane);
+-		Image img = new Image(mapsPath + thisMap + &quot;.png&quot;);
++		Image img = new Image(Common.getImageName(mapsPath + thisMap));
+ 		PixelBuffer pB = new PixelBuffer(img);
+ 		//pB = pB.scale((int)(pref.myAppWidth*0.98),(int)(pref.myAppHeight*0.98));
+ 		mapImg = new AniImage(pB.toDrawableImage());
+@@ -90,12 +86,12 @@
+ 		scp.setPreferredSize(mapImg.getWidth(),mapImg.getHeight());
+ 		imageWidth = mapImg.getWidth();
+ 		imageHeight = mapImg.getHeight();
+-		this.addLast(scp.getScrollablePanel(), this.STRETCH, this.FILL);
++		this.addLast(scp.getScrollablePanel(), CellConstants.STRETCH, CellConstants.FILL);
+ 		infPanel = new CellPanel();
+-		infPanel.addNext(infLabel,this.STRETCH, this.FILL);
+-		infButton = new mButton((String)lr.get(4107,&quot;Done!&quot;));
+-		infPanel.addLast(infButton,this.DONTSTRETCH, this.FILL);
+-		this.addLast(infPanel, this.DONTSTRETCH, this.FILL);
++		infPanel.addNext(infLabel,CellConstants.STRETCH, CellConstants.FILL);
++		infButton = new mButton(MyLocale.getMsg(4107,&quot;Done!&quot;));
++		infPanel.addLast(infButton,CellConstants.DONTSTRETCH, CellConstants.FILL);
++		this.addLast(infPanel, CellConstants.DONTSTRETCH, CellConstants.FILL);
+ 		//scp.repaintNow();
+ 		//this.repaintNow();
+ 	}
+@@ -193,12 +189,11 @@
+ 	*	It will use these files to automatically georeference the files during import.
+ 	*/
+ 	public boolean importMap(){
+-		Extractor ext;
+ 		String rawFileName = new String();
+-		FileChooser fc = new FileChooser(FileChooser.DIRECTORY_SELECT, File.getProgramDirectory());
+-		fc.addMask(&quot;*.png&quot;);
+-		fc.setTitle((String)lr.get(4100,&quot;Select Directory:&quot;));
+-		if(fc.execute() != fc.IDCANCEL){
++		FileChooser fc = new FileChooser(FileChooser.DIRECTORY_SELECT, Global.getPref().baseDir);
++		fc.addMask(&quot;*.png,*.gif,*.bmp,*.jpg&quot;);
++		fc.setTitle((String)MyLocale.getMsg(4100,&quot;Select Directory:&quot;));
++		if(fc.execute() != FormBase.IDCANCEL){
+ 			File inDir = fc.getChosenFile();
+ 			File dir = new File(mapsPath);
+ 			File mapFile;
+@@ -211,7 +206,8 @@
+ 				//at the same time try to find associated .map files!
+ 				//These are georeference files targeted for OziExplorer.
+ 				//So lets check if we have more than 1 png file:
+-				String[] files;
++				Vector files;
++				String [] filestemp;
+ 				String line = new String();
+ 				InputStream in;
+ 				OutputStream out;
+@@ -219,17 +215,27 @@
+ 				byte[] buf;
+ 				int len;
+ 				String[] parts;
+-				files = inDir.list(&quot;*.png&quot;, File.LIST_FILES_ONLY);
+-				InfoBox inf = new InfoBox(&quot;Info&quot;, (String)lr.get(4109,&quot;Loading maps...&quot;)); 
++				filestemp = inDir.list(&quot;*.png&quot;, File.LIST_FILES_ONLY);
++				files = new Vector(filestemp);
++				filestemp = inDir.list(&quot;*.jpg&quot;, File.LIST_FILES_ONLY);
++				files.addAll(filestemp);
++				filestemp = inDir.list(&quot;*.gif&quot;, File.LIST_FILES_ONLY);
++				files.addAll(filestemp);
++				filestemp = inDir.list(&quot;*.bmp&quot;, File.LIST_FILES_ONLY);
++				files.addAll(filestemp);
++				
++				InfoBox inf = new InfoBox(&quot;Info&quot;, MyLocale.getMsg(4109,&quot;Loading maps...            \n&quot;)); 
+ 				Vm.showWait(true);
+-				inf.show();
+-				for(int i = 0; i&lt;files.length;i++){
+-					inf.setInfo((String)lr.get(4110,&quot;Loading:&quot;)+ &quot; &quot; + files[i]);
++				inf.exec();
++				String currfile = null;
++				for(int i = files.size() -1 ; i &gt;= 0;i--){
++					currfile = (String) files.get(i);
++					inf.setInfo(MyLocale.getMsg(4110,&quot;Loading:\n&quot;)+ &quot; &quot; + currfile);
+ 					//Copy the file
+ 					//Vm.debug(&quot;Copy: &quot; + inDir.getFullPath() + &quot;/&quot; +files[i]);
+ 					//Vm.debug(&quot;to: &quot; + mapsPath + files[i]);
+-					in = new FileInputStream(inDir.getFullPath() + &quot;/&quot; +files[i]);
+-					out = new FileOutputStream(mapsPath + files[i]);
++					in = new FileInputStream(inDir.getFullPath() + &quot;/&quot; +currfile);
++					out = new FileOutputStream(mapsPath + currfile);
+ 					buf = new byte[1024];
+ 					while ((len = in.read(buf)) &gt; 0) {
+ 					    out.write(buf, 0, len);
+@@ -239,8 +245,7 @@
+ 					// here catch IOException
+ 					
+ 					//Check for a .map file
+-					ext = new Extractor(files[i], &quot;&quot;, &quot;.&quot;, 0, true);
+-					rawFileName = ext.findNext();
++					rawFileName = currfile.substring(0, currfile.lastIndexOf(&quot;.&quot;));
+ 					mapFile = new File(inDir.getFullPath() + &quot;/&quot; + rawFileName + &quot;.map&quot;);
+ 					if(mapFile.exists()){
+ 						GCPoint gcp1 = new GCPoint();
+@@ -366,10 +371,10 @@
+ 						retry = false;
+ 						wfl.saveWFL(mapsPath, thisMap);
+ 					} catch (IOException e) {
+-						MessageBox tmpMB = new MessageBox((String)lr.get(321, &quot;Error&quot;), (String)lr.get(321, &quot;Error writing file &quot;) + e.getMessage()+(String)lr.get(324, &quot; - retry?&quot;), MessageBox.YESB | MessageBox.NOB);
++						MessageBox tmpMB = new MessageBox(MyLocale.getMsg(321, &quot;Error&quot;), MyLocale.getMsg(321, &quot;Error writing file &quot;) + e.getMessage()+MyLocale.getMsg(324, &quot; - retry?&quot;), MessageBox.YESB | MessageBox.NOB);
+ 						if (tmpMB.execute() == MessageBox.IDYES) retry = true;
+ 					}catch (IllegalArgumentException e) {
+-						MessageBox tmpMB = new MessageBox((String)lr.get(144, &quot;Warning&quot;), (String)lr.get(325, &quot;Map not calibrated&quot;)+(String)lr.get(324, &quot; - retry?&quot;), MessageBox.YESB | MessageBox.NOB);
++						MessageBox tmpMB = new MessageBox(MyLocale.getMsg(144, &quot;Warning&quot;), MyLocale.getMsg(325, &quot;Map not calibrated&quot;)+MyLocale.getMsg(324, &quot; - retry?&quot;), MessageBox.YESB | MessageBox.NOB);
+ 						if (tmpMB.execute() == MessageBox.IDYES) { retry = true; break; }
+ 					}
+ 				}
+
+Modified: trunk/src/CacheWolf/MapInfoObject.java
+===================================================================
+--- trunk/src/CacheWolf/MapInfoObject.java	2007-01-19 19:13:11 UTC (rev 406)
++++ trunk/src/CacheWolf/MapInfoObject.java	2007-01-20 05:46:20 UTC (rev 407)
+@@ -107,17 +107,7 @@
+ 		if (fileName == null || fileName.length() &gt; 0) return fileName;
+ 		if (fileNameWFL.length() == 0) return &quot;&quot;;
+ 		String n = fileNameWFL.substring(0, fileNameWFL.lastIndexOf(&quot;.&quot;));
+-		File tmp;
+-		String[] t = {&quot;.png&quot;, &quot;.gif&quot;, &quot;.jpg&quot;, &quot;.bmp&quot;};
+-		int i;
+-		for (i = 0; i&lt;t.length; i++) {
+-			tmp = new File(n+t[i]);
+-			if (tmp.exists()) break;
+-		}
+-		
+-		if (i &gt;=t.length) fileName = null;
+-		else fileName = n+t[i];
+-		return fileName;
++		return Common.getImageName(n);
+ 	}
+ 	
+ 	/**
+
+Modified: trunk/src/CacheWolf/MapLoaderGui.java
+===================================================================
+--- trunk/src/CacheWolf/MapLoaderGui.java	2007-01-19 19:13:11 UTC (rev 406)
++++ trunk/src/CacheWolf/MapLoaderGui.java	2007-01-20 05:46:20 UTC (rev 407)
+@@ -51,7 +51,7 @@
+ 	public MapLoaderGui(Vector cacheDBi) {
+ 		super();
+ 		cacheDB = cacheDBi;
+-		this.title = MyLocale.getMsg(1700, &quot;Download georeferenced maps&quot;); 
++		this.title = MyLocale.getMsg(1800, &quot;Download georeferenced maps&quot;); 
+ 		pref = Global.getPref(); // myPreferences sollte sp&#228;ter auch diese Einstellungen speichern
+ 		center = new CWPoint(pref.curCentrePt);
+ 		// tiles panel
+@@ -62,13 +62,13 @@
+ 		pnlTiles.addNext(forCachesChkBox);
+ 		pnlTiles.addNext(forSelectedChkBox);
+ 		pnlTiles.addLast(cachesLbl);
+-		pnlTiles.addNext(distLbl = new mLabel(MyLocale.getMsg(1702,&quot;Within a rectangle of:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		pnlTiles.addNext(distLbl = new mLabel(MyLocale.getMsg(1802,&quot;Within a rectangle of:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		distanceInput = new mInput();
+ 		int tmp = Convert.toInt((Global.getProfile().distOC));
+ 		distanceInput.setText(Convert.toString((tmp &gt; 0 ? tmp : 15)));
+ 		pnlTiles.addNext(distanceInput,CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		pnlTiles.addLast(km);
+-		pnlTiles.addNext(coosLbl = new mLabel(MyLocale.getMsg(1703, &quot;around the center: &quot;)));
++		pnlTiles.addNext(coosLbl = new mLabel(MyLocale.getMsg(1803, &quot;around the center: &quot;)));
+ 		pnlTiles.addLast(coosBtn = new mButton(center.toString()));
+ 		pnlTiles.addNext(scaleLbl);
+ 		scaleInput.setText(&quot;3&quot;);
+@@ -87,7 +87,7 @@
+ 		okBtiles.setHotKey(0, IKeys.ENTER);
+ 		pnlTiles.addLast(okBtiles,CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		updateForCachesState();
+-		mTab.addCard(pnlTiles, MyLocale.getMsg(1704, &quot;Tiles&quot;), MyLocale.getMsg(1704, &quot;Tiles&quot;));
++		mTab.addCard(pnlTiles, MyLocale.getMsg(1804, &quot;Tiles&quot;), MyLocale.getMsg(1804, &quot;Tiles&quot;));
+ 
+ 		// per cache panel
+ 		pnlPerCache.addLast(new MessageArea(descString));
+@@ -106,7 +106,7 @@
+ 		pnlPerCache.addLast(okBPerCache, CellConstants.DONTSTRETCH, (CellConstants.DONTFILL));
+ 
+ 
+-		mTab.addCard(pnlPerCache, MyLocale.getMsg(1705, &quot;Per cache&quot;), MyLocale.getMsg(1705, &quot;Per Cache&quot;));
++		mTab.addCard(pnlPerCache, MyLocale.getMsg(1805, &quot;Per cache&quot;), MyLocale.getMsg(1805, &quot;Per Cache&quot;));
+ 		this.addLast(mTab);
+ 	}
+ 	public String getMapsDir() {
+
+Modified: trunk/src/CacheWolf/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/MovingMap.java	2007-01-19 19:13:11 UTC (rev 406)
++++ trunk/src/CacheWolf/MovingMap.java	2007-01-20 05:46:20 UTC (rev 407)
+@@ -72,7 +72,7 @@
+ 		this.setPreferredSize(pref.myAppWidth, pref.myAppHeight);
+ 		this.title = &quot;Moving Map&quot;;
+ 		this.backGround = Color.Black;
+-		this.mapPath = Global.getPref().baseDir+&quot;maps/expedia/&quot;;
++		this.mapPath = Global.getPref().getMapLoadPath()+&quot;/&quot;;
+ 		mmp = new MovingMapPanel(this);
+ 		this.addLast(mmp);
+ 		DrawnIcon closeX = new DrawnIcon(DrawnIcon.CROSS,15,15,new Color(0,0,0));
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2007-01-19 19:13:11 UTC (rev 406)
++++ trunk/src/CacheWolf/Preferences.java	2007-01-20 05:46:20 UTC (rev 407)
+@@ -8,19 +8,19 @@
+ import ewe.filechooser.*;
+ 
+ /**
+-*	A class to hold the preferences that were loaded upon start up of CacheWolf.
+-*	This class is also capable of parsing the prefs.xml file as well as
+-*	saving the current settings of preferences.
+-*/
++ *	A class to hold the preferences that were loaded upon start up of CacheWolf.
++ *	This class is also capable of parsing the prefs.xml file as well as
++ *	saving the current settings of preferences.
++ */
+ public class Preferences extends MinML{
+-	
++
+ 	public int tablePrefs[] = {1,1,1,1,1,1,1,1,1,1,1,1};
+ 	public int tableWidth[] = {20,20,20,20,65,135,135,100,60,50,50,50};
+-	
++
+ 	static protected final int PROFILE_SELECTOR_FORCED_ON=0;
+ 	static protected final int PROFILE_SELECTOR_FORCED_OFF=1;
+ 	static protected final int PROFILE_SELECTOR_ONOROFF=2;
+-	
++
+ 	/** The currently used centre point, can be different from the profile's centrepoint. This is used
+ 	 *  for spidering */
+ 	public CWPoint curCentrePt=new CWPoint();
+@@ -42,12 +42,12 @@
+ 	public String browser = new String();
+ 	public boolean showDeletedImages=true; /* Used in ImagePanel */
+ 	public boolean solverIgnoreCase=false;
+-		
++
+ 	public int myAppHeight = 0;
+ 	public int myAppWidth = 0;
+ 	//public int nLogs = 5;
+ 	public boolean dirty = false;
+-	
++
+ 	public int currProfile = 0;
+ 	public String profiles[] = new String[4];
+ 	public String profdirs[] = new String[4];
+@@ -67,37 +67,39 @@
+ 	public boolean downloadMapsOC = true;
+ 	public boolean downloadmissingOC = false;
+ 	public boolean fixSIP = false;
+-	
++
+ 	public String digSeparator = new String();
+ 	public boolean debug = false;
+ 	public SerialPortOptions mySPO = new SerialPortOptions();
+ 	public boolean forwardGPS = false;
+ 	public String forwardGpsHost = new String();
+ 	public int fontSize = 12;
++
++	public String mapsPath = new String(&quot;/maps/standard&quot;);
+ 	// Helper variables for XML parser 
+ 	private StringBuffer collectElement=null; 
+ 	private String lastName; // The string to the last XML that was processed
+-	
++
+ 	private final String LOGFILENAME=&quot;log.txt&quot;;
+ 	// The following declarations may eventually be moved to a separate class
+ 	/** The actual directory of a profile, for new profiles this is a direct child of baseDir */
+ 	//TODO Find all references amd move to profile.dataDir
+ 	//public String mydatadir = new String();  //Redundant ??
+ 	/** The centre as read from the profile */
+-	
+-    /**
+-     * Singleton pattern - return reference to Preferences
+-     * @return Singleton Preferences object
+-     */
+-	
++
++	/**
++	 * Singleton pattern - return reference to Preferences
++	 * @return Singleton Preferences object
++	 */
++
+ 	public static Preferences getPrefObject() {
+-      if (_reference == null)
+-          // it's ok, we can call this constructor
+-          _reference = new Preferences();
+-      return _reference;
+-    }
++		if (_reference == null)
++			// it's ok, we can call this constructor
++			_reference = new Preferences();
++		return _reference;
++	}
+ 
+-    private static Preferences _reference;
++	private static Preferences _reference;
+ 
+ 	/**
+ 	 * Constructor is private for a singleton object
+@@ -114,19 +116,92 @@
+ 		File logFile = new File(LOGFILENAME);
+ 		if (logFile.length()&gt;60000) logInit();
+ 	}
+-	
++
+ 	/**
+-	* Returns true if coordinates have been set.
+-	* Does not validate! if coordinates are real.
+-	*/
++	 * gets the path to the calibrated maps
++	 * it first tries if there are manually imported maps
++	 * in &lt;baseDir&gt;/maps/standard then it tries 
++	 * the legacy dir: &lt;program-dir&gt;/maps
++	 * In case in both locations are no .wfl-files
++	 * it returns  &lt;baseDir&gt;/maps/expedia - the place where
++	 * the automatically downloaded maps are placed.
++	 * 
++	 * Later the maps-path shall be saved in the preferences
++	 */
++	public String getMapLoadPath() {
++		// here could also a list of map-types displayed...
++		// standard dir
++		File t = new File(getMapManuallySavePath());
++		String[] f = t.list(&quot;*.wfl&quot;, File.LIST_ALWAYS_INCLUDE_DIRECTORIES | File.LIST_FILES_ONLY);
++		if (f != null &amp;&amp; f.length &gt; 0) return  baseDir + mapsPath;
++		f = t.list(&quot;*.wfl&quot;, File.LIST_DIRECTORIES_ONLY | File.LIST_ALWAYS_INCLUDE_DIRECTORIES);
++		if (f != null &amp;&amp; f.length &gt; 0) { // see if in a subdir of &lt;baseDir&gt;/maps/standard are .wfl files
++			String[] f2;
++			for (int i = 0; i&lt; f.length; i++) {
++				t.set(null, getMapManuallySavePath()+&quot;/&quot;+f[i]);
++				f2 = t.list(&quot;*.wfl&quot;, File.LIST_FILES_ONLY);
++				if (f2 != null &amp;&amp; f2.length &gt; 0) return  getMapManuallySavePath();
++			}
++		}
++		// lagacy dir 
++		t.set(null, File.getProgramDirectory() + &quot;/maps&quot;);
++		f = t.list(&quot;*.wfl&quot;, File.LIST_FILES_ONLY);
++		if (f != null &amp;&amp; f.length &gt; 0) {
++			MessageBox inf = new MessageBox(&quot;Information&quot;, &quot;The directory for calibrated maps \nhas moved in this program version\n to '&lt;profiles directory&gt;/maps/standard'\n Do you want to move your calibrated maps there now?&quot;, MessageBox.YESB | MessageBox.NOB);
++			if (inf.execute() == MessageBox.IDYES) {
++				String sp = getMapManuallySavePath();
++				File spF = new File(sp);
++				if (!spF.exists()) spF.mkdirs();
++				String image;
++				String lagacypath = File.getProgramDirectory() + &quot;/maps/&quot;;
++				for (int i=0; i&lt;f.length; i++) {
++					t.set(null, lagacypath+f[i]);
++					spF.set(null, sp+&quot;/&quot;+f[i]);
++					t.move(spF);
++					image = Common.getImageName(lagacypath+f[i].substring(0, f[i].lastIndexOf(&quot;.&quot;)));
++					t.set(null, image);
++					spF.set(null, sp+&quot;/&quot;+t.getFileExt());
++					t.move(spF);
++				}
++				t.set(null, lagacypath);
++				t.delete();
++				return sp;
++			}
++			else return  File.getProgramDirectory() + &quot;/maps&quot;;
++		}
++		// expedia dir
++		return getMapExpediaPath(); 
++	}
++
++	/**
++	 * 
++	 * @return the path where manually imported maps should be stored
++	 * this should be adjustable in preferences...
++	 */
++	public String getMapManuallySavePath() {
++		return baseDir + mapsPath;
++	}
++
++	/**
++	 * to this path the automatically downloaded maps are saved
++	 */
++	public String getMapExpediaPath() {
++		return baseDir + &quot;/maps/expedia&quot;;
++	}
++
++
++	/**
++	 * Returns true if coordinates have been set.
++	 * Does not validate! if coordinates are real.
++	 */
+ 	public boolean existCenter(){
+-		return curCentrePt.latDec!=0.0 &amp;&amp; curCentrePt.lonDec!=0.0; 
++		return curCentrePt.latDec!=0.0 &amp;&amp; curCentrePt.lonDec!=0.0; // TODO: use cusCentrePt.isValid() 
+ 	}
+-	
++
+ 	/**
+-	* Method to open and parse the pref.xml file. Results are stored in the
+-	* public variables of this class.
+-	*/
++	 * Method to open and parse the pref.xml file. Results are stored in the
++	 * public variables of this class.
++	 */
+ 	public void readPrefFile(){
+ 		try{
+ 			String datei = File.getProgramDirectory() + &quot;/&quot; + &quot;pref.xml&quot;;
+@@ -141,14 +216,14 @@
+ 				Vm.debug(e.toString());
+ 		}
+ 	}
+-	
++
+ 	/**
+ 	 * Open Profile selector screen 
+ 	 * @param prof
+ 	 * @param showProfileSelector
+ 	 * @return True if a profile was selected
+ 	 */
+-	
++
+ 	public boolean selectProfile(Profile prof, int showProfileSelector, boolean hasNewButton) {
+ 		// If datadir is empty, ask for one
+ 		if (baseDir.length()==0) {
+@@ -161,14 +236,14 @@
+ 		if (!baseDir.endsWith(&quot;/&quot;)) baseDir+=&quot;/&quot;;
+ 		//Vm.showWait(false);
+ 		if((showProfileSelector==PROFILE_SELECTOR_FORCED_ON) || 
+-		   (showProfileSelector==PROFILE_SELECTOR_ONOROFF &amp;&amp; !autoReloadLastProfile)){ // Ask for the profile
+-		   ProfilesForm f = new ProfilesForm(baseDir,profiles,lastProfile,hasNewButton);
+-		   int code = f.execute();
+-		   // If no profile chosen (includes a new one), terminate
+-		   if (code==-1) return false; // Cancel pressed
+-		   prof.clearProfile();
+-		   curCentrePt.set(0,0); // No centre yet
+-		   lastProfile=f.newSelectedProfile;
++				(showProfileSelector==PROFILE_SELECTOR_ONOROFF &amp;&amp; !autoReloadLastProfile)){ // Ask for the profile
++			ProfilesForm f = new ProfilesForm(baseDir,profiles,lastProfile,hasNewButton);
++			int code = f.execute();
++			// If no profile chosen (includes a new one), terminate
++			if (code==-1) return false; // Cancel pressed
++			prof.clearProfile();
++			curCentrePt.set(0,0); // No centre yet
++			lastProfile=f.newSelectedProfile;
+ 		} 
+ 		prof.name=lastProfile;
+ 		currProfile=-1;
+@@ -182,9 +257,9 @@
+ 		}
+ 		savePreferences();
+ 		return true;
+-		
++
+ 	}
+-	
++
+ 	/**
+ 	 * Open an old Profile (stored in preferences)
+ 	 * @param i 0-3 for profiles 1-4
+@@ -206,13 +281,13 @@
+ 		prof.centre.set(lats[i]+&quot; &quot;+longs[i]);
+ 		prof.dataDir=profdirs[i];
+ 	}
+-	
+ 
+-	
+-	
++
++
++
+ 	/**
+-	* Method that gets called when a new element has been identified in pref.xml
+-	*/
++	 * Method that gets called when a new element has been identified in pref.xml
++	 */
+ 	public void startElement(String name, AttributeList atts){
+ 		//Vm.debug(&quot;name = &quot;+name);
+ 		lastName=name;
+@@ -276,10 +351,10 @@
+ 			collectElement=new StringBuffer(50);
+ 			if (atts.getValue(&quot;autoreload&quot;).equals(&quot;true&quot;)) autoReloadLastProfile=true;
+ 		}
+-		
++
+ 		//if(name.equals(&quot;datadir&quot;)) {
+-			//mydatadir = atts.getValue(&quot;dir&quot;);
+-			//profile.dataDir=mydatadir;
++		//mydatadir = atts.getValue(&quot;dir&quot;);
++		//profile.dataDir=mydatadir;
+ 		//}
+ 		if(name.equals(&quot;basedir&quot;)) {
+ 			baseDir = atts.getValue(&quot;dir&quot;);
+@@ -288,7 +363,7 @@
+ 			downloadPicsOC = Boolean.valueOf(atts.getValue(&quot;downloadPics&quot;)).booleanValue();
+ 			downloadMapsOC = Boolean.valueOf(atts.getValue(&quot;downloadMaps&quot;)).booleanValue();
+ 			downloadmissingOC = Boolean.valueOf(atts.getValue(&quot;downloadmissing&quot;)).booleanValue();
+-			
++
+ 		}
+ 		if(name.equals(&quot;proxy&quot;)) {
+ 			myproxy = atts.getValue(&quot;prx&quot;);
+@@ -297,7 +372,7 @@
+ 		if (name.equals(&quot;garmin&quot;)) {
+ 			garminConn=atts.getValue(&quot;connection&quot;);
+ 		}
+-		
++
+ 		if(name.equals(&quot;tableType&quot;)){ 
+ 			tablePrefs[1] = Convert.parseInt(atts.getValue(&quot;active&quot;));
+ 			tmp = atts.getValue(&quot;width&quot;);
+@@ -375,21 +450,21 @@
+ 			collectElement.append(ch,start,length); // Collect the name of the last profile
+ 		}
+ 	}	
+-	
++
+ 	/**
+-	* Method that gets called when the end of an element has been identified in pref.xml
+-	*/
++	 * Method that gets called when the end of an element has been identified in pref.xml
++	 */
+ 	public void endElement(String tag){
+ 		if (tag.equals(&quot;lastprofile&quot;)) {
+ 			if (collectElement!=null) lastProfile=collectElement.toString();
+ 		}
+ 		collectElement=null;
+ 	}
+-	
+ 
++
+ 	/**
+-	* Method to save current preferences in the pref.xml file
+-	*/
++	 * Method to save current preferences in the pref.xml file
++	 */
+ 	public void savePreferences(){
+ 		String datei = File.getProgramDirectory() + &quot;/&quot; + &quot;pref.xml&quot;;
+ 		datei = datei.replace('\\', '/');
+@@ -410,25 +485,25 @@
+ 			outp.print(&quot;	&lt;proxy prx = \&quot;&quot;+ myproxy+&quot;\&quot; prt = \&quot;&quot;+ myproxyport + &quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;	&lt;port portname = \&quot;&quot;+ mySPO.portName +&quot;\&quot; baud = \&quot;&quot;+ mySPO.baudRate+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;	&lt;portforward active= \&quot;&quot;+ Convert.toString(forwardGPS)+&quot;\&quot; destinationHost = \&quot;&quot;+ forwardGpsHost+&quot;\&quot;/&gt;\n&quot;);
+-						outp.print(&quot;	&lt;tableType active = \&quot;1\&quot; width = \&quot;&quot;+Convert.toString(tableWidth[1])+&quot;\&quot;/&gt;\n&quot;);
++			outp.print(&quot;	&lt;tableType active = \&quot;1\&quot; width = \&quot;&quot;+Convert.toString(tableWidth[1])+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;	&lt;tableD active = \&quot;&quot;+Convert.toString(tablePrefs[2])+ &quot;\&quot;&quot; +
+-					               &quot; width = \&quot;&quot;+Convert.toString(tableWidth[2])+&quot;\&quot;/&gt;\n&quot;);
++					&quot; width = \&quot;&quot;+Convert.toString(tableWidth[2])+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;	&lt;tableT active = \&quot;&quot;+Convert.toString(tablePrefs[3])+ &quot;\&quot;&quot; +
+-								   &quot; width = \&quot;&quot;+Convert.toString(tableWidth[3])+&quot;\&quot;/&gt;\n&quot;);
++					&quot; width = \&quot;&quot;+Convert.toString(tableWidth[3])+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;	&lt;tableWay active = \&quot;1\&quot; width = \&quot;&quot;+Convert.toString(tableWidth[4])+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;	&lt;tableName active = \&quot;1\&quot; width = \&quot;&quot;+Convert.toString(tableWidth[5])+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;	&lt;tableLoc active = \&quot;&quot;+Convert.toString(tablePrefs[6])+ &quot;\&quot;&quot; +
+-					   				 &quot; width = \&quot;&quot;+Convert.toString(tableWidth[6])+&quot;\&quot;/&gt;\n&quot;);
++					&quot; width = \&quot;&quot;+Convert.toString(tableWidth[6])+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;	&lt;tableOwn active = \&quot;&quot;+Convert.toString(tablePrefs[7])+ &quot;\&quot;&quot; +
+-					   				 &quot; width = \&quot;&quot;+Convert.toString(tableWidth[7])+&quot;\&quot;/&gt;\n&quot;);
++					&quot; width = \&quot;&quot;+Convert.toString(tableWidth[7])+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;	&lt;tableHide active = \&quot;&quot;+Convert.toString(tablePrefs[8])+ &quot;\&quot;&quot; +
+-					   				  &quot; width = \&quot;&quot;+Convert.toString(tableWidth[8])+&quot;\&quot;/&gt;\n&quot;);
++					&quot; width = \&quot;&quot;+Convert.toString(tableWidth[8])+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;	&lt;tableStat active = \&quot;&quot;+Convert.toString(tablePrefs[9])+ &quot;\&quot;&quot; +
+-					   				  &quot; width = \&quot;&quot;+Convert.toString(tableWidth[9])+&quot;\&quot;/&gt;\n&quot;);
++					&quot; width = \&quot;&quot;+Convert.toString(tableWidth[9])+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;	&lt;tableDist active = \&quot;&quot;+Convert.toString(tablePrefs[10])+ &quot;\&quot;&quot; +
+-					   				  &quot; width = \&quot;&quot;+Convert.toString(tableWidth[10])+&quot;\&quot;/&gt;\n&quot;);
++					&quot; width = \&quot;&quot;+Convert.toString(tableWidth[10])+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;	&lt;tableBear active = \&quot;&quot;+Convert.toString(tablePrefs[11])+ &quot;\&quot;&quot; +
+-					   				  &quot; width = \&quot;&quot;+Convert.toString(tableWidth[11])+&quot;\&quot;/&gt;\n&quot;);
++					&quot; width = \&quot;&quot;+Convert.toString(tableWidth[11])+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;font size =\&quot;&quot;+fontSize+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;	&lt;browser name = \&quot;&quot;+browser+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;fixedsip state = \&quot;&quot;+fixSIP+&quot;\&quot;/&gt;\n&quot;);
+@@ -452,9 +527,9 @@
+ 		} catch (Exception e) {
+ 			Vm.debug(&quot;Problem saving: &quot; +datei);
+ 			Vm.debug(&quot;Error: &quot; +e.toString());
+-    		}
++		}
+ 	}
+-	
++
+ 	/**
+ 	 * Method to log messages to a file called log.txt
+ 	 * It will always append to an existing file.
+@@ -476,7 +551,7 @@
+ 			strout.close();
+ 		}
+ 	}
+-	
++
+ 	/**
+ 	 * Method to delete an existing log file. Something like a &quot;reset&quot;.
+ 	 * Should be used &quot;from time to time&quot; to make sure the log file does not grow
+
+Modified: trunk/src/CacheWolf/SelectMap.java
+===================================================================
+--- trunk/src/CacheWolf/SelectMap.java	2007-01-19 19:13:11 UTC (rev 406)
++++ trunk/src/CacheWolf/SelectMap.java	2007-01-20 05:46:20 UTC (rev 407)
+@@ -24,16 +24,16 @@
+ 	public boolean worldfileexists = false;
+ 	
+ 	public SelectMap(){
+-		mapsPath = File.getProgramDirectory() + &quot;/maps/&quot;;
++		mapsPath = Global.getPref().getMapManuallySavePath()+&quot;/&quot;; //  File.getProgramDirectory() + &quot;/maps/&quot;;
+ 		top = new ScrollBarPanel(CMaps);
+ 		bot = new ScrollBarPanel(nonCMaps);
+ 		this.title = (String)lr.get(4101,&quot;Maps&quot;);
+-		this.addLast(new mLabel((String)lr.get(4102,&quot;Calibrated Maps&quot;)), this.STRETCH, this.FILL);
+-		this.addLast(top, this.STRETCH, this.FILL);
+-		this.addLast(new mLabel((String)lr.get(4103,&quot;Non Calibrated Maps&quot;)), this.STRETCH, this.FILL);
+-		this.addLast(bot, this.STRETCH, this.FILL);
+-		this.addNext(mBCancel = new mButton((String)lr.get(4104,&quot;Cancel&quot;)),this.STRETCH, this.FILL);
+-		this.addLast(mBLoad = new mButton((String)lr.get(4105,&quot;Open&quot;)),this.STRETCH, this.FILL);
++		this.addLast(new mLabel((String)lr.get(4102,&quot;Calibrated Maps&quot;)), CellConstants.STRETCH, CellConstants.FILL);
++		this.addLast(top, CellConstants.STRETCH, CellConstants.FILL);
++		this.addLast(new mLabel((String)lr.get(4103,&quot;Non Calibrated Maps&quot;)), CellConstants.STRETCH, CellConstants.FILL);
++		this.addLast(bot, CellConstants.STRETCH, CellConstants.FILL);
++		this.addNext(mBCancel = new mButton((String)lr.get(4104,&quot;Cancel&quot;)),CellConstants.STRETCH, CellConstants.FILL);
++		this.addLast(mBLoad = new mButton((String)lr.get(4105,&quot;Open&quot;)),CellConstants.STRETCH, CellConstants.FILL);
+ 		InfoBox inf = new InfoBox(&quot;Info&quot;, (String)lr.get(4109,&quot;Loading maps...&quot;)); 
+ 		inf.show();
+ 		try{
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000159.html">[Cachewolf-svn] [Feature #2932] auch .bmp und jpg als kalibrierte	Karte
+</A></li>
+	<LI>Next message: <A HREF="000161.html">[Cachewolf-svn] r408 - trunk/src/exp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#160">[ date ]</a>
+              <a href="thread.html#160">[ thread ]</a>
+              <a href="subject.html#160">[ subject ]</a>
+              <a href="author.html#160">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

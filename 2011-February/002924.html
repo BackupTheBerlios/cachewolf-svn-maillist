@@ -1,0 +1,167 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2933 - in trunk/src/CacheWolf: . imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2011-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2933%20-%20in%20trunk/src/CacheWolf%3A%20.%20imp&In-Reply-To=%3C20110215171551.C18994813D6%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002923.html">
+   <LINK REL="Next"  HREF="002925.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2933 - in trunk/src/CacheWolf: . imp</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2933%20-%20in%20trunk/src/CacheWolf%3A%20.%20imp&In-Reply-To=%3C20110215171551.C18994813D6%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2933 - in trunk/src/CacheWolf: . imp">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Tue Feb 15 06:15:51 CET 2011</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002923.html">[Cachewolf-svn] r2932 - in trunk/src/CacheWolf: navi utils
+</A></li>
+        <LI>Next message: <A HREF="002925.html">[Cachewolf-svn] r2934 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2924">[ date ]</a>
+              <a href="thread.html#2924">[ thread ]</a>
+              <a href="subject.html#2924">[ subject ]</a>
+              <a href="author.html#2924">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2011-02-15 18:15:51 +0100 (Tue, 15 Feb 2011)
+New Revision: 2933
+
+Modified:
+   trunk/src/CacheWolf/Attribute.java
+   trunk/src/CacheWolf/imp/GPXImporter.java
+Log:
+missing Id on gpx - Import
+
+Modified: trunk/src/CacheWolf/Attribute.java
+===================================================================
+--- trunk/src/CacheWolf/Attribute.java	2011-02-10 15:46:44 UTC (rev 2932)
++++ trunk/src/CacheWolf/Attribute.java	2011-02-15 17:15:51 UTC (rev 2933)
+@@ -114,6 +114,17 @@
+      * get GC_TEXT string
+ 	 */
+     public String getGCText () { return attRef(_Id,GC_TEXT); }
++    /*
++     * 
++     */
++    public static String getIdFromGCText(String t) {
++    	for (int i = 0; i &lt; maxAttRef; i++) {
++    		if 	(attRef[i] [GC_TEXT].equals(t)) {
++    			return attRef[i][GC_ID];
++    		}
++    	}
++    	return &quot;-1&quot;;
++    }
+     /**
+      * get GC_ID string
+ 	 */
+
+Modified: trunk/src/CacheWolf/imp/GPXImporter.java
+===================================================================
+--- trunk/src/CacheWolf/imp/GPXImporter.java	2011-02-10 15:46:44 UTC (rev 2932)
++++ trunk/src/CacheWolf/imp/GPXImporter.java	2011-02-15 17:15:51 UTC (rev 2933)
+@@ -27,6 +27,7 @@
+ 
+ import com.stevesoft.ewe_pat.Regex;
+ 
++import CacheWolf.Attribute;
+ import CacheWolf.CacheDB;
+ import CacheWolf.CacheHolder;
+ import CacheWolf.CacheSize;
+@@ -88,7 +89,9 @@
+ 	SpiderProperties propsSpider;
+ 	StringBuffer strBuf;
+ 	private int doitHow;
+-	
++	private String attID;
++	private String attInc;
++
+ 	public GPXImporter(Preferences p, Profile prof, String f )
+ 	{
+ 		profile=prof;
+@@ -177,7 +180,7 @@
+ 			}
+ 				Vm.showWait(false);
+ 			}catch(Exception e){
+-				pref.log(&quot;[GPXExporter:DoIt]&quot;,e,true);
++				pref.log(&quot;[GPXImporter:DoIt]&quot;,e,true);
+ 				Vm.showWait(false);
+ 			}
+ 		if(wasFiltered){
+@@ -273,17 +276,16 @@
+ 			holder.getCacheDetails(false).Travelbugs.clear();
+ 			return;
+ 		}
++		if (name.equals(&quot;groundspeak:attribute&quot;)) {
++			attID = atts.getValue(&quot;id&quot;);
++			attInc = atts.getValue(&quot;inc&quot;);
++			return;
++		}		
+ 		if (debugGPX){
+ 			for (int i = 0; i &lt; atts.getLength(); i++) {
+ 				pref.log(&quot;[GPXExporter:startElement]Type: &quot; + atts.getType(i) + &quot; Name: &quot; + atts.getName(i)+ &quot; Value: &quot;+atts.getValue(i),null);
+ 			}
+-		}	
+-		if (name.equals(&quot;groundspeak:attribute&quot;)) {
+-			int id = Integer.parseInt(atts.getValue(&quot;id&quot;));
+-			holder.getCacheDetails(false).attributes.add(id,atts.getValue(&quot;inc&quot;)); // from GC!
+-			holder.setAttribsAsBits(holder.getCacheDetails(false).attributes.getAttribsAsBits());
+-			return;
+-		}		
++		}
+ 	}
+ 	
+ 	public void endElement(String name){
+@@ -522,6 +524,15 @@
+ 			return;
+ 		}
+ 
++		if (name.equals(&quot;groundspeak:attribute&quot;)) {
++			if (attID.equals(&quot;&quot;)) {
++				attID=Attribute.getIdFromGCText(strData);
++			}
++			int id = Integer.parseInt(attID);
++			holder.getCacheDetails(false).attributes.add(id,attInc);
++			holder.setAttribsAsBits(holder.getCacheDetails(false).attributes.getAttribsAsBits());
++			return;
++		}		
+ 
+ 	}
+ 	public void characters(char[] ch,int start,int length){
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002923.html">[Cachewolf-svn] r2932 - in trunk/src/CacheWolf: navi utils
+</A></li>
+	<LI>Next message: <A HREF="002925.html">[Cachewolf-svn] r2934 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2924">[ date ]</a>
+              <a href="thread.html#2924">[ thread ]</a>
+              <a href="subject.html#2924">[ subject ]</a>
+              <a href="author.html#2924">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,281 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1095 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-November/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1095%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200711250307.lAP37MCm000160%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000987.html">
+   <LINK REL="Next"  HREF="000989.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1095 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1095%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200711250307.lAP37MCm000160%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1095 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Sun Nov 25 04:07:22 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000987.html">[Cachewolf-svn] r1094 - trunk/src/CacheWolf/navi
+</A></li>
+        <LI>Next message: <A HREF="000989.html">[Cachewolf-svn] r1096 - in trunk/src/CacheWolf: . navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#988">[ date ]</a>
+              <a href="thread.html#988">[ thread ]</a>
+              <a href="subject.html#988">[ subject ]</a>
+              <a href="author.html#988">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-11-25 04:07:18 +0100 (Sun, 25 Nov 2007)
+New Revision: 1095
+
+Modified:
+   trunk/src/CacheWolf/CacheHolder.java
+   trunk/src/CacheWolf/CacheHolderDetail.java
+   trunk/src/CacheWolf/OCXMLImporter.java
+Log:
+Opencaching-Download: import speeded up by saving the cacheDetails only after every change in the details
+
+Modified: trunk/src/CacheWolf/CacheHolder.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolder.java	2007-11-24 23:09:17 UTC (rev 1094)
++++ trunk/src/CacheWolf/CacheHolder.java	2007-11-25 03:07:18 UTC (rev 1095)
+@@ -364,10 +364,9 @@
+    
+    public CacheHolderDetail getCacheDetails(boolean maybenew) {
+ 	   if (details != null) {
+-		   details.update(this);
++		   details.update(this); // TODO is this logic? what happens if the details were changed and getDetails() is called afterwards all changes will be lost?!
+ 		   return details;
+ 	   }
+-	   if (cachesWithLoadedDetails.size() &gt;= Global.getPref().maxDetails) removeOldestDetails();
+ 	   details = new CacheHolderDetail(this);
+ 	   try {
+ 		   details.readCache(Global.getProfile().dataDir);
+@@ -378,19 +377,37 @@
+ 			   return null;
+ 		   } 
+ 	   }
+-	   cachesWithLoadedDetails.add(this);
++	   detailsAdded();
+ 	   return details;
+    }
+    
++   /**
++    * Call this after you added the cache with details to the 
++    * cacheDB &lt;br&gt; It is assumed that that details is set
++    * for an example see OCXMLImporter.endCache()
++    *
++    */
++   public void detailsAdded() {
++	   if (cachesWithLoadedDetails.size() &gt;= Global.getPref().maxDetails) removeOldestDetails();
++	   cachesWithLoadedDetails.add(this);
++	   
++   }
++   
+    public void releaseCacheDetails() {
++	   if (details != null &amp;&amp; details.saveChanges) 
++		   details.saveCacheDetails(Global.getProfile().dataDir);
+ 	   details = null;
+ 	   cachesWithLoadedDetails.remove(this);
+    }
+    
++   public void cacheAdded(CacheHolderDetail chd) {
++	   
++   }
++   
+    //final static int maxDetails = 50; 
+    static Vector cachesWithLoadedDetails = new Vector(Global.getPref().maxDetails);
+    
+-   public static void removeOldestDetails() { // TODO save changes if requested?
++   public static void removeOldestDetails() {
+ 	   for (int i=0; i&lt;Global.getPref().deleteDetails; i++)
+ 		   ((CacheHolder)(cachesWithLoadedDetails.get(0))).releaseCacheDetails();
+    }
+@@ -399,7 +416,23 @@
+ 	   for (int i=cachesWithLoadedDetails.size()-1; i&gt;=0; i--)
+ 		   ((CacheHolder)(cachesWithLoadedDetails.get(0))).releaseCacheDetails();
+    }
+-/*
++   
++   /**
++    * when importing caches you can set details.saveChanges = true
++    * when the import ist finished call this method to save the pending changes
++    *
++    */
++   public static void saveAllModifiedDetails() {
++	   CacheHolderDetail chD;
++	   for (int i=cachesWithLoadedDetails.size()-1; i&gt;=0; i--) {
++		   chD = ((CacheHolder)(cachesWithLoadedDetails.get(i))).getCacheDetails(false);
++		   if (chD.saveChanges) 
++			   chD.saveCacheDetails(Global.getProfile().dataDir);
++		   	
++	   }
++   }
++
++   /*
+ public void finalize() {nObjects--;
+    Vm.debug(&quot;Destroying CacheHolder &quot;+wayPoint);
+    Vm.debug(&quot;CacheHolder: &quot;+nObjects+&quot; objects left&quot;);
+
+Modified: trunk/src/CacheWolf/CacheHolderDetail.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolderDetail.java	2007-11-24 23:09:17 UTC (rev 1094)
++++ trunk/src/CacheWolf/CacheHolderDetail.java	2007-11-25 03:07:18 UTC (rev 1095)
+@@ -29,6 +29,9 @@
+ 	  //public String Bugs = EMPTY; Superceded by Travelbugs
+ 	  public String URL = EMPTY;
+ 	  public String Solver = EMPTY;
++	  /** For faster cache import (from opencaching) changes are only written when the details are freed from memory 
++	   * If you want to save the changes automatically when the details are unloaded, set this to true */ 
++	  public boolean saveChanges = false;
+ 	  
+ 	 public CacheHolderDetail() {
+ 	 }
+@@ -234,7 +237,6 @@
+ 		*/
+ 		public void saveCacheDetails(String dir){
+ 			PrintWriter detfile;
+-			String dummy = new String();
+ 			//File exists?
+ 			boolean exists = (new File(dir + wayPoint + &quot;.xml&quot;)).exists();
+ 			//yes: then delete
+@@ -316,6 +318,7 @@
+ 			} catch (Exception e){
+ 			  //Vm.debug(&quot;Problem closing details file&quot;);
+ 			}
++			saveChanges = false;
+ 		}
+ 		
+ 		/**
+
+Modified: trunk/src/CacheWolf/OCXMLImporter.java
+===================================================================
+--- trunk/src/CacheWolf/OCXMLImporter.java	2007-11-24 23:09:17 UTC (rev 1094)
++++ trunk/src/CacheWolf/OCXMLImporter.java	2007-11-25 03:07:18 UTC (rev 1095)
+@@ -185,6 +185,7 @@
+ 			finalMessage = MyLocale.getMsg(1607,&quot;Update from opencaching successful&quot;);
+ 			inf.setInfo(finalMessage);
+ 		}
++		CacheHolder.saveAllModifiedDetails();
+ 		profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
+ 		inf.addOkButton();
+ 	}
+@@ -388,10 +389,6 @@
+ 		}
+ 
+ 	}
+-	private boolean fileExits(String filename) {
+-		File myfile = new File(filename);
+-		return myfile.exists();
+-	}
+ 
+ 	private void endCache(String name){
+ 		if (name.equals(&quot;cache&quot;)){
+@@ -400,7 +397,10 @@
+ 			index = searchWpt(chD.wayPoint);
+ 			if (index == -1){
+ 				chD.is_new = true;
+-				cacheDB.add(new CacheHolder(chD));
++				CacheHolder ch = new CacheHolder(chD);
++				ch.details = chD;
++				cacheDB.add(ch);
++				ch.detailsAdded();
+ 				DBindexWpt.put((String)chD.wayPoint, new Integer(cacheDB.size()-1));
+ 				DBindexID.put((String)chD.ocCacheID, new Integer(cacheDB.size()-1));
+ 			}
+@@ -419,7 +419,8 @@
+ 			}
+ 
+ 			// save all
+-			chD.saveCacheDetails(profile.dataDir); 
++			chD.saveChanges = true; // this makes CachHolder save the details in case that they are unloaded from memory
++			// chD.saveCacheDetails(profile.dataDir); 
+ 			// profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR); // this is done after .xml is completly processed
+ 			return;
+ 		}
+@@ -497,7 +498,7 @@
+ 						getPic(fetchUrl, imgAltText);
+ 					}
+ 				}
+-				chD.saveCacheDetails(profile.dataDir);
++				chD.saveChanges = true; //saveCacheDetails(profile.dataDir);
+ 				return;
+ 			}
+ 
+@@ -580,7 +581,7 @@
+ 		if(name.equals(&quot;picture&quot;)){ 
+ 			//String fileName = holder.wayPoint + &quot;_&quot; + picUrl.substring(picUrl.lastIndexOf(&quot;/&quot;)+1);
+ 			getPic(picUrl,picTitle);
+-			chD.saveCacheDetails(profile.dataDir);
++			chD.saveChanges = true; //saveCacheDetails(profile.dataDir);
+ 			return;
+ 		}
+ 	}
+@@ -589,7 +590,7 @@
+ 		if (name.equals(&quot;cachelog&quot;)){ // &lt;/cachelog&gt;
+ 			chD.CacheLogs.merge(new Log(logIcon,logDate,logFinder,logData));
+ 			//TODO Optimize this. Currently the cache needs to be saved after every log as we don't know whether the next log is for the same cache.
+-			chD.saveCacheDetails(profile.dataDir);
++			chD.saveChanges = true; //chD.saveCacheDetails(profile.dataDir);
+ 			return;
+ 		}
+ 
+@@ -712,17 +713,16 @@
+ 		int index;
+ 		
+ 		index = searchWpt(wpt);
+-		if (index==-1) index = searchID(wpt);
+-		if (index == -1){
++		if (index ==-1) index = searchID(wpt);
++		if (index == -1) {
+ 			chD = new CacheHolderDetail();
+-			//chD.wayPoint = wpt;
+ 			return chD;
+ 		}
+-		chD = new CacheHolderDetail((CacheHolder) cacheDB.get(index));
+-		try {
++		chD = ((CacheHolder) cacheDB.get(index)).getCacheDetails(true);
++/*		try {
+ 			chD.readCache(profile.dataDir);
+ 		} catch (Exception e) {Vm.debug(&quot;Could not open file: &quot; + e.toString());};
+-		return chD;
++	*/	return chD;
+ 	}
+ 
+ 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000987.html">[Cachewolf-svn] r1094 - trunk/src/CacheWolf/navi
+</A></li>
+	<LI>Next message: <A HREF="000989.html">[Cachewolf-svn] r1096 - in trunk/src/CacheWolf: . navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#988">[ date ]</a>
+              <a href="thread.html#988">[ thread ]</a>
+              <a href="subject.html#988">[ subject ]</a>
+              <a href="author.html#988">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

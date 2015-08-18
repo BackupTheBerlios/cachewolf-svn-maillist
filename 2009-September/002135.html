@@ -1,0 +1,211 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2211 - in trunk: res_noewe/languages src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-September/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2211%20-%20in%20trunk%3A%20res_noewe/languages%20src/CacheWolf&In-Reply-To=%3C200909251926.n8PJQZpA030337%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002134.html">
+   <LINK REL="Next"  HREF="002136.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2211 - in trunk: res_noewe/languages src/CacheWolf</H1>
+    <B>mik77 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2211%20-%20in%20trunk%3A%20res_noewe/languages%20src/CacheWolf&In-Reply-To=%3C200909251926.n8PJQZpA030337%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2211 - in trunk: res_noewe/languages src/CacheWolf">mik77 at mail.berlios.de
+       </A><BR>
+    <I>Fri Sep 25 21:26:35 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002134.html">[Cachewolf-svn] r2210 - trunk/src/CacheWolf/navi
+</A></li>
+        <LI>Next message: <A HREF="002136.html">[Cachewolf-svn] r2212 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2135">[ date ]</a>
+              <a href="thread.html#2135">[ thread ]</a>
+              <a href="subject.html#2135">[ subject ]</a>
+              <a href="author.html#2135">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mik77
+Date: 2009-09-25 21:26:30 +0200 (Fri, 25 Sep 2009)
+New Revision: 2211
+
+Modified:
+   trunk/res_noewe/languages/DE.cfg
+   trunk/res_noewe/languages/EN.cfg
+   trunk/src/CacheWolf/myTableControl.java
+Log:
+New context menu item &quot;Log in browser online&quot;. Especially useful for PM-only caches. The notes text is copied to clipboard (if present).
+
+Modified: trunk/res_noewe/languages/DE.cfg
+===================================================================
+--- trunk/res_noewe/languages/DE.cfg	2009-09-25 11:58:44 UTC (rev 2210)
++++ trunk/res_noewe/languages/DE.cfg	2009-09-25 19:26:30 UTC (rev 2211)
+@@ -359,6 +359,7 @@
+ 		1049=DNF
+ 		1050=Aktualisiert
+ 		1051=Zuletzt aktualisiert
++		1052=Im Browser online loggen
+ 		1100=Profile
+ 		1105=Suchen
+ 		1106=Profil w%e4hlen oder Neu
+
+Modified: trunk/res_noewe/languages/EN.cfg
+===================================================================
+--- trunk/res_noewe/languages/EN.cfg	2009-09-25 11:58:44 UTC (rev 2210)
++++ trunk/res_noewe/languages/EN.cfg	2009-09-25 19:26:30 UTC (rev 2211)
+@@ -359,6 +359,7 @@
+ 		1049=DNF
+ 		1050=Last synced
+ 		1051=Last sync date
++		1052=Log online in Browser
+ 		1100=Profiles
+ 		1105=Browse
+ 		1106=Choose profile or New
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2009-09-25 11:58:44 UTC (rev 2210)
++++ trunk/src/CacheWolf/myTableControl.java	2009-09-25 19:26:30 UTC (rev 2211)
+@@ -1,5 +1,6 @@
+ package CacheWolf;
+ 
++import CacheWolf.imp.OCXMLImporter;
+ import CacheWolf.utils.CWWrapper;
+ import ewe.sys.*;
+ import ewe.ui.*;
+@@ -18,7 +19,7 @@
+ 	public TablePanel tbp;
+ 	
+ 	private MenuItem miOpen, miGoto, miCenter, miUnhideAddis;
+-	private MenuItem miOpenOnline, miOpenOffline;
++	private MenuItem miOpenOnline, miOpenOffline, miLogOnline;
+ 	private MenuItem miDelete, miUpdate;
+ 	private MenuItem miTickAll, miUntickAll;
+ 	private MenuItem miSeparator;
+@@ -33,7 +34,7 @@
+ 		tbp =tablePanel;
+ 		allowDragSelection = false; // allow only one row to be selected at one time
+ 				
+-		MenuItem[] mnuFull = new MenuItem[13];
++		MenuItem[] mnuFull = new MenuItem[14];
+   	mnuFull[0] = miOpen = new MenuItem(MyLocale.getMsg(1021,&quot;Open description&quot;));
+   	mnuFull[1] = miGoto = new MenuItem(MyLocale.getMsg(1010,&quot;Goto&quot;));
+   	mnuFull[2] = miCenter = new MenuItem(MyLocale.getMsg(1019,&quot;Center&quot;));
+@@ -41,15 +42,16 @@
+   	mnuFull[4] = miSeparator = new MenuItem(&quot;-&quot;);
+   	mnuFull[5] = miOpenOnline = new MenuItem(MyLocale.getMsg(1020,&quot;Open in $browser online&quot;));
+   	mnuFull[6] = miOpenOffline = new MenuItem(MyLocale.getMsg(1018,&quot;Open in browser offline&quot;));
+-  	mnuFull[7] = miSeparator;
+-  	mnuFull[8] = miDelete = new MenuItem(MyLocale.getMsg(1012,&quot;Delete selected&quot;));
+-  	mnuFull[9] = miUpdate = new MenuItem(MyLocale.getMsg(1014,&quot;Update&quot;));
+-  	mnuFull[10] = miSeparator;
+-  	mnuFull[11] = miTickAll = new MenuItem(MyLocale.getMsg(1015,&quot;Select all&quot;));
+-  	mnuFull[12] = miUntickAll = new MenuItem(MyLocale.getMsg(1016,&quot;De-select all&quot;));	
++  	mnuFull[7] = miLogOnline = new MenuItem(MyLocale.getMsg(1052,&quot;Log online in Browser&quot;));
++  	mnuFull[8] = miSeparator;
++  	mnuFull[9] = miDelete = new MenuItem(MyLocale.getMsg(1012,&quot;Delete selected&quot;));
++  	mnuFull[10] = miUpdate = new MenuItem(MyLocale.getMsg(1014,&quot;Update&quot;));
++  	mnuFull[11] = miSeparator;
++  	mnuFull[12] = miTickAll = new MenuItem(MyLocale.getMsg(1015,&quot;Select all&quot;));
++  	mnuFull[13] = miUntickAll = new MenuItem(MyLocale.getMsg(1016,&quot;De-select all&quot;));	
+   	mFull = new Menu(mnuFull, MyLocale.getMsg(1013,&quot;With selection&quot;));
+ 
+-  	MenuItem[] mnuSmall = new MenuItem[7];
++  	MenuItem[] mnuSmall = new MenuItem[8];
+   	mnuSmall[0] = miOpen;
+   	mnuSmall[1] = miGoto;
+   	mnuSmall[2] = miCenter;
+@@ -57,6 +59,7 @@
+   	mnuSmall[4] = miSeparator;
+   	mnuSmall[5] = miOpenOnline;
+   	mnuSmall[6] = miOpenOffline;
++  	mnuSmall[7] = miLogOnline;
+   	mSmall = new Menu(mnuSmall, MyLocale.getMsg(1013,&quot;With selection&quot;));	
+ 	}
+ 
+@@ -273,6 +276,50 @@
+ 				sc.showCache(cacheDB.get(tbp.getSelectedCache()));
+ 			}
+ 		} else
++			
++		if (selectedItem == miLogOnline){
++			if(browserPathIsValid()){
++				ch = cacheDB.get(tbp.getSelectedCache());
++				CacheHolder mainCache = ch;
++				if (ch.isAddiWpt() &amp;&amp; (ch.mainCache != null)) {
++					mainCache = ch.mainCache;
++				}
++				if (mainCache.isCacheWpt()) {
++					CacheHolderDetail chD=mainCache.getCacheDetails(false, true);
++					try {
++						if (chD != null) {
++							String URL = &quot;&quot;;
++							if (ch.isOC())
++							{
++								URL = chD.URL;
++								if (URL.indexOf(&quot;viewcache&quot;) &gt;= 0) {
++									URL = STRreplace.replace(URL, &quot;viewcache&quot;, &quot;log&quot;);
++								} else {
++									URL = &quot;&quot;;
++								}
++							} else {
++								URL = &quot;<A HREF="http://www.geocaching.com/seek/log.aspx?ID=">http://www.geocaching.com/seek/log.aspx?ID=</A>&quot; + mainCache.GetCacheID();								
++							}
++
++							if (URL.length() &gt; 0) {
++								String notes = chD.getCacheNotes();
++								if (notes.length() &gt; 0) {
++									Vm.setClipboardText(notes);
++								}
++								CWWrapper.exec(pref.browser, URL);
++							}
++						}
++					} catch (IOException ex) {
++						(new MessageBox(MyLocale.getMsg(321,&quot;Error&quot;),
++								MyLocale.getMsg(1034,&quot;Cannot start browser!&quot;) + &quot;\n&quot; + ex.toString() + &quot;\n&quot; +
++								MyLocale.getMsg(1035,&quot;Possible reason:&quot;) + &quot;\n&quot; +
++								MyLocale.getMsg(1036,&quot;A bug in ewe VM, please be&quot;) + &quot;\n&quot; +
++								MyLocale.getMsg(1037,&quot;patient for an update&quot;),FormBase.OKB)).execute();
++					}
++				}
++			}
++		} else
++
+ 		    
+ 		if (selectedItem == miOpen){
+ 			penDoubleClicked(null);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002134.html">[Cachewolf-svn] r2210 - trunk/src/CacheWolf/navi
+</A></li>
+	<LI>Next message: <A HREF="002136.html">[Cachewolf-svn] r2212 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2135">[ date ]</a>
+              <a href="thread.html#2135">[ thread ]</a>
+              <a href="subject.html#2135">[ subject ]</a>
+              <a href="author.html#2135">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

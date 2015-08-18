@@ -1,0 +1,279 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1967 - trunk/src/exp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-June/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1967%20-%20trunk/src/exp&In-Reply-To=%3C200906291939.n5TJdN71017571%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001885.html">
+   <LINK REL="Next"  HREF="001887.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1967 - trunk/src/exp</H1>
+    <B>greiol at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1967%20-%20trunk/src/exp&In-Reply-To=%3C200906291939.n5TJdN71017571%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1967 - trunk/src/exp">greiol at mail.berlios.de
+       </A><BR>
+    <I>Mon Jun 29 21:39:23 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001885.html">[Cachewolf-svn] r1966 - trunk/src/exp
+</A></li>
+        <LI>Next message: <A HREF="001887.html">[Cachewolf-svn] r1968 - trunk/res_noewe
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1886">[ date ]</a>
+              <a href="thread.html#1886">[ thread ]</a>
+              <a href="subject.html#1886">[ subject ]</a>
+              <a href="author.html#1886">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: greiol
+Date: 2009-06-29 21:39:22 +0200 (Mon, 29 Jun 2009)
+New Revision: 1967
+
+Modified:
+   trunk/src/exp/GpxExportNg.java
+Log:
+added support to send single gpx right to garmin
+
+Modified: trunk/src/exp/GpxExportNg.java
+===================================================================
+--- trunk/src/exp/GpxExportNg.java	2009-06-29 17:47:10 UTC (rev 1966)
++++ trunk/src/exp/GpxExportNg.java	2009-06-29 19:39:22 UTC (rev 1967)
+@@ -26,6 +26,7 @@
+ import ewe.sys.Convert;
+ import ewe.sys.Date;
+ import ewe.sys.Handle;
++import ewe.sys.Vm;
+ import ewe.ui.CheckBoxGroup;
+ import ewe.ui.Control;
+ import ewe.ui.ControlEvent;
+@@ -60,7 +61,7 @@
+ 	final static String expName = &quot;GpxExportNG&quot;;
+ 	final static String TRUE = &quot;True&quot;;
+ 	final static String FALSE = &quot;False&quot;;
+-	private static GarminMap gm;
++	private static GarminMap poiMapper;
+ 	private int maxLogs = ewe.math.Number.INTEGER_MAX_VALUE;
+ 	private int exportErrors = 0;
+ 
+@@ -125,6 +126,10 @@
+ 	static int outType;
+ 
+ 	public GpxExportNg() {
++		// do nothing
++	}
++	
++	public void doit() {
+ 		GpxExportNgForm exportOptions;
+ 		int ret;
+ 
+@@ -168,8 +173,8 @@
+ 			}
+ 			
+ 			if ((new File(baseDir+&quot;/garminmap.xml&quot;)).exists()) {
+-				gm=new GarminMap();
+-				gm.readGarminMap();
++				poiMapper=new GarminMap();
++				poiMapper.readGarminMap();
+ 			} else {
+ 				//TODO: display warning
+ 				Global.getPref().log(&quot;unable to load garminmap.xml&quot;);
+@@ -213,11 +218,11 @@
+ 								&quot;skipping export of incomplete waypoint &quot;
+ 										+ ch.getWayPoint());
+ 					} else {
+-						String poiId = gm.getPoiId(ch);
++						String poiId = poiMapper.getPoiId(ch);
+ 						if (null == poiId) {
+ 							Global.getPref().log(&quot;unmatched POI ID for &quot;+ch.getWayPoint());
++							exportErrors++;
+ 						} else {
+-							File outFile;
+ 							PrintWriter writer;
+ 							if (fileHandles.containsKey(poiId)) {
+ 								writer = (PrintWriter) fileHandles.get(poiId);
+@@ -265,8 +270,8 @@
+ 		} else {
+ 			if (customIcons) {
+ 				if ((new File(FileBase.getProgramDirectory()+&quot;/garminmap.xml&quot;)).exists()) {
+-					gm=new GarminMap();
+-					gm.readGarminMap();
++					poiMapper=new GarminMap();
++					poiMapper.readGarminMap();
+ 				} else {
+ 					customIcons = false;
+ 					Global.getPref().log(&quot;unable to load garminmap.xml&quot;);
+@@ -280,20 +285,22 @@
+ 					Global.getPref().dirty = true;
+ 				}
+ 			}
+-			
+-			final File file;
+-			final FileChooser fc = new FileChooser(FileChooserBase.SAVE, 
++			final File file;	
++			if (! sendToGarmin) {
++				final FileChooser fc = new FileChooser(FileChooserBase.SAVE, 
+ 					Global.getPref().getExportPath(expName+&quot;-GPX&quot;));
+ 			
+-			fc.setTitle(&quot;Select target GPX file:&quot;);
+-			fc.addMask(&quot;*.gpx&quot;);
++				fc.setTitle(&quot;Select target GPX file:&quot;);
++				fc.addMask(&quot;*.gpx&quot;);
+ 			
+-			if (fc.execute() == FormBase.IDCANCEL)
+-				return;
++				if (fc.execute() == FormBase.IDCANCEL)
++					return;
+ 
+-			file = fc.getChosenFile();
+-			Global.getPref().setExportPath(expName+&quot;-GPX&quot;, file.getPath());
+-
++				file = fc.getChosenFile();
++				Global.getPref().setExportPath(expName+&quot;-GPX&quot;, file.getPath());
++			} else {
++				file = new File(&quot;&quot;).createTempFile(&quot;gpxexport&quot;, null, null);
++			}
+ 			try {
+ 				ProgressBarForm pbf = new ProgressBarForm();
+ 				Handle h = new Handle();
+@@ -337,6 +344,18 @@
+ 					Global.getPref().log(&quot;GPX Export: unable to write output to &quot; + file.toString());
+ 				// TODO: give a message to the user
+ 			}
++			if (sendToGarmin) {
++				try {
++					String gpsBabelCommand;
++					gpsBabelCommand = Global.getPref().gpsbabel+&quot; &quot;+Global.getPref().garminGPSBabelOptions+&quot; -i gpx -f &quot;+ file.getCreationName() +&quot; -o garmin -F &quot; + Global.getPref().garminConn +&quot;:&quot;;
++					if (Global.getPref().debug) Global.getPref().log(&quot;GPX Export: gpsbabelcommand is &quot;+ gpsBabelCommand);
++					ewe.sys.Process p = Vm.exec( gpsBabelCommand );
++					p.waitFor();
++				} catch (Exception ex) {
++					Global.getPref().log(&quot;GPX Export error :&quot;, ex, Global.getPref().debug);
++				}
++				file.delete();
++			}
+ 		}
+ 		if (exportErrors &gt; 0) {
+ 			new MessageBox(&quot;Export Error&quot;, exportErrors+&quot; errors during export. Check log for details.&quot;, FormBase.OKB).execute();
+@@ -469,7 +488,7 @@
+ 		}
+ 
+ 		if (customIcons) {
+-			trans.add(new Regex(&quot;@@WPSYMBOL@@&quot;, gm.getIcon(ch)));
++			trans.add(new Regex(&quot;@@WPSYMBOL@@&quot;, poiMapper.getIcon(ch)));
+ 		} else {
+ 			if (ch.isAddiWpt()) {
+ 				trans.add(new Regex(&quot;@@WPSYMBOL@@&quot;, CacheType.id2GpxString(
+@@ -531,10 +550,6 @@
+ 		return ret.toString();
+ 	}
+ 
+-	public void doit() {
+-
+-	}
+-
+ 	public String formatTbs(CacheHolder ch) {
+ 		Transformer trans = new Transformer(true);
+ 		return &quot;&quot;;
+@@ -654,7 +669,7 @@
+ 			return &quot;Needs Maintenance&quot;;
+ 		if (image.indexOf(&quot;coord_update.gif&quot;) &gt; -1)
+ 			return &quot;Update Coordinates&quot;;
+-		Global.getPref().log(&quot;GPX Export: unknown logtype &quot;+image);
++		Global.getPref().log(&quot;GPX Export: warning - unknown logtype &quot;+image+&quot; was changed to 'Write note'&quot;);
+ 		exportErrors++;
+ 		return &quot;Write note&quot;;
+ 	}
+@@ -703,7 +718,8 @@
+ 			cbSeperateFiles = new mCheckBox(&quot;one file per type&quot;);
+ 
+ 			cbSendToGarmin = new mCheckBox(&quot;send to Garmin GPSr&quot;);
+-			cbSendToGarmin.modify(Control.Disabled, 0); // not yet
++			if (Global.getPref().gpsbabel == null)
++				cbSendToGarmin.modify(Control.Disabled, 0);
+ 
+ 			cbSmartId = new mCheckBox(&quot;use smart IDs&quot;);
+ 			
+@@ -745,8 +761,9 @@
+ 							cbCustomIcons.repaint();
+ 						if (cbSeperateFiles.change(0, Control.Disabled))
+ 							cbSeperateFiles.repaint();
+-						// if (cbSendToGarmin.change(0,Control.Disabled))
+-						// cbSendToGarmin.repaint();
++						if (Global.getPref().gpsbabel != null)
++							if (cbSendToGarmin.change(0,Control.Disabled))
++								cbSendToGarmin.repaint();
+ 						if (cbSmartId.change(0, Control.Disabled))
+ 							cbSmartId.repaint();
+ 						if (ibMaxLogs.change(Control.Disabled, 0))
+@@ -757,8 +774,9 @@
+ 							cbCustomIcons.repaint();
+ 						if (cbSeperateFiles.change(Control.Disabled, 0))
+ 							cbSeperateFiles.repaint();
+-						// if (cbSendToGarmin.change(0,Control.Disabled))
+-						// cbSendToGarmin.repaint();
++						if (Global.getPref().gpsbabel != null)
++							if (cbSendToGarmin.change(0,Control.Disabled))
++						 		cbSendToGarmin.repaint();
+ 						if (cbSmartId.change(0, Control.Disabled))
+ 							cbSmartId.repaint();
+ 						if (ibPrefix.change(Control.Disabled, 0))
+@@ -774,8 +792,8 @@
+ 							cbCustomIcons.repaint();
+ 						if (cbSeperateFiles.change(Control.Disabled, 0))
+ 							cbSeperateFiles.repaint();
+-						// if (cbSendToGarmin.change(Control.Disabled,0))
+-						// cbSendToGarmin.repaint();
++						if (cbSendToGarmin.change(Control.Disabled,0))
++							cbSendToGarmin.repaint();
+ 						if (cbSmartId.change(Control.Disabled, 0))
+ 							cbSmartId.repaint();
+ 						if (ibPrefix.change(Control.Disabled, 0))
+@@ -786,8 +804,13 @@
+ 				} else if (ev.target == cbSeperateFiles) {
+ 					if (cbSeperateFiles.state) {
+ 						if (ibPrefix.change(Control.Disabled, 1)) ibPrefix.repaint();
++						if (cbSendToGarmin.change(Control.Disabled, 0)) {
++							cbSendToGarmin.setState(false);
++							cbSendToGarmin.repaint();
++						}
+ 					} else {
+ 						if (ibPrefix.change(Control.Disabled, 0)) ibPrefix.repaint();
++						if (cbSendToGarmin.change(0, Control.Disabled)) cbSendToGarmin.repaint();
+ 					}
+ 				} else if (ev.target == btnOk) {
+ 					if (cbPqLike.state) {
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001885.html">[Cachewolf-svn] r1966 - trunk/src/exp
+</A></li>
+	<LI>Next message: <A HREF="001887.html">[Cachewolf-svn] r1968 - trunk/res_noewe
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1886">[ date ]</a>
+              <a href="thread.html#1886">[ thread ]</a>
+              <a href="subject.html#1886">[ subject ]</a>
+              <a href="author.html#1886">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

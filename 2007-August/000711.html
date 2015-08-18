@@ -1,0 +1,639 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r821 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-August/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r821%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200708162242.l7GMg0jk003658%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000710.html">
+   <LINK REL="Next"  HREF="000712.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r821 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r821%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200708162242.l7GMg0jk003658%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r821 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Fri Aug 17 00:42:00 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000710.html">[Cachewolf-svn] r820 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000712.html">[Cachewolf-svn] r822 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#711">[ date ]</a>
+              <a href="thread.html#711">[ thread ]</a>
+              <a href="subject.html#711">[ subject ]</a>
+              <a href="author.html#711">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-08-17 00:41:50 +0200 (Fri, 17 Aug 2007)
+New Revision: 821
+
+Modified:
+   trunk/src/CacheWolf/CacheHolder.java
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/Navigate.java
+   trunk/src/CacheWolf/TablePanel.java
+   trunk/src/CacheWolf/myTableControl.java
+Log:
+suchen mit ctrl-f
+Handling des cursors in der Liste wie in ewe vorgesehen (bitte testen)
+Vorbereitung f?\195?\188r Mond- und Sternenrichtungsanzeige
+
+Modified: trunk/src/CacheWolf/CacheHolder.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolder.java	2007-08-15 10:22:19 UTC (rev 820)
++++ trunk/src/CacheWolf/CacheHolder.java	2007-08-16 22:41:50 UTC (rev 821)
+@@ -1,14 +1,5 @@
+ package CacheWolf;
+-import ewe.sys.Vm;
+-import ewe.ui.InputBox;
+-import ewe.util.*;
+-import ewe.filechooser.FileChooser;
+-import ewe.io.BufferedWriter;
+-import ewe.io.File;
+-import ewe.io.FileReader;
+-import ewe.io.FileWriter;
+-import ewe.io.IOException;
+-import ewe.io.PrintWriter;
++import ewe.util.Vector;
+ 
+ /**
+ *	A class to hold information on a cache.&lt;br&gt;
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2007-08-15 10:22:19 UTC (rev 820)
++++ trunk/src/CacheWolf/MainMenu.java	2007-08-16 22:41:50 UTC (rev 821)
+@@ -108,7 +108,7 @@
+ 		// Create the &quot;Search&quot; pulldown menu
+ 		///////////////////////////////////////////////////////////////////////
+ 		MenuItem[] searchMenuItems=new MenuItem[2];
+-		searchMenuItems[0] = search = new MenuItem(MyLocale.getMsg(112,&quot;Search&quot;)); 
++		searchMenuItems[0] = search = new MenuItem(MyLocale.getMsg(112,&quot;Search$&quot;+(char)6)); // char 6 = ctrl +f 
+ 		searchMenuItems[1] = searchClr = new MenuItem(MyLocale.getMsg(113,&quot;Clear search&quot;));
+ 		
+ 		///////////////////////////////////////////////////////////////////////
+@@ -184,7 +184,15 @@
+ 			mnuOpenProfile.modifiers|=MenuItem.Disabled;
+ 		}
+ 	}
+-	
++
++	public static void search() {
++		String srch = new InputBox(MyLocale.getMsg(119,&quot;Search for:&quot;)).input(&quot;&quot;,10);
++		if (srch != null) {
++			SearchCache ssc = new SearchCache(Global.getProfile().cacheDB);
++			ssc.search(srch);
++			Global.mainTab.tbP.refreshTable();
++		}
++	}
+ 	public void onEvent(Event ev){
+ 		Preferences pref=Global.getPref();
+ 		Profile profile=Global.getProfile();
+@@ -425,12 +433,7 @@
+ 			// &quot;Search&quot; pulldown menu
+ 			///////////////////////////////////////////////////////////////////////
+ 			if(mev.selectedItem == search){
+-				String srch = new InputBox(MyLocale.getMsg(119,&quot;Search for:&quot;)).input(&quot;&quot;,10);
+-				if (srch != null) {
+-					SearchCache ssc = new SearchCache(cacheDB);
+-					ssc.search(srch);
+-					tbp.refreshTable();
+-				}
++				search();
+ 			}
+ 			if(mev.selectedItem == searchClr){
+ 				SearchCache ssc = new SearchCache(cacheDB);
+
+Modified: trunk/src/CacheWolf/Navigate.java
+===================================================================
+--- trunk/src/CacheWolf/Navigate.java	2007-08-15 10:22:19 UTC (rev 820)
++++ trunk/src/CacheWolf/Navigate.java	2007-08-16 22:41:50 UTC (rev 821)
+@@ -69,7 +69,7 @@
+ 	public void stopDisplayTimer(){
+ 		if (tickerThread != null) tickerThread.stop();
+ 	}
+-	
++
+ 	public void stopGps() {
+ 		serThread.stop();
+ 		stopDisplayTimer();
+@@ -78,7 +78,7 @@
+ 		if (gotoPanel != null) gotoPanel.gpsStoped();
+ 		if (movingMap != null) movingMap.gpsStoped();
+ 	}
+-	
++
+ 	public boolean isGpsPosValid() {
+ 		return 	serThread != null &amp;&amp; serThread.isAlive() &amp;&amp; gpsPos.isValid() ; // &amp;&amp; gpsPos.getfiex();
+ 
+@@ -128,6 +128,7 @@
+ 	 * @param lon in degrees in WGS84
+ 	 * @return Azimut of the sun in degrees from north
+ 	 * @throws NumberFormatException when utc / datum could not be interpreted
++	 * this is prgrammed acording to the algorithmus described in <A HREF="http://de.wikipedia.org/wiki/Sonnenstand">http://de.wikipedia.org/wiki/Sonnenstand</A>
+ 	 */
+ 	public static float getSunAzimut (String utc, String datum, double lat, double lon) {
+ 		//	(new MessageBox(&quot;test&quot;, &quot;utc:&quot;+utc+&quot; datum: &quot;+datum+&quot;, lat: &quot;+lat+&quot;, len: &quot;+lon, MessageBox.OKB)).exec();
+@@ -158,7 +159,7 @@
+ 			if (alphaNenner&lt;0) {alpha +=180;}
+ 			// Azimut
+ 			double t0 = (jd0 - 2451545.)/36525.; // schon in t0 bzw jd0 richtig berechnet?
+-			double thetaHG = 6.697376 + 2400.05134 * t0 + 1.002738 * ((double)stunde + (double)minute/60.);
++			double thetaHG = 6.697376 + 2400.05134 * t0 + 1.002738 * ((double)stunde + (double)minute/60. + (double)sekunde/3600.);
+ 			double theta = thetaHG * 15. + lon;
+ 			double azimutNenner = java.lang.Math.cos((theta-alpha)/180*java.lang.Math.PI)*java.lang.Math.sin(lat/180*java.lang.Math.PI)-
+ 			java.lang.Math.tan(delta/180*java.lang.Math.PI)*java.lang.Math.cos(lat/180*java.lang.Math.PI);
+@@ -169,6 +170,13 @@
+ 			// null = Sueden auf Null = Norden umrechnen
+ 			azimut +=180.;
+ 			if (azimut &gt;360.) azimut -=360.;
++		/*	ewe.sys.Vm.debug(&quot;sunAzimut1: &quot; + azimut);
++			ewe.sys.Vm.debug(&quot;sun Elevation: &quot; +getSunAzimut2 (utc, datum, lat, lon).latDec);
++			CWPoint MoonDir = getMoonAzimut(jd, new CWPoint(lat, lon));
++			ewe.sys.Vm.debug(&quot;Moon Elevation: &quot; + MoonDir.latDec + &quot;Moon Azimut: &quot; + MoonDir.lonDec);
++			CWPoint OrionDir = getOrionAzimut(jd, new CWPoint(lat, lon));
++			ewe.sys.Vm.debug(&quot;Alnilam (Orion) Elevation: &quot; + OrionDir.latDec + &quot;Alnilam (Orion) Azimut: &quot; + OrionDir.lonDec );
++			*/
+ 			return azimut;
+ 		} catch (IndexOutOfBoundsException e) {
+ 			// wird von substring geworfen wenn datum / utc nicht genug Ziffern haben
+@@ -177,101 +185,289 @@
+ 			throw new NumberFormatException();
+ 		}
+ 	}
+-}
+-/**
+- * Thread for reading data from COM-port
+- *
+- */
+-class SerialThread extends mThread{
+-	SerialPort comSp;   
+-	byte[] comBuff = new byte[1024*10]; // when some action takes a long time (eg. loading or zooming a map), a lot of data can be in the buffer, read that at once
+-	int comLength = 0;
+-	CWGPSPoint myGPS;
+-	boolean run, tcpForward;
+-	Socket tcpConn;
+-	String lastError = new String();
+ 
+-	public SerialThread(SerialPortOptions spo, CWGPSPoint GPSPoint, String forwardIP) throws IOException {
+-		try{
+-			comSp = new SerialPort(spo);
+-		} catch (IOException e) {
+-			throw new IOException(spo.portName);
+-		} // catch (UnsatisfiedLinkError e) {} // TODO in original java-vm 
+-		if (forwardIP.length()&gt;0) { 
++	public static CWPoint getSunAzimut2 (String utc, String datum, double lat, double lon) {
++		double jd = utc2juliandate(utc, datum);
++		CWPoint eclCoos = getSunEclipticCoos(jd);
++		// calculate ecliptic coos
++		// convert coos
++		return ecliptic2AzimutCoos(new CWPoint(lat, lon), jd, eclCoos);
++	}
++	
++	public static CWPoint getMoonAzimut(double jd, CWPoint onEarth) {
++		CWPoint eclCoo = getMoonEclipticCoos(jd);
++		return ecliptic2AzimutCoos(onEarth, jd, eclCoo);
++	}
++	
++	public static CWPoint getOrionAzimut(double jd, CWPoint onEarth) {
++		// Koordinaten Alnilam (mittlerer G&#252;rtelstern des Orion), Rektaszension 5h36m13s; Deklination -1&#176;12'7 TODO &#196;quinoktium 2000
++		// Source: wikipedia
++		return equatorial2AzimutCoos(onEarth, jd, new CWPoint(-1. -12./60. -7./3600., (5. + 36./60. + 13./3600.)*15.) ); // (-1. -12./60. -7./3600., (5. + 36./60. + 13./3600.)*15.) &lt;- wikipedia // -1.19748, 5.60978 * 15.) &lt;- www.... // (-1. -11./60. -52./3600., (5. + 36./60. + 35./3600.)*15.)  &lt;- Stellarium
++	}
++	
++	/**
++	 * get the ecliptic coordinates of the sun
++	 * @param juliandate
++	 * @return
++	 */
++	public static CWPoint getSunEclipticCoos(double juliandate) {
++		double n = juliandate - 2451545.0;
++		double l = 280.46 + 0.9856474 * n;
++		double g = 357.528 + 0.9856003 * n;
++		double lambda = l + 1.915*java.lang.Math.sin(g/180*java.lang.Math.PI) + 0.02 * java.lang.Math.sin(2*g/180*java.lang.Math.PI);
++		return new CWPoint(0, lambda);
++	}
++	
++	
++	// the following code is adopted from <A HREF="http://lexikon.astronomie.info/java/sunmoon/sunmoon.html">http://lexikon.astronomie.info/java/sunmoon/sunmoon.html</A>
++	// ignores the time difference between juliandate and TDT, which is something like 1 minute
++	public static CWPoint getMoonEclipticCoos(double julianDate) {
++		final double DEG = Math.PI / 180;  
++		final double RAD = 1/DEG;
++		double sunAnomalyMean = 360*DEG/365.242191*(julianDate - 2447891.5) + 279.403303*DEG - 282.768422*DEG;
++		double D = julianDate-2447891.5;
++
++		// Mean Moon orbit elements as of 1990.0
++		double l0 = 318.351648*DEG;
++		double P0 =  36.340410*DEG;
++		double N0 = 318.510107*DEG;
++		double i  = 5.145396*DEG;
++
++		double l = 13.1763966*DEG*D+l0;
++		double MMoon = l-0.1114041*DEG*D-P0; // Moon's mean anomaly M
++		double N = N0-0.0529539*DEG*D;       // Moon's mean ascending node longitude
++		
++		double sunlon = getSunEclipticCoos(julianDate).lonDec; 
++		double C = l-sunlon;
++		double Ev = 1.2739*DEG*Math.sin(2*C-MMoon);
++		double Ae = 0.1858*DEG*Math.sin(sunAnomalyMean);
++		double A3 = 0.37*DEG*Math.sin(sunAnomalyMean);
++
++		double MMoon2 = MMoon+Ev-Ae-A3;  // corrected Moon anomaly
++		double Ec = 6.2886*DEG*Math.sin(MMoon2);  // equation of centre
++		double A4 = 0.214*DEG*Math.sin(2*MMoon2);
++		double l2 = l+Ev+Ec-Ae+A4; // corrected Moon's longitude
++		double V = 0.6583*DEG*Math.sin(2*(l2-sunlon));
++
++		double l3 = l2+V; // true orbital longitude;
++		double N2 = N-0.16*DEG*Math.sin(sunAnomalyMean);
++
++		CWPoint moonCoor = new CWPoint();  
++		moonCoor.lonDec = (( N2 + Math.atan2( Math.sin(l3-N2)*Math.cos(i), Math.cos(l3-N2) ) ) * RAD)% 360;
++		moonCoor.latDec = Math.asin( Math.sin(l3-N2)*Math.sin(i) ) * RAD;
++		//moonCoor.orbitLon = l3;
++		return moonCoor;
++		
++		/*
++		double e  = 0.054900;
++		double a  = 384401; // km
++		double diameter0 = 0.5181*DEG; // angular diameter of Moon at a distance
++		double parallax0 = 0.9507*DEG; // parallax at distance a
++
++		  // relative distance to semi mayor axis of lunar oribt
++		  moonCoor.distance = (1-sqr(e)) / (1+e*Math.cos(MMoon2+Ec) );
++		  moonCoor.diameter = diameter0/moonCoor.distance; // angular diameter in radians
++		  moonCoor.parallax = parallax0/moonCoor.distance; // horizontal parallax in radians
++		  moonCoor.distance *= a;	// distance in km
++
++		  // Age of Moon in radians since New Moon (0) - Full Moon (pi)
++		  moonCoor.moonAge = Mod2Pi(l3-sunCoor.lon);   
++		  moonCoor.phase   = 0.5*(1-Math.cos(moonCoor.moonAge)); // Moon phase, 0-1
++
++		  var phases = new Array(&quot;Neumond&quot;, &quot;Zunehmende Sichel&quot;, &quot;Erstes Viertel&quot;, &quot;Zunnehmender Mond&quot;, 
++		  	&quot;Vollmond&quot;, &quot;Abnehmender Mond&quot;, &quot;Letztes Viertel&quot;, &quot;Abnehmende Sichel&quot;, &quot;Neumond&quot;);
++		  var mainPhase = 1./29.53*360*DEG; // show 'Newmoon, 'Quarter' for +/-1 day arond the actual event
++		  var p = Mod(moonCoor.moonAge, 90.*DEG);
++		  if (p &lt; mainPhase || p &gt; 90*DEG-mainPhase) p = 2*Math.round(moonCoor.moonAge / (90.*DEG));
++		  else p = 2*Math.floor(moonCoor.moonAge / (90.*DEG))+1;
++		  moonCoor.moonPhase = phases[p];
++
++		  moonCoor.sign = Sign(moonCoor.lon);
++		  return (float) moonCoor.lonDec;
++		return 0;
++	}
++		 */
++	}
++
++		public static CWPoint ecliptic2AzimutCoos(CWPoint onEarth, double julianDate, CWPoint ecliptic) {
++			CWPoint equat = ecliptic2Equatorial(ecliptic, julianDate);
++			return equatorial2AzimutCoos(onEarth, julianDate, equat);
++		}
++		/**
++		 * convert rektaszension alpha and deklination delta to azimut
++		 * @param onEarth pos. on earth for which the azimut is wanted
++		 * @param julianDate
++		 * @param equatorial: lonDec = rektaszension (alpha), latDec = Deklination (delta)
++		 * @return lonDec: azimut in degrees from north, lat: elevation in degrees from horizont
++		 * alogithism from wikipedia sonnenbahn
++		 */
++		public static CWPoint equatorial2AzimutCoos(CWPoint onEarth, double julianDate, CWPoint equatorial) {
++			double stunde = ((julianDate + 0.5) % 1) * 24;
++			double jd0 = julianDate - stunde /24; // julian date at UTC 0:00
++			double t0 = (jd0 - 2451545.)/36525.; // schon in t0 bzw jd0 richtig berechnet?
++			double thetaHG = 6.697376 + 2400.05134 * t0 + 1.002738 * stunde; // + (double)minute/60.);
++			double theta = thetaHG * 15. + onEarth.lonDec;
++			double tau = (theta - equatorial.lonDec ) /180*Math.PI;
++			double phi = onEarth.latDec/180*Math.PI;
++			double azimutNenner = Math.cos(tau)*Math.sin(phi)-
++				Math.tan(equatorial.latDec/180*Math.PI)*Math.cos(onEarth.latDec/180*java.lang.Math.PI);
++			float azimut = (float) java.lang.Math.atan(java.lang.Math.sin((theta-equatorial.lonDec)/180*Math.PI)/
++					azimutNenner);
++			azimut = (float) (azimut * 180f / java.lang.Math.PI);
++			if (azimutNenner&lt;0) azimut +=180.;
++			// null = Sueden auf Null = Norden umrechnen
++			azimut +=180.;
++			if (azimut &gt;360.) azimut -=360.;
++			double h = 180 / Math.PI * Math.asin(Math.cos(equatorial.latDec/180*Math.PI) * Math.cos(tau)*Math.cos(phi) + Math.sin(equatorial.latDec/180 *Math.PI) * Math.sin(phi));
++			return new CWPoint(h, azimut);
++		}
++
++		/**
++		 * convert from eliptical to equatorial coordinates
++		 * @param juliandate
++		 * @param eklipCoo ecliptic coos in degrees  
++		 * @return lon: Deklination (delta), lat: Rektaszension (alpha) in degree
++		 * this is adopted from <A HREF="http://lexikon.astronomie.info/java/sunmoon/sunmoon.html">http://lexikon.astronomie.info/java/sunmoon/sunmoon.html</A> 
++		 */
++		public static CWPoint ecliptic2Equatorial(CWPoint eklipCoo, double juliandate) {
++			double T = (juliandate - 2451545.0)/36525.; // Epoch 2000 January 1.5
++			double eps = (23.+(26+21.45/60)/60 + T*(-46.815 +T*(-0.0006 + T*0.00181) )/3600 ) / 180 * java.lang.Math.PI; // schiefe der Ekliptik
++			double coseps = Math.cos(eps);
++			double sineps = Math.sin(eps);
++
++			double sinlon = Math.sin(eklipCoo.lonDec / 180 * Math.PI);
++			CWPoint equatorial = new CWPoint();
++			equatorial.lonDec = (180 / Math.PI * Math.atan2( (sinlon*coseps-Math.tan(eklipCoo.latDec /180 * Math.PI)*sineps), Math.cos(eklipCoo.lonDec/180 * Math.PI) ) ) % 360; // rektaszension (alpha)
++			equatorial.latDec = 180 / Math.PI * Math.asin( Math.sin(eklipCoo.latDec/180 * Math.PI)*coseps + Math.cos(eklipCoo.latDec/180 * Math.PI)*sineps*sinlon ); // deklination (delta)
++
++			return equatorial;
++		}
++		
++		/**
++		 * @param utc in the format as it comes from gps DDMMYY
++		 * @param datum in the format as it comes from gps HHMMSS
++		 * @return juliandate
++		 * @throws NumberFormatException if utc / datum could not be parsed successfully
++		 */
++		public static double utc2juliandate(String utc, String datum) {
+ 			try {
+-				tcpConn = new Socket(forwardIP, 23);
+-				tcpForward = true;
+-			} catch (ewe.net.UnknownHostException e) { tcpForward = false; lastError = e.getMessage();
+-			} catch (IOException e) { tcpForward = false; lastError = e.getMessage(); 
++				int tag, monat, jahr, stunde, minute, sekunde;
++				tag     = Convert.parseInt(datum.substring(0, 2));
++				monat   = Convert.parseInt(datum.substring(2, 4));
++				jahr    = Convert.parseInt(datum.substring(4, 6)) + 2000;
++				stunde  = Convert.parseInt(utc.substring(0, 2));
++				minute  = Convert.parseInt(utc.substring(2, 4));
++				sekunde = Convert.parseInt(utc.substring(4, 6)); // Kommastellen werden abgeschnitten
++				// julianisches &quot;Datum&quot; jd berechnen (see <A HREF="http://de.wikipedia.org/wiki/Julianisches_Datum">http://de.wikipedia.org/wiki/Julianisches_Datum</A> )
++				if (monat&lt;2) {jahr--; monat+=12;} // verlegung des Jahres Endes auf Feb macht Berechnung von SChaltjahren einfacher
++				double a = (int)java.lang.Math.floor((double)jahr/100.); // Alle hundert Jahre kein Schlatjahr (abrunden)
++				double b = 2 - a + java.lang.Math.floor((double)a/4.);
++				double jd = java.lang.Math.floor(365.25*(jahr + 4716.)) + java.lang.Math.floor(30.6001*((double)monat+1.)) + (double)tag + (double)stunde/24 + (double)minute/1440 + (double)sekunde/86400 + b - 1524.5;
++				return jd;
++				//double jd0 = java.lang.Math.floor(365.25*(jahr + 4716.)) + java.lang.Math.floor(30.6001*((double)monat+1.)) +(double)tag + b - 1524.5;
++			} catch (IndexOutOfBoundsException e) {
++				// wird von substring geworfen wenn datum / utc nicht genug Ziffern haben
++				// NumberFormatException wird au&#223;erdem von Convert.ParseInt direkt geworfen wenn
++				// nicht in Int konvertiert werden kann
++				throw new NumberFormatException();
+ 			}
+ 		}
+-		myGPS = GPSPoint;
+ 	}
+ 
+-	public void run() {
+-		int noData = 0;
+-		int notinterpreted = 0;
+-		run = true;
+-		while (run){
+-			try {
+-				sleep(1000);
+-				//Vm.debug(&quot;Loop? &quot; + noData);
+-				noData++;
+-				if (noData &gt; 5) { myGPS.noDataError(); }
+-			} catch (InterruptedException e) {}
+-			if (comSp != null)	{
+-				comLength = comSp.nonBlockingRead(comBuff, 0 ,comBuff.length);
+-				//Vm.debug(&quot;Length: &quot; + comBuff.length);
+-				if (comLength &gt; 0)	{
+-					noData = 0;
+-					String str = mString.fromAscii(comBuff, 0, comLength); 
+-					if (tcpForward) {
+-						try {
+-							tcpConn.write(comBuff, 0, comLength);
+-						} catch (IOException e) { tcpForward = false; }
+-					}
+-					//Vm.debug(str);
+-					if (myGPS.examine(str)) notinterpreted = 0; else notinterpreted++;
+-					if (notinterpreted &gt; 22) myGPS.noInterpretableData();
++	/**
++	 * Thread for reading data from COM-port
++	 *
++	 */
++	class SerialThread extends mThread{
++		SerialPort comSp;   
++		byte[] comBuff = new byte[1024*10]; // when some action takes a long time (eg. loading or zooming a map), a lot of data can be in the buffer, read that at once
++		int comLength = 0;
++		CWGPSPoint myGPS;
++		boolean run, tcpForward;
++		Socket tcpConn;
++		String lastError = new String();
++
++		public SerialThread(SerialPortOptions spo, CWGPSPoint GPSPoint, String forwardIP) throws IOException {
++			try{
++				comSp = new SerialPort(spo);
++			} catch (IOException e) {
++				throw new IOException(spo.portName);
++			} // catch (UnsatisfiedLinkError e) {} // TODO in original java-vm 
++			if (forwardIP.length()&gt;0) { 
++				try {
++					tcpConn = new Socket(forwardIP, 23);
++					tcpForward = true;
++				} catch (ewe.net.UnknownHostException e) { tcpForward = false; lastError = e.getMessage();
++				} catch (IOException e) { tcpForward = false; lastError = e.getMessage(); 
+ 				}
+ 			}
+-		} // while
+-		myGPS.noData();
+-		tcpConn.close();
+-	}
++			myGPS = GPSPoint;
++		}
+ 
+-	public void stop() {
+-		run = false;
+-		if (comSp != null) comSp.close();
++		public void run() {
++			int noData = 0;
++			int notinterpreted = 0;
++			run = true;
++			while (run){
++				try {
++					sleep(1000);
++					//Vm.debug(&quot;Loop? &quot; + noData);
++					noData++;
++					if (noData &gt; 5) { myGPS.noDataError(); }
++				} catch (InterruptedException e) {}
++				if (comSp != null)	{
++					comLength = comSp.nonBlockingRead(comBuff, 0 ,comBuff.length);
++					//Vm.debug(&quot;Length: &quot; + comBuff.length);
++					if (comLength &gt; 0)	{
++						noData = 0;
++						String str = mString.fromAscii(comBuff, 0, comLength); 
++						if (tcpForward) {
++							try {
++								tcpConn.write(comBuff, 0, comLength);
++							} catch (IOException e) { tcpForward = false; }
++						}
++						//Vm.debug(str);
++						if (myGPS.examine(str)) notinterpreted = 0; else notinterpreted++;
++						if (notinterpreted &gt; 22) myGPS.noInterpretableData();
++					}
++				}
++			} // while
++			myGPS.noData();
++			tcpConn.close();
++		}
++
++		public void stop() {
++			run = false;
++			if (comSp != null) comSp.close();
++		}
+ 	}
+-}
+ 
+-/** 
+- * Class for creating a new mThread to create timer ticks to be able to do form.close in the ticked-thread. 
+- * Using the Vm.requestTimer-Method causes &quot;ewe.sys.EventDirectionException: This task cannot be done within 
+- * a Timer Tick.&quot; in the ewe-vm when form.close is called.  
+- */
++	/** 
++	 * Class for creating a new mThread to create timer ticks to be able to do form.close in the ticked-thread. 
++	 * Using the Vm.requestTimer-Method causes &quot;ewe.sys.EventDirectionException: This task cannot be done within 
++	 * a Timer Tick.&quot; in the ewe-vm when form.close is called.  
++	 */
+ 
+-class UpdateThread extends mThread {
+-	public boolean run;
+-	public int calldelay;
+-	public Navigate ticked;
++	class UpdateThread extends mThread {
++		public boolean run;
++		public int calldelay;
++		public Navigate ticked;
+ 
+-	public UpdateThread (Navigate gp, int cd) {
+-		ticked = gp;
+-		calldelay = cd;
+-	}
++		public UpdateThread (Navigate gp, int cd) {
++			ticked = gp;
++			calldelay = cd;
++		}
+ 
+-	public void run () {
+-		run = true;
+-		while (run) {
+-			try { sleep (calldelay);} catch (InterruptedException e) {}
+-			ticked.ticked();
++		public void run () {
++			run = true;
++			while (run) {
++				try { sleep (calldelay);} catch (InterruptedException e) {}
++				ticked.ticked();
++			}
+ 		}
+-	}
+ 
+-	public void stop() {
+-		run = false;
++		public void stop() {
++			run = false;
++		}
+ 	}
+-}
+ 
+
+Modified: trunk/src/CacheWolf/TablePanel.java
+===================================================================
+--- trunk/src/CacheWolf/TablePanel.java	2007-08-15 10:22:19 UTC (rev 820)
++++ trunk/src/CacheWolf/TablePanel.java	2007-08-16 22:41:50 UTC (rev 821)
+@@ -42,13 +42,13 @@
+ 	}
+ 	
+ 	public void setSelectedCache(int row){ 
+-		selectedCh=null;
++	/*	selectedCh=null;
+ 		selectedIdx=-1;
+ 		if (row&gt;=0 &amp;&amp; row&lt;cacheDB.size())  {
+ 			selectedCh=(CacheHolder) cacheDB.get(row);
+ 			selectedIdx=row;
+ 		} 		
+-	
++	*/
+ 	}
+ 	
+ 	/** Mark the row as selected so that myTableModel can color it grey */
+@@ -60,6 +60,18 @@
+ 		tc.scrollToVisible(row,0);
+ 		// Next line needed for key scrolling 
+ 		tc.cursorTo(row, tc.cursor.x+tc.listMode, true);
++// &lt;&lt;&lt;&lt;&lt;&lt;&lt; .mine
++		//tc.scrollToVisible(row,0);
++		//tc.clearSelection(null);
++		//tc.addToSelection(row,0); 
++		//tc.addToSelection(row,myMod.MAXCOLUMNS-1); 
++		//tc.scrollToVisible(row,0);
++		/*tc.clearSelection(null);
++		tc.addToSelection(row,0); 
++		tc.addToSelection(row,myMod.MAXCOLUMNS-1);*/ 
++		//tc.paintSelectedCells();
++//=======
++//&gt;&gt;&gt;&gt;&gt;&gt;&gt; .r820
+ 	}
+ 	
+ 	/** Highlight the first row in grey. It can be unhighlighted by clicking */
+@@ -76,6 +88,8 @@
+ 	 * @return index of selected cache (-1 if not visible)
+ 	 */
+ 	public int getSelectedCache(){
++		return tc.cursor.y;
++		/*
+ 		// If cacheDB is empty return -1, cannot select a cache
+ 		if (cacheDB.size()==0) return -1;
+ 		// If cacheDB has entries, but all are filtered, return -1
+@@ -88,7 +102,7 @@
+ 		// Check whether the order of the list has changed because of sort/filter/search operations
+ 		if (cacheDB.get(selectedIdx)==selectedCh) return selectedIdx;
+ 		// The position has changed, return the new position
+-		return cacheDB.find(selectedCh);
++		return cacheDB.find(selectedCh); */
+ 	}
+ 	
+ 	public void saveColWidth(Preferences pref){
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2007-08-15 10:22:19 UTC (rev 820)
++++ trunk/src/CacheWolf/myTableControl.java	2007-08-16 22:41:50 UTC (rev 821)
+@@ -64,7 +64,8 @@
+ 			else if (ev.key == IKeys.PAGE_UP) Global.mainTab.tbP.selectRow(java.lang.Math.max(cursor.y-getOnScreen(null).height+1, 0)); // cursorTo(java.lang.Math.max(cursor.y-getOnScreen(null).height+1, 0),cursor.x+listMode,true);
+ 			else if (ev.key == IKeys.ACTION || ev.key == IKeys.ENTER) Global.mainTab.select(Global.mainTab.descP);
+ 			else if (ev.key == IKeys.DOWN) Global.mainTab.tbP.selectRow(java.lang.Math.min(cursor.y+ 1, model.numRows-1)); 
+-			else if (ev.key == IKeys.UP) Global.mainTab.tbP.selectRow(java.lang.Math.max(cursor.y-1, 0)); 
++			else if (ev.key == IKeys.UP) Global.mainTab.tbP.selectRow(java.lang.Math.max(cursor.y-1, 0));
++			else if (ev.key == 6 ) MainMenu.search(); // (char)6 == ctrl + f 
+ 			else super.onKeyEvent(ev);
+ 		}
+ 		else super.onKeyEvent(ev);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000710.html">[Cachewolf-svn] r820 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000712.html">[Cachewolf-svn] r822 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#711">[ date ]</a>
+              <a href="thread.html#711">[ thread ]</a>
+              <a href="subject.html#711">[ subject ]</a>
+              <a href="author.html#711">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

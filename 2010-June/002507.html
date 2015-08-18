@@ -1,0 +1,267 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2580 - in trunk: res_noewe src/CacheWolf	src/CacheWolf/imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-June/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2580%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf%0A%09src/CacheWolf/imp&In-Reply-To=%3C201006041451.o54Epm0O028882%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   
+   <LINK REL="Next"  HREF="002508.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2580 - in trunk: res_noewe src/CacheWolf	src/CacheWolf/imp</H1>
+    <B>mik77 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2580%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf%0A%09src/CacheWolf/imp&In-Reply-To=%3C201006041451.o54Epm0O028882%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2580 - in trunk: res_noewe src/CacheWolf	src/CacheWolf/imp">mik77 at mail.berlios.de
+       </A><BR>
+    <I>Fri Jun  4 16:51:48 CEST 2010</I>
+    <P><UL>
+        
+        <LI>Next message: <A HREF="002508.html">[Cachewolf-svn] r2581 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2507">[ date ]</a>
+              <a href="thread.html#2507">[ thread ]</a>
+              <a href="subject.html#2507">[ subject ]</a>
+              <a href="author.html#2507">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mik77
+Date: 2010-06-04 16:51:37 +0200 (Fri, 04 Jun 2010)
+New Revision: 2580
+
+Modified:
+   trunk/res_noewe/spider.def
+   trunk/src/CacheWolf/DateFormat.java
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+first adaptions to new GC design
+
+Modified: trunk/res_noewe/spider.def
+===================================================================
+--- trunk/res_noewe/spider.def	2010-05-30 14:38:59 UTC (rev 2579)
++++ trunk/res_noewe/spider.def	2010-06-04 14:51:37 UTC (rev 2580)
+@@ -38,6 +38,7 @@
+ # Version 6.1 - 20100305 better log recognition
+ # Version 7.0 - 20100402 adaption to new GC-design
+ # Version 7.1 - 20100528 better description recognition
++# Version 8.0 - 20100604 adaption to new GC-design
+ #============================================================
+ # A suffix of Rex indicates a regular expression
+ # A suffix of ExStart indicates the start of an Extractor search pattern
+@@ -99,20 +100,18 @@
+ #--------------------------------------
+ getPageByName      = <A HREF="http://www.geocaching.com/seek/cache_details.aspx?wp=">http://www.geocaching.com/seek/cache_details.aspx?wp=</A>
+ fetchAllLogs       = &amp;log=y
+-cacheUnavailable   = &lt;ul\ class=&quot;OldWarning&quot;&gt;&lt;li&gt;This\ cache\ is\ temporarily\ unavailable.\ Read\ the\ logs\ below\ to\ read\ the\ status\ for\ this\ cache.&lt;/li&gt;&lt;/ul&gt;&lt;/span&gt;
+-cacheArchived      = &lt;ul\ class=&quot;OldWarning&quot;&gt;&lt;li&gt;This\ cache\ has\ been\ archived,\ but\ is\ available\ for\ viewing\ for\ archival\ purposes.&lt;/li&gt;&lt;/ul&gt;&lt;/span&gt;
++cacheUnavailable   = &lt;ul\ class=&quot;OldWarning&quot;&gt;&lt;li&gt;This\ cache\ is\ temporarily\ unavailable.\ Read\ the\ logs\ below\ to\ read\ the\ status\ for\ this\ cache.&lt;/li&gt;&lt;/ul&gt;
++cacheArchived      = &lt;ul\ class=&quot;OldWarning&quot;&gt;&lt;li&gt;This\ cache\ has\ been\ archived,\ but\ is\ available\ for\ viewing\ for\ archival\ purposes.&lt;/li&gt;&lt;/ul&gt;
+ latLonRex          = &lt;span\ id=&quot;ctl00_ContentBody_LatLon&quot;\ style=&quot;font-weight:bold;&quot;&gt;((?s).*?)&lt;/span&gt;
+ shortDescRex       = &lt;span\ id=&quot;ctl00_ContentBody_ShortDescription&quot;&gt;((?s).*?)&lt;/span&gt;
+-#This version doesn't work with EWE/EXE, so we trim the tags in code
+-#longDescRex        = &lt;span\ id=&quot;ctl00_ContentBody_LongDescription&quot;&gt;((?s).*?)&lt;/span&gt;(?:\\s*)&lt;br\ /&gt;(?:\\s*)&lt;/p&gt;(?:\\s*)&lt;p&gt;(?:\\s*)&lt;strong&gt;Additional\ Hints&nbsp;\\(&lt;/strong&gt;
+-longDescRex        = tentBody_LongDescription&quot;&gt;((?s).*?)&lt;td\ valign=&quot;top&quot;\ width=&quot;10%&quot;&gt;&nbsp;&lt;/td&gt;\s*&lt;td
++longDescRex        = tentBody_LongDescription&quot;&gt;((?s).*?)&lt;td\ valign=&quot;top&quot;\ width=&quot;10%&quot;&gt;\\s*&nbsp;\\s*&lt;/td
+ cacheNameRex       = &lt;span\ id=&quot;ctl00_ContentBody_CacheName&quot;&gt;((?s).*?)&lt;/span&gt;
+-cacheOwnerRex      = &lt;span\ id=&quot;ctl00_ContentBody_CacheOwner&quot;&gt;by\ &lt;a\ href=(?:(?s).*?)&gt;((?s).*?)&lt;/a&gt;&lt;/span&gt;
+-dateHiddenRex      = &lt;span\ id=&quot;ctl00_ContentBody_DateHidden&quot;&gt;((?s).*?)&lt;/span&gt;
++cacheOwnerRex      = &lt;strong&gt;\\s*A.*\\s*cache\\s*&lt;/strong&gt;\\s*by\ &lt;a\ href=(?:(?s).*?)&gt;((?s).*?)&lt;/a&gt;\\s*&lt;/td&gt;
++dateHiddenRex      = &lt;td&gt;\\s*&lt;strong&gt;\\s*(?:Hidden|Event\ Date)\\s*:&lt;/strong&gt;\\s*((?s).*?)\\s*(?:&lt;/td&gt;|&lt;a href=)
+ hintsRex           = &lt;div id=&quot;div_hint&quot; class=&quot;HalfLeft&quot;&gt;\\s*((?s).*?)\\s*&lt;/div&gt;
+ sizeRex            = alt=&quot;Size:\ ((?s).*?)&quot;\ /&gt;&amp;nbsp&lt;small&gt;
+-difficultyRex      = &lt;span\ id=&quot;ctl00_ContentBody_Difficulty&quot;&gt;.*?alt=&quot;(.*?)\ out\ of
+-terrainRex         = &lt;span\ id=&quot;ctl00_ContentBody_Terrain&quot;&gt;.*?alt=&quot;(.*?)\ out\ of
++difficultyRex      = &lt;td&gt;\\s*&lt;strong&gt;\\s*Difficulty:&lt;/strong&gt;\\s*&lt;img src=.*?alt=&quot;(.*?)\ out\ of
++terrainRex         = &lt;td&gt;\\s*&lt;strong&gt;\\s*Terrain:&lt;/strong&gt;\\s*&lt;img src=.*?alt=&quot;(.*?)\ out\ of
+ cacheTypeRex       = /images/WptTypes/(.*?)\\.gif&quot;\ alt=&quot;
+ cacheLocationRex   = &lt;span\ id=&quot;ctl00_ContentBody_Location&quot;&gt;In\ ([^&lt;]*?)&lt;
+ premiumCachepage   = Sorry, the owner of this listing has made it viewable to Premium Members only.
+@@ -121,7 +120,7 @@
+ #Section2a: Logs
+ #--------------------------------------
+ # blockRex extrahiert zun&#228;chst aus der gesamten Seite den Logbereich
+-blockRex           = &lt;table class=&quot;LogsTable Table&quot;&gt;((?s).*?)&lt;/table&gt;&lt;/span&gt;&lt;/p&gt;
++blockRex           = &lt;table class=&quot;LogsTable Table&quot;&gt;((?s).*?)&lt;/table&gt;
+ # singleLogEx extrahiert in einer Schleife alle Logs aus dem Logbereich
+ singleLogExStart   = &gt;&lt;strong&gt;&lt;img src=
+ singleLogExEnd     = &lt;small&gt;&lt;a\ href=&quot;
+@@ -148,11 +147,14 @@
+ #Section2b: Bugs
+ #--------------------------------------
+ # blockEx extrahiert zun&#228;chst den Bugbereich aus der gesamten Seite
+-blockExStart       = &gt;&nbsp;Inventory&lt;/h3&gt;
++blockExStart       = &lt;span\ id=&quot;ctl00_ContentBody_uxTravelBugList_uxInventoryLabel&quot;&gt;Inventory&lt;/span&gt;
+ blockExEnd         = &lt;p class=&quot;NoSpacing&quot;&gt;
+ # bugEx extrahiert die Namen der einzelnen Bugs aus dem Bugbereich
+ bugExStart         = &lt;a\ href=&quot;
+-bugExEnd           = &lt;/a&gt;&lt;/li&gt;
++bugExEnd           = &lt;/a&gt;
++bugLinkEnd         = &quot;\ class=&quot;lnk&quot;&gt;
++bugNameExStart     = &lt;span&gt;
++bugNameExEnd       = &lt;/span&gt;
+ bugDetailsStart    = id=&quot;ctl00_ContentBody_BugDetails_BugGoal&quot;&gt;
+ bugDetailsEnd      = &lt;/span&gt;
+ getBugByName       = <A HREF="http://www.geocaching.com/track/search.aspx?k=">http://www.geocaching.com/track/search.aspx?k=</A>
+@@ -186,16 +188,16 @@
+ #--------------------------------------
+ #Section2d: Additional waypoints
+ #--------------------------------------
+-wayBlockExStart    = &lt;strong&gt;Additional\ Waypoints&lt;/strong&gt;
++wayBlockExStart    = &lt;span\ id=&quot;ctl00_ContentBody_WaypointsInfo&quot;\ style=&quot;font-weight:bold;&quot;&gt;Additional\ Waypoints&lt;/span&gt;
+ wayBlockExEnd      = &lt;/table&gt;
+ nameRex            = &amp;RefDS=1&quot;&gt;(.*)&lt;/a&gt;
+-koordRex           = &lt;td&gt;([NSns]\ [0-9]{1,2}..[0-9]{1,2}.[0-9]{1,3}\ [EWew]\ [0-9]{1,3}..[0-9]{1,2}.[0-9]{1,3})&lt;/td&gt;
+-descRex            = colspan=&quot;4&quot;&gt;((?:.|\n|\r)*?)&lt;/td&gt;
+-typeRex            = &lt;/a&gt;\ \\((.*)\\)&lt;/td&gt;
++koordRex           = &lt;td&gt;\\s*([NSns]\ [0-9]{1,2}..[0-9]{1,2}.[0-9]{1,3}\ [EWew]\ [0-9]{1,3}..[0-9]{1,2}.[0-9]{1,3})\\s*&lt;/td&gt;
++descRex            = colspan=&quot;6&quot;&gt;((?:.|\n|\r)*?)&lt;/td&gt;
++typeRex            = &lt;/a&gt;\ \\((.*)\\)\\s*&lt;/td&gt;
+ rowBlockExStart    = &lt;tr
+ rowBlockExEnd      = &lt;/tr&gt;
+-prefixExStart      = &lt;td&gt;
+-prefixExEnd        = &lt;/td&gt;
++prefixExStart      =
++prefixExEnd        =
+ 
+ #--------------------------------------
+ #Section2e: Attributes
+
+Modified: trunk/src/CacheWolf/DateFormat.java
+===================================================================
+--- trunk/src/CacheWolf/DateFormat.java	2010-05-30 14:38:59 UTC (rev 2579)
++++ trunk/src/CacheWolf/DateFormat.java	2010-06-04 14:51:37 UTC (rev 2580)
+@@ -19,18 +19,18 @@
+ 		int p1, p2 = -1, p3;
+ 		p1 = date.indexOf(&quot;/&quot;);
+ 		if (p1==-1){
+-			//dayofweek, month dayofmonth, year (Saturday, December 12, 2009)
++			//dayofweek, dayofmonth month year (Monday, 07 June 2010)
+ 			p1 = date.indexOf(&quot;,&quot;);			
+ 			p2 = date.indexOf(&quot; &quot;, p1 + 2);
+-			p3 = date.indexOf(&quot;,&quot;, p2 + 1);
++			p3 = date.indexOf(&quot; &quot;, p2 + 1);
+ 			final String monthNames[] = { &quot;January&quot;, &quot;February&quot;, &quot;March&quot;, &quot;April&quot;, &quot;May&quot;,
+ 					&quot;June&quot;, &quot;July&quot;, &quot;August&quot;, &quot;September&quot;, &quot;October&quot;, &quot;November&quot;,
+ 					&quot;December&quot; };
+ 			for (int m = 0; m &lt; 12; m++) {
+-				if (monthNames[m].equals(date.substring(p1+2,p2))) {
++				if (monthNames[m].equals(date.substring(p2+1,p3))) {
+ 					String mm = Integer.toString(m+1);
+ 					if (mm.length()==1) {mm=0+mm;}
+-					return date.substring(p3+2,p3+6) + &quot;-&quot; + mm + &quot;-&quot; + date.substring(p2+1, p2+3);
++					return date.substring(p3+1,p3+5) + &quot;-&quot; + mm + &quot;-&quot; + date.substring(p1+2, p1+4);
+ 				}
+ 			}
+ 			return date;
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2010-05-30 14:38:59 UTC (rev 2579)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2010-06-04 14:51:37 UTC (rev 2580)
+@@ -816,6 +816,7 @@
+ 			if(doNotgetFound) postStr = postStr + propShowOnlyFound;
+ 		}
+ 		postStr = postStr + cacheTypeRestriction;
++		
+ 		Regex rexViewstate = new Regex(&quot;id=\&quot;__VIEWSTATE\&quot; value=\&quot;(.*?)\&quot; /&gt;&quot;);
+ 		String viewstate;
+ 		rexViewstate.search(htmlListPage);
+@@ -824,6 +825,16 @@
+ 		} else {
+ 			viewstate = &quot;&quot;;
+ 		}
++		
++		Regex rexViewstate1 = new Regex(&quot;id=\&quot;__VIEWSTATE1\&quot; value=\&quot;(.*?)\&quot; /&gt;&quot;);
++		String viewstate1;
++		rexViewstate1.search(htmlListPage);
++		if(rexViewstate1.didMatch()){
++			viewstate1 = rexViewstate1.stringMatched(1);
++		} else {
++			viewstate1 = &quot;&quot;;
++		}
++
+ 		/*
+ 		rexEventvalidation.search(htmlPage);
+ 		if(rexEventvalidation.didMatch()){
+@@ -832,12 +843,13 @@
+ 			eventvalidation = &quot;&quot;;
+ 		}
+ 		*/
++
+ 		String strNextPage = &quot;ctl00$ContentBody$pgrTop$ctl08&quot;;
+ 		String url = URL.encodeURL(&quot;__EVENTTARGET&quot;,false) +&quot;=&quot;+ URL.encodeURL(strNextPage,false)
+ 	    + &quot;&amp;&quot; + URL.encodeURL(&quot;__EVENTARGUMENT&quot;,false) +&quot;=&quot;+ URL.encodeURL(&quot;&quot;,false)
+-//	    + &quot;&amp;&quot; + URL.encodeURL(&quot;__VIEWSTATEFIELDCOUNT&quot;,false) +&quot;=2&quot;
+-	    + &quot;&amp;&quot; + URL.encodeURL(&quot;__VIEWSTATE&quot;,false) +&quot;=&quot;+ URL.encodeURL(viewstate,false);
+-//	    + &quot;&amp;&quot; + URL.encodeURL(&quot;__VIEWSTATE1&quot;,false) +&quot;=&quot;+ URL.encodeURL(viewstate1,false);
++	    + &quot;&amp;&quot; + URL.encodeURL(&quot;__VIEWSTATEFIELDCOUNT&quot;,false) +&quot;=2&quot;
++	    + &quot;&amp;&quot; + URL.encodeURL(&quot;__VIEWSTATE&quot;,false) +&quot;=&quot;+ URL.encodeURL(viewstate,false)
++	    + &quot;&amp;&quot; + URL.encodeURL(&quot;__VIEWSTATE1&quot;,false) +&quot;=&quot;+ URL.encodeURL(viewstate1,false);
+ //	    + &quot;&amp;&quot; + URL.encodeURL(&quot;__EVENTVALIDATION&quot;,false) +&quot;=&quot;+ URL.encodeURL(eventvalidation,false);
+ 		try{
+ 			pref.log(&quot;Fetching next list page:&quot; + url);
+@@ -1494,10 +1506,11 @@
+ 		while(!exBug.endOfSearch()){
+ 			if (infB.isClosed) break; // Allow user to cancel by closing progress form
+ 			linkPlusBug= exBug.findNext();
+-			int idx=linkPlusBug.indexOf(&quot;\&quot;&gt;&quot;);
++			int idx=linkPlusBug.indexOf(p.getProp(&quot;bugLinkEnd&quot;));
+ 			if (idx&lt;0) break; // No link/bug pair found
+ 			link=linkPlusBug.substring(0,idx);
+-			bug=linkPlusBug.substring(idx+2);
++			Extractor exBugName = new Extractor(linkPlusBug,p.getProp(&quot;bugNameExStart&quot;),p.getProp(&quot;bugNameExEnd&quot;),0,Extractor.EXCLUDESTARTEND);
++			bug=exBugName.findNext();
+ 			if(bug.length()&gt;0) { // Found a bug, get its details
+ 				Travelbug tb=new Travelbug(bug);
+ 				try{
+@@ -1789,13 +1802,14 @@
+ 				CacheHolder hd = null;
+ 
+ 				String[] AddiBlock=mString.split(rowBlock,'\n');
+-				int linePrefix=3;
++				int linePrefix=8;
+ 				if(AddiBlock.length &lt; linePrefix + 1) {
+ 					(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;), &quot;GC changed table output \nCW must be changed too!&quot;, FormBase.OKB)).execute();
+ 					break;
+ 				}				
+-				Extractor exPrefix=new Extractor(AddiBlock[linePrefix].trim(),p.getProp(&quot;prefixExStart&quot;),p.getProp(&quot;prefixExEnd&quot;),0,true);
+-				String prefix=exPrefix.findNext();
++//				Extractor exPrefix=new Extractor(AddiBlock[linePrefix].trim(),p.getProp(&quot;prefixExStart&quot;),p.getProp(&quot;prefixExEnd&quot;),0,true);
++//				String prefix=exPrefix.findNext();
++				String prefix=AddiBlock[linePrefix].trim();
+ 
+ 				String adWayPoint;
+ 				if (prefix.length() == 2)
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	
+	<LI>Next message: <A HREF="002508.html">[Cachewolf-svn] r2581 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2507">[ date ]</a>
+              <a href="thread.html#2507">[ thread ]</a>
+              <a href="subject.html#2507">[ subject ]</a>
+              <a href="author.html#2507">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

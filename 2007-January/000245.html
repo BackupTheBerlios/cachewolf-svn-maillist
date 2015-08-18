@@ -1,0 +1,192 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r466 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r466%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701280807.l0S87KxK012995%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000244.html">
+   <LINK REL="Next"  HREF="000246.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r466 - trunk/src/CacheWolf</H1>
+    <B>kalli at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r466%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701280807.l0S87KxK012995%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r466 - trunk/src/CacheWolf">kalli at mail.berlios.de
+       </A><BR>
+    <I>Sun Jan 28 09:07:20 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000244.html">[Cachewolf-svn] r465 - in trunk: resources src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000246.html">[Cachewolf-svn] r467 - trunk/src/exp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#245">[ date ]</a>
+              <a href="thread.html#245">[ thread ]</a>
+              <a href="subject.html#245">[ subject ]</a>
+              <a href="author.html#245">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: kalli
+Date: 2007-01-28 09:07:16 +0100 (Sun, 28 Jan 2007)
+New Revision: 466
+
+Modified:
+   trunk/src/CacheWolf/CacheHolder.java
+   trunk/src/CacheWolf/Profile.java
+Log:
+buildReference von CacheHolder nach Profile verschoben, da mit der ganzen Datenbank gearbeit wird.
+
+Modified: trunk/src/CacheWolf/CacheHolder.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolder.java	2007-01-27 20:26:53 UTC (rev 465)
++++ trunk/src/CacheWolf/CacheHolder.java	2007-01-28 08:07:16 UTC (rev 466)
+@@ -438,35 +438,6 @@
+ 	   else return false;
+    }
+    
+-   public static void buildReferences(Vector cacheDB){
+-	   CacheHolder ch, mainCh;
+-	   Hashtable dbIndex = new Hashtable((int)(cacheDB.size()/0.75f + 1), 0.75f); // initialize so that von rehashing is neccessary
+-	   Integer index;
+-	   // Build index for faster search and clear all references
+-	   for(int i = cacheDB.size() -1; i &gt;= 0;i--){
+-			ch = (CacheHolder)cacheDB.get(i);
+-			ch.addiWpts.clear();
+-			ch.mainCache = null; 
+-			dbIndex.put((String)ch.wayPoint, new Integer(i));
+-	   }
+-	   // Build refeneces
+-	   for(int i = cacheDB.size() -1; i &gt;= 0;i--){
+-			ch = (CacheHolder)cacheDB.get(i);
+-			if (ch.isAddiWpt()) {
+-				//search main cache
+-				if (ch.wayPoint.length() == 5){
+-					index = (Integer) dbIndex.get(&quot;GC&quot;+ ch.wayPoint.substring(1));
+-				} 
+-				else {
+-					index = (Integer) dbIndex.get(&quot;GC&quot;+ ch.wayPoint.substring(2));
+-				}
+-				if (index != null) {
+-					mainCh = (CacheHolder) cacheDB.get(index.intValue());
+-					mainCh.addiWpts.add(ch);
+-					ch.mainCache = mainCh;
+-				}// if
+-			}// if
+-	   }// for
+-   }
++
+   
+ }
+\ No newline at end of file
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2007-01-27 20:26:53 UTC (rev 465)
++++ trunk/src/CacheWolf/Profile.java	2007-01-28 08:07:16 UTC (rev 466)
+@@ -8,6 +8,7 @@
+ import ewe.io.PrintWriter;
+ import ewe.sys.Convert;
+ import ewe.sys.Vm;
++import ewe.util.Hashtable;
+ import ewe.util.Vector;
+ 
+ /**
+@@ -111,7 +112,7 @@
+ 			}
+ 			detfile.print(&quot;&lt;/CACHELIST&gt;\n&quot;);
+ 			detfile.close();
+-			CacheHolder.buildReferences(cacheDB);
++			buildReferences();
+ 		}catch(Exception e){
+ 			Vm.debug(&quot;Problem writing to index file &quot;+e.toString());
+ 		}
+@@ -204,7 +205,7 @@
+ 			}
+ 			in.close();
+ 			// Build references between caches and addi wpts
+-			CacheHolder.buildReferences(cacheDB);
++			buildReferences();
+ 			
+ 		} catch (FileNotFoundException e) {
+ 			Vm.debug(&quot;index.xml not found&quot;); // Normal when profile is opened for first time
+@@ -266,7 +267,6 @@
+ 		*	list.
+ 		*	@see	CacheHolder
+ 		*	@see	Extractor
+-		*	@see	Navi
+ 		*/
+ 		public void updateBearingDistance(){
+ 			CWPoint fromPoint = new CWPoint(Global.getPref().curCentrePt); // Clone current centre to be sure
+@@ -294,4 +294,38 @@
+ 			Global.mainTab.radarP.recenterRadar();
+ 		} //updateBearingDistance
+ 
++		/**
++		 * Method to build the reference between addi wpt
++		 * and main cache.
++		 */
++		   public void buildReferences(){
++			   CacheHolder ch, mainCh;
++			   Hashtable dbIndex = new Hashtable((int)(cacheDB.size()/0.75f + 1), 0.75f); // initialize so that von rehashing is neccessary
++			   Integer index;
++			   // Build index for faster search and clear all references
++			   for(int i = cacheDB.size() -1; i &gt;= 0;i--){
++					ch = (CacheHolder)cacheDB.get(i);
++					ch.addiWpts.clear();
++					ch.mainCache = null; 
++					dbIndex.put((String)ch.wayPoint, new Integer(i));
++			   }
++			   // Build refeneces
++			   for(int i = cacheDB.size() -1; i &gt;= 0;i--){
++					ch = (CacheHolder)cacheDB.get(i);
++					if (ch.isAddiWpt()) {
++						//search main cache
++						if (ch.wayPoint.length() == 5){
++							index = (Integer) dbIndex.get(&quot;GC&quot;+ ch.wayPoint.substring(1));
++						} 
++						else {
++							index = (Integer) dbIndex.get(&quot;GC&quot;+ ch.wayPoint.substring(2));
++						}
++						if (index != null) {
++							mainCh = (CacheHolder) cacheDB.get(index.intValue());
++							mainCh.addiWpts.add(ch);
++							ch.mainCache = mainCh;
++						}// if
++					}// if
++			   }// for
++		   }
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000244.html">[Cachewolf-svn] r465 - in trunk: resources src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000246.html">[Cachewolf-svn] r467 - trunk/src/exp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#245">[ date ]</a>
+              <a href="thread.html#245">[ thread ]</a>
+              <a href="subject.html#245">[ subject ]</a>
+              <a href="author.html#245">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

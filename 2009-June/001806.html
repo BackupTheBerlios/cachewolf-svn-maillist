@@ -1,0 +1,452 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1888 - trunk/src/exp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-June/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1888%20-%20trunk/src/exp&In-Reply-To=%3C200906042216.n54MGtAK026071%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001805.html">
+   <LINK REL="Next"  HREF="001807.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1888 - trunk/src/exp</H1>
+    <B>greiol at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1888%20-%20trunk/src/exp&In-Reply-To=%3C200906042216.n54MGtAK026071%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1888 - trunk/src/exp">greiol at mail.berlios.de
+       </A><BR>
+    <I>Fri Jun  5 00:16:55 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001805.html">[Cachewolf-svn] r1887 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001807.html">[Cachewolf-svn] r1889 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1806">[ date ]</a>
+              <a href="thread.html#1806">[ thread ]</a>
+              <a href="subject.html#1806">[ subject ]</a>
+              <a href="author.html#1806">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: greiol
+Date: 2009-06-05 00:16:54 +0200 (Fri, 05 Jun 2009)
+New Revision: 1888
+
+Added:
+   trunk/src/exp/GpxExportNg.java
+   trunk/src/exp/GpxExportNgForm.java
+Log:
+prototype for new gpx exporter
+
+Added: trunk/src/exp/GpxExportNg.java
+===================================================================
+--- trunk/src/exp/GpxExportNg.java	2009-06-03 20:23:49 UTC (rev 1887)
++++ trunk/src/exp/GpxExportNg.java	2009-06-04 22:16:54 UTC (rev 1888)
+@@ -0,0 +1,232 @@
++package exp;
++
++import CacheWolf.CacheSize;
++import CacheWolf.CacheType;
++import CacheWolf.CacheHolder;
++import CacheWolf.Global;
++import com.stevesoft.ewe_pat.*;
++import ewe.util.Hashtable;
++
++import ewe.sys.Vm;
++
++/**
++ * experimental GPX exporter that should better handle the various tasks that can be accomplished with GPX
++ * it is not yet linked to any menu, so if you want to play around with it, first you have to create a menu item
++ *
++ */
++public class GpxExportNg {
++	
++	/** export is in compact format */
++	final static int GPX_COMPACT = 0;
++	/** export is PQ like */
++	final static int GPX_PQLIKE = 1;
++	/** export follows gc.com myfinds format */
++	final static int GPX_MYFINDSPQ = 2;
++	
++	final static String GPXHEADER = &quot;&quot;;
++	
++	final static String GPXCOMPACT = &quot;\t&lt;wpt lat=\&quot;@@WPLAT@@\&quot; lon=\&quot;@@WPLON@@\&quot;&gt;\n&quot;
++						.concat(&quot;\t\t&lt;name&gt;@@WPNAME@@&lt;/name&gt;\n&quot;)
++						.concat(&quot;\t\t&lt;cmt&gt;@@WPCMT@@&lt;/cmt&gt;\n&quot;)
++						.concat(&quot;\t\t&lt;desc&gt;@@WPDESC@@&lt;/desc&gt;\n&quot;)
++						.concat(&quot;\t\t&lt;url&gt;@@WPURL@@&lt;/url&gt;\n&quot;)
++						.concat(&quot;\t\t&lt;urlname&gt;@@WPURLNAME@@&lt;/urlname&gt;\n&quot;)
++						.concat(&quot;\t\t&lt;sym&gt;@@WPSYMBOL@@&lt;/sym&gt;\n&quot;)
++						.concat(&quot;\t\t&lt;type&gt;@@WPTYPE@@&lt;/type&gt;\n&quot;);
++	
++	final static String GPXEXTENSION =&quot;\t\t&lt;groundspeak:cache id=\&quot;@@CACHEID@@\&quot; available=\&quot;@@CACHEAVAILABLE@@\&quot; archived=\&quot;@@CACHEARCHIVED\&quot; xmlns:groundspeak=\&quot;<A HREF="http://www.geocaching.com/cache/1/0\">http://www.geocaching.com/cache/1/0\</A>&quot;&gt;\n&quot;
++						.concat(&quot;\t\t\t&lt;groundspeak:name&gt;@@CACHENAME@@&lt;/groundspeak:name&gt;\n&quot;)
++						.concat(&quot;\t\t\t&lt;groundspeak:placed_by&gt;@@CACHEPLACEDBY@@&lt;groundspeak:placed_by&gt;\n&quot;)
++						.concat(&quot;\t\t\t&lt;groundspeak:owner_id id=\&quot;@@CACHEOWNERID@@\&quot;&gt;@@CACHEOWNER@@&lt;/groundspeak:owner_id&gt;\n&quot;)
++						.concat(&quot;\t\t\t&lt;groundspeak:type&gt;@@CACHETYPE@@&lt;/groundspeak:type&gt;\n&quot;)
++						.concat(&quot;\t\t\t&lt;groundspeak:container&gt;@@CACHECONTAINER@@&lt;/groundspeak:container&gt;\n&quot;)
++						.concat(&quot;\t\t\t&lt;groundspeak:difficulty&gt;@@CACHEDIFFICULTY@@&lt;/groundspeak:difficulty&gt;\n&quot;)
++						.concat(&quot;\t\t\t&lt;groundspeak:terrain&gt;@@CACHETERRAIN@@&lt;/groundspeak:terrain&gt;\n&quot;)
++						.concat(&quot;\t\t\t&lt;groundspeak:country&gt;@@CACHECOUNTRY@@&lt;/groundspeak:country&gt;\n&quot;)
++						.concat(&quot;\t\t\t&lt;groundspeak:state&gt;@@CACHESTATE@@&lt;/groundspeak:state&gt;\n&quot;)
++						.concat(&quot;\t\t\t&lt;groundspeak:short_description html=\&quot;@@CACHEHTML@@\&quot;&gt;@@CACHESHORTDESCRIPTION@@&lt;groundspeak:short_description&gt;\n&quot;)
++						.concat(&quot;\t\t\t&lt;groundspeak:long_description html=\&quot;@@CACHEHTML@@\&quot;&gt;@@CACHELONGDESCRIPTION@@&lt;groundspeak:long_description&gt;\n&quot;)
++						.concat(&quot;\t\t\t&lt;groundspeak:encoded_hints&gt;@@CACHEHINT@@&lt;/groundspeak:encoded_hints&gt;\n&quot;);
++
++	final static String GPXLOG = &quot;\t\t\t\t&lt;groundspeak:log id=\&quot;@@LOGID@@\&quot;&gt;\n&quot;
++						.concat(&quot;\t\t\t\t\t&lt;groundspeak:date&gt;@@LOGDATE@@&lt;/groundspeak:date&gt;\n&quot;)
++						.concat(&quot;\t\t\t\t\t&lt;groundspeak:type&gt;@@LOGTYPE@@&lt;/groundspeak:type&gt;\n&quot;)
++						.concat(&quot;\t\t\t\t\t&lt;groundspeak:finder id=\&quot;@@LOGFINDERID@@\&quot;&gt;@@LOGFINDER@@&lt;/groundspeak:finder&gt;\n&quot;)
++						.concat(&quot;\t\t\t\t\t&lt;groundspeak:text encoded=\&quot;@@LOGENCODE@@\&quot;&gt;@@LOGTEXT@@&lt;/groundspeak:text&gt;\n&quot;)
++						.concat(&quot;\t\t\t\t&lt;/groundspeak:log&gt;\n&quot;);
++	
++	final static String GPXTB = &quot;\t\t\t\t&lt;groundspeak:travelbug id=\&quot;@@TBID@@\&quot; ref=\&quot;@@TBREF@@\&quot;&gt;\n&quot;
++						.concat(&quot;\t\t\t\t\t&lt;groundspeak:name&gt;@@TBNAME@@&lt;/groundspeak:name&gt;\n&quot;)
++						.concat(&quot;\t\t\t\t&lt;/groundspeak:travelbug&gt;\n&quot;);
++	
++	static boolean smartIds;
++	static boolean customIcons;
++	static boolean separateFile;
++	static boolean sendToGarmin;
++	static int outType;
++	
++	public GpxExportNg() {
++		GpxExportNgForm exportOptions;
++		int ret;
++		final String file, dirctory;
++		final Hashtable fileHandles;
++
++		exportOptions = new GpxExportNgForm();
++		ret = exportOptions.execute();
++		
++		if (-1 == ret) {
++			return;
++		}
++		
++		outType = exportOptions.getExportType();
++		smartIds = exportOptions.getSmartIds();
++		separateFile = exportOptions.getSeparateFiles();
++		sendToGarmin = exportOptions.getSendToGarmin();
++		customIcons = exportOptions.getCustomIcons();
++		
++		if (separateFile) {
++			//TODO: get directory
++			//TODO: initialize files
++		} else {
++			//TODO: get file
++			//TODO: initialize file
++		}
++		
++		for(int i = 0; i&lt;Global.getProfile().cacheDB.size(); i++){
++			CacheHolder ch=Global.getProfile().cacheDB.get(i);
++			Vm.debug(formatCache(ch));
++		}
++
++	}
++	
++	private String formatCache(CacheHolder ch) {
++		// no addis or custom in MyFindsPq - and of course only finds
++		if ((GPX_MYFINDSPQ == outType) &amp;&amp; 
++				((ch.getType() == CacheType.CW_TYPE_CUSTOM) || ch.isAddiWpt() || ! ch.is_found())) 
++				return &quot;&quot;;
++		
++		StringBuffer ret = new StringBuffer();
++
++		ret.append(formatCompact(ch));
++		
++//		if (outType != GPX_COMPACT &amp;&amp; !(ch.getType() == CacheType.CW_TYPE_CUSTOM || ch.isAddiWpt())) {
++//			ret.append(formatPqExtensions(ch));
++//		}
++		ret.append(&quot;\t&lt;/wpt&gt;\n&quot;);
++		return ret.toString();
++	}
++	
++	private String formatCompact(CacheHolder ch) {
++		Transformer trans = new Transformer(true);
++		
++		trans.add(new Regex(&quot;@@WPLAT@@&quot;, 
++				((ch.pos.latDec &gt;= -90) &amp;&amp; (ch.pos.latDec &lt;= 90)?String.valueOf(ch.pos.latDec):&quot;&quot;)
++			));
++		
++		trans.add(new Regex(&quot;@@WPLON@@&quot;,
++				((ch.pos.lonDec &gt;= -180) &amp;&amp; (ch.pos.lonDec &lt;= 180)?String.valueOf(ch.pos.lonDec):&quot;&quot;)
++			));
++		
++		if (smartIds &amp;&amp; ch.getType() != CacheType.CW_TYPE_CUSTOM) {
++			if (ch.isAddiWpt()) {
++				trans.add(new Regex(&quot;@@WPNAME@@&quot;,ch.mainCache.getWayPoint()
++						.concat(&quot; &quot;)
++						.concat(ch.getWayPoint().substring(0,2))));
++			} else {
++				trans.add(new Regex(&quot;@@WPNAME@@&quot;,ch.getWayPoint()
++						.concat(&quot; &quot;)
++						.concat(CacheType.getExportShortId(ch.getType()))
++						.concat(String.valueOf(ch.getTerrain()))
++						.concat(String.valueOf(ch.getHard()))
++						.concat(CacheSize.getExportShortId(ch.getCacheSize()))
++					));
++			}
++		} else {
++			trans.add(new Regex(&quot;@@WPNAME@@&quot;,ch.getWayPoint()));
++		}
++		
++		if (ch.isAddiWpt()) {
++			trans.add(new Regex(&quot;@@WPCMT@@&quot;,ch.getFreshDetails().LongDescription));
++		} else {
++			trans.add(new Regex(&quot;@@WPCMT@@&quot;,&quot;&quot;));
++		}
++		
++		trans.add(new Regex(&quot;@@WPDESC@@&quot;,&quot;&quot;));
++		
++		if (ch.getType() == CacheType.CW_TYPE_CUSTOM) {
++			trans.add(new Regex(&quot;@@WPURL@@&quot;,&quot;&quot;));
++		} else {
++			if (ch.isAddiWpt()) {
++				//TODO: find out URL schema for additional waypoints
++				//TODO: check for OC caches
++				trans.add(new Regex(&quot;@@WPURL@@&quot;,&quot;&quot;));
++			} else {
++				//TODO: check for OC caches
++				trans.add(new Regex(&quot;@@WPURL@@&quot;,&quot;<A HREF="http://www.geocaching.com/seek/cache_details.aspx?wp=">http://www.geocaching.com/seek/cache_details.aspx?wp=</A>&quot;.concat(ch.getWayPoint())));
++			}
++		}
++		
++		if (ch.getType() == CacheType.CW_TYPE_CUSTOM) {
++			trans.add(new Regex(&quot;@@WPURLNAME@@&quot;,&quot;&quot;));
++		} else {
++			trans.add(new Regex(&quot;@@WPURLNAME@@&quot;,ch.getCacheName()));
++		}
++		
++		if (customIcons) {
++			//TODO: replace with SKGs custom symbol code
++			trans.add(new Regex(&quot;@@WPSYMBOL@@&quot;,&quot;Geocache&quot;));
++		} else {
++			if (ch.is_found()) {
++				trans.add(new Regex(&quot;@@WPSYMBOL@@&quot;,&quot;Geocache found&quot;));
++			} else {
++				trans.add(new Regex(&quot;@@WPSYMBOL@@&quot;,&quot;Geocache&quot;));
++			}
++		}
++		
++		trans.add(new Regex(&quot;@@WPTYPE@@&quot;,CacheType.cw2ExportString(ch.getType())));
++		
++		return trans.replaceFirst(GPXCOMPACT);
++	}
++	
++	private String formatPqExtensions(CacheHolder ch) {
++		// no details pq details for addis or custom waypoints
++		if (ch.getType() == CacheType.CW_TYPE_CUSTOM || ch.isAddiWpt()) return &quot;&quot;;
++		
++		StringBuffer ret = new StringBuffer();
++		
++		ret.append(GPXEXTENSION);
++		
++		ret.append(&quot;\t\t\t&lt;groundspeak:logs&gt;\n&quot;);
++		ret.append(formatLogs(ch));
++		ret.append(&quot;\t\t\t&lt;/groundspeak:logs&gt;\n&quot;);
++		
++		ret.append(&quot;\t\t\t&lt;groundspeak:travelbugs&gt;\n&quot;);
++		ret.append(formatTbs(ch));
++		ret.append(&quot;\t\t\t&lt;/groundspeak:travelbugs&gt;\n&quot;);
++		
++		ret.append(&quot;\t\t&lt;/groundspeak:cache&gt;\n&quot;);
++		return ret.toString();
++	}
++	
++	public void doit() {
++		
++	}
++	
++	public String formatTbs(CacheHolder ch) {
++		Transformer trans = new Transformer(true);
++		
++		return trans.replaceFirst(GPXTB);
++	}
++	
++	public String formatLogs(CacheHolder ch) {
++		Transformer trans = new Transformer(true);
++		
++		return trans.replaceFirst(GPXLOG);
++	}
++	
++	public String formatHeader() {
++		Transformer trans = new Transformer(true);
++		
++		return trans.replaceFirst(GPXHEADER);
++	}
++}
+
+Added: trunk/src/exp/GpxExportNgForm.java
+===================================================================
+--- trunk/src/exp/GpxExportNgForm.java	2009-06-03 20:23:49 UTC (rev 1887)
++++ trunk/src/exp/GpxExportNgForm.java	2009-06-04 22:16:54 UTC (rev 1888)
+@@ -0,0 +1,137 @@
++package exp;
++
++import ewe.ui.*;
++
++/**
++ * GUI for GpxExporterNg with checkboxes for the options 
++ *
++ */
++public class GpxExportNgForm extends Form {
++	private CheckBoxGroup cbgExportType;
++	private mCheckBox cbCompact, cbPqLike, cbMyFinds, cbCustomIcons, cbSeperateFiles, cbSendToGarmin, cbSmartId;
++	private mButton btnOk, btnCancel;
++	
++	/**
++	 * set up the form / dialog
++	 */
++	public GpxExportNgForm() {
++		//TODO: get defaults from profile
++		
++		this.setTitle(&quot;GPX Export&quot;);
++		
++		cbgExportType = new CheckBoxGroup();
++		
++		cbCompact = new mCheckBox(&quot;Compact&quot;);
++		cbCompact.setGroup(cbgExportType);
++		
++		cbPqLike = new mCheckBox(&quot;PQ like&quot;);
++		cbPqLike.setGroup(cbgExportType);
++		
++		cbMyFinds = new mCheckBox(&quot;MyFinds&quot;);
++		cbMyFinds.setGroup(cbgExportType);
++		
++		cbgExportType.setText(&quot;Compact&quot;);
++		
++		cbCustomIcons = new mCheckBox(&quot;custom icons&quot;);
++		
++		cbSeperateFiles = new mCheckBox(&quot;one file per type&quot;);
++				
++		cbSendToGarmin = new mCheckBox(&quot;send to Garmin GPSr&quot;);
++		cbSendToGarmin.modify(Control.Disabled, 0); // not yet
++		
++		cbSmartId = new mCheckBox(&quot;use smart IDs&quot;);
++		
++		btnOk = new mButton(&quot;OK&quot;);
++		btnCancel = new mButton(&quot;Cancel&quot;);
++		
++		addNext(cbCustomIcons);
++		addLast(cbCompact);
++		addNext(cbSeperateFiles);
++		addLast(cbPqLike);
++		addNext(cbSendToGarmin);
++		addLast(cbMyFinds);
++		addLast(cbSmartId);
++
++		addButton(btnOk);
++		addButton(btnCancel);
++	}
++	
++	/**
++	 * react to GUI events and toogle access to the checkboxes according to radio button settings
++	 * pass everything else to &lt;code&gt;super()&lt;/code&gt;
++	 */
++	public void onEvent(Event ev){
++		if (ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.PRESSED) {
++						
++			if (ev.target == cbgExportType) {
++				if (cbgExportType.getSelected() == cbCompact) {
++					if (cbCustomIcons.change(0,Control.Disabled)) cbCustomIcons.repaint();
++					if (cbSeperateFiles.change(0,Control.Disabled)) cbSeperateFiles.repaint();
++//					if (cbSendToGarmin.change(0,Control.Disabled)) cbSendToGarmin.repaint();
++					if (cbSmartId.change(0,Control.Disabled)) cbSmartId.repaint();
++				} else if (cbgExportType.getSelected() == cbPqLike) {
++					cbSeperateFiles.setState(false);
++					if (cbCustomIcons.change(0,Control.Disabled)) cbCustomIcons.repaint();
++					if (cbSeperateFiles.change(Control.Disabled,0)) cbSeperateFiles.repaint();
++//					if (cbSendToGarmin.change(0,Control.Disabled)) cbSendToGarmin.repaint();
++					if (cbSmartId.change(0,Control.Disabled)) cbSmartId.repaint();
++				} else if (cbgExportType.getSelected() == cbMyFinds) {
++					cbCustomIcons.setState(false);
++					cbSeperateFiles.setState(false);
++					cbSendToGarmin.setState(false);
++					cbSmartId.setState(false);
++					if (cbCustomIcons.change(Control.Disabled,0)) cbCustomIcons.repaint();
++					if (cbSeperateFiles.change(Control.Disabled,0)) cbSeperateFiles.repaint();
++//					if (cbSendToGarmin.change(Control.Disabled,0)) cbSendToGarmin.repaint();
++					if (cbSmartId.change(Control.Disabled,0)) cbSmartId.repaint();
++				}
++			} else if (ev.target == btnOk) {
++				close(1);
++			} else if (ev.target == btnCancel) {
++				close(-1);
++			}
++		}
++		super.onEvent(ev);
++	}
++	
++	/**
++	 * get the export type the user selected
++	 * @return index of selected option in checkboxgroup
++	 * @see GpxExportNg
++	 */
++	public int getExportType() {
++		return cbgExportType.getSelectedIndex();
++	}
++	
++	/**
++	 * check if the user wants smart IDs
++	 * @return true for smart IDs, false otherwise
++	 */
++	public boolean getSmartIds() {
++		return cbSmartId.state;
++	}
++	
++	/**
++	 * check if user wants to send output straight to a Garmin GPSr
++	 * @return true for GPSr transfer, false otherwise
++	 */
++	public boolean getSendToGarmin() {
++		return cbSendToGarmin.state;
++	}
++	
++	/**
++	 * check if user wants custom icons
++	 * @return true if user wants custom icons, false otherwise
++	 */
++	public boolean getCustomIcons() {
++		return cbCustomIcons.state;
++	}
++	
++	/**
++	 * check if user wants separate files (POI loader)
++	 * @return true for separate files, false for single file
++	 */
++	public boolean getSeparateFiles() {
++		return cbSeperateFiles.state;
++	}
++}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001805.html">[Cachewolf-svn] r1887 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001807.html">[Cachewolf-svn] r1889 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1806">[ date ]</a>
+              <a href="thread.html#1806">[ thread ]</a>
+              <a href="subject.html#1806">[ subject ]</a>
+              <a href="author.html#1806">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

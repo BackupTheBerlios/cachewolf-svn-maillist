@@ -1,0 +1,159 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r914 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-September/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r914%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200709091422.l89EMg93026754%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000806.html">
+   <LINK REL="Next"  HREF="000808.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r914 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r914%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200709091422.l89EMg93026754%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r914 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sun Sep  9 16:22:42 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000806.html">[Cachewolf-svn] r913 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000808.html">[Cachewolf-svn] r915 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#807">[ date ]</a>
+              <a href="thread.html#807">[ thread ]</a>
+              <a href="subject.html#807">[ subject ]</a>
+              <a href="author.html#807">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-09-09 16:22:37 +0200 (Sun, 09 Sep 2007)
+New Revision: 914
+
+Modified:
+   trunk/src/CacheWolf/CacheList.java
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/myTableControl.java
+   trunk/src/CacheWolf/myTableModel.java
+Log:
+TableControl: Mit key.LEFT kann ein Cache auch per Tastatur in die Cacheliste kopiert werden (wenn diese offen ist). Fix: Diverse Probleme mit Tastatureingaben und Klicks bei leerer Liste. 
+
+Modified: trunk/src/CacheWolf/CacheList.java
+===================================================================
+--- trunk/src/CacheWolf/CacheList.java	2007-09-09 12:54:45 UTC (rev 913)
++++ trunk/src/CacheWolf/CacheList.java	2007-09-09 14:22:37 UTC (rev 914)
+@@ -295,7 +295,7 @@
+ 	 * @return true if the cache is not already in lstCaches */
+ 	public boolean addCache(String wayPoint) {
+ 		// Check whether this is the first cache being added
+-		if (needsInit)  {lstCaches.deleteItem(0);lstCaches.deleteItem(0);  needsInit=false; }
++		if (needsInit)  {lstCaches.deleteItem(0);lstCaches.deleteItem(0);  needsInit=false; lstCaches.repaint(); }
+ 		int idx=Global.getProfile().getCacheIndex(wayPoint);
+ 		if (idx==-1) return false;
+ 		CacheHolder ch=(CacheHolder) Global.getProfile().cacheDB.get(idx);
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2007-09-09 12:54:45 UTC (rev 913)
++++ trunk/src/CacheWolf/MainTab.java	2007-09-09 14:22:37 UTC (rev 914)
+@@ -120,7 +120,7 @@
+ 			// If it is Addi get details of main Wpt (chMain)
+ 			chMain=null;
+ 			cacheDirty=false;
+-			if (tbP.getSelectedCache()&gt;=Global.mainTab.tbP.myMod.numRows) {
++			if (tbP.getSelectedCache()&gt;=Global.mainTab.tbP.myMod.numRows || tbP.getSelectedCache()&lt;0) {
+ 				ch=null; chD=null; 
+ 				lastselected=&quot;&quot;;
+ 			} else {
+@@ -234,7 +234,8 @@
+ 	public void updateBearDist(){// Called from DetailsPanel, GotoPanel and myTableControl
+ 		tbP.pref = pref;
+ 		profile.updateBearingDistance();
+-		tbP.refreshTable();
++		//tbP.refreshTable();
++		tbP.tc.repaint();
+ 		//(new MessageBox(MyLocale.getMsg(327,&quot;Information&quot;), MyLocale.getMsg(1024,&quot;Entfernungen in der Listenansicht \nvom aktuellen Standpunkt aus \nneu berechnet&quot;).replace('~','\n'), MessageBox.OKB)).execute();
+ 	}
+ 
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2007-09-09 12:54:45 UTC (rev 913)
++++ trunk/src/CacheWolf/myTableControl.java	2007-09-09 14:22:37 UTC (rev 914)
+@@ -84,6 +84,7 @@
+ 			else if (ev.key == IKeys.ACTION || ev.key == IKeys.ENTER) Global.mainTab.select(Global.mainTab.descP);
+ 			else if (ev.key == IKeys.DOWN) Global.mainTab.tbP.selectRow(java.lang.Math.min(cursor.y+ 1, model.numRows-1)); 
+ 			else if (ev.key == IKeys.UP) Global.mainTab.tbP.selectRow(java.lang.Math.max(cursor.y-1, 0));
++			else if (ev.key == IKeys.LEFT &amp;&amp; Global.mainForm.cacheListVisible &amp;&amp; cursor.y&gt;=0 &amp;&amp; cursor.y&lt;tbp.myMod.numRows) Global.mainForm.cacheList.addCache(((CacheHolder)cacheDB.elementAt(cursor.y)).wayPoint); 
+ 			else if (ev.key == 6 ) MainMenu.search(); // (char)6 == ctrl + f 
+ 			else super.onKeyEvent(ev);
+ 		}
+
+Modified: trunk/src/CacheWolf/myTableModel.java
+===================================================================
+--- trunk/src/CacheWolf/myTableModel.java	2007-09-09 12:54:45 UTC (rev 913)
++++ trunk/src/CacheWolf/myTableModel.java	2007-09-09 14:22:37 UTC (rev 914)
+@@ -59,8 +59,8 @@
+ 		tcControl = tc;
+ 		setColumnNamesAndWidths(); 
+ 		this.numRows = cacheDB.size();
+-		Dimension selrow = new Dimension(-1,1);
+-		this.cursorSize = selrow;
++		//Dimension selrow = new Dimension(-1,1);
++		//this.cursorSize = selrow;
+ 		cacheImages[0] = new Image(&quot;0.png&quot;);
+ 		//cacheImages[1] = new Image();
+ 		cacheImages[2] = new Image(&quot;2.png&quot;);
+@@ -286,8 +286,8 @@
+ 	
+ 	public boolean penPressed(Point onTable,Point cell){
+ 		boolean retval = false;
++		if (cell==null) return false;
+ 		try{
+-			if (cell.y&gt;=0) Global.mainTab.tbP.setSelectedCache(cell.y);
+ 			// Check whether the click is on the checkbox image
+ 			if (cell.y&gt;=0 &amp;&amp; cell.x==0) {
+ 				Global.getProfile().selectionChanged = true;
+@@ -334,7 +334,7 @@
+ 				tcControl.update(true);
+ 				retval = true;
+ 			}
+-		}catch(NullPointerException npex){}
++		} catch(NullPointerException npex){Global.getPref().log(&quot;NPE in myTableModel.Penpressed&quot;);}
+ 		return retval;
+ 	}
+ 	
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000806.html">[Cachewolf-svn] r913 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000808.html">[Cachewolf-svn] r915 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#807">[ date ]</a>
+              <a href="thread.html#807">[ thread ]</a>
+              <a href="subject.html#807">[ subject ]</a>
+              <a href="author.html#807">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

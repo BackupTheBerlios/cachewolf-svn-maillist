@@ -1,0 +1,552 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r3020 - in trunk: res_noewe src/CacheWolf	src/CacheWolf/imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2011-May/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r3020%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf%0A%09src/CacheWolf/imp&In-Reply-To=%3C20110528164744.5110C4813D2%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003010.html">
+   <LINK REL="Next"  HREF="003012.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r3020 - in trunk: res_noewe src/CacheWolf	src/CacheWolf/imp</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r3020%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf%0A%09src/CacheWolf/imp&In-Reply-To=%3C20110528164744.5110C4813D2%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r3020 - in trunk: res_noewe src/CacheWolf	src/CacheWolf/imp">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Sat May 28 06:47:43 CEST 2011</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003010.html">[Cachewolf-svn] r3019 - trunk/res_noewe
+</A></li>
+        <LI>Next message: <A HREF="003012.html">[Cachewolf-svn] r3021 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3011">[ date ]</a>
+              <a href="thread.html#3011">[ thread ]</a>
+              <a href="subject.html#3011">[ subject ]</a>
+              <a href="author.html#3011">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2011-05-28 18:47:43 +0200 (Sat, 28 May 2011)
+New Revision: 3020
+
+Modified:
+   trunk/res_noewe/spider.def
+   trunk/src/CacheWolf/Extractor.java
+   trunk/src/CacheWolf/Travelbug.java
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+make TB work again (spider.def) and some optimizing for for getting them.
+
+Modified: trunk/res_noewe/spider.def
+===================================================================
+--- trunk/res_noewe/spider.def	2011-05-25 08:58:24 UTC (rev 3019)
++++ trunk/res_noewe/spider.def	2011-05-28 16:47:43 UTC (rev 3020)
+@@ -153,8 +153,8 @@
+ #Section2b: Bugs
+ #--------------------------------------
+ # blockEx extrahiert zun&#228;chst den Bugbereich aus der gesamten Seite
+-blockExStart       = &lt;span\ id=&quot;ctl00_ContentBody_uxTravelBugList_uxInventoryLabel&quot;&gt;Inventory&lt;/span&gt;
+-blockExEnd         = &lt;p\ class=&quot;NoSpacing&quot;&gt;
++blockExStart       = ctl00_ContentBody_uxTravelBugList_uxInventoryLabel
++blockExEnd         = ctl00_ContentBody_uxTravelBugList_uxTrackableItemsLinks
+ # bugEx extrahiert die Namen der einzelnen Bugs aus dem Bugbereich
+ bugExStart         = &lt;a\ href=&quot;
+ bugExEnd           = &lt;/a&gt;
+
+Modified: trunk/src/CacheWolf/Extractor.java
+===================================================================
+--- trunk/src/CacheWolf/Extractor.java	2011-05-25 08:58:24 UTC (rev 3019)
++++ trunk/src/CacheWolf/Extractor.java	2011-05-28 16:47:43 UTC (rev 3020)
+@@ -74,6 +74,11 @@
+ 		_startOffset = 0;
+ 	}
+ 
++	public void set(String searchText, int startOffset) {
++		_searchText = searchText;
++		_startOffset = startOffset;
++	}
++
+ 	public String findFirst(String searchText) {
+ 		_searchText = searchText;
+ 		_startOffset = 0;
+
+Modified: trunk/src/CacheWolf/Travelbug.java
+===================================================================
+--- trunk/src/CacheWolf/Travelbug.java	2011-05-25 08:58:24 UTC (rev 3019)
++++ trunk/src/CacheWolf/Travelbug.java	2011-05-28 16:47:43 UTC (rev 3020)
+@@ -1,59 +1,63 @@
+-    /*
+-    GNU General Public License
+-    CacheWolf is a software for PocketPC, Win and Linux that
+-    enables paperless caching.
+-    It supports the sites geocaching.com and opencaching.de
++/*
++GNU General Public License
++CacheWolf is a software for PocketPC, Win and Linux that
++enables paperless caching.
++It supports the sites geocaching.com and opencaching.de
+ 
+-    Copyright (C) 2006  CacheWolf development team
+-    See <A HREF="http://developer.berlios.de/projects/cachewolf/">http://developer.berlios.de/projects/cachewolf/</A>
+-    for more information.
+-    Contact: 	<A HREF="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">bilbowolf at users.berlios.de</A>
+-    			<A HREF="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">kalli at users.berlios.de</A>
++Copyright (C) 2006  CacheWolf development team
++See <A HREF="http://developer.berlios.de/projects/cachewolf/">http://developer.berlios.de/projects/cachewolf/</A>
++for more information.
++Contact: 	<A HREF="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">bilbowolf at users.berlios.de</A>
++			<A HREF="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">kalli at users.berlios.de</A>
+ 
+-    This program is free software; you can redistribute it and/or modify
+-    it under the terms of the GNU General Public License as published by
+-    the Free Software Foundation; version 2 of the License.
++This program is free software; you can redistribute it and/or modify
++it under the terms of the GNU General Public License as published by
++the Free Software Foundation; version 2 of the License.
+ 
+-    This program is distributed in the hope that it will be useful,
+-    but WITHOUT ANY WARRANTY; without even the implied warranty of
+-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-    GNU General Public License for more details.
++This program is distributed in the hope that it will be useful,
++but WITHOUT ANY WARRANTY; without even the implied warranty of
++MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++GNU General Public License for more details.
+ 
+-    You should have received a copy of the GNU General Public License
+-    along with this program; if not, write to the Free Software
+-    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+-    */
++You should have received a copy of the GNU General Public License
++along with this program; if not, write to the Free Software
++Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
++ */
+ package CacheWolf;
++
+ /**
+  * This contains the basic information of a GC travelbug.
++ * 
+  * @author salzkammergut
+- *
++ * 
+  */
+ public class Travelbug {
+-	/** GC unique id or guid (both are used depending on how the TB is picked up).
++	/**
++	 * GC unique id or guid (both are used depending on how the TB is picked up).
+ 	 * Travelbugs retrieved from a cache use the guid, travelbugs entered manually
+-	 * use the id */
+-	private String guid;       //0
++	 * use the id
++	 */
++	private String guid; // 0
+ 	/** GC Name i.e. &quot;First Roman Geocoin&quot; */
+-	private String name;       //1
++	private String name; // 1
+ 	/** GC tracking no i.e. 652345, needed for logging */
+-	private String trackingNo; //2 
++	private String trackingNo; // 2
+ 	/** GC Mission */
+-	private String mission;    //3
++	private String mission; // 3
+ 
+ 	/** Construct a travelbug with a given name */
+ 	public Travelbug(String name) {
+-		this(&quot;&quot;,name,&quot;&quot;);
++		this(&quot;&quot;, name, &quot;&quot;);
+ 	}
+ 
+ 	/** Construct a travelbug with id, name and mission */
+ 	public Travelbug(String guid, String name, String mission) {
+-		setGuid(guid);
+-		setName(name);
+-		setMission(mission);
++		this.guid = guid;
++		this.name = SafeXML.cleanback(name);
++		this.mission = mission;
+ 		setTrackingNo(&quot;&quot;);
+ 	}
+-	
++
+ 	public String getGuid() {
+ 		return guid;
+ 	}
+@@ -85,10 +89,10 @@
+ 	public String getMission() {
+ 		return this.mission;
+ 	}
+-	
++
+ 	/** Return XML representation of travelbug for storing in cache.xml */
+-	public String toXML(){
+-		StringBuffer s=new StringBuffer(300);
++	public String toXML() {
++		StringBuffer s = new StringBuffer(300);
+ 		s.append(&quot;  &lt;tb guid=\&quot;&quot;);
+ 		s.append(guid);
+ 		s.append(&quot;\&quot;&gt;&lt;name&gt;&lt;![CDATA[&quot;);
+@@ -98,10 +102,10 @@
+ 		s.append(&quot;]]&gt;&lt;/tb&gt;\n&quot;);
+ 		return s.toString();
+ 	}
+-	
++
+ 	/** Return HTML representation of travelbug for display on screen */
+-	public String toHtml(){
+-		StringBuffer s=new StringBuffer(300);
++	public String toHtml() {
++		StringBuffer s = new StringBuffer(300);
+ 		s.append(&quot;&lt;b&gt;Name:&lt;/b&gt; &quot;);
+ 		s.append(name);
+ 		s.append(&quot;&lt;br&gt;&quot;);
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2011-05-25 08:58:24 UTC (rev 3019)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2011-05-28 16:47:43 UTC (rev 3020)
+@@ -862,14 +862,14 @@
+ 				if (RexPropListBlock.didMatch()) {
+ 					tableOfHtmlListPage = RexPropListBlock.stringMatched(1);
+ 				} else {
+-					pref.log(&quot;check listBlockRex in spider.def&quot; + Preferences.NEWLINE + htmlListPage);
++					pref.log(&quot;[SpiderGC.java:fillDownloadLists]check listBlockRex!&quot;);
+ 					tableOfHtmlListPage = &quot;&quot;;
+ 				}
+ 				RexPropLine.search(tableOfHtmlListPage);
+ 				while (toDistance &gt; 0) {
+ 					if (!RexPropLine.didMatch()) {
+ 						if (page_number == 1 &amp;&amp; found_on_page == 0)
+-							pref.log(&quot;check lineRex in spider.def&quot;);
++							pref.log(&quot;[SpiderGC.java:fillDownloadLists]check lineRex!&quot;);
+ 						break;
+ 					}
+ 					found_on_page++;
+@@ -1347,7 +1347,7 @@
+ 				return false;
+ 			}
+ 		} catch (final Exception ex) {
+-			pref.log(&quot;Error switching to English: check &quot; + url, ex);
++			pref.log(&quot;[SpiderGC.java:switchToEnglish]Error switching to English: check &quot; + url, ex);
+ 			return false;
+ 		}
+ 
+@@ -1445,7 +1445,7 @@
+ 			viewstate = rexViewstate.stringMatched(1);
+ 		} else {
+ 			viewstate = &quot;&quot;;
+-			pref.log(&quot;[getAListPage] check rexViewstate in SpiderGC.java&quot; + Preferences.NEWLINE + htmlListPage);
++			pref.log(&quot;[SpiderGC.java:getAListPage] check rexViewstate!&quot;, null);
+ 		}
+ 
+ 		final Regex rexViewstate1 = new Regex(&quot;id=\&quot;__VIEWSTATE1\&quot; value=\&quot;(.*?)\&quot; /&gt;&quot;);
+@@ -1455,7 +1455,7 @@
+ 			viewstate1 = rexViewstate1.stringMatched(1);
+ 		} else {
+ 			viewstate1 = &quot;&quot;;
+-			pref.log(&quot;[getAListPage] check rexViewstate1 in SpiderGC.java&quot; + Preferences.NEWLINE + htmlListPage);
++			pref.log(&quot;[SpiderGC.java:getAListPage] check rexViewstate1!&quot;, null);
+ 		}
+ 
+ 		final String postData = &quot;__EVENTTARGET=&quot; + URL.encodeURL(whatPage, false) + &quot;&amp;&quot; + &quot;__EVENTARGUMENT=&quot; + &quot;&amp;&quot; + &quot;__VIEWSTATEFIELDCOUNT=2&quot; + &quot;&amp;&quot; + &quot;__VIEWSTATE=&quot; + URL.encodeURL(viewstate, false) + &quot;&amp;&quot; + &quot;__VIEWSTATE1=&quot;
+@@ -1728,11 +1728,11 @@
+ 			if (owner.equals(pref.myAlias) || owner.equals(pref.myAlias2)) {
+ 				ch.setOwned(true);
+ 			}
+-			//DEAD CODE commented out
+-//			else if (false) {
+-//				ch.setFound(true);
+-//				ch.setCacheStatus(ch.getFoundText());
+-//			}
++			// DEAD CODE commented out
++			// else if (false) {
++			// ch.setFound(true);
++			// ch.setCacheStatus(ch.getFoundText());
++			// }
+ 
+ 			cacheName = STRreplace.replace(cacheName, &quot;\\\&quot;&quot;, &quot;\&quot;&quot;);
+ 			ch.setCacheName(cacheName);
+@@ -1826,7 +1826,7 @@
+ 					pref.log(&quot;sizeChanged&quot;);
+ 				}
+ 			} else {
+-				pref.log(&quot;check DTS calculation&quot;, null);
++				pref.log(&quot;[SpiderGC.java:updateExists]check DTS calculation!&quot;, null);
+ 			}
+ 		}
+ 		if (newFoundExists(ch, CacheDescription)) {
+@@ -1853,7 +1853,7 @@
+ 		if (RexNumFinds.didMatch()) {
+ 			return Common.parseInt(RexNumFinds.stringMatched(1));
+ 		} else {
+-			pref.log(&quot;check RexNumFinds in SpiderGC.java / initialiseProperties&quot; + Preferences.NEWLINE + doc);
++			pref.log(&quot;[SpiderGC.java:getNumFound]check RexNumFinds!&quot;, null);
+ 			return 0;
+ 		}
+ 	}
+@@ -1888,7 +1888,7 @@
+ 			return distanceAndDirection;
+ 		RexPropDistanceCode.search(doc);
+ 		if (!RexPropDistanceCode.didMatch()) {
+-			pref.log(&quot;check distRex&quot; + Preferences.NEWLINE + doc);
++			pref.log(&quot;[SpiderGC.java:getDistanceAndDirection]check distRex!&quot;, null);
+ 			distanceAndDirection[0] = -1.0; // Abbruch
+ 			return distanceAndDirection;
+ 		}
+@@ -1957,7 +1957,7 @@
+ 				distanceAndDirection[0] = distanceAndDirection[0] / 5280.0;
+ 			}
+ 		} else {
+-			pref.log(&quot;(gc Code change ?) check distCodeKey in spider.def&quot; + Preferences.NEWLINE + doc);
++			pref.log(&quot;[SpiderGC.java:getDistanceAndDirection](gc Code change ?) check distCodeKey!&quot;, null);
+ 		}
+ 
+ 		return distanceAndDirection;
+@@ -1973,7 +1973,7 @@
+ 	private String getWP(String doc) throws Exception {
+ 		RexPropWaypoint.search(doc);
+ 		if (!RexPropWaypoint.didMatch()) {
+-			pref.log(&quot;check waypointRex in spider.def&quot; + Preferences.NEWLINE + doc);
++			pref.log(&quot;[SpiderGC.java:getWP]check waypointRex!&quot;, null);
+ 			return &quot;???&quot;;
+ 		}
+ 		return &quot;GC&quot; + RexPropWaypoint.stringMatched(1);
+@@ -2014,7 +2014,7 @@
+ 				return true;
+ 			}
+ 		}
+-		pref.log(&quot;check TypeRex in spider.def&quot; + Preferences.NEWLINE + toCheck);
++		pref.log(&quot;[SpiderGC.java:typeChanged]check TypeRex!&quot;, null);
+ 		return false;
+ 	}
+ 
+@@ -2047,7 +2047,7 @@
+ 			 * 4)) / 2.0); if (difficulty.equals(&quot;0.5&quot;)) { difficulty = &quot;5&quot;; } return difficulty+&quot;/&quot;+terrain+&quot;/&quot;+size;
+ 			 */
+ 		}
+-		pref.log(&quot;check DTSRex in spider.def&quot; + Preferences.NEWLINE + toCheck);
++		pref.log(&quot;[SpiderGC.java:getDTS]check DTSRex!&quot;, null);
+ 		return &quot;&quot;;
+ 	}
+ 
+@@ -2206,7 +2206,7 @@
+ 		if (RexPropLogDate.didMatch()) {
+ 			stmp = RexPropLogDate.stringMatched(1);
+ 		} else {
+-			pref.log(&quot;check logDateRex in spider.def&quot; + Preferences.NEWLINE + cacheDescription);
++			pref.log(&quot;[SpiderGC.java:newFoundExists]check logDateRex!&quot;, null);
+ 			return false;
+ 		}
+ 		final Time lastLogGC = DateFormat.toDate(stmp);
+@@ -2440,7 +2440,7 @@
+ 		final Regex inRex = new Regex(p.getProp(&quot;latLonRex&quot;));
+ 		inRex.search(doc);
+ 		if (!inRex.didMatch()) {
+-			pref.log(&quot;check latLonRex in spider.def&quot; + Preferences.NEWLINE + doc);
++			pref.log(&quot;[SpiderGC.java:getLatLon]check latLonRex!&quot;, null);
+ 			return &quot;???&quot;;
+ 		}
+ 		return inRex.stringMatched(1);
+@@ -2462,7 +2462,7 @@
+ 		shortDescRex.search(doc);
+ 		if (!shortDescRex.didMatch()) {
+ 			if (shortDescRex_not_yet_found)
+-				pref.log(&quot;no shortDesc or check shortDescRex in spider.def&quot;);
++				pref.log(&quot;[SpiderGC.java:getLongDesc]no shortDesc or check shortDescRex!&quot;, null);
+ 			// + Preferences.NEWLINE + doc);
+ 		} else {
+ 			res = shortDescRex.stringMatched(1);
+@@ -2471,7 +2471,7 @@
+ 		res += &quot;&lt;br&gt;&quot;;
+ 		longDescRex.search(doc);
+ 		if (!longDescRex.didMatch()) {
+-			pref.log(&quot;check longDescRex in spider.def&quot; + Preferences.NEWLINE + doc);
++			pref.log(&quot;[SpiderGC.java:getLongDesc]check longDescRex!&quot;, null);
+ 		} else {
+ 			res += longDescRex.stringMatched(1);
+ 		}
+@@ -2495,7 +2495,7 @@
+ 		final Regex inRex = new Regex(p.getProp(&quot;cacheLocationRex&quot;));
+ 		inRex.search(doc);
+ 		if (!inRex.didMatch()) {
+-			pref.log(&quot;check cacheLocationRex in spider.def&quot; + Preferences.NEWLINE + doc);
++			pref.log(&quot;[SpiderGC.java:getLocation]check cacheLocationRex!&quot;, null);
+ 			return &quot;&quot;;
+ 		}
+ 		return inRex.stringMatched(1);
+@@ -2512,7 +2512,7 @@
+ 		final Regex inRex = new Regex(p.getProp(&quot;cacheNameRex&quot;));
+ 		inRex.search(doc);
+ 		if (!inRex.didMatch()) {
+-			pref.log(&quot;check cacheNameRex in spider.def&quot; + Preferences.NEWLINE + doc);
++			pref.log(&quot;[SpiderGC.java:getName]check cacheNameRex!&quot;, null);
+ 			return &quot;???&quot;;
+ 		}
+ 		return inRex.stringMatched(1);
+@@ -2529,7 +2529,7 @@
+ 		final Regex inRex = new Regex(p.getProp(&quot;cacheOwnerRex&quot;));
+ 		inRex.search(doc);
+ 		if (!inRex.didMatch()) {
+-			pref.log(&quot;check cacheOwnerRex in spider.def&quot; + Preferences.NEWLINE + doc);
++			pref.log(&quot;[SpiderGC.java:getOwner]check cacheOwnerRex!&quot;, null);
+ 			return &quot;???&quot;;
+ 		}
+ 		return inRex.stringMatched(1);
+@@ -2546,7 +2546,7 @@
+ 		final Regex inRex = new Regex(p.getProp(&quot;dateHiddenRex&quot;));
+ 		inRex.search(doc);
+ 		if (!inRex.didMatch()) {
+-			pref.log(&quot;check dateHiddenRex in spider.def&quot; + Preferences.NEWLINE + doc);
++			pref.log(&quot;[SpiderGC.java:getDateHidden]check dateHiddenRex!&quot;, null);
+ 			return &quot;???&quot;;
+ 		}
+ 		return inRex.stringMatched(1);
+@@ -2563,7 +2563,7 @@
+ 		final Regex inRex = new Regex(p.getProp(&quot;hintsRex&quot;));
+ 		inRex.search(doc);
+ 		if (!inRex.didMatch()) {
+-			pref.log(&quot;check hintsRex in spider.def&quot; + Preferences.NEWLINE + doc);
++			pref.log(&quot;[SpiderGC.java:getHints]check hintsRex!&quot;, null);
+ 			return &quot;&quot;;
+ 		}
+ 		return inRex.stringMatched(1);
+@@ -2582,7 +2582,7 @@
+ 		if (inRex.didMatch())
+ 			return inRex.stringMatched(1);
+ 		else {
+-			pref.log(&quot;check sizeRex in spider.def&quot; + Preferences.NEWLINE + doc);
++			pref.log(&quot;[SpiderGC.java:getSize]check sizeRex!&quot;, null);
+ 			return &quot;None&quot;;
+ 		}
+ 	}
+@@ -2600,7 +2600,7 @@
+ 		if (inRex.didMatch())
+ 			return inRex.stringMatched(1);
+ 		else {
+-			pref.log(&quot;check difficultyRex in spider.def&quot; + Preferences.NEWLINE + doc);
++			pref.log(&quot;[SpiderGC.java:getDiff]check difficultyRex!&quot;, null);
+ 			return &quot;-1&quot;;
+ 		}
+ 	}
+@@ -2618,7 +2618,7 @@
+ 		if (inRex.didMatch())
+ 			return inRex.stringMatched(1);
+ 		else {
+-			pref.log(&quot;check terrainRex in spider.def&quot; + Preferences.NEWLINE + doc);
++			pref.log(&quot;[SpiderGC.java:getTerr]check terrainRex!&quot;, null);
+ 			return &quot;-1&quot;;
+ 		}
+ 	}
+@@ -2635,7 +2635,7 @@
+ 		if (RexCacheType.didMatch())
+ 			return CacheType.gcSpider2CwType(RexCacheType.stringMatched(1));
+ 		else {
+-			pref.log(&quot;check cacheTypeRex in spider.def&quot; + Preferences.NEWLINE + doc);
++			pref.log(&quot;[SpiderGC.java:getType]check cacheTypeRex!&quot;, null);
+ 			return 0;
+ 		}
+ 	}
+@@ -2658,7 +2658,7 @@
+ 		final LogList reslts = chD.CacheLogs;
+ 		RexLogBlock.search(completeWebPage);
+ 		if (!RexLogBlock.didMatch()) {
+-			pref.log(&quot;check blockRex in spider.def&quot; + Preferences.NEWLINE + completeWebPage);
++			pref.log(&quot;[SpiderGC.java:getLogs]check blockRex!&quot;, null);
+ 		}
+ 		final String LogBlock = RexLogBlock.stringMatched(1);
+ 
+@@ -2732,39 +2732,47 @@
+ 	 * @return A HTML formatted string with bug names and there purpose
+ 	 */
+ 	public void getBugs(CacheHolderDetail chD, String doc) throws Exception {
++		chD.Travelbugs.clear();
++		if (doc.indexOf(&quot;ctl00_ContentBody_uxTravelBugList_uxNoTrackableItemsLabel&quot;) &gt;= 0) {
++			return; // there are no trackables
++		}
+ 		final Extractor exBlock = new Extractor(doc, p.getProp(&quot;blockExStart&quot;), p.getProp(&quot;blockExEnd&quot;), 0, Extractor.EXCLUDESTARTEND);
++		final Extractor exBug = new Extractor(&quot;&quot;, p.getProp(&quot;bugExStart&quot;), p.getProp(&quot;bugExEnd&quot;), 0, Extractor.EXCLUDESTARTEND);
++		final Extractor exBugName = new Extractor(&quot;&quot;, &quot;&quot;, &quot;&quot;, 0, Extractor.EXCLUDESTARTEND);
+ 		final String bugBlock;
+ 		if ((bugBlock = exBlock.findNext()).length() &gt; 0) {
+ 			String link, bug, linkPlusBug, bugDetails;
+ 			final String oldInfoBox = infB.getInfo();
+-			chD.Travelbugs.clear();
+-			final Extractor exBug = new Extractor(bugBlock, p.getProp(&quot;bugExStart&quot;), p.getProp(&quot;bugExEnd&quot;), 0, Extractor.EXCLUDESTARTEND);
++			boolean exBugWrong = true;
++			exBug.set(bugBlock);
+ 			while ((linkPlusBug = exBug.findNext()).length() &gt; 0) {
++				exBugWrong = false;
+ 				if (infB.isClosed)
+ 					break;
+ 				final int idx = linkPlusBug.indexOf(p.getProp(&quot;bugLinkEnd&quot;));
+-				if (idx &lt; 0)
++				if (idx &lt; 0) {
++					pref.log(&quot;[SpiderGC.java:getBugs]check TBs bugLinkEnd!&quot;, null);
+ 					break; // No link/bug pair found
++				}
+ 				link = linkPlusBug.substring(0, idx);
+-				final Extractor exBugName = new Extractor(linkPlusBug, p.getProp(&quot;bugNameExStart&quot;), p.getProp(&quot;bugNameExEnd&quot;), 0, Extractor.EXCLUDESTARTEND);
++				exBugName.set(linkPlusBug, p.getProp(&quot;bugNameExStart&quot;), p.getProp(&quot;bugNameExEnd&quot;), idx, Extractor.EXCLUDESTARTEND);
+ 				if ((bug = exBugName.findNext()).length() &gt; 0) {
+-					// Found a bug, get its details
+-					final Travelbug tb = new Travelbug(bug);
++					// Found a bug, get its mission
+ 					try {
+ 						infB.setInfo(oldInfoBox + MyLocale.getMsg(5514, &quot;\nGetting bug: &quot;) + SafeXML.cleanback(bug));
+ 						bugDetails = UrlFetcher.fetch(link);
+-						pref.log(&quot;[getBugs] Fetched TB details: &quot; + bug);
+-						final Extractor exDetails = new Extractor(bugDetails, p.getProp(&quot;bugDetailsStart&quot;), p.getProp(&quot;bugDetailsEnd&quot;), 0, Extractor.EXCLUDESTARTEND);
+-						tb.setMission(exDetails.findNext());
+-						final Extractor exGuid = new Extractor(bugDetails, &quot;action=\&quot;details.aspx?guid=&quot;, &quot;\&quot; id=\&quot;aspnetForm&quot;, 0, Extractor.EXCLUDESTARTEND);
+-						tb.setGuid(exGuid.findNext());
+-						chD.Travelbugs.add(tb);
++						exBugName.set(bugDetails, p.getProp(&quot;bugDetailsStart&quot;), p.getProp(&quot;bugDetailsEnd&quot;), 0, Extractor.EXCLUDESTARTEND); // reusing exBugName
++						chD.Travelbugs.add(new Travelbug(link.substring(1 + link.indexOf(&quot;=&quot;)), bug, exBugName.findNext()));
+ 					} catch (final Exception ex) {
+-						pref.log(&quot;[getBugs] Could not fetch bug details&quot;, ex);
++						pref.log(&quot;[SpiderGC.java:getBugs] Could not fetch buginfo from &quot; + link, ex);
+ 					}
+ 				}
+ 			}
+ 			infB.setInfo(oldInfoBox);
++			if (exBugWrong)
++				pref.log(&quot;[SpiderGC.java:getBugs]check TBs bugExStart / bugExEnd!&quot;, null);
++		} else {
++			pref.log(&quot;[SpiderGC.java:getBugs]check TBs blockExStart / blockExEnd!&quot;, null);
+ 		}
+ 	}
+ 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003010.html">[Cachewolf-svn] r3019 - trunk/res_noewe
+</A></li>
+	<LI>Next message: <A HREF="003012.html">[Cachewolf-svn] r3021 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3011">[ date ]</a>
+              <a href="thread.html#3011">[ thread ]</a>
+              <a href="subject.html#3011">[ subject ]</a>
+              <a href="author.html#3011">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

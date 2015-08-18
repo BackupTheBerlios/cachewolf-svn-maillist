@@ -1,0 +1,3045 @@
+From bilbowolf at mail.berlios.de  Thu Mar  1 23:19:17 2007
+From: bilbowolf at mail.berlios.de (bilbowolf at mail.berlios.de)
+Date: Thu, 1 Mar 2007 23:19:17 +0100
+Subject: [Cachewolf-svn] r633 - trunk/src/CacheWolf
+Message-ID: <200703012219.l21MJHhp021159@sheep.berlios.de>
+
+Author: bilbowolf
+Date: 2007-03-01 23:19:09 +0100 (Thu, 01 Mar 2007)
+New Revision: 633
+
+Modified:
+   trunk/src/CacheWolf/DBStats.java
+   trunk/src/CacheWolf/Version.java
+Log:
+
+
+Modified: trunk/src/CacheWolf/DBStats.java
+===================================================================
+--- trunk/src/CacheWolf/DBStats.java	2007-02-26 00:35:03 UTC (rev 632)
++++ trunk/src/CacheWolf/DBStats.java	2007-03-01 22:19:09 UTC (rev 633)
+@@ -53,7 +53,9 @@
+ 		int counter = 0;
+ 		for(int i = 0; i<cacheDB.size();i++){
+ 			holder = (CacheHolder)cacheDB.get(i);
+-			if(holder.is_found == true) counter++;
++			if(holder.is_found == true) {
++				if(holder.wayPoint.startsWith("GC") || holder.wayPoint.startsWith("OC")) counter++;
++			}
+ 		}
+ 		return counter;
+ 	}
+
+Modified: trunk/src/CacheWolf/Version.java
+===================================================================
+--- trunk/src/CacheWolf/Version.java	2007-02-26 00:35:03 UTC (rev 632)
++++ trunk/src/CacheWolf/Version.java	2007-03-01 22:19:09 UTC (rev 633)
+@@ -10,7 +10,7 @@
+ 	static final String VER_MAJOR = "";
+ 	static final String VER_MINOR = "";
+ 	static final String VER_BUILD = " RC ";
+-	static final String VER_SVN ="$LastChangedRevision$";  //the  number is automatically replaced by subversion to the latest versionnumer of this file (svn:keywords LastChangedRevision)
++	static final String VER_SVN ="$LastChangedRevision$";  // the  number is automatically replaced by subversion to the latest versionnumer of this file (svn:keywords LastChangedRevision)
+ 	
+ 	/**
+ 	 * @return
+
+
+
+From pfeffer at mail.berlios.de  Fri Mar  2 01:45:25 2007
+From: pfeffer at mail.berlios.de (pfeffer at mail.berlios.de)
+Date: Fri, 2 Mar 2007 01:45:25 +0100
+Subject: [Cachewolf-svn] r634 - trunk/src/CacheWolf
+Message-ID: <200703020045.l220jPY4000908@sheep.berlios.de>
+
+Author: pfeffer
+Date: 2007-03-02 01:45:13 +0100 (Fri, 02 Mar 2007)
+New Revision: 634
+
+Modified:
+   trunk/src/CacheWolf/MapsList.java
+Log:
+MovingMap: Bug fixed: Auf irgendeiner seltsamen Plattform scheint dir/./filename nicht zu funktionieren, entsprechendes Vorkommen beseitigt.
+
+Modified: trunk/src/CacheWolf/MapsList.java
+===================================================================
+--- trunk/src/CacheWolf/MapsList.java	2007-03-01 22:19:09 UTC (rev 633)
++++ trunk/src/CacheWolf/MapsList.java	2007-03-02 00:45:13 UTC (rev 634)
+@@ -37,13 +37,15 @@
+ 		MessageBox f = null;
+ 		for (int j = dirs.size()-1; j >= 0; j--) {
+ 			files = new File(mapsPath+"/"+dirs.get(j));
+-			ewe.sys.Vm.debug("mapd-Dirs:"+files);
++			//ewe.sys.Vm.debug("mapd-Dirs:"+files);
+ 			dateien = files.list("*.wfl", File.LIST_FILES_ONLY);
+ 			for(int i = 0; i < dateien.length;i++){
+ 				rawFileName = dateien[i].substring(0, dateien[i].lastIndexOf("."));
+ 				try {
+ 					tempMIO = new MapInfoObject();
+-					tempMIO.loadwfl(mapsPath+"/"+dirs.get(j)+"/", rawFileName);
++					if (dirs.get(j).equals(".")) // the notation dir/./filename doesn't work on all platforms anyhow
++						tempMIO.loadwfl(mapsPath+"/", rawFileName);
++					else tempMIO.loadwfl(mapsPath+"/"+dirs.get(j)+"/", rawFileName);
+ 					add(tempMIO);
+ 				}catch(IOException ex){ 
+ 					if (f == null) (f=new MessageBox("Warning", "Ignoring error while \n reading calibration file \n"+ex.toString(), MessageBox.OKB)).exec();
+
+
+
+From pfeffer at mail.berlios.de  Fri Mar  2 02:55:26 2007
+From: pfeffer at mail.berlios.de (pfeffer at mail.berlios.de)
+Date: Fri, 2 Mar 2007 02:55:26 +0100
+Subject: [Cachewolf-svn] r635 - trunk/src/CacheWolf
+Message-ID: <200703020155.l221tQ1L009676@sheep.berlios.de>
+
+Author: pfeffer
+Date: 2007-03-02 02:55:23 +0100 (Fri, 02 Mar 2007)
+New Revision: 635
+
+Modified:
+   trunk/src/CacheWolf/GotoPanel.java
+   trunk/src/CacheWolf/MovingMap.java
+Log:
+MovingMap: Bug fixed: MapSymbols (=markierte Caches) erscheinen jetzt auch dann sofort (d.h. ohne die Karte zu verschieben), wenn die Goto-Position vor dem ersten Aufruf der MovingMap gesetzt wurde
+MovingMap: etwas Zeit den MessageBoxen, die das Laden der Karten signalisieren, gegeben, damit sie ihren Inhalt zeichnen k?\195?\182nnen (Wunsch von Salzkammergut)
+
+Modified: trunk/src/CacheWolf/GotoPanel.java
+===================================================================
+--- trunk/src/CacheWolf/GotoPanel.java	2007-03-02 00:45:13 UTC (rev 634)
++++ trunk/src/CacheWolf/GotoPanel.java	2007-03-02 01:55:23 UTC (rev 635)
+@@ -326,7 +326,7 @@
+ 		if (myNavigation.isGpsPosValid()) centerTo = new CWPoint(myNavigation.gpsPos); // set gps-pos if gps is on
+ 		else {
+ 			// setze Zielpunkt als Ausgangspunkt, wenn GPS aus ist und lade entsprechende Karte
+-			centerTo = new CWPoint(myNavigation.destination);
++			//centerTo = new CWPoint(myNavigation.destination);
+ 			if (myNavigation.destination.isValid())	centerTo = new CWPoint(myNavigation.destination);
+ 			else centerTo = new CWPoint(pref.curCentrePt); // if not goto-point defined move map to centere point
+ 		}  
+
+Modified: trunk/src/CacheWolf/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/MovingMap.java	2007-03-02 00:45:13 UTC (rev 634)
++++ trunk/src/CacheWolf/MovingMap.java	2007-03-02 01:55:23 UTC (rev 635)
+@@ -165,6 +165,7 @@
+ 		resetCenterOfMap();
+ 		InfoBox inf = new InfoBox("Info", "Loading list of maps...");
+ 		inf.exec();
++		inf.waitUntilPainted(100);
+ 		boolean saveGpsIgnoreStatus = dontUpdatePos;
+ 		dontUpdatePos = true;
+ 		maps = new MapsList(mapsPath); // this actually loads the maps
+@@ -289,10 +290,10 @@
+ 			}
+ 		}
+ 		setMarkedCache(mainT.ch);
+-		destChanged(myNavigation.destination);
+ 		addTrack(myNavigation.curTrack);
+ 		if (tracks != null && tracks.size() > 0 && ((Track)tracks.get(0)).num > 0) 
+ 			addOverlaySet(); // show points which where added when MavingMap was not running
++		destChanged(myNavigation.destination);
+ 		FormFrame ret = exec();
+ 		return ret;
+ 	}
+@@ -735,7 +736,7 @@
+ 		gotoPos = addSymbol("goto", "goto_map.png", d.latDec, d.lonDec);
+ 		//updateDistance(); - this is called from updatePosition
+ 		forceMapLoad = true;
+-		updatePosition(posCircleLat, posCircleLon);
++		if (this.width != 0) updatePosition(posCircleLat, posCircleLon); // dirty hack: if this.width == 0, then the symbols are not on the screen and get hidden by updateSymbolPositions
+ 	}
+ 
+ 	public void removeGotoPosition() {
+@@ -1062,6 +1063,7 @@
+ 		InfoBox inf;
+ 		inf = new InfoBox("Info", "Loading map...");
+ 		inf.show();
++		inf.waitUntilPainted(100);
+ 		try {
+ 			this.currentMap = newmap; 
+ 			this.title = currentMap.mapName;
+@@ -1822,7 +1824,7 @@
+ 	}
+ }
+ 
+-class MapSymbol extends AniImage {
++class MapSymbol extends AniImage { // TODO make this implement MapImage, so that it will be invisible automatically if not on screen. When doing so, test if setgoto-pos -> open map from gotopanel shows the map symbols (directly after starting CW)
+ 	Object mapObject;
+ 	String name;
+ 	String filename;
+
+
+
+From pfeffer at mail.berlios.de  Fri Mar  2 04:32:16 2007
+From: pfeffer at mail.berlios.de (pfeffer at mail.berlios.de)
+Date: Fri, 2 Mar 2007 04:32:16 +0100
+Subject: [Cachewolf-svn] r636 - trunk/src/CacheWolf
+Message-ID: <200703020332.l223WGCi020910@sheep.berlios.de>
+
+Author: pfeffer
+Date: 2007-03-02 04:32:10 +0100 (Fri, 02 Mar 2007)
+New Revision: 636
+
+Modified:
+   trunk/src/CacheWolf/CWGPSPoint.java
+   trunk/src/CacheWolf/MovingMap.java
+   trunk/src/CacheWolf/Navigate.java
+Log:
+MovingMap: Bug fixed: start der MM mit eingeschaltetem GPS aber ohne GPS-fix, springt jetzt nicht mehr an lat/lon 0/0 und zeigt gelben PosCircle an.
+
+Modified: trunk/src/CacheWolf/CWGPSPoint.java
+===================================================================
+--- trunk/src/CacheWolf/CWGPSPoint.java	2007-03-02 01:55:23 UTC (rev 635)
++++ trunk/src/CacheWolf/CWGPSPoint.java	2007-03-02 03:32:10 UTC (rev 636)
+@@ -215,7 +215,7 @@
+ 						case 9: try {this.Alt = Common.parseDouble(currToken); interpreted = true; } catch (NumberFormatException e) {} break;
+ 						} // switch
+ 					} // while
+-					this.set(latNS, latDeg, latMin, "0", lonEW, lonDeg, lonMin, "0", CWPoint.DMM);
++					if (Fix > 0) this.set(latNS, latDeg, latMin, "0", lonEW, lonDeg, lonMin, "0", CWPoint.DMM);
+ 
+ 				} // if
+ 
+
+Modified: trunk/src/CacheWolf/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/MovingMap.java	2007-03-02 01:55:23 UTC (rev 635)
++++ trunk/src/CacheWolf/MovingMap.java	2007-03-02 03:32:10 UTC (rev 636)
+@@ -599,7 +599,7 @@
+ 			posCircleY = pref.myAppHeight/2;
+ 		}
+ 		posCircle.hidden = false;
+-		posCircle.setLocation(posCircleX-posCircle.getWidth()/2, posCircleY-posCircle.getHeight()/2);
++		posCircle.move(posCircleX-posCircle.getWidth()/2, posCircleY-posCircle.getHeight()/2); // posCircle.setLocation caused a problem -> hiding the posCircle in some situation
+ 	}
+ 
+ 	public void movePosCircleToLatLon(CWPoint p, boolean repaint) {
+@@ -1042,7 +1042,8 @@
+ 		autoSelectMap = true;
+ 		forceMapLoad = true;
+ 		showMap();
+-//		updatePosition(gotoPanel.gpsPosition.latDec, gotoPanel.gpsPosition.latDec); is called from GotoPanel.ticked
++		if (myNavigation.gpsPos.Fix <=0) updatePosition(posCircleLat, posCircleLon);
++		else updateGps(myNavigation.gpsPos.getFix());
+ 	}
+ 
+ 	/** sets and displays the map
+
+Modified: trunk/src/CacheWolf/Navigate.java
+===================================================================
+--- trunk/src/CacheWolf/Navigate.java	2007-03-02 01:55:23 UTC (rev 635)
++++ trunk/src/CacheWolf/Navigate.java	2007-03-02 03:32:10 UTC (rev 636)
+@@ -184,7 +184,7 @@
+  */
+ class SerialThread extends mThread{
+ 	SerialPort comSp;   
+-	byte[] comBuff = new byte[1024];  
++	byte[] comBuff = new byte[1024*10]; // when some action takes a long time (eg. loading or zooming a map), a lot of data can be in the buffer, read that at once
+ 	int comLength = 0;
+ 	CWGPSPoint myGPS;
+ 	boolean run, tcpForward;
+
+
+
+From salzkammergut at mail.berlios.de  Sat Mar  3 16:01:51 2007
+From: salzkammergut at mail.berlios.de (salzkammergut at mail.berlios.de)
+Date: Sat, 3 Mar 2007 16:01:51 +0100
+Subject: [Cachewolf-svn] r637 - trunk/src/CacheWolf
+Message-ID: <200703031501.l23F1pnL011541@sheep.berlios.de>
+
+Author: salzkammergut
+Date: 2007-03-03 16:01:43 +0100 (Sat, 03 Mar 2007)
+New Revision: 637
+
+Modified:
+   trunk/src/CacheWolf/myTableControl.java
+   trunk/src/CacheWolf/myTableModel.java
+Log:
+Markieren eines Bereiches von (sichtbaren) Caches durch Shift-Klick
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2007-03-02 03:32:10 UTC (rev 636)
++++ trunk/src/CacheWolf/myTableControl.java	2007-03-03 15:01:43 UTC (rev 637)
+@@ -174,6 +174,8 @@
+ 	public void penDoubleClicked(Point where) {
+ 		Global.mainTab.select(Global.mainTab.descP);
+ 	}
+-
+-
++	public void onEvent(Event ev) {
++	    if (ev instanceof PenEvent) Global.mainTab.tbP.myMod.penEventModifiers=((PenEvent)ev).modifiers;
++		super.onEvent(ev);
++	}
+ }
+
+Modified: trunk/src/CacheWolf/myTableModel.java
+===================================================================
+--- trunk/src/CacheWolf/myTableModel.java	2007-03-02 03:32:10 UTC (rev 636)
++++ trunk/src/CacheWolf/myTableModel.java	2007-03-03 15:01:43 UTC (rev 637)
+@@ -40,7 +40,11 @@
+ 	int sortedBy = -1;
+ 	FontMetrics fm;
+ 	Image checkboxTicked,checkboxUnticked;
+-	
++	/** This is the modifier (Shift & Control key status) for Pen Events
++	 * it is set in myTableControl.onEvent */
++	public int penEventModifiers; 
++	/** The row of the last click where the shift key was pressed */
++	private int lastRow=-1;
+ 	public myTableModel(myTableControl tc, FontMetrics fm){
+ 		super();
+ 		cacheDB = Global.getProfile().cacheDB;
+@@ -261,27 +265,24 @@
+ 	
+ 	public boolean penPressed(Point onTable,Point cell){
+ 		boolean retval = false;
+-		// Table header hit
+ 		try{
+ 			if (cell.y>=0) Global.mainTab.tbP.setSelectedCache(cell.y);
+ 			// Check whether the click is on the checkbox image
+ 			if (cell.y>=0 && cell.x==0) {
+ 				Global.getProfile().selectionChanged = true;
+-				CacheHolder ch = (CacheHolder)cacheDB.get(cell.y);
+-				ch.is_Checked= !ch.is_Checked;
+-				// set the ceckbox also for addi wpts
+-				if (ch.hasAddiWpt()){
+-					CacheHolder addiWpt;
+-					int off = 1;
+-					int addiCount=ch.addiWpts.getCount();
+-					for (int i=0;i<addiCount;i++){
+-						addiWpt = (CacheHolder)ch.addiWpts.get(i);
+-						addiWpt.is_Checked = ch.is_Checked;
+-						if (!addiWpt.is_filtered){
+-							tcControl.repaintCell(cell.y + off++, 0);
+-						}
++				if ((penEventModifiers & IKeys.SHIFT)>0) {
++					if (lastRow!=-1) { // Second row being marked with shift key pressed
++						if (lastRow<cell.y)
++							toggleSelect(lastRow,cell.y);
++						else
++							toggleSelect(cell.y,lastRow);
++						lastRow=-1;
++					} else { // Remember this row as start of range, but don't toggle yet
++						lastRow=cell.y;
+ 					}
+-					
++				} else { // Single row marked
++					toggleSelect(cell.y,cell.y);
++					lastRow=-1;
+ 				}
+ 			}
+ 			if(cell.y == -1){ // Hit a header => sort the table accordingly
+@@ -313,4 +314,32 @@
+ 		return retval;
+ 	}
+ 	
++	/** Toggle the select status for a group of caches
++	 * If from==to, the addi Waypoints are also toggled if the cache is a main waypoint
++	 * If from!=to, each cache is toggled irrespective of its type (main or addi)
++	 * @param from index of first cache to toggle
++	 * @param to index of last cache to toggle
++	 */
++	void toggleSelect(int from, int to) {
++		CacheHolder ch;
++		boolean singleRow= from == to;
++		for (int j=from; j<=to; j++) {
++			ch=(CacheHolder) cacheDB.get(j);
++			ch.is_Checked= !ch.is_Checked; 
++			tcControl.repaintCell(j, 0);
++			// set the ceckbox also for addi wpts
++			if (ch.hasAddiWpt() && singleRow){
++				CacheHolder addiWpt;
++				int addiCount=ch.addiWpts.getCount();
++				for (int i=0;i<addiCount;i++){
++					addiWpt = (CacheHolder)ch.addiWpts.get(i);
++					addiWpt.is_Checked = ch.is_Checked;
++					if (!addiWpt.is_filtered){
++						tcControl.repaintCell(cacheDB.find(addiWpt), 0);
++					}
++				}
++				
++			}
++		}		
++	}
+ }
+
+
+
+From pfeffer at mail.berlios.de  Sun Mar  4 16:22:01 2007
+From: pfeffer at mail.berlios.de (pfeffer at mail.berlios.de)
+Date: Sun, 4 Mar 2007 16:22:01 +0100
+Subject: [Cachewolf-svn] r638 - trunk/src/CacheWolf
+Message-ID: <200703041522.l24FM1fI015069@sheep.berlios.de>
+
+Author: pfeffer
+Date: 2007-03-04 16:21:56 +0100 (Sun, 04 Mar 2007)
+New Revision: 638
+
+Modified:
+   trunk/src/CacheWolf/MovingMap.java
+   trunk/src/CacheWolf/Preferences.java
+Log:
+TPL-Export: neue Fehlermeldung: OutOfMemory error. Leider funktioniert die Garbage collection danach nicht mehr richtig. Habe alles probiert und gegoogelt, aber das Problem nicht l?\195?\182sen k?\195?\182nnen. Darum der Hinweis in der Fehlermeldung: "restart Cachewolf now"
+
+Modified: trunk/src/CacheWolf/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/MovingMap.java	2007-03-03 15:01:43 UTC (rev 637)
++++ trunk/src/CacheWolf/MovingMap.java	2007-03-04 15:21:56 UTC (rev 638)
+@@ -350,7 +350,7 @@
+ 			for (int i=0; i< TrackOverlays.length; i++) {	destroyOverlay(i);	}
+ 		}
+ 		Vm.getUsedMemory(true); // call garbage collection
+-		System.gc();
++		Vm.gc();
+ 	}
+ 
+ 
+@@ -540,8 +540,7 @@
+ 											TrackOverlaySetCenterTopLeft = ScreenXY2LatLon(100, 100);
+ 										} // this happens if a position jump occured
+ 								}}}}}}} // close all IFs
+-		Vm.getUsedMemory(true); // call garbage collection
+-		System.gc();
++		Vm.gc(); // call garbage collection
+ 		Vm.debug("Overlayrearanged"+TrackOverlays.toString());
+ 	}
+ 
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2007-03-03 15:01:43 UTC (rev 637)
++++ trunk/src/CacheWolf/Preferences.java	2007-03-04 15:21:56 UTC (rev 638)
+@@ -607,7 +607,7 @@
+ 	 * <pre>Global.getPref().debug=true;</pre>
+ 	 * in Version.getRelease()
+ 	 */
+-	public void log(String text,Exception e, boolean withStackTrace) {
++	public void log(String text,Throwable e, boolean withStackTrace) {
+ 		String msg;
+ 		if (text.equals("")) msg=text; else msg=text+"\n";
+ 		if (e!=null) {
+
+
+
+From pfeffer at mail.berlios.de  Sun Mar  4 16:38:23 2007
+From: pfeffer at mail.berlios.de (pfeffer at mail.berlios.de)
+Date: Sun, 4 Mar 2007 16:38:23 +0100
+Subject: [Cachewolf-svn] r639 - trunk/src/exp
+Message-ID: <200703041538.l24FcN9A015873@sheep.berlios.de>
+
+Author: pfeffer
+Date: 2007-03-04 16:38:20 +0100 (Sun, 04 Mar 2007)
+New Revision: 639
+
+Modified:
+   trunk/src/exp/TPLExporter.java
+Log:
+ups, letzter Commit war unvollstaendig. (TPL-Expoerter-Fehlermeldung...)
+
+Modified: trunk/src/exp/TPLExporter.java
+===================================================================
+--- trunk/src/exp/TPLExporter.java	2007-03-04 15:21:56 UTC (rev 638)
++++ trunk/src/exp/TPLExporter.java	2007-03-04 15:38:20 UTC (rev 639)
+@@ -28,6 +28,7 @@
+ import CacheWolf.CWPoint;
+ import CacheWolf.CacheHolder;
+ import CacheWolf.CacheType;
++import CacheWolf.Global;
+ import CacheWolf.Preferences;
+ import CacheWolf.Profile;
+ import CacheWolf.STRreplace;
+@@ -140,9 +141,6 @@
+ 		CacheHolder holder;
+ 		ProgressBarForm pbf = new ProgressBarForm();
+ 		ewe.sys.Handle h = new ewe.sys.Handle();
+-		Vector cache_index = new Vector();
+-		Hashtable varParams;
+-		TplFilter myFilter;
+ 
+ 		FileChooser fc = new FileChooser(FileChooser.SAVE, profile.dataDir);
+ 		fc.setTitle("Select target file:");
+@@ -157,16 +155,22 @@
+ 		pbf.showMainTask = false;
+ 		pbf.setTask(h,"Exporting ...");
+ 		pbf.exec();
+-		
+-		Hashtable args = new Hashtable();
+-		myFilter = new TplFilter();
+-		//args.put("debug", "true");
+-		args.put("filename", tplFile);
+-		args.put("case_sensitive", "true");
+-		args.put("loop_context_vars", Boolean.TRUE);
+-		args.put("max_includes", new Integer(5));
+-		args.put("filter", myFilter);
++		Vm.gc(); // all this doesn't really work :-(
++		System.runFinalization();
++		Vm.gc();
++		//Vm.debug("v: "+Vm.countObjects(true));
+ 		try {
++			Vector cache_index = new Vector(); // declare variables inside try {} -> in case of OutOfMemoryError, they can be garbage collected - anyhow it doesn't work :-(
++			Hashtable varParams;
++			TplFilter myFilter;
++			Hashtable args = new Hashtable(); 
++			myFilter = new TplFilter();
++			//args.put("debug", "true");
++			args.put("filename", tplFile);
++			args.put("case_sensitive", "true");
++			args.put("loop_context_vars", Boolean.TRUE);
++			args.put("max_includes", new Integer(5));
++			args.put("filter", myFilter);
+ 			Template tpl = new Template(args);
+ 
+ 			for(int i = 0; i<counter;i++){
+@@ -179,6 +183,7 @@
+ 						holder.readCache(profile.dataDir);
+ 					}catch(Exception e){
+ 						Vm.debug("Problem reading cache page");
++						Global.getPref().log("Exception in TplExporter = Problem reading cache page, Cache: " + holder.wayPoint, e, true);
+ 					}
+ 					try {
+ 						Regex dec = new Regex("[,.]",myFilter.decSep);
+@@ -212,6 +217,7 @@
+ 					}catch(Exception e){
+ 						Vm.debug("Problem getting Parameter, Cache: " + holder.wayPoint);
+ 						e.printStackTrace();
++						Global.getPref().log("Exception in TplExporter = Problem getting Parameter, Cache: " + holder.wayPoint, e, true);
+ 					}
+ 				}
+ 			}
+@@ -226,6 +232,15 @@
+ 			detfile.close();
+ 		} catch (Exception e) {
+ 			e.printStackTrace();
++			Global.getPref().log("Exception in TplExporter", e, true);
++		} catch (OutOfMemoryError e) {
++			//Global.getPref().log("OutOfMemeory in TplExporter", e, true);
++			Vm.gc(); // this doesn't help :-(
++			System.runFinalization();
++			Vm.gc(); // this doesn't help :-( - I don't know why :-(
++			//Vm.debug("n: "+Vm.countObjects(true));
++			(new MessageBox("Error", "Not enough memory available to load all cache data (incl. description and logs)\nexport aborted\nFilter caches to minimize memory needed for TPL-Export\nWe recommend to restart CacheWolf now", MessageBox.OKB)).execute();
++			//Vm.debug("n: "+Vm.countObjects(true));
+ 		}
+ 		pbf.exit(0);
+ 	}
+
+
+
+From admin at berlios.de  Mon Mar  5 18:37:38 2007
+From: admin at berlios.de (admin at berlios.de)
+Date: Mon, 5 Mar 2007 18:37:38 +0100 (CET)
+Subject: [Cachewolf-svn] [Feature #2929] Mondrichtung anzeigen
+Message-ID: <200703051737.l25HbcVL007366@unicorn.berlios.de>
+
+Feature Request #2929, was updated on 2006-Dec-03 16:36
+You can respond by visiting: 
+http://developer.berlios.de/feature/?func=detailfeature&feature_id=2929&group_id=2211
+
+Category: None
+Status: Open
+Priority: 5
+Summary: Mondrichtung anzeigen
+
+By: pfeffer
+Date: 2007-Mar-05 18:37
+
+Message:
+Logged In: YES 
+user_id=30639
+Browser: Opera/9.02 (Windows NT 5.1; U; de)
+
+ich hab's schon fast fertig
+
+----------------------------------------------------------------------
+
+By: pfeffer
+Date: 2006-Dec-03 16:36
+
+Message:
+Logged In: YES 
+user_id=30639
+Browser: Mozilla/5.0 (Windows; U; Windows NT 5.1; de; rv:1.8.1) Gecko/20061010 Firefox/2.0
+
+wo nun die Tage k?rzer werden wird es zunehmend
+wichtiger, auch im Dunkeln die Himmelsrichtung
+bestimmen zu k?nnen
+
+----------------------------------------------------------------------
+You can respond by visiting: 
+http://developer.berlios.de/feature/?func=detailfeature&feature_id=2929&group_id=2211
+
+
+From kalli at mail.berlios.de  Thu Mar  8 20:33:23 2007
+From: kalli at mail.berlios.de (kalli at mail.berlios.de)
+Date: Thu, 8 Mar 2007 20:33:23 +0100
+Subject: [Cachewolf-svn] r640 - trunk/src/exp
+Message-ID: <200703081933.l28JXNns004158@sheep.berlios.de>
+
+Author: kalli
+Date: 2007-03-08 20:33:21 +0100 (Thu, 08 Mar 2007)
+New Revision: 640
+
+Modified:
+   trunk/src/exp/LocExporter.java
+Log:
+Caches mit ungueltigen Koordinaten werden nicht exportiert, da es Probleme mit GPS-Babel gab.
+
+Modified: trunk/src/exp/LocExporter.java
+===================================================================
+--- trunk/src/exp/LocExporter.java	2007-03-04 15:38:20 UTC (rev 639)
++++ trunk/src/exp/LocExporter.java	2007-03-08 19:33:21 UTC (rev 640)
+@@ -20,6 +20,8 @@
+ 	}
+ 	
+ 	public String record(CacheHolder ch){
++		// filter out not valid coords
++		if (!ch.pos.isValid()) return null;
+ 		StringBuffer strBuf = new StringBuffer(200);
+ 		strBuf.append("<waypoint>\r\n   <name id=\"");
+ 		strBuf.append(simplifyString(ch.wayPoint));
+
+
+
+From admin at berlios.de  Sat Mar 10 10:57:40 2007
+From: admin at berlios.de (admin at berlios.de)
+Date: Sat, 10 Mar 2007 00:57:40 -0900 (AKST)
+Subject: [Cachewolf-svn] [Feature #3220] mehrere Caches in die Blcckliste
+Message-ID: <200703100957.l2A9ve7L023648@unicorn.berlios.de>
+
+Feature Request #3220, was updated on 2007-Mar-10 00:57
+You can respond by visiting: 
+http://developer.berlios.de/feature/?func=detailfeature&feature_id=3220&group_id=2211
+
+Category: None
+Status: Open
+Priority: 5
+Summary: mehrere Caches in die Blcckliste
+
+By: cw-tester
+Date: 2007-Mar-10 00:57
+
+Message:
+Logged In: YES 
+user_id=30505
+Browser: Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; .NET CLR 1.0.3705; .NET CLR 2.0.50727)
+
+Mittels markieren von Caches in der Listansicht und 
+entsprechendem Kontextmen? mehrere Caches 
+gleichzeitig in die Blackliste aufnehmen.
+
+----------------------------------------------------------------------
+You can respond by visiting: 
+http://developer.berlios.de/feature/?func=detailfeature&feature_id=3220&group_id=2211
+
+
+From salzkammergut at mail.berlios.de  Sat Mar 10 13:23:46 2007
+From: salzkammergut at mail.berlios.de (salzkammergut at mail.berlios.de)
+Date: Sat, 10 Mar 2007 13:23:46 +0100
+Subject: [Cachewolf-svn] r641 - trunk/src/CacheWolf
+Message-ID: <200703101223.l2ACNkPc002223@sheep.berlios.de>
+
+Author: salzkammergut
+Date: 2007-03-10 13:23:35 +0100 (Sat, 10 Mar 2007)
+New Revision: 641
+
+Modified:
+   trunk/src/CacheWolf/TablePanel.java
+Log:
+Nach Auswahl eines Caches im Radarpanel wird er in der Listenansicht grau hinterlegt.
+
+Modified: trunk/src/CacheWolf/TablePanel.java
+===================================================================
+--- trunk/src/CacheWolf/TablePanel.java	2007-03-08 19:33:21 UTC (rev 640)
++++ trunk/src/CacheWolf/TablePanel.java	2007-03-10 12:23:35 UTC (rev 641)
+@@ -43,21 +43,23 @@
+ 	
+ 	public void setSelectedCache(int row){ // TODO as far as i know selectedCh can be removed at all, use tc.cursor.y instead
+ 		selectedCh=null;
+-		if (row>=0)  {
++		selectedIdx=-1;
++		if (row>=0 && row<cacheDB.size())  {
+ 			selectedCh=(CacheHolder) cacheDB.get(row);
++			selectedIdx=row;
+ 		} 		
+-		selectedIdx=row;
+ 	
+ 	}
+ 	
+ 	/** Mark the row as selected so that myTableModel can color it grey */
+ 	public void selectRow(int row) {
+ 		setSelectedCache(row);
+-	/*	tc.clearSelectedCells(null);
+-		for(int i= 0; i < myMod.MAXCOLUMNS; i++){
+-			tc.addToSelection(row,i); 
+-		}
+-	*/	tc.cursorTo(row, tc.cursor.x+tc.listMode, true);
++		//tc.cursorTo(row, tc.cursor.x+tc.listMode, true);
++		tc.scrollToVisible(row,0);
++		tc.clearSelection(null);
++		tc.addToSelection(row,0); 
++		tc.addToSelection(row,myMod.MAXCOLUMNS-1); 
++		//tc.paintSelectedCells();
+ 	}
+ 	
+ 	/** Returns the index of the currently selected cache or -1 of the cache is no longer visible
+@@ -96,14 +98,14 @@
+ 	*/
+ 	
+ 	public void resetModel() {
+-		setSelectedCache(-1);
++		setSelectedCache(0);
+ 		myMod.numRows = cacheDB.size();
+ 		Global.getProfile().updateBearingDistance();
+ 		Filter flt = new Filter();
+ 		flt.setFilter();
+ 		flt.doFilter();
++		tc.scrollToVisible(0,0);
+ 		refreshTable();
+-		tc.scrollToVisible(0,0);
+ 	}
+ 	
+ 	/**
+
+
+
+From salzkammergut at mail.berlios.de  Sun Mar 11 19:00:32 2007
+From: salzkammergut at mail.berlios.de (salzkammergut at mail.berlios.de)
+Date: Sun, 11 Mar 2007 19:00:32 +0100
+Subject: [Cachewolf-svn] r642 - trunk/src/CacheWolf
+Message-ID: <200703111800.l2BI0W1R002725@sheep.berlios.de>
+
+Author: salzkammergut
+Date: 2007-03-11 19:00:23 +0100 (Sun, 11 Mar 2007)
+New Revision: 642
+
+Modified:
+   trunk/src/CacheWolf/TablePanel.java
+Log:
+Fix: Nachtrag zum letzten Commit
+
+Modified: trunk/src/CacheWolf/TablePanel.java
+===================================================================
+--- trunk/src/CacheWolf/TablePanel.java	2007-03-10 12:23:35 UTC (rev 641)
++++ trunk/src/CacheWolf/TablePanel.java	2007-03-11 18:00:23 UTC (rev 642)
+@@ -41,7 +41,7 @@
+ 		tc.setTableModel(myMod);
+ 	}
+ 	
+-	public void setSelectedCache(int row){ // TODO as far as i know selectedCh can be removed at all, use tc.cursor.y instead
++	public void setSelectedCache(int row){ 
+ 		selectedCh=null;
+ 		selectedIdx=-1;
+ 		if (row>=0 && row<cacheDB.size())  {
+@@ -72,6 +72,8 @@
+ 		// If cacheDB has entries, but all are filtered, return -1
+ 		if (((CacheHolder)cacheDB.get(0)).is_filtered) return -1;
+ 		// Now we have at least one visible cache
++		// Check whether selected cache was deleted or filtered 
++		if (selectedIdx>=Global.mainTab.tbP.myMod.numRows) return Global.mainTab.tbP.myMod.numRows-1;
+ 		// We had a previously selected cache, check whether it is now filtered
+ 		if (selectedCh==null || selectedCh.is_filtered) return 0; // Return first visible cache
+ 		// Check whether the order of the list has changed because of sort/filter/search operations
+
+
+
+From pfeffer at mail.berlios.de  Mon Mar 12 23:50:47 2007
+From: pfeffer at mail.berlios.de (pfeffer at mail.berlios.de)
+Date: Mon, 12 Mar 2007 23:50:47 +0100
+Subject: [Cachewolf-svn] r643 - trunk/src/CacheWolf
+Message-ID: <200703122250.l2CMolQk007982@sheep.berlios.de>
+
+Author: pfeffer
+Date: 2007-03-12 23:50:43 +0100 (Mon, 12 Mar 2007)
+New Revision: 643
+
+Modified:
+   trunk/src/CacheWolf/MapLoaderGui.java
+   trunk/src/CacheWolf/OCXMLImporter.java
+   trunk/src/CacheWolf/SpiderGC.java
+Log:
+Download von Opencaching: Owner wird erkannt
+Download von Expedia Karten: Standard-Aufl?\195?\182sungen auf Werte gesetzt, mit denen ich gute Erfahrung gemacht habe
+SpiderGC: Gross-Kleinschreibung in Ownernamen wird nicht beachtet bei Erkennung, ob Owner
+
+Modified: trunk/src/CacheWolf/MapLoaderGui.java
+===================================================================
+--- trunk/src/CacheWolf/MapLoaderGui.java	2007-03-11 18:00:23 UTC (rev 642)
++++ trunk/src/CacheWolf/MapLoaderGui.java	2007-03-12 22:50:43 UTC (rev 643)
+@@ -31,7 +31,7 @@
+ 	mButton coosBtn;
+ 	mLabel scaleLbl = new mLabel("Approx. m per pixel:");
+ 	mInput scaleInput = new mInput ("3");
+-	mInput scaleInputPerCache = new mInput ("3");
++	mInput scaleInputPerCache = new mInput ("1");
+ 	mLabel overlappingLbl = new mLabel("overlapping in pixel:");
+ 	mInput overlappingInput = new mInput("100");
+ 	mCheckBox overviewChkBox = new mCheckBox("download an overview map");
+@@ -70,7 +70,7 @@
+ 		pnlTiles.addNext(coosLbl = new mLabel(MyLocale.getMsg(1803, "around the center: ")));
+ 		pnlTiles.addLast(coosBtn = new mButton(center.toString()));
+ 		pnlTiles.addNext(scaleLbl);
+-		scaleInput.setText("3");
++		scaleInput.setText("5");
+ 		this.focusFirst();
+ 		pnlTiles.addLast(scaleInput);
+ 		//	pnlTiles.addLast(resolutionLbl);
+
+Modified: trunk/src/CacheWolf/OCXMLImporter.java
+===================================================================
+--- trunk/src/CacheWolf/OCXMLImporter.java	2007-03-11 18:00:23 UTC (rev 642)
++++ trunk/src/CacheWolf/OCXMLImporter.java	2007-03-12 22:50:43 UTC (rev 643)
+@@ -397,6 +397,7 @@
+ 		}
+ 		if(name.equals("userid")) {
+ 			holder.CacheOwner = strData;
++			if(holder.CacheOwner.equalsIgnoreCase(pref.myAlias) || (pref.myAlias2.length()>0 && holder.CacheOwner.equalsIgnoreCase(pref.myAlias2))) holder.is_owned = true;
+ 			return;
+ 		}
+ 
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2007-03-11 18:00:23 UTC (rev 642)
++++ trunk/src/CacheWolf/SpiderGC.java	2007-03-12 22:50:43 UTC (rev 643)
+@@ -390,7 +390,7 @@
+ 					//Vm.debug("Name: " + ch.CacheName);
+ 					pref.log("Trying owner");
+ 					ch.CacheOwner = SafeXML.cleanback(getOwner(start)).trim();
+-					if(ch.CacheOwner.equals(pref.myAlias) || (pref.myAlias2.length()>0 && ch.CacheOwner.equals(pref.myAlias2))) ch.is_owned = true;
++					if(ch.CacheOwner.equalsIgnoreCase(pref.myAlias) || (pref.myAlias2.length()>0 && ch.CacheOwner.equalsIgnoreCase(pref.myAlias2))) ch.is_owned = true;
+ 					pref.log("Got owner");
+ 					//Vm.debug("Owner: " + ch.CacheOwner);
+ 					pref.log("Trying date hidden");
+
+
+
+From admin at berlios.de  Fri Mar 16 19:29:07 2007
+From: admin at berlios.de (admin at berlios.de)
+Date: Fri, 16 Mar 2007 19:29:07 +0100 (CET)
+Subject: [Cachewolf-svn] [Feature #2951] Solver: Fehlermeldung fehlt
+Message-ID: <200703161829.l2GIT7Fm028051@unicorn.berlios.de>
+
+Feature Request #2951, was updated on 2006-Dec-06 12:11
+You can respond by visiting: 
+http://developer.berlios.de/feature/?func=detailfeature&feature_id=2951&group_id=2211
+
+Category: 0.9n
+Status: Closed
+Priority: 5
+Summary: Solver: Fehlermeldung fehlt
+
+By: salzkammergut
+Date: 2007-Mar-16 19:29
+
+Message:
+Logged In: YES 
+user_id=33713
+Browser: Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.0.10) Gecko/20070216 Firefox/1.5.0.10
+
+Durch neuen Solver erledigt
+
+----------------------------------------------------------------------
+
+By: pfeffer
+Date: 2006-Dec-06 12:11
+
+Message:
+Logged In: YES 
+user_id=30639
+Browser: Mozilla/5.0 (Windows; U; Windows NT 5.1; de; rv:1.8.1) Gecko/20061010 Firefox/2.0
+
+http://www.geoclub.de/ftopic12853.html
+
+[quote="2cachefix"]Grunds?tzlich sieht das f?r mich
+ausf?hrbar aus.
+A = 1;
+B= 3;
+C= 4;
+?N 48 12.00"show(A+B);
+D = A \* 4000 / C ? 10 \* 400;
+"Die n?chste Position ist: "show(D)" befindet sich hier";
+[/quote]
+
+Der Grund f?r die InexOutOfBoundsExeption liegt in
+irgendwelchen Sonderzeichen (?), auch der Backslash vor
+dem "*" st?rt wohl. Das aktuelle Beispiel in der Doku
+auf cachewolf.berlios.de funktioniert.
+Trotzdem hast Du recht: es sollte ein entsprechender
+Fehler ausgegeben werden.
+
+Gru?,
+  Pfeffer.
+
+----------------------------------------------------------------------
+You can respond by visiting: 
+http://developer.berlios.de/feature/?func=detailfeature&feature_id=2951&group_id=2211
+
+
+From admin at berlios.de  Fri Mar 16 19:31:13 2007
+From: admin at berlios.de (admin at berlios.de)
+Date: Fri, 16 Mar 2007 19:31:13 +0100 (CET)
+Subject: [Feature #2509] Abbruchmöglichkeit beim GPX-Import
+Message-ID: <200703161831.l2GIVDGp004527@unicorn.berlios.de>
+
+Feature Request #2509, was updated on 2006-Aug-15 08:11
+You can respond by visiting: 
+http://developer.berlios.de/feature/?func=detailfeature&feature_id=2509&group_id=2211
+
+Category: None
+Status: Closed
+Priority: 5
+Summary: Abbruchm?glichkeit beim GPX-Import
+
+By: salzkammergut
+Date: 2007-Mar-16 19:31
+
+Message:
+Logged In: YES 
+user_id=33713
+Browser: Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.0.10) Gecko/20070216 Firefox/1.5.0.10
+
+Erledigt mit Rev 617
+
+----------------------------------------------------------------------
+
+By: cw-tester
+Date: 2006-Aug-15 08:11
+
+Message:
+Logged In: YES 
+user_id=30505
+Browser: Mozilla/5.0 (Windows; U; Windows NT 5.1; de; rv:1.8.0.6) Gecko/20060728 Firefox/1.5.0.6
+
+Es sollte eine M?glichkeit des gewollten Abbruchs
+mittels Abbruchbutton geben.
+Wenn ich momentan einen Import abbreche sind die
+geladenen Dateien zwar im Zielordner, CW kann sie aber
+nicht anzeigen. Bei einem gewollten Abbruch kann die
+Index.xml ordnungsgem?ss beendet werden und man hat die
+geladenen Caches zur Verf?gung.
+
+----------------------------------------------------------------------
+You can respond by visiting: 
+http://developer.berlios.de/feature/?func=detailfeature&feature_id=2509&group_id=2211
+
+
+From admin at berlios.de  Fri Mar 16 19:32:29 2007
+From: admin at berlios.de (admin at berlios.de)
+Date: Fri, 16 Mar 2007 19:32:29 +0100 (CET)
+Subject: [Cachewolf-svn] [Feature #1974] Cache Attribute anzeigen und filtern
+Message-ID: <200703161832.l2GIWT2t008666@unicorn.berlios.de>
+
+Feature Request #1974, was updated on 2006-Mar-16 21:18
+You can respond by visiting: 
+http://developer.berlios.de/feature/?func=detailfeature&feature_id=1974&group_id=2211
+
+Category: None
+Status: Open
+Priority: 5
+Summary: Cache Attribute anzeigen und filtern
+
+By: salzkammergut
+Date: 2007-Mar-16 19:32
+
+Message:
+Logged In: YES 
+user_id=33713
+Browser: Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.0.10) Gecko/20070216 Firefox/1.5.0.10
+
+An der Anzeige bin ich dran. Kommt nach 0.9n
+
+----------------------------------------------------------------------
+
+By: bilbowolf
+Date: 2006-Mar-16 21:18
+
+Message:
+Logged In: YES 
+user_id=10718
+Browser: Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.0.1) Gecko/20060111 Firefox/1.5.0.1
+
+Cache Attribute anzeigen und filtern
+
+----------------------------------------------------------------------
+You can respond by visiting: 
+http://developer.berlios.de/feature/?func=detailfeature&feature_id=1974&group_id=2211
+
+
+From bilbowolf at mail.berlios.de  Sat Mar 17 07:39:19 2007
+From: bilbowolf at mail.berlios.de (bilbowolf at mail.berlios.de)
+Date: Sat, 17 Mar 2007 07:39:19 +0100
+Subject: [Cachewolf-svn] r644 - in trunk: resources src/CacheWolf
+Message-ID: <200703170639.l2H6dJgr029069@sheep.berlios.de>
+
+Author: bilbowolf
+Date: 2007-03-17 07:39:12 +0100 (Sat, 17 Mar 2007)
+New Revision: 644
+
+Modified:
+   trunk/resources/cachewolf.Languages.cfg
+   trunk/src/CacheWolf/CacheHolder.java
+   trunk/src/CacheWolf/CacheWolf.java
+   trunk/src/CacheWolf/Profile.java
+   trunk/src/CacheWolf/SpiderGC.java
+   trunk/src/CacheWolf/Version.java
+   trunk/src/CacheWolf/myTableModel.java
+Log:
+
+
+Modified: trunk/resources/cachewolf.Languages.cfg
+===================================================================
+--- trunk/resources/cachewolf.Languages.cfg	2007-03-12 22:50:43 UTC (rev 643)
++++ trunk/resources/cachewolf.Languages.cfg	2007-03-17 06:39:12 UTC (rev 644)
+@@ -685,6 +685,10 @@
+ 		4501=Vis:
+ 		4502=Fnd:
+ 		5000=Load Cachelist
++		5500=Fehler
++		5501=Login nicht m%f6glich
++		5502=Lade erste Seite
++		5502=Konnte erste Seite nicht laden
+ 		{..}
+ 	{..}
+ {..}
+
+Modified: trunk/src/CacheWolf/CacheHolder.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolder.java	2007-03-12 22:50:43 UTC (rev 643)
++++ trunk/src/CacheWolf/CacheHolder.java	2007-03-17 06:39:12 UTC (rev 644)
+@@ -66,6 +66,7 @@
+   public boolean is_log_update = false;
+   public boolean is_update = false;
+   public boolean is_selected = false;
++  public boolean is_incomplete=false;
+   public boolean is_HTML = true;
+   public boolean is_Checked = false;
+   public Vector addiWpts = new Vector();
+
+Modified: trunk/src/CacheWolf/CacheWolf.java
+===================================================================
+--- trunk/src/CacheWolf/CacheWolf.java	2007-03-12 22:50:43 UTC (rev 643)
++++ trunk/src/CacheWolf/CacheWolf.java	2007-03-17 06:39:12 UTC (rev 644)
+@@ -240,7 +240,6 @@
+ 		//if (Gui.screenIs(Gui.PDA_SCREEN) && Vm.isMobile()) {
+ 		//	Vm.setSIP(Vm.SIP_LEAVE_BUTTON);
+ 		//}
+-		
+ 		if(args.length > 0){
+ 			if(args[0].equals("test")){
+ 				Test t=new Test(); 
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2007-03-12 22:50:43 UTC (rev 643)
++++ trunk/src/CacheWolf/Profile.java	2007-03-17 06:39:12 UTC (rev 644)
+@@ -151,7 +151,7 @@
+ 					detfile.print("    <CACHE name = \""+SafeXML.clean(ch.CacheName)+"\" owner = \""+SafeXML.clean(ch.CacheOwner)+
+ 							//"\" lat = \""+ SafeXML.clean(ch.LatLon) +
+ 							"\" lat = \""+ ch.pos.latDec + "\" lon = \""+ch.pos.lonDec+
+-							"\" hidden = \""+ch.DateHidden+"\" wayp = \""+SafeXML.clean(ch.wayPoint)+"\" status = \""+ch.CacheStatus+"\" type = \""+ch.type+"\" dif = \""+ch.hard+"\" terrain = \"" + ch.terrain + "\" dirty = \"" + ch.dirty + "\" size = \""+ch.CacheSize+"\" online = \"" + Convert.toString(ch.is_available) + "\" archived = \"" + Convert.toString(ch.is_archived) + "\" has_bug = \"" + Convert.toString(ch.has_bug) + "\" black = \"" + Convert.toString(ch.is_black) + "\" owned = \"" + Convert.toString(ch.is_owned) + "\" found = \"" + Convert.toString(ch.is_found) + "\" is_new = \"" + Convert.toString(ch.is_new) +"\" is_log_update = \"" + Convert.toString(ch.is_log_update) + "\" is_update = \"" + Convert.toString(ch.is_update) + "\" is_HTML = \"" + Convert.toString(ch.is_HTML) + "\" DNFLOGS = \"" + ch.noFindLogs + "\" ocCacheID = \"" + ch.ocCacheID + "\" />\n");
++							"\" hidden = \""+ch.DateHidden+"\" wayp = \""+SafeXML.clean(ch.wayPoint)+"\" status = \""+ch.CacheStatus+"\" type = \""+ch.type+"\" dif = \""+ch.hard+"\" terrain = \"" + ch.terrain + "\" dirty = \"" + ch.dirty + "\" size = \""+ch.CacheSize+"\" online = \"" + Convert.toString(ch.is_available) + "\" archived = \"" + Convert.toString(ch.is_archived) + "\" has_bug = \"" + Convert.toString(ch.has_bug) + "\" black = \"" + Convert.toString(ch.is_black) + "\" owned = \"" + Convert.toString(ch.is_owned) + "\" found = \"" + Convert.toString(ch.is_found) + "\" is_new = \"" + Convert.toString(ch.is_new) +"\" is_log_update = \"" + Convert.toString(ch.is_log_update) + "\" is_update = \"" + Convert.toString(ch.is_update) + "\" is_HTML = \"" + Convert.toString(ch.is_HTML) + "\" DNFLOGS = \"" + ch.noFindLogs + "\" ocCacheID = \"" + ch.ocCacheID + "\" is_INCOMPLETE = \""+Convert.toString(ch.is_incomplete)+"\" />\n");
+ 				}
+ 			}
+ 			detfile.print("</CACHELIST>\n");
+@@ -220,6 +220,7 @@
+ 					ch.is_HTML = ex.findNext().equals("false") ? false : true;
+ 					ch.noFindLogs = Convert.toInt(ex.findNext());
+ 					ch.ocCacheID = ex.findNext();
++					ch.is_incomplete = ex.findNext().equals("true") ? true : false;
+ 					// remove "/>
+ 					ch.ocCacheID = STRreplace.replace(ch.ocCacheID,"\"/>", null);
+ 					// remove additional " if present
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2007-03-12 22:50:43 UTC (rev 643)
++++ trunk/src/CacheWolf/SpiderGC.java	2007-03-17 06:39:12 UTC (rev 644)
+@@ -34,8 +34,11 @@
+ /**
+ *	Class to spider caches from gc.com
+ *	It uses a generic parse tree to parse the page and build a gpx file.
++*	ClassID (for cachewolf.languages.cfg = 5500
+ */
+ public class SpiderGC{
++	
++	private static int ERR_LOGIN = -10;
+ 	private static Preferences pref;
+ 	private Profile profile;
+ 	static String viewstate = "";
+@@ -72,6 +75,7 @@
+ 			start = fetch("http://www.geocaching.com/login/Default.aspx");
+ 		}catch(Exception ex){
+ 			pref.log("Could not fetch: gc.com start page",ex);
++			return ERR_LOGIN;
+ 		}
+ 		if (!infB.isClosed) {
+ 			Regex rexCookieID = new Regex("Set-Cookie: userid=(.*?);.*");
+@@ -95,6 +99,8 @@
+ 			}catch(Exception ex){
+ 				Vm.debug("Could not login: gc.com start page");
+ 				pref.log("Login failed.");
++				infB.close(0);
++				return ERR_LOGIN;
+ 			}
+ 			
+ 			rex.search(start);
+@@ -257,7 +263,11 @@
+ 			Vm.showWait(false);
+ 			return;
+ 		}
+-		
++		if(ok == ERR_LOGIN){
++			Vm.showWait(false);
++			(new MessageBox(MyLocale.getMsg(5500,"Error"), MyLocale.getMsg(5501,"Login failed!"), MessageBox.OKB)).execute();
++			return;
++		}
+ 		OCXMLImporterScreen options = new OCXMLImporterScreen("Spider Options", OCXMLImporterScreen.INCLUDEFOUND);
+ 		options.distanceInput.setText("");
+ 		if (options.execute() == OCXMLImporterScreen.IDCANCEL) {Vm.showWait(false);	return; }
+@@ -265,23 +275,27 @@
+ 		if (dist.length()== 0) return;
+ 		distance = Convert.toDouble(dist);
+ 		//boolean getMaps = options.mapsCheckBox.getState();
+-		boolean getFound = options.foundCheckBox.getState();
+-		Vm.debug("Get found? "+getFound);
++		boolean doNotgetFound = options.foundCheckBox.getState();
++		Vm.debug("Do not get found? "+doNotgetFound);
+ 		boolean getImages = options.imagesCheckBox.getState();
+ 		options.close(0);
+ 		
+ 		
+-		infB = new InfoBox("Status", "Fetching first page...");
++		infB = new InfoBox("Status", MyLocale.getMsg(5502,"Fetching first page..."));
+ 		infB.exec();
+ 		//Get first page
+ 		try{
+ 			String ln = new String("http://www.geocaching.com/seek/nearest.aspx?lat=" + origin.getLatDeg(CWPoint.DD) + "&lon=" +origin.getLonDeg(CWPoint.DD));
+-			if(getFound) ln = ln + "&f=1";
++			if(doNotgetFound) ln = ln + "&f=1";
+ 			start = fetch(ln);
+-			pref.log("First page: " + start);
++			pref.log("Got first page: " + ln);
+ 		}catch(Exception ex){
++			infB.close(0);
++			(new MessageBox(MyLocale.getMsg(5500,"Error"), MyLocale.getMsg(5503,"Error fetching first list page."), MessageBox.OKB)).execute();
+ 			pref.log("Error fetching first list page");
+ 			Vm.debug("Could not get list");
++			Vm.showWait(false);
++			return;
+ 		}
+ 		String dummy = "";
+ 		//String lineBlck = "";
+@@ -304,7 +318,10 @@
+ 					Vm.debug("Problem opening details file");
+ 				}
+ 			*/
+-			rexLine.search(dummy);
++			try{
++				rexLine.search(dummy);
++			}catch(NullPointerException nex){}
++			
+ 			while(rexLine.didMatch()){
+ 				//Vm.debug(getDist(rexLine.stringMatched(1)) + " / " +getWP(rexLine.stringMatched(1)));
+ 				found_on_page++;
+@@ -323,21 +340,27 @@
+ 				doc = URL.encodeURL("__VIEWSTATE",false) +"="+ URL.encodeURL(viewstate,false);
+ 				doc += "&" + URL.encodeURL("lat",false) +"="+ URL.encodeURL(origin.getLatDeg(CWPoint.DD),false);
+ 				doc += "&" + URL.encodeURL("lon",false) +"="+ URL.encodeURL(origin.getLonDeg(CWPoint.DD),false);
+-				doc += "&f=1";
++				//if(doNotgetFound) doc += "&f=1";
+ 				doc += "&" + URL.encodeURL("__EVENTTARGET",false) +"="+ URL.encodeURL("ResultsPager:_ctl"+page_number,false);
+ 				doc += "&" + URL.encodeURL("__EVENTARGUMENT",false) +"="+ URL.encodeURL("",false);
+ 				try{
+-					pref.log("Fetching next list page");
++					start = "";
++					pref.log("Fetching next list page:" + doc);
+ 					start = fetch_post("http://www.geocaching.com/seek/nearest.aspx", doc, "/seek/nearest.aspx");
+ 				}catch(Exception ex){
+ 					Vm.debug("Couldn't get the next page");
++					pref.log("Error getting next page");
++				}finally{
++					
+ 				}
+ 			}
+ 			//Vm.debug("Distance is now: " + distance);
+ 			found_on_page = 0;
+ 		}
++		
+ 		pref.log("Found " + cachesToLoad.size() + " caches");
+ 		if (!infB.isClosed) infB.setInfo("Found " + cachesToLoad.size() + " caches");
++		
+ 		// Now ready to spider each cache
+ 		String wpt = "";
+ 		CacheHolder ch;
+@@ -349,114 +372,111 @@
+ 			if(searchWpt(wpt) == -1){
+ 				infB.setInfo("Loading: " + wpt +"(" + (i+1) + " / " + cachesToLoad.size() + ")");
+ 				doc = "http://www.geocaching.com/seek/cache_details.aspx?wp=" + wpt +"&log=y";
++				start = "";
+ 				try{
+ 					pref.log("Fetching: " + wpt);
+ 					start = fetch(doc);
+ 				}catch(Exception ex){
+-					pref.log("Could not fetch " + wpt);
++					pref.log("Could not fetch detail page for: " + wpt);
+ 					Vm.debug("Couldn't get cache detail page");
++				}finally{
++					//	just continue please!
++					pref.log("Trying for details.");
+ 				}
+-				ch.is_new = true;
+-				ch.is_HTML = true;
+-				ch.is_available = true;
+-				ch.is_archived = false;
+-				ch.wayPoint = wpt;
+-				if(start.indexOf("This cache is temporarily unavailable") >= 0) ch.is_available = false;
+-				if(start.indexOf("This cache has been archived") >= 0) ch.is_archived = true;
+-				//Vm.debug(ch.wayPoint);
+-				try{
+-					pref.log("Trying logs");
+-					ch.CacheLogs = getLogs(start, ch);
+-					int z = 0;
+-					String loganal = "";
+-					while(z < ch.CacheLogs.size() && z < 5){
+-						loganal = (String)ch.CacheLogs.get(z);
+-						if(loganal.indexOf("icon_sad")>0) {
+-							z++;
+-						}else break;
++				if(start != null && start.length()!=0){
++					pref.log("Fetch doc ok... going into details.");
++					ch.is_new = true;
++					ch.is_HTML = true;
++					ch.is_available = true;
++					ch.is_archived = false;
++					ch.wayPoint = wpt;
++					if(start.indexOf("This cache is temporarily unavailable") >= 0) ch.is_available = false;
++					if(start.indexOf("This cache has been archived") >= 0) ch.is_archived = true;
++					//Vm.debug(ch.wayPoint);
++					try{
++						pref.log("Trying logs");
++						ch.CacheLogs = getLogs(start, ch);
++						int z = 0;
++						String loganal = "";
++						while(z < ch.CacheLogs.size() && z < 5){
++							loganal = (String)ch.CacheLogs.get(z);
++							if(loganal.indexOf("icon_sad")>0) {
++								z++;
++							}else break;
++						}
++						ch.noFindLogs = z;
++						pref.log("Found logs");
++						ch.LatLon = getLatLon(start);
++						ch.pos.set(ch.LatLon); // Slow parse no problem
++						//Vm.debug("LatLon: " + ch.LatLon);
++						pref.log("Trying description");
++						ch.LongDescription = getLongDesc(start);
++						
++						pref.log("Got description");
++						pref.log("Getting cache name");
++						ch.CacheName = SafeXML.cleanback(getName(start));
++						pref.log("Got cache name");
++						//Vm.debug("Name: " + ch.CacheName);
++						pref.log("Trying owner");
++						ch.CacheOwner = SafeXML.cleanback(getOwner(start)).trim();
++						if(ch.CacheOwner.equalsIgnoreCase(pref.myAlias) || (pref.myAlias2.length()>0 && ch.CacheOwner.equalsIgnoreCase(pref.myAlias2))) ch.is_owned = true;
++						pref.log("Got owner");
++						//Vm.debug("Owner: " + ch.CacheOwner);
++						pref.log("Trying date hidden");
++						ch.DateHidden = getDateHidden(start);
++						pref.log("Got date hidden");
++						//Vm.debug("Hidden: " + ch.DateHidden);
++						pref.log("Trying hints");
++						ch.Hints = getHints(start);
++						pref.log("Got hints");
++						//Vm.debug("Hints: " + ch.Hints);
++						//Vm.debug("Got the hints");
++						pref.log("Trying size");
++						ch.CacheSize = getSize(start);
++						pref.log("Got size");
++						//Vm.debug("Size: " + ch.CacheSize);
++						pref.log("Trying difficulty");
++						ch.hard = getDiff(start);
++						pref.log("Got difficulty");
++						//Vm.debug("Hard: " + ch.hard);
++						pref.log("Trying terrain");
++						ch.terrain = getTerr(start);
++						pref.log("Got terrain");
++						//Vm.debug("Terr: " + ch.terrain);
++						pref.log("Trying cache type");
++						ch.type = getType(start);
++						pref.log("Got cache type");
++						//Vm.debug("Type: " + ch.type);
++						if(getImages){
++							pref.log("Trying images");
++							getImages(start, ch);
++							pref.log("Got images");
++						}
++						if (infB.isClosed) break;
++						ch.Bugs = getBugs(start);
++						if(ch.Bugs.length()>0) ch.has_bug = true; else ch.has_bug = false;
++						pref.log("Getting additional waypoints");
++						getAddWaypoints(start, ch);
++						pref.log("Got additional waypoints");
++						ch.saveCacheDetails(profile.dataDir);
++						cacheDB.add(ch);
++						profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
++					}catch(Exception ex){
++						pref.log("There was an error in the last step:");
++						pref.log("Cache was: " + wpt);
++						pref.log("Error was: " + ex.toString());
++						//ch.is_incomplete = true;
++						//cacheDB.add(ch);
++						//profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
++					}finally{
++						//just continue please!
++						pref.log("Continuing with next cache.");
+ 					}
+-					ch.noFindLogs = z;
+-					pref.log("Found logs");
+-					ch.LatLon = getLatLon(start);
+-					ch.pos.set(ch.LatLon); // Slow parse no problem
+-					//Vm.debug("LatLon: " + ch.LatLon);
+-					pref.log("Trying description");
+-					ch.LongDescription = getLongDesc(start);
+-					
+-					pref.log("Got description");
+-					pref.log("Getting cache name");
+-					ch.CacheName = SafeXML.cleanback(getName(start));
+-					pref.log("Got cache name");
+-					//Vm.debug("Name: " + ch.CacheName);
+-					pref.log("Trying owner");
+-					ch.CacheOwner = SafeXML.cleanback(getOwner(start)).trim();
+-					if(ch.CacheOwner.equalsIgnoreCase(pref.myAlias) || (pref.myAlias2.length()>0 && ch.CacheOwner.equalsIgnoreCase(pref.myAlias2))) ch.is_owned = true;
+-					pref.log("Got owner");
+-					//Vm.debug("Owner: " + ch.CacheOwner);
+-					pref.log("Trying date hidden");
+-					ch.DateHidden = getDateHidden(start);
+-					pref.log("Got date hidden");
+-					//Vm.debug("Hidden: " + ch.DateHidden);
+-					pref.log("Trying hints");
+-					ch.Hints = getHints(start);
+-					pref.log("Got hints");
+-					//Vm.debug("Hints: " + ch.Hints);
+-					//Vm.debug("Got the hints");
+-					pref.log("Trying size");
+-					ch.CacheSize = getSize(start);
+-					pref.log("Got size");
+-					//Vm.debug("Size: " + ch.CacheSize);
+-					pref.log("Trying difficulty");
+-					ch.hard = getDiff(start);
+-					pref.log("Got difficulty");
+-					//Vm.debug("Hard: " + ch.hard);
+-					pref.log("Trying terrain");
+-					ch.terrain = getTerr(start);
+-					pref.log("Got terrain");
+-					//Vm.debug("Terr: " + ch.terrain);
+-					pref.log("Trying cache type");
+-					ch.type = getType(start);
+-					pref.log("Got cache type");
+-					//Vm.debug("Type: " + ch.type);
+-					if(getImages){
+-						pref.log("Trying images");
+-						getImages(start, ch);
+-						pref.log("Got images");
+-					}
+-					if (infB.isClosed) break;
+-					ch.Bugs = getBugs(start);
+-					if(ch.Bugs.length()>0) ch.has_bug = true; else ch.has_bug = false;
+-					pref.log("Getting additional waypoints");
+-					getAddWaypoints(start, ch);
+-					pref.log("Got additional waypoints");
+-					ch.saveCacheDetails(profile.dataDir);
+-					cacheDB.add(ch);
+-					profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
+-				}catch(Exception ex){
+-					pref.log("There was an error in the last step:");
+-					pref.log("Cache was: " + wpt);
+-					pref.log("Error was: " + ex.toString());
+-				}finally{
+-					//just continue please!
+-					pref.log("Continuing with next cache.");
+ 				}
+ 			}
+ 		}
+-		profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
+ 		infB.close(0);
+ 		Vm.showWait(false);
+-		/*
+-		try{
+-		  PrintWriter detfile = new PrintWriter(new BufferedWriter(new FileWriter("debug.txt")));
+-		  detfile.print(start);
+-		  detfile.close();
+-		} catch (Exception e) {
+-			Vm.debug("Problem opening details file");
+-		}
+-		
+-		*/
+-		
+-		
+ 	}
+ 	private int searchWpt(String wpt){
+ 		Integer INTR = (Integer)indexDB.get(wpt);
+@@ -825,34 +845,43 @@
+ 	*	it will be a gc.com address. This method is used to obtain
+ 	*	the result of a search for caches screen.
+ 	*/
+-	private static String fetch(String address) throws IOException
+-	   	{
+-			//Vm.debug(address);
+-			HttpConnection conn;
+-			if(pref.myproxy.length() > 0){
+-				pref.log("Using proxy: " + pref.myproxy + " / " +pref.myproxyport);
+-				conn = new HttpConnection(pref.myproxy, Convert.parseInt(pref.myproxyport), address);
++	private static String fetch(String address)
++	   	{	
++			CharArray c_data;
++			String data = new String();
++			try{
+ 				//Vm.debug(address);
+-			} else {
+-				conn = new HttpConnection(address);
++				HttpConnection conn;
++				if(pref.myproxy.length() > 0){
++					pref.log("Using proxy: " + pref.myproxy + " / " +pref.myproxyport);
++					conn = new HttpConnection(pref.myproxy, Convert.parseInt(pref.myproxyport), address);
++					//Vm.debug(address);
++				} else {
++					conn = new HttpConnection(address);
++				}
++				conn.setRequestorProperty("USER_AGENT", "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.7.5) Gecko/20041107 Firefox/1.0");
++				if(cookieSession.length()>0){
++					conn.setRequestorProperty("Cookie: ", "ASP.NET_SessionId="+cookieSession +"; userid="+cookieID);
++					pref.log("Cookie Zeug: " + "Cookie: ASP.NET_SessionId="+cookieSession +"; userid="+cookieID);
++				}
++				conn.setRequestorProperty("Connection", "close");
++				conn.documentIsEncoded = true;
++				pref.log("Connecting");
++				Socket sock = conn.connect();
++				pref.log("Connect ok!");
++				ByteArray daten = conn.readData(sock);
++				pref.log("Read socket ok");
++				JavaUtf8Codec codec = new JavaUtf8Codec();
++				c_data = codec.decodeText(daten.data, 0, daten.length, true, null);
++				data = c_data.toString();
++				////Vm.debug(c_data.toString());
++				sock.close();
++			}catch(IOException ioex){
++				pref.log("IOException in fetch");
++			}finally{
++				//continue
+ 			}
+-			conn.setRequestorProperty("USER_AGENT", "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.7.5) Gecko/20041107 Firefox/1.0");
+-			if(cookieSession.length()>0){
+-				conn.setRequestorProperty("Cookie: ", "ASP.NET_SessionId="+cookieSession +"; userid="+cookieID);
+-				pref.log("Cookie Zeug: " + "Cookie: ASP.NET_SessionId="+cookieSession +"; userid="+cookieID);
+-			}
+-			conn.setRequestorProperty("Connection", "close");
+-			conn.documentIsEncoded = true;
+-			pref.log("Connecting");
+-			Socket sock = conn.connect();
+-			pref.log("Connect ok!");
+-			ByteArray daten = conn.readData(sock);
+-			pref.log("Read socket ok");
+-			JavaUtf8Codec codec = new JavaUtf8Codec();
+-			CharArray c_data = codec.decodeText(daten.data, 0, daten.length, true, null);
+-			////Vm.debug(c_data.toString());
+-			sock.close();
+-			return c_data.toString();
++			return data;
+ 		}
+ 	
+ 	/**
+
+Modified: trunk/src/CacheWolf/Version.java
+===================================================================
+--- trunk/src/CacheWolf/Version.java	2007-03-12 22:50:43 UTC (rev 643)
++++ trunk/src/CacheWolf/Version.java	2007-03-17 06:39:12 UTC (rev 644)
+@@ -7,7 +7,7 @@
+ import ewe.sys.*;
+ 
+ public class Version {
+-	static final String VER_MAJOR = "";
++	static final String VER_MAJOR = "0.9n";
+ 	static final String VER_MINOR = "";
+ 	static final String VER_BUILD = " RC ";
+ 	static final String VER_SVN ="$LastChangedRevision$";  // the  number is automatically replaced by subversion to the latest versionnumer of this file (svn:keywords LastChangedRevision)
+
+Modified: trunk/src/CacheWolf/myTableModel.java
+===================================================================
+--- trunk/src/CacheWolf/myTableModel.java	2007-03-12 22:50:43 UTC (rev 643)
++++ trunk/src/CacheWolf/myTableModel.java	2007-03-17 06:39:12 UTC (rev 644)
+@@ -33,7 +33,7 @@
+ 	int usedColumns; // Columns actually used (<=MAXCOLUMNS)
+ 	static Image cacheImages[] = new Image[454];
+ 	static Image noFindLogs[] = new Image[4];
+-	Image red, blue, green, yellow;
++	Image red, blue, green, yellow, skull;
+ 	mImage bug;
+ 	myTableControl tcControl;
+ 	boolean sortAsc = false;
+@@ -88,6 +88,7 @@
+ 		blue = new Image("blue.png");
+ 		green = new Image("green.png");
+ 		yellow = new Image("yellow.png");
++		skull = new Image("skull.png");
+ 		bug = new mImage("bug.png");
+ 		checkboxTicked = new Image("checkboxTicked.png");
+ 		checkboxUnticked= new Image("checkboxUnticked.png");
+@@ -227,6 +228,7 @@
+ 					case 3: // Terrain
+ 						return (String)ch.terrain;
+ 					case 4: // Waypoint
++						if(ch.is_incomplete) return new IconAndText((IImage)skull, ch.wayPoint, fm);
+ 						if(ch.is_update    ) return new IconAndText((IImage)red, ch.wayPoint, fm); // TODO this is for sure quite inefficient, better store it, don't create always new when the table is refreshed or only scrolled
+ 						if(ch.is_new       ) return new IconAndText((IImage)yellow, ch.wayPoint, fm);
+ 						if(ch.is_log_update) return new IconAndText((IImage)blue, ch.wayPoint, fm);
+
+
+
+From pfeffer at mail.berlios.de  Tue Mar 20 01:47:32 2007
+From: pfeffer at mail.berlios.de (pfeffer at mail.berlios.de)
+Date: Tue, 20 Mar 2007 01:47:32 +0100
+Subject: [Cachewolf-svn] r645 - trunk/src/CacheWolf
+Message-ID: <200703200047.l2K0lWkE013158@sheep.berlios.de>
+
+Author: pfeffer
+Date: 2007-03-20 01:47:28 +0100 (Tue, 20 Mar 2007)
+New Revision: 645
+
+Modified:
+   trunk/src/CacheWolf/OCXMLImporter.java
+Log:
+Download von Opencaching: Einlesen erheblich beschleunigt dadurch, dass der CacheIndex jetz nur noch am Ende, nicht nach jedem Cache gespeichert wird.
+Download von Opencaching: Eine Warnungsausgabe, die ein MessageBox war, in Warnungsbox der Fortschrtittsanzeige verschoben.
+
+Modified: trunk/src/CacheWolf/OCXMLImporter.java
+===================================================================
+--- trunk/src/CacheWolf/OCXMLImporter.java	2007-03-17 06:39:12 UTC (rev 644)
++++ trunk/src/CacheWolf/OCXMLImporter.java	2007-03-20 00:47:28 UTC (rev 645)
+@@ -181,9 +181,9 @@
+ 		if (success) {
+ 			profile.last_sync_opencaching = dateOfthisSync.format("yyyyMMddHHmmss");
+ 			//pref.savePreferences();
+-			profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
+ 			finalMessage = MyLocale.getMsg(1607,"Update from opencaching successful");
+ 		}
++		profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
+ 		inf.setInfo(finalMessage);
+ 		inf.addOkButton();
+ 		//inf.close(0);
+@@ -381,8 +381,8 @@
+ 			} */
+ 
+ 			// save all
+-			holder.saveCacheDetails(profile.dataDir);
+-			profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
++			holder.saveCacheDetails(profile.dataDir); 
++			// profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR); // this is done after .xml is completly processed
+ 			return;
+ 		}
+ 		if(name.equals("id")){
+@@ -445,7 +445,7 @@
+ 						fetchUrl=imgRegexUrl.stringMatched(2); // URL in Anf?hrungszeichen in (2) falls ohne in (3) Ergebnis ist auf jeden Fall ohne Anf?hrungszeichen 
+ 						if (fetchUrl==null) { fetchUrl=imgRegexUrl.stringMatched(3); }
+ 						if (fetchUrl==null) { // TODO Fehler ausgeben: nicht abgedeckt ist der Fall, dass in einem Cache Links auf Bilder mit unterschiedlichen URL, aber gleichem Dateinamen sind.
+-							(new MessageBox(MyLocale.getMsg(144, "Warning"),MyLocale.getMsg(1617, "Ignoriere Fehler in html-Cache-Description: \"<img\" without \"src=\" in cache "+holder.wayPoint), MessageBox.OKB)).exec();
++							inf.addWarning(MyLocale.getMsg(1617, "Ignoriere Fehler in html-Cache-Description: \"<img\" without \"src=\" in cache "+holder.wayPoint));
+ 							continue;
+ 						}
+ 						inf.setInfo(MyLocale.getMsg(1611,"Importing cache description:")+" " + numDescImported + "\n"+MyLocale.getMsg(1620, "downloading embedded images: ") + numDownloaded++);
+@@ -669,7 +669,7 @@
+ 	}
+ 
+ 
+-	private CacheHolder getHolder(String CacheID){
++	private CacheHolder getHolder(String CacheID){ // TODO move this into profile.java
+ 		int index;
+ 		CacheHolder ch;
+ 
+
+
+
+From salzkammergut at mail.berlios.de  Tue Mar 20 03:01:00 2007
+From: salzkammergut at mail.berlios.de (salzkammergut at mail.berlios.de)
+Date: Tue, 20 Mar 2007 03:01:00 +0100
+Subject: [Cachewolf-svn] r646 - trunk/src/CacheWolf
+Message-ID: <200703200201.l2K210vr018934@sheep.berlios.de>
+
+Author: salzkammergut
+Date: 2007-03-20 03:00:53 +0100 (Tue, 20 Mar 2007)
+New Revision: 646
+
+Modified:
+   trunk/src/CacheWolf/TablePanel.java
+Log:
+TablePanel: Bugfix Cursorsteuerung ueber Tastatur
+
+Modified: trunk/src/CacheWolf/TablePanel.java
+===================================================================
+--- trunk/src/CacheWolf/TablePanel.java	2007-03-20 00:47:28 UTC (rev 645)
++++ trunk/src/CacheWolf/TablePanel.java	2007-03-20 02:00:53 UTC (rev 646)
+@@ -54,7 +54,7 @@
+ 	/** Mark the row as selected so that myTableModel can color it grey */
+ 	public void selectRow(int row) {
+ 		setSelectedCache(row);
+-		//tc.cursorTo(row, tc.cursor.x+tc.listMode, true);
++		tc.cursorTo(row, tc.cursor.x+tc.listMode, true);
+ 		tc.scrollToVisible(row,0);
+ 		tc.clearSelection(null);
+ 		tc.addToSelection(row,0); 
+
+
+
+From bilbowolf at mail.berlios.de  Wed Mar 21 06:51:48 2007
+From: bilbowolf at mail.berlios.de (bilbowolf at mail.berlios.de)
+Date: Wed, 21 Mar 2007 06:51:48 +0100
+Subject: [Cachewolf-svn] r647 - in trunk: resources src/CacheWolf
+Message-ID: <200703210551.l2L5pmTO000662@sheep.berlios.de>
+
+Author: bilbowolf
+Date: 2007-03-21 06:51:41 +0100 (Wed, 21 Mar 2007)
+New Revision: 647
+
+Added:
+   trunk/resources/skull.png
+Modified:
+   trunk/src/CacheWolf/CacheHolder.java
+   trunk/src/CacheWolf/Profile.java
+   trunk/src/CacheWolf/SpiderGC.java
+Log:
+
+
+Added: trunk/resources/skull.png
+===================================================================
+(Binary files differ)
+
+
+Property changes on: trunk/resources/skull.png
+___________________________________________________________________
+Name: svn:mime-type
+   + application/octet-stream
+
+Modified: trunk/src/CacheWolf/CacheHolder.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolder.java	2007-03-20 02:00:53 UTC (rev 646)
++++ trunk/src/CacheWolf/CacheHolder.java	2007-03-21 05:51:41 UTC (rev 647)
+@@ -16,7 +16,7 @@
+ *	classes and methods to get more information.
+ *	
+ */
+-public class CacheHolder {
++public class CacheHolder implements Cloneable{
+   private String NODISTANCE="? km";
+   private String NOBEARING="?";
+   private String EMPTY=""; // Needs less Memory than using 'new String()'
+@@ -173,6 +173,61 @@
+  	return this;
+   }
+   
++	public Object clone(){
++		CacheHolder cx = new CacheHolder();
++		cx.CacheName = CacheName;
++		cx.CacheOwner = CacheOwner;
++		cx.LatLon = LatLon;
++		cx.DateHidden = DateHidden;
++		cx.wayPoint = 	wayPoint;
++		cx.CacheStatus=CacheStatus;
++		cx.type=type;
++		cx.hard=hard;
++		cx.terrain=terrain;
++		cx.dirty=dirty;
++		cx.CacheSize=CacheSize;
++		cx.is_available=is_available;
++		cx.is_archived=is_archived;
++		cx.has_bug=has_bug;
++		cx.is_black=is_black;
++		cx.is_filtered=is_filtered;
++		cx.is_owned=is_owned;
++		cx.is_found=is_found;
++		cx.is_new=is_new;
++		cx.is_log_update=is_log_update;
++		cx.is_update=is_update;
++		cx.is_HTML=is_HTML;
++		cx.noFindLogs=noFindLogs;
++		cx.ocCacheID=ocCacheID;
++		cx.is_incomplete=is_incomplete;
++		cx.ocCacheID=ocCacheID;
++		cx.ocCacheID=ocCacheID;
++		return cx;
++	}
++
++	/**
++	 * Method to clear all attributes of the cache.
++	 * 
++	 */
++	public void freeMEM(){
++		LongDescription = EMPTY;
++		LastUpdate = EMPTY;
++		Hints = EMPTY;
++		CacheLogs = null;
++		CacheNotes = EMPTY;
++		Images = null;
++		ImagesText = null;
++		LogImages = null;
++		LogImagesText = null;
++		UserImages = null;
++		UserImagesText = null;
++		attributes = null;
++		CacheIcons = null;
++		Bugs = EMPTY;
++		URL = EMPTY;
++		ocCacheID = EMPTY;
++	}
++	
+   /**
+    * Adds a user image to the cache data
+    * @param profile
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2007-03-20 02:00:53 UTC (rev 646)
++++ trunk/src/CacheWolf/Profile.java	2007-03-21 05:51:41 UTC (rev 647)
+@@ -1,11 +1,13 @@
+ package CacheWolf;
+ 
+ import ewe.io.BufferedWriter;
++import ewe.io.File;
+ import ewe.io.FileNotFoundException;
+ import ewe.io.FileReader;
+ import ewe.io.FileWriter;
+ import ewe.io.IOException;
+ import ewe.io.PrintWriter;
++import ewe.io.Stream;
+ import ewe.sys.Convert;
+ import ewe.sys.Handle;
+ import ewe.sys.LocalResource;
+@@ -100,6 +102,86 @@
+ 		saveIndex(pref,showprogress, Filter.filterActive,Filter.filterInverted);
+ 	}
+ 
++	/**
++	 * Method to write the header for the index file.
++	 * Should be used when memory becomes critical and storage
++	 * in the cachedb vector poses a problem (see spiderGC)
++	 *
++	 */
++	public void openIndex(Preferences pref){
++		boolean saveFilterActive = Filter.filterActive;
++		boolean saveFilterInverted = Filter.filterInverted;
++		PrintWriter detfile;
++		try{
++			detfile = new PrintWriter(new BufferedWriter(new FileWriter(dataDir + "index.xml")));
++		} catch (Exception e) {
++			Vm.debug("Problem creating index file "+e.toString()+"\nFilename="+dataDir + "index.xml");
++			return;
++		}
++		CWPoint savedCentre=centre;
++		if (centre==null || !centre.isValid() || (savedCentre.latDec==0.0 && savedCentre.lonDec==0.0)) savedCentre=pref.curCentrePt;
++		try{
++			detfile.print("<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?>\n");
++			detfile.print("<CACHELIST format=\"decimal\">\n");
++			if (savedCentre.isValid())
++				detfile.print("    <CENTRE lat=\""+savedCentre.latDec+"\" lon=\""+savedCentre.lonDec+"\"/>\n");
++			if(last_sync_opencaching == null || last_sync_opencaching.endsWith("null") || last_sync_opencaching.equals("")){
++				last_sync_opencaching = "20050801000000";
++			}
++			if(distOC == null || distOC.endsWith("null") || distOC.equals("")){
++				distOC = "0";
++			}
++
++			detfile.print("    <FILTER status = \""+(saveFilterActive?"T":"F")+(saveFilterInverted?"T":"F")+ 
++					"\" rose = \""+filterRose+"\" type = \""+filterType+
++					"\" var = \""+filterVar+"\" dist = \""+filterDist.replace('"',' ')+"\" diff = \""+
++					filterDiff+"\" terr = \""+filterTerr+"\" size = \""+filterSize+"\" />\n");
++			detfile.print("    <SYNCOC date = \""+last_sync_opencaching+"\" dist = \""+distOC+"\"/>\n");
++			detfile.close();
++		}catch(Exception e){
++			Vm.debug("Problem writing to index file "+e.toString());
++			detfile.close();
++		}
++	}
++	
++	/**
++	 * Method to appen a single line of cachedate to the index file
++	 * @param ch
++	 */
++	public void writeIndexLine(CacheHolder ch){
++		Stream strout = null;
++		File index = new File(dataDir + "index.xml");
++		String cachedata = "    <CACHE name = \""+SafeXML.clean(ch.CacheName)+"\" owner = \""+SafeXML.clean(ch.CacheOwner)+
++				"\" lat = \""+ ch.pos.latDec + "\" lon = \""+ch.pos.lonDec+
++				"\" hidden = \""+ch.DateHidden+"\" wayp = \""+SafeXML.clean(ch.wayPoint)+"\" status = \""+ch.CacheStatus+"\" type = \""+ch.type+"\" dif = \""+ch.hard+"\" terrain = \"" + ch.terrain + "\" dirty = \"" + ch.dirty + "\" size = \""+ch.CacheSize+"\" online = \"" + Convert.toString(ch.is_available) + "\" archived = \"" + Convert.toString(ch.is_archived) + "\" has_bug = \"" + Convert.toString(ch.has_bug) + "\" black = \"" + Convert.toString(ch.is_black) + "\" owned = \"" + Convert.toString(ch.is_owned) + "\" found = \"" + Convert.toString(ch.is_found) + "\" is_new = \"" + Convert.toString(ch.is_new) +"\" is_log_update = \"" + Convert.toString(ch.is_log_update) + "\" is_update = \"" + Convert.toString(ch.is_update) + "\" is_HTML = \"" + Convert.toString(ch.is_HTML) + "\" DNFLOGS = \"" + ch.noFindLogs + "\" ocCacheID = \"" + ch.ocCacheID + "\" is_INCOMPLETE = \""+Convert.toString(ch.is_incomplete)+"\" />\n";
++		try{
++			//append data!
++			strout = index.toWritableStream(true);
++			byte[] data = cachedata.getBytes(); 
++			strout.write(data);
++		}catch(Exception ex){}
++		finally{
++			strout.close();
++		}
++	}
++	
++	/**
++	 * Use this method to "finalize" the index file when using openIndex()
++	 * and writeIndexLine()
++	 *
++	 */
++	public void closeIndex(){
++		Stream strout = null;
++		File index = new File(dataDir + "index.xml");
++		try{
++			//append data!
++			strout = index.toWritableStream(true);
++			byte[] data = "</CACHELIST>\n".getBytes(); 
++			strout.write(data);
++			strout.close();
++		}catch(Exception ex){};
++	}
++	
+ 	/** Save index with filter settings given */ 
+ 	public void saveIndex(Preferences pref, boolean showprogress, boolean saveFilterActive, boolean saveFilterInverted){
+ 		ProgressBarForm pbf = new ProgressBarForm();
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2007-03-20 02:00:53 UTC (rev 646)
++++ trunk/src/CacheWolf/SpiderGC.java	2007-03-21 05:51:41 UTC (rev 647)
+@@ -248,6 +248,12 @@
+ 	*	Method to start the spider for a search around the center coordinates
+ 	*/
+ 	public void doIt(){
++		String dummy = "";
++		Regex rexLine;
++		String ln;
++		String wpt = "";
++		String loganal;
++		CacheHolder ch;
+ 		CWPoint origin = pref.curCentrePt; // No need to copy curCentrePt as it is only read and not written
+ 		if (!origin.isValid()) {
+ 			(new MessageBox("Error", "Coordinates for center must be set", MessageBox.OKB)).execute();
+@@ -285,7 +291,7 @@
+ 		infB.exec();
+ 		//Get first page
+ 		try{
+-			String ln = new String("http://www.geocaching.com/seek/nearest.aspx?lat=" + origin.getLatDeg(CWPoint.DD) + "&lon=" +origin.getLonDeg(CWPoint.DD));
++			ln = new String("http://www.geocaching.com/seek/nearest.aspx?lat=" + origin.getLatDeg(CWPoint.DD) + "&lon=" +origin.getLonDeg(CWPoint.DD));
+ 			if(doNotgetFound) ln = ln + "&f=1";
+ 			start = fetch(ln);
+ 			pref.log("Got first page: " + ln);
+@@ -297,10 +303,10 @@
+ 			Vm.showWait(false);
+ 			return;
+ 		}
+-		String dummy = "";
++		dummy = "";
+ 		//String lineBlck = "";
+ 		int page_number = 4;		
+-		Regex rexLine = new Regex("<tr bgcolor=((?s).*?)</tr>");
++		rexLine = new Regex("<tr bgcolor=((?s).*?)</tr>");
+ 		int found_on_page = 0;
+ 		//Loop till maximum distance has been found or no more caches are in the list
+ 		while(distance > 0){
+@@ -340,7 +346,7 @@
+ 				doc = URL.encodeURL("__VIEWSTATE",false) +"="+ URL.encodeURL(viewstate,false);
+ 				doc += "&" + URL.encodeURL("lat",false) +"="+ URL.encodeURL(origin.getLatDeg(CWPoint.DD),false);
+ 				doc += "&" + URL.encodeURL("lon",false) +"="+ URL.encodeURL(origin.getLonDeg(CWPoint.DD),false);
+-				//if(doNotgetFound) doc += "&f=1";
++				if(doNotgetFound) doc += "&f=1";
+ 				doc += "&" + URL.encodeURL("__EVENTTARGET",false) +"="+ URL.encodeURL("ResultsPager:_ctl"+page_number,false);
+ 				doc += "&" + URL.encodeURL("__EVENTARGUMENT",false) +"="+ URL.encodeURL("",false);
+ 				try{
+@@ -362,11 +368,11 @@
+ 		if (!infB.isClosed) infB.setInfo("Found " + cachesToLoad.size() + " caches");
+ 		
+ 		// Now ready to spider each cache
+-		String wpt = "";
+-		CacheHolder ch;
++		profile.openIndex(pref);
++		ch = new CacheHolder();
+ 		for(int i = 0; i<cachesToLoad.size(); i++){
+ 			if (infB.isClosed) break;
+-			ch = new CacheHolder();
++			
+ 			wpt = (String)cachesToLoad.get(i);
+ 			// Get only caches not already available in the DB
+ 			if(searchWpt(wpt) == -1){
+@@ -397,7 +403,7 @@
+ 						pref.log("Trying logs");
+ 						ch.CacheLogs = getLogs(start, ch);
+ 						int z = 0;
+-						String loganal = "";
++						loganal = "";
+ 						while(z < ch.CacheLogs.size() && z < 5){
+ 							loganal = (String)ch.CacheLogs.get(z);
+ 							if(loganal.indexOf("icon_sad")>0) {
+@@ -452,22 +458,27 @@
+ 							getImages(start, ch);
+ 							pref.log("Got images");
+ 						}
+-						if (infB.isClosed) break;
++						if (infB.isClosed) {
++							
++							break;
++						}
+ 						ch.Bugs = getBugs(start);
+ 						if(ch.Bugs.length()>0) ch.has_bug = true; else ch.has_bug = false;
+ 						pref.log("Getting additional waypoints");
+-						getAddWaypoints(start, ch);
++						//getAddWaypoints(start, ch);
+ 						pref.log("Got additional waypoints");
+ 						ch.saveCacheDetails(profile.dataDir);
+-						cacheDB.add(ch);
+-						profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
++						profile.writeIndexLine(ch);
++						//profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
++						ch = new CacheHolder();
+ 					}catch(Exception ex){
+ 						pref.log("There was an error in the last step:");
+ 						pref.log("Cache was: " + wpt);
+ 						pref.log("Error was: " + ex.toString());
+-						//ch.is_incomplete = true;
+-						//cacheDB.add(ch);
++						ch.is_incomplete = true;
++						profile.writeIndexLine(ch);
+ 						//profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
++						ch = new CacheHolder();
+ 					}finally{
+ 						//just continue please!
+ 						pref.log("Continuing with next cache.");
+@@ -475,6 +486,7 @@
+ 				}
+ 			}
+ 		}
++		profile.closeIndex();
+ 		infB.close(0);
+ 		Vm.showWait(false);
+ 	}
+@@ -553,13 +565,14 @@
+ 				//Vm.debug(descRex.stringMatched(1));
+ 				int idx=profile.getCacheIndex(cx.wayPoint);
+ 				cx.is_found = ch.is_found;
+-				if (idx<0)
+-					cacheDB.add(cx); // Addi is not in database
+-				else if (((CacheHolder) cacheDB.get(idx)).is_Checked && // Only re-spider existing addi waypoints that are ticked
++				if (idx<0){
++					cacheDB.add(cx.clone()); // Addi is not in database
++					cx = null;
++					Vm.gc();
++				}else if (((CacheHolder) cacheDB.get(idx)).is_Checked && // Only re-spider existing addi waypoints that are ticked
+ 						!((CacheHolder) cacheDB.get(idx)).is_filtered) // and are visible (i.e.  not filtered)
+ 					((CacheHolder) cacheDB.get(idx)).update(cx);
+ 				cx.saveCacheDetails(profile.dataDir);
+-				
+ 				rowBlock = exRowBlock.findNext();
+ 			}
+ 		}
+
+
+
+From bilbowolf at mail.berlios.de  Thu Mar 22 22:56:46 2007
+From: bilbowolf at mail.berlios.de (bilbowolf at mail.berlios.de)
+Date: Thu, 22 Mar 2007 22:56:46 +0100
+Subject: [Cachewolf-svn] r648 - trunk/src/CacheWolf
+Message-ID: <200703222156.l2MLukVY024823@sheep.berlios.de>
+
+Author: bilbowolf
+Date: 2007-03-22 22:56:43 +0100 (Thu, 22 Mar 2007)
+New Revision: 648
+
+Modified:
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/SpiderGC.java
+Log:
+
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2007-03-21 05:51:41 UTC (rev 647)
++++ trunk/src/CacheWolf/MainMenu.java	2007-03-22 21:56:43 UTC (rev 648)
+@@ -384,6 +384,7 @@
+ 			if(mev.selectedItem == spider){
+ 				SpiderGC spGC = new SpiderGC(pref, profile);
+ 				spGC.doIt();
++				profile.readIndex();
+ 				tbp.resetModel();
+ 			}
+ 			if(mev.selectedItem == savenoxit){
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2007-03-21 05:51:41 UTC (rev 647)
++++ trunk/src/CacheWolf/SpiderGC.java	2007-03-22 21:56:43 UTC (rev 648)
+@@ -148,94 +148,100 @@
+ 			start = fetch(doc);
+ 		}catch(Exception ex){
+ 			pref.log("Could not fetch " + ch.wayPoint);
++			ch.is_incomplete = true;
++			cacheDB.set(number, ch);
+ 			//Vm.debug("Couldn't get cache detail page");
+ 		}
+ 		if (!infB.isClosed) { // Only analyse the cache data if user has not closed the progress window
+-			ch.is_new = false;
+-			ch.is_update = false;
+-			ch.is_HTML = true;
+-			ch.is_available = true;
+-			ch.is_archived = false;
+-			//Vm.debug(ch.wayPoint);
+-			
+-			if(start.indexOf("This cache is temporarily unavailable") >= 0) ch.is_available = false;
+-			if(start.indexOf("This cache has been archived") >= 0) ch.is_archived = true;
+-			pref.log("Trying logs");
+-			int logsz = ch.CacheLogs.size();
+-			ch.CacheLogs = getLogs(start, ch);
+-			int z = 0;
+-			String loganal = "";
+-			while(z < ch.CacheLogs.size() && z < 5){
+-				loganal = (String)ch.CacheLogs.get(z);
+-				if(loganal.indexOf("icon_sad")>0) {
+-					z++;
+-				}else break;
+-			}
+-			ch.noFindLogs = z;
+-			ch.is_log_update = false;
+-			if(ch.CacheLogs.size()>logsz) ch.is_log_update = true;
+-			pref.log("Found logs");
+-			ch.LatLon = getLatLon(start);
+-			ch.pos.set(ch.LatLon);
+-			//Vm.debug("LatLon: " + ch.LatLon);
+-			pref.log("Trying description");
+-			origLong = ch.LongDescription;
+-			ch.LongDescription = getLongDesc(start);
+-			if(!ch.LongDescription.equals(origLong)) ch.is_update = true;
+-			pref.log("Got description");
+-			pref.log("Getting cache name");
+-			ch.CacheName = SafeXML.cleanback(getName(start));
+-			pref.log("Got cache name");
+-			//Vm.debug("Name: " + ch.CacheName);
+-			pref.log("Trying owner");
+-			ch.CacheOwner = SafeXML.cleanback(getOwner(start)).trim();
+-			if(ch.CacheOwner.equals(pref.myAlias) || (pref.myAlias2.length()>0 && ch.CacheOwner.equals(pref.myAlias2))) ch.is_owned = true;
+-			pref.log("Got owner");
+-			//Vm.debug("Owner: " + ch.CacheOwner);
+-			pref.log("Trying date hidden");
+-			ch.DateHidden = getDateHidden(start);
+-			pref.log("Got date hidden");
+-			//Vm.debug("Hidden: " + ch.DateHidden);
+-			pref.log("Trying hints");
+-			ch.Hints = getHints(start);
+-			pref.log("Got hints");
+-			//Vm.debug("Hints: " + ch.Hints);
+-			//Vm.debug("Got the hints");
+-			pref.log("Trying size");
+-			ch.CacheSize = getSize(start);
+-			pref.log("Got size");
+-			//Vm.debug("Size: " + ch.CacheSize);
+-			pref.log("Trying difficulty");
+-			ch.hard = getDiff(start);
+-			pref.log("Got difficulty");
+-			//Vm.debug("Hard: " + ch.hard);
+-			pref.log("Trying terrain");
+-			ch.terrain = getTerr(start);
+-			pref.log("Got terrain");
+-			if (!infB.isClosed) ch.Bugs = getBugs(start);
+-			if(ch.Bugs.length()>0) ch.has_bug = true; else ch.has_bug = false;
+-			//Vm.debug("Terr: " + ch.terrain);
+-			pref.log("Trying cache type");
+-			ch.type = getType(start);
+-			pref.log("Got cache type");
+-			//Vm.debug("Type: " + ch.type);
+-			pref.log("Trying images");
+-			getImages(start, ch);
+-			pref.log("Got images");
+-			//pref.log("Trying maps");
+-			//getMaps(ch);
+-			//pref.log("Got maps");
+-			pref.log("Getting additional waypoints");
+-	
+-			getAddWaypoints(start, ch);
+-	
+-			pref.log("Got additional waypoints");
+-			ch.CacheNotes = notes;
+-			if (!infB.isClosed) {
+-				ch.saveCacheDetails(profile.dataDir);
++			try{
++				ch.is_new = false;
++				ch.is_update = false;
++				ch.is_HTML = true;
++				ch.is_available = true;
++				ch.is_archived = false;
++				ch.is_incomplete = false;
++				//Vm.debug(ch.wayPoint);
+ 				
+-				cacheDB.set(number, ch);
+-			}
++				if(start.indexOf("This cache is temporarily unavailable") >= 0) ch.is_available = false;
++				if(start.indexOf("This cache has been archived") >= 0) ch.is_archived = true;
++				pref.log("Trying logs");
++				int logsz = ch.CacheLogs.size();
++				ch.CacheLogs = getLogs(start, ch);
++				int z = 0;
++				String loganal = "";
++				while(z < ch.CacheLogs.size() && z < 5){
++					loganal = (String)ch.CacheLogs.get(z);
++					if(loganal.indexOf("icon_sad")>0) {
++						z++;
++					}else break;
++				}
++				ch.noFindLogs = z;
++				ch.is_log_update = false;
++				if(ch.CacheLogs.size()>logsz) ch.is_log_update = true;
++				pref.log("Found logs");
++				ch.LatLon = getLatLon(start);
++				ch.pos.set(ch.LatLon);
++				//Vm.debug("LatLon: " + ch.LatLon);
++				pref.log("Trying description");
++				origLong = ch.LongDescription;
++				ch.LongDescription = getLongDesc(start);
++				if(!ch.LongDescription.equals(origLong)) ch.is_update = true;
++				pref.log("Got description");
++				pref.log("Getting cache name");
++				ch.CacheName = SafeXML.cleanback(getName(start));
++				pref.log("Got cache name");
++				//Vm.debug("Name: " + ch.CacheName);
++				pref.log("Trying owner");
++				ch.CacheOwner = SafeXML.cleanback(getOwner(start)).trim();
++				if(ch.CacheOwner.equals(pref.myAlias) || (pref.myAlias2.length()>0 && ch.CacheOwner.equals(pref.myAlias2))) ch.is_owned = true;
++				pref.log("Got owner");
++				//Vm.debug("Owner: " + ch.CacheOwner);
++				pref.log("Trying date hidden");
++				ch.DateHidden = getDateHidden(start);
++				pref.log("Got date hidden");
++				//Vm.debug("Hidden: " + ch.DateHidden);
++				pref.log("Trying hints");
++				ch.Hints = getHints(start);
++				pref.log("Got hints");
++				//Vm.debug("Hints: " + ch.Hints);
++				//Vm.debug("Got the hints");
++				pref.log("Trying size");
++				ch.CacheSize = getSize(start);
++				pref.log("Got size");
++				//Vm.debug("Size: " + ch.CacheSize);
++				pref.log("Trying difficulty");
++				ch.hard = getDiff(start);
++				pref.log("Got difficulty");
++				//Vm.debug("Hard: " + ch.hard);
++				pref.log("Trying terrain");
++				ch.terrain = getTerr(start);
++				pref.log("Got terrain");
++				if (!infB.isClosed) ch.Bugs = getBugs(start);
++				if(ch.Bugs.length()>0) ch.has_bug = true; else ch.has_bug = false;
++				//Vm.debug("Terr: " + ch.terrain);
++				pref.log("Trying cache type");
++				ch.type = getType(start);
++				pref.log("Got cache type");
++				//Vm.debug("Type: " + ch.type);
++				pref.log("Trying images");
++				getImages(start, ch);
++				pref.log("Got images");
++				//pref.log("Trying maps");
++				//getMaps(ch);
++				//pref.log("Got maps");
++				pref.log("Getting additional waypoints");
++		
++				getAddWaypoints(start, ch.wayPoint, ch.is_found);
++		
++				pref.log("Got additional waypoints");
++				ch.CacheNotes = notes;
++				if (!infB.isClosed) {
++					ch.saveCacheDetails(profile.dataDir);
++					
++					cacheDB.set(number, ch);
++				}
++			}catch(Exception ex){}
++			finally{}
+ 		}
+ 		profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR); //TODO This could be done at the end in the context menu
+ 		boolean ret=!infB.isClosed; // If the infoBox was closed before getting here, we return false
+@@ -344,9 +350,9 @@
+ 				page_number++;
+ 				if(page_number >= 15) page_number = 5;
+ 				doc = URL.encodeURL("__VIEWSTATE",false) +"="+ URL.encodeURL(viewstate,false);
+-				doc += "&" + URL.encodeURL("lat",false) +"="+ URL.encodeURL(origin.getLatDeg(CWPoint.DD),false);
+-				doc += "&" + URL.encodeURL("lon",false) +"="+ URL.encodeURL(origin.getLonDeg(CWPoint.DD),false);
+-				if(doNotgetFound) doc += "&f=1";
++				//doc += "&" + URL.encodeURL("lat",false) +"="+ URL.encodeURL(origin.getLatDeg(CWPoint.DD),false);
++				//doc += "&" + URL.encodeURL("lon",false) +"="+ URL.encodeURL(origin.getLonDeg(CWPoint.DD),false);
++				//if(doNotgetFound) doc += "&f=1";
+ 				doc += "&" + URL.encodeURL("__EVENTTARGET",false) +"="+ URL.encodeURL("ResultsPager:_ctl"+page_number,false);
+ 				doc += "&" + URL.encodeURL("__EVENTARGUMENT",false) +"="+ URL.encodeURL("",false);
+ 				try{
+@@ -465,19 +471,24 @@
+ 						ch.Bugs = getBugs(start);
+ 						if(ch.Bugs.length()>0) ch.has_bug = true; else ch.has_bug = false;
+ 						pref.log("Getting additional waypoints");
+-						//getAddWaypoints(start, ch);
++						getAddWaypoints(start, ch.wayPoint, ch.is_found);
+ 						pref.log("Got additional waypoints");
++						if(doNotgetFound) {
++							if(!ch.is_found) profile.writeIndexLine(ch);
++						} else profile.writeIndexLine(ch);
+ 						ch.saveCacheDetails(profile.dataDir);
+ 						profile.writeIndexLine(ch);
+-						//profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
++						
+ 						ch = new CacheHolder();
+ 					}catch(Exception ex){
+ 						pref.log("There was an error in the last step:");
+ 						pref.log("Cache was: " + wpt);
+ 						pref.log("Error was: " + ex.toString());
+ 						ch.is_incomplete = true;
+-						profile.writeIndexLine(ch);
+-						//profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
++						if(doNotgetFound) {
++							if(!ch.is_found) profile.writeIndexLine(ch);
++						} else profile.writeIndexLine(ch);
++						
+ 						ch = new CacheHolder();
+ 					}finally{
+ 						//just continue please!
+@@ -532,7 +543,7 @@
+ 		return result;
+ 	}
+ 	
+-	public void getAddWaypoints(String doc, CacheHolder ch){
++	public void getAddWaypoints(String doc, String wayPoint, boolean is_found){
+ 		Extractor exWayBlock = new Extractor(doc, "<strong>Additional Waypoints</strong><br>", "</table>", 0, false);
+ 		String wayBlock = "";
+ 		String rowBlock = "";
+@@ -559,14 +570,14 @@
+ 				if(typeRex.didMatch()) cx.type = CacheType.typeText2Number("Waypoint|"+typeRex.stringMatched(1));
+ 				rowBlock = exRowBlock.findNext();
+ 				descRex.search(rowBlock);
+-				cx.wayPoint = MyLocale.formatLong(counter, "00") + ch.wayPoint.substring(2);
++				cx.wayPoint = MyLocale.formatLong(counter, "00") + wayPoint.substring(2);
+ 				counter++;
+ 				cx.LongDescription = descRex.stringMatched(1); 
+ 				//Vm.debug(descRex.stringMatched(1));
+ 				int idx=profile.getCacheIndex(cx.wayPoint);
+-				cx.is_found = ch.is_found;
++				cx.is_found = is_found;
+ 				if (idx<0){
+-					cacheDB.add(cx.clone()); // Addi is not in database
++					profile.writeIndexLine(cx);
+ 					cx = null;
+ 					Vm.gc();
+ 				}else if (((CacheHolder) cacheDB.get(idx)).is_Checked && // Only re-spider existing addi waypoints that are ticked
+
+
+
+From bilbowolf at mail.berlios.de  Thu Mar 22 22:57:28 2007
+From: bilbowolf at mail.berlios.de (bilbowolf at mail.berlios.de)
+Date: Thu, 22 Mar 2007 22:57:28 +0100
+Subject: [Cachewolf-svn] r649 - trunk/src/CacheWolf
+Message-ID: <200703222157.l2MLvSBC024854@sheep.berlios.de>
+
+Author: bilbowolf
+Date: 2007-03-22 22:57:26 +0100 (Thu, 22 Mar 2007)
+New Revision: 649
+
+Modified:
+   trunk/src/CacheWolf/Version.java
+Log:
+
+
+Modified: trunk/src/CacheWolf/Version.java
+===================================================================
+--- trunk/src/CacheWolf/Version.java	2007-03-22 21:56:43 UTC (rev 648)
++++ trunk/src/CacheWolf/Version.java	2007-03-22 21:57:26 UTC (rev 649)
+@@ -10,7 +10,7 @@
+ 	static final String VER_MAJOR = "0.9n";
+ 	static final String VER_MINOR = "";
+ 	static final String VER_BUILD = " RC ";
+-	static final String VER_SVN ="$LastChangedRevision$";  // the  number is automatically replaced by subversion to the latest versionnumer of this file (svn:keywords LastChangedRevision)
++	static final String VER_SVN ="$LastChangedRevision$";  //the  number is automatically replaced by subversion to the latest versionnumer of this file (svn:keywords LastChangedRevision)
+ 	
+ 	/**
+ 	 * @return
+
+
+
+From bilbowolf at mail.berlios.de  Fri Mar 23 06:54:45 2007
+From: bilbowolf at mail.berlios.de (bilbowolf at mail.berlios.de)
+Date: Fri, 23 Mar 2007 06:54:45 +0100
+Subject: [Cachewolf-svn] r650 - trunk/src/CacheWolf
+Message-ID: <200703230554.l2N5sjH7031496@sheep.berlios.de>
+
+Author: bilbowolf
+Date: 2007-03-23 06:54:41 +0100 (Fri, 23 Mar 2007)
+New Revision: 650
+
+Modified:
+   trunk/src/CacheWolf/SpiderGC.java
+   trunk/src/CacheWolf/Version.java
+Log:
+
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2007-03-22 21:57:26 UTC (rev 649)
++++ trunk/src/CacheWolf/SpiderGC.java	2007-03-23 05:54:41 UTC (rev 650)
+@@ -160,6 +160,10 @@
+ 				ch.is_available = true;
+ 				ch.is_archived = false;
+ 				ch.is_incomplete = false;
++				ch.CacheLogs.clear();
++				ch.addiWpts.clear();
++				ch.Images.clear();
++				ch.ImagesText.clear();
+ 				//Vm.debug(ch.wayPoint);
+ 				
+ 				if(start.indexOf("This cache is temporarily unavailable") >= 0) ch.is_available = false;
+
+Modified: trunk/src/CacheWolf/Version.java
+===================================================================
+--- trunk/src/CacheWolf/Version.java	2007-03-22 21:57:26 UTC (rev 649)
++++ trunk/src/CacheWolf/Version.java	2007-03-23 05:54:41 UTC (rev 650)
+@@ -10,7 +10,7 @@
+ 	static final String VER_MAJOR = "0.9n";
+ 	static final String VER_MINOR = "";
+ 	static final String VER_BUILD = " RC ";
+-	static final String VER_SVN ="$LastChangedRevision$";  //the  number is automatically replaced by subversion to the latest versionnumer of this file (svn:keywords LastChangedRevision)
++	static final String VER_SVN ="$LastChangedRevision$";  // the  number is automatically replaced by subversion to the latest versionnumer of this file (svn:keywords LastChangedRevision)
+ 	
+ 	/**
+ 	 * @return
+
+
+
+From pfeffer at mail.berlios.de  Sat Mar 24 00:53:13 2007
+From: pfeffer at mail.berlios.de (pfeffer at mail.berlios.de)
+Date: Sat, 24 Mar 2007 00:53:13 +0100
+Subject: [Cachewolf-svn] r651 - trunk/src/CacheWolf
+Message-ID: <200703232353.l2NNrDlq018604@sheep.berlios.de>
+
+Author: pfeffer
+Date: 2007-03-24 00:53:10 +0100 (Sat, 24 Mar 2007)
+New Revision: 651
+
+Modified:
+   trunk/src/CacheWolf/Profile.java
+Log:
+Kartendownload: keine NullpointException mehr bei AddiWpts ohne maincache-zeiger
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2007-03-23 05:54:41 UTC (rev 650)
++++ trunk/src/CacheWolf/Profile.java	2007-03-23 23:53:10 UTC (rev 651)
+@@ -437,9 +437,9 @@
+ 					tmpca.set(ch.LatLon);
+ 					ch.pos = new CWPoint(tmpca);
+ 				}
+-				if (ch.pos.isValid() && ch.pos.latDec != 0 && ch.pos.lonDec != 0 ){ // TODO != 0 sollte rausgenommen werden sobald in der Liste vern?nftig mit nicht gesetzten pos umgegangen wird
++				if (ch.pos.isValid() ){ // done: && ch.pos.latDec != 0 && ch.pos.lonDec != 0 TO-DO != 0 sollte rausgenommen werden sobald in der Liste vern?nftig mit nicht gesetzten pos umgegangen wird
+ 					isAddi = ch.isAddiWpt();
+-				if (!isAddi || (isAddi && ch.pos.getDistance(ch.mainCache.pos) < 1000)) { // test for plausiblity of coordinates of Additional Waypoints: more then 1000 km away from main Waypoint is unplausible -> ignore it
++				if (!isAddi || (isAddi && ch.mainCache != null && ch.pos.getDistance(ch.mainCache.pos) < 1000)) { // test for plausiblity of coordinates of Additional Waypoints: more then 1000 km away from main Waypoint is unplausible -> ignore it // && ch.mainCache != null is only necessary because the data base may be corrupted
+ 						if (topleft == null) topleft = new CWPoint(ch.pos);
+ 						if (bottomright == null) bottomright = new CWPoint(ch.pos);
+ 						if (topleft.latDec < ch.pos.latDec) topleft.latDec = ch.pos.latDec;
+
+
+
+From salzkammergut at mail.berlios.de  Sat Mar 24 16:19:39 2007
+From: salzkammergut at mail.berlios.de (salzkammergut at mail.berlios.de)
+Date: Sat, 24 Mar 2007 16:19:39 +0100
+Subject: [Cachewolf-svn] r652 - trunk/src/CacheWolf
+Message-ID: <200703241519.l2OFJdYD008013@sheep.berlios.de>
+
+Author: salzkammergut
+Date: 2007-03-24 16:19:36 +0100 (Sat, 24 Mar 2007)
+New Revision: 652
+
+Modified:
+   trunk/src/CacheWolf/MovingMap.java
+Log:
+MovingMap: Bugfix gefilterte Caches werden in der Karte nicht angezeigt
+
+Modified: trunk/src/CacheWolf/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/MovingMap.java	2007-03-23 23:53:10 UTC (rev 651)
++++ trunk/src/CacheWolf/MovingMap.java	2007-03-24 15:19:36 UTC (rev 652)
+@@ -283,7 +283,7 @@
+ 			CacheHolder ch;
+ 			for (int i=cacheDB.size()-1; i>=0; i--) {
+ 				ch = (CacheHolder) cacheDB.get(i);
+-				if (ch.is_Checked && ch != mainT.ch) {
++				if (ch.is_Checked && !ch.is_filtered && ch != mainT.ch) {
+ 					int ct = Convert.parseInt(ch.type);
+ 					addSymbol(ch.CacheName, ch, myTableModel.cacheImages[ct], ch.pos.latDec, ch.pos.lonDec);
+ 				}
+
+
+
+From salzkammergut at mail.berlios.de  Sun Mar 25 16:13:35 2007
+From: salzkammergut at mail.berlios.de (salzkammergut at mail.berlios.de)
+Date: Sun, 25 Mar 2007 16:13:35 +0200
+Subject: [Cachewolf-svn] r653 - trunk/src/CacheWolf
+Message-ID: <200703251413.l2PEDZNM015579@sheep.berlios.de>
+
+Author: salzkammergut
+Date: 2007-03-25 16:13:27 +0200 (Sun, 25 Mar 2007)
+New Revision: 653
+
+Modified:
+   trunk/src/CacheWolf/TablePanel.java
+   trunk/src/CacheWolf/myTableControl.java
+Log:
+Bugfix Cursorsteuerung ueber Tastatur: Es werden jetzt auch bei Details/Hintlog/Radar ... die richtigen Daten angezeigt wenn in der Listenansicht per Taste ein anderer Datensatz gewaehlt wird 
+
+Modified: trunk/src/CacheWolf/TablePanel.java
+===================================================================
+--- trunk/src/CacheWolf/TablePanel.java	2007-03-24 15:19:36 UTC (rev 652)
++++ trunk/src/CacheWolf/TablePanel.java	2007-03-25 14:13:27 UTC (rev 653)
+@@ -55,10 +55,10 @@
+ 	public void selectRow(int row) {
+ 		setSelectedCache(row);
+ 		tc.cursorTo(row, tc.cursor.x+tc.listMode, true);
+-		tc.scrollToVisible(row,0);
+-		tc.clearSelection(null);
++		//tc.scrollToVisible(row,0);
++		/*tc.clearSelection(null);
+ 		tc.addToSelection(row,0); 
+-		tc.addToSelection(row,myMod.MAXCOLUMNS-1); 
++		tc.addToSelection(row,myMod.MAXCOLUMNS-1);*/ 
+ 		//tc.paintSelectedCells();
+ 	}
+ 	
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2007-03-24 15:19:36 UTC (rev 652)
++++ trunk/src/CacheWolf/myTableControl.java	2007-03-25 14:13:27 UTC (rev 653)
+@@ -54,14 +54,16 @@
+ 				setSelectForAll(true);
+ 				ev.consumed = true;
+ 			}
+-			if (ev.key == IKeys.HOME) cursorTo(0,cursor.x+listMode,true);
+-			if (ev.key == IKeys.END) cursorTo(model.numRows-1,cursor.x+listMode,true);
+-			if (ev.key == IKeys.PAGE_DOWN) cursorTo(java.lang.Math.min(cursor.y+ getOnScreen(null).height-1, model.numRows-1),cursor.x+listMode,true); // I don't know why this doesn't work: tbp.doScroll(IScroll.Vertical, IScroll.PageHigher, 1);
+-			if (ev.key == IKeys.PAGE_UP) cursorTo(java.lang.Math.max(cursor.y-getOnScreen(null).height+1, 0),cursor.x+listMode,true);
+-			if (ev.key == IKeys.ACTION || ev.key == IKeys.ENTER) Global.mainTab.select(Global.mainTab.descP);
+-
++			else if (ev.key == IKeys.HOME) Global.mainTab.tbP.selectRow(0); //  cursorTo(0,cursor.x+listMode,true);
++			else if (ev.key == IKeys.END) Global.mainTab.tbP.selectRow(model.numRows-1); //cursorTo(model.numRows-1,cursor.x+listMode,true);
++			else if (ev.key == IKeys.PAGE_DOWN) Global.mainTab.tbP.selectRow(java.lang.Math.min(cursor.y+ getOnScreen(null).height-1, model.numRows-1)); //cursorTo(java.lang.Math.min(cursor.y+ getOnScreen(null).height-1, model.numRows-1),cursor.x+listMode,true); // I don't know why this doesn't work: tbp.doScroll(IScroll.Vertical, IScroll.PageHigher, 1);
++			else if (ev.key == IKeys.PAGE_UP) Global.mainTab.tbP.selectRow(java.lang.Math.max(cursor.y-getOnScreen(null).height+1, 0)); // cursorTo(java.lang.Math.max(cursor.y-getOnScreen(null).height+1, 0),cursor.x+listMode,true);
++			else if (ev.key == IKeys.ACTION || ev.key == IKeys.ENTER) Global.mainTab.select(Global.mainTab.descP);
++			else if (ev.key == IKeys.DOWN) Global.mainTab.tbP.selectRow(java.lang.Math.min(cursor.y+ 1, model.numRows-1)); 
++			else if (ev.key == IKeys.UP) Global.mainTab.tbP.selectRow(java.lang.Math.max(cursor.y-1, 0)); 
++			else super.onKeyEvent(ev);
+ 		}
+-		super.onKeyEvent(ev);
++		else super.onKeyEvent(ev);
+ 	}
+ 
+ 	/** Set all caches either as selected or as deselected, depending on argument */
+
+
+
+From bilbowolf at mail.berlios.de  Mon Mar 26 08:43:28 2007
+From: bilbowolf at mail.berlios.de (bilbowolf at mail.berlios.de)
+Date: Mon, 26 Mar 2007 08:43:28 +0200
+Subject: [Cachewolf-svn] r654 - trunk/src/CacheWolf
+Message-ID: <200703260643.l2Q6hSTh013043@sheep.berlios.de>
+
+Author: bilbowolf
+Date: 2007-03-26 08:43:27 +0200 (Mon, 26 Mar 2007)
+New Revision: 654
+
+Modified:
+   trunk/src/CacheWolf/CacheHolder.java
+Log:
+
+
+Modified: trunk/src/CacheWolf/CacheHolder.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolder.java	2007-03-25 14:13:27 UTC (rev 653)
++++ trunk/src/CacheWolf/CacheHolder.java	2007-03-26 06:43:27 UTC (rev 654)
+@@ -160,7 +160,7 @@
+    	 //Check for number sukzessive DNF logs
+ 	 int z = 0;
+ 	 String loganal = EMPTY;
+-	 // Vm.debug("Checking size: ");
++	 //Vm.debug("Checking size: ");
+ 	 //int sz = newCh.CacheLogs.size();
+ 	 //Vm.debug("log size: " + sz);
+  	 while(z < newCh.CacheLogs.size() && z < 5){
+
+
+
+From bilbowolf at mail.berlios.de  Wed Mar 28 07:42:54 2007
+From: bilbowolf at mail.berlios.de (bilbowolf at mail.berlios.de)
+Date: Wed, 28 Mar 2007 07:42:54 +0200
+Subject: [Cachewolf-svn] r655 - trunk/src/CacheWolf
+Message-ID: <200703280542.l2S5gsHo006627@sheep.berlios.de>
+
+Author: bilbowolf
+Date: 2007-03-28 07:42:50 +0200 (Wed, 28 Mar 2007)
+New Revision: 655
+
+Modified:
+   trunk/src/CacheWolf/CacheHolder.java
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/Profile.java
+   trunk/src/CacheWolf/SpiderGC.java
+   trunk/src/CacheWolf/Version.java
+   trunk/src/CacheWolf/myTableControl.java
+Log:
+
+
+Modified: trunk/src/CacheWolf/CacheHolder.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolder.java	2007-03-26 06:43:27 UTC (rev 654)
++++ trunk/src/CacheWolf/CacheHolder.java	2007-03-28 05:42:50 UTC (rev 655)
+@@ -16,7 +16,7 @@
+ *	classes and methods to get more information.
+ *	
+ */
+-public class CacheHolder implements Cloneable{
++public class CacheHolder {
+   private String NODISTANCE="? km";
+   private String NOBEARING="?";
+   private String EMPTY=""; // Needs less Memory than using 'new String()'
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2007-03-26 06:43:27 UTC (rev 654)
++++ trunk/src/CacheWolf/MainMenu.java	2007-03-28 05:42:50 UTC (rev 655)
+@@ -384,6 +384,7 @@
+ 			if(mev.selectedItem == spider){
+ 				SpiderGC spGC = new SpiderGC(pref, profile);
+ 				spGC.doIt();
++				cacheDB.clear();
+ 				profile.readIndex();
+ 				tbp.resetModel();
+ 			}
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2007-03-26 06:43:27 UTC (rev 654)
++++ trunk/src/CacheWolf/Profile.java	2007-03-28 05:42:50 UTC (rev 655)
+@@ -10,10 +10,7 @@
+ import ewe.io.Stream;
+ import ewe.sys.Convert;
+ import ewe.sys.Handle;
+-import ewe.sys.LocalResource;
+-import ewe.sys.Locale;
+ import ewe.sys.Vm;
+-import ewe.ui.*;
+ import ewe.ui.ProgressBarForm;
+ import ewe.util.Hashtable;
+ import ewe.util.Vector;
+@@ -68,6 +65,7 @@
+ 	 * The following modifications set this flag: New profile centre, Change of waypoint data 
+ 	 */
+ 	public boolean hasUnsavedChanges = false;
++	public boolean byPassIndexActive = false;
+ 
+ 	//TODO Add other settings, such as max. number of logs to spider
+ 	//TODO Add settings for the preferred mapper to allow for maps other than expedia and other resolutions
+@@ -113,7 +111,7 @@
+ 		boolean saveFilterInverted = Filter.filterInverted;
+ 		PrintWriter detfile;
+ 		try{
+-			detfile = new PrintWriter(new BufferedWriter(new FileWriter(dataDir + "index.xml")));
++			detfile = new PrintWriter(new BufferedWriter(new FileWriter(dataDir + "indextemp.xml")));
+ 		} catch (Exception e) {
+ 			Vm.debug("Problem creating index file "+e.toString()+"\nFilename="+dataDir + "index.xml");
+ 			return;
+@@ -138,6 +136,7 @@
+ 					filterDiff+"\" terr = \""+filterTerr+"\" size = \""+filterSize+"\" />\n");
+ 			detfile.print("    <SYNCOC date = \""+last_sync_opencaching+"\" dist = \""+distOC+"\"/>\n");
+ 			detfile.close();
++			byPassIndexActive = true;
+ 		}catch(Exception e){
+ 			Vm.debug("Problem writing to index file "+e.toString());
+ 			detfile.close();
+@@ -150,7 +149,7 @@
+ 	 */
+ 	public void writeIndexLine(CacheHolder ch){
+ 		Stream strout = null;
+-		File index = new File(dataDir + "index.xml");
++		File index = new File(dataDir + "indextemp.xml");
+ 		String cachedata = "    <CACHE name = \""+SafeXML.clean(ch.CacheName)+"\" owner = \""+SafeXML.clean(ch.CacheOwner)+
+ 				"\" lat = \""+ ch.pos.latDec + "\" lon = \""+ch.pos.lonDec+
+ 				"\" hidden = \""+ch.DateHidden+"\" wayp = \""+SafeXML.clean(ch.wayPoint)+"\" status = \""+ch.CacheStatus+"\" type = \""+ch.type+"\" dif = \""+ch.hard+"\" terrain = \"" + ch.terrain + "\" dirty = \"" + ch.dirty + "\" size = \""+ch.CacheSize+"\" online = \"" + Convert.toString(ch.is_available) + "\" archived = \"" + Convert.toString(ch.is_archived) + "\" has_bug = \"" + Convert.toString(ch.has_bug) + "\" black = \"" + Convert.toString(ch.is_black) + "\" owned = \"" + Convert.toString(ch.is_owned) + "\" found = \"" + Convert.toString(ch.is_found) + "\" is_new = \"" + Convert.toString(ch.is_new) +"\" is_log_update = \"" + Convert.toString(ch.is_log_update) + "\" is_update = \"" + Convert.toString(ch.is_update) + "\" is_HTML = \"" + Convert.toString(ch.is_HTML) + "\" DNFLOGS = \"" + ch.noFindLogs + "\" ocCacheID = \"" + ch.ocCacheID + "\" is_INCOMPLETE = \""+Convert.toString(ch.is_incomplete)+"\" />\n";
+@@ -172,13 +171,19 @@
+ 	 */
+ 	public void closeIndex(){
+ 		Stream strout = null;
+-		File index = new File(dataDir + "index.xml");
++		File index = new File(dataDir + "indextemp.xml");
+ 		try{
+ 			//append data!
+ 			strout = index.toWritableStream(true);
+ 			byte[] data = "</CACHELIST>\n".getBytes(); 
+ 			strout.write(data);
+ 			strout.close();
++			File old = new File(dataDir + "index.xml");
++			old.delete();
++			index.rename("index.xml");
++			File indextemp = new File(dataDir + "indextemp.xml");
++			indextemp.delete();
++			byPassIndexActive = false;
+ 		}catch(Exception ex){};
+ 	}
+ 	
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2007-03-26 06:43:27 UTC (rev 654)
++++ trunk/src/CacheWolf/SpiderGC.java	2007-03-28 05:42:50 UTC (rev 655)
+@@ -234,15 +234,17 @@
+ 				//getMaps(ch);
+ 				//pref.log("Got maps");
+ 				pref.log("Getting additional waypoints");
+-		
++				
+ 				getAddWaypoints(start, ch.wayPoint, ch.is_found);
+ 		
+ 				pref.log("Got additional waypoints");
+ 				ch.CacheNotes = notes;
+ 				if (!infB.isClosed) {
+ 					ch.saveCacheDetails(profile.dataDir);
++					pref.log("Saving to:" + profile.dataDir);
++					cacheDB.set(number, ch);
++					profile.saveIndex(pref, Profile.NO_SHOW_PROGRESS_BAR);
+ 					
+-					cacheDB.set(number, ch);
+ 				}
+ 			}catch(Exception ex){}
+ 			finally{}
+@@ -258,6 +260,7 @@
+ 	*	Method to start the spider for a search around the center coordinates
+ 	*/
+ 	public void doIt(){
++		String postStr = new String();
+ 		String dummy = "";
+ 		Regex rexLine;
+ 		String ln;
+@@ -350,6 +353,8 @@
+ 			}
+ 			infB.setInfo("Found " + cachesToLoad.size() + " caches");
+ 			if(found_on_page < 20) distance = 0;
++			postStr = "http://www.geocaching.com/seek/nearest.aspx?" + origin.getLatDeg(CWPoint.DD) + "&" + origin.getLonDeg(CWPoint.DD);
++			if(doNotgetFound) postStr = postStr + "&f=1";
+ 			if(distance > 0){
+ 				page_number++;
+ 				if(page_number >= 15) page_number = 5;
+@@ -362,7 +367,7 @@
+ 				try{
+ 					start = "";
+ 					pref.log("Fetching next list page:" + doc);
+-					start = fetch_post("http://www.geocaching.com/seek/nearest.aspx", doc, "/seek/nearest.aspx");
++					start = fetch_post(postStr, doc, "/seek/nearest.aspx");
+ 				}catch(Exception ex){
+ 					Vm.debug("Couldn't get the next page");
+ 					pref.log("Error getting next page");
+@@ -378,7 +383,7 @@
+ 		if (!infB.isClosed) infB.setInfo("Found " + cachesToLoad.size() + " caches");
+ 		
+ 		// Now ready to spider each cache
+-		profile.openIndex(pref);
++		
+ 		ch = new CacheHolder();
+ 		for(int i = 0; i<cachesToLoad.size(); i++){
+ 			if (infB.isClosed) break;
+@@ -477,11 +482,12 @@
+ 						pref.log("Getting additional waypoints");
+ 						getAddWaypoints(start, ch.wayPoint, ch.is_found);
+ 						pref.log("Got additional waypoints");
++						
+ 						if(doNotgetFound) {
+ 							if(!ch.is_found) profile.writeIndexLine(ch);
+ 						} else profile.writeIndexLine(ch);
++						
+ 						ch.saveCacheDetails(profile.dataDir);
+-						profile.writeIndexLine(ch);
+ 						
+ 						ch = new CacheHolder();
+ 					}catch(Exception ex){
+@@ -568,6 +574,7 @@
+ 				koordRex.search(rowBlock);
+ 				typeRex.search(rowBlock);
+ 				cx.CacheName = nameRex.stringMatched(1);
++				//Vm.debug("Addi: " + cx.CacheName);
+ 				if(koordRex.didMatch()) cx.pos.set(koordRex.stringMatched(1)); 
+ 				cx.LatLon = cx.pos.toString(); 
+ 				//cx.pos.set(cx.LatLon);
+@@ -580,10 +587,16 @@
+ 				//Vm.debug(descRex.stringMatched(1));
+ 				int idx=profile.getCacheIndex(cx.wayPoint);
+ 				cx.is_found = is_found;
++				//Vm.debug("IDX: " + idx);
+ 				if (idx<0){
+-					profile.writeIndexLine(cx);
+-					cx = null;
+-					Vm.gc();
++					if(profile.byPassIndexActive) {
++						profile.writeIndexLine(cx);
++						//Vm.debug("Using index bypass");
++					}
++					else {
++						cacheDB.add(cx);
++						//Vm.debug("Adding to cachedb");
++					}
+ 				}else if (((CacheHolder) cacheDB.get(idx)).is_Checked && // Only re-spider existing addi waypoints that are ticked
+ 						!((CacheHolder) cacheDB.get(idx)).is_filtered) // and are visible (i.e.  not filtered)
+ 					((CacheHolder) cacheDB.get(idx)).update(cx);
+@@ -859,12 +872,14 @@
+ 		pref = prf;
+ 		indexDB = new Hashtable(cacheDB.size());
+ 		CacheHolder ch;
++		profile.openIndex(pref);
+ 		//index the database for faster searching!
+ 		for(int i = 0; i<cacheDB.size();i++){
+ 			ch = (CacheHolder)cacheDB.get(i);
+ 			indexDB.put((String)ch.wayPoint, new Integer(i));
+ 			ch.is_new = false;
+ 			//cacheDB.set(i, ch);
++			profile.writeIndexLine(ch);
+ 		}
+ 	}
+ 	
+
+Modified: trunk/src/CacheWolf/Version.java
+===================================================================
+--- trunk/src/CacheWolf/Version.java	2007-03-26 06:43:27 UTC (rev 654)
++++ trunk/src/CacheWolf/Version.java	2007-03-28 05:42:50 UTC (rev 655)
+@@ -10,7 +10,7 @@
+ 	static final String VER_MAJOR = "0.9n";
+ 	static final String VER_MINOR = "";
+ 	static final String VER_BUILD = " RC ";
+-	static final String VER_SVN ="$LastChangedRevision$";  // the  number is automatically replaced by subversion to the latest versionnumer of this file (svn:keywords LastChangedRevision)
++	static final String VER_SVN ="$LastChangedRevision$";  //the  number is automatically replaced by subversion to the latest versionnumer of this file (svn:keywords LastChangedRevision)
+ 	
+ 	/**
+ 	 * @return
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2007-03-26 06:43:27 UTC (rev 654)
++++ trunk/src/CacheWolf/myTableControl.java	2007-03-28 05:42:50 UTC (rev 655)
+@@ -134,6 +134,9 @@
+ 					}
+ 				}
+ 				profile.hasUnsavedChanges=true;	
++				profile.closeIndex();
++				cacheDB.clear();
++				profile.readIndex();
+ 				tbp.refreshTable();
+ 			}
+ 			Vm.showWait(false);
+
+
+
+From mik77 at mail.berlios.de  Wed Mar 28 23:46:00 2007
+From: mik77 at mail.berlios.de (mik77 at mail.berlios.de)
+Date: Wed, 28 Mar 2007 23:46:00 +0200
+Subject: [Cachewolf-svn] r656 - trunk/src/CacheWolf
+Message-ID: <200703282146.l2SLk0pm005548@sheep.berlios.de>
+
+Author: mik77
+Date: 2007-03-28 23:45:55 +0200 (Wed, 28 Mar 2007)
+New Revision: 656
+
+Modified:
+   trunk/src/CacheWolf/GotoPanel.java
+   trunk/src/CacheWolf/MovingMap.java
+Log:
+- Schriftfarbe von "Waypoint" im GotoPanel auf Wei?\195?\159 ge?\195?\164ndert, damit es auf dem dunkelblauen Hintergrund lesbar wird
+- Einheitliche Reihenfolge beim Zeichen der Richtungspfeile (Nord)->Goto->Bewegungsrichtung->Sonne
+- Sonnenpfeil etwas verk?\195?\188rzt
+- Bewegungspfeil wird bei Ann?\195?\164herung an goto-Richtung erst orange (20?\194?\176) und dann gr?\195?\188n (10?\194?\176)
+
+=> Alle Richtungsinformationen sind immer ablesbar und verdecken sich nicht mehr.
+
+Modified: trunk/src/CacheWolf/GotoPanel.java
+===================================================================
+--- trunk/src/CacheWolf/GotoPanel.java	2007-03-28 05:42:50 UTC (rev 655)
++++ trunk/src/CacheWolf/GotoPanel.java	2007-03-28 21:45:55 UTC (rev 656)
+@@ -137,6 +137,7 @@
+ 		//things about destination
+ 		GotoP.addLast(lblWayP = new mLabel("WayPoint"),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		lblWayP.backGround = Color.DarkBlue;
++		lblWayP.foreGround = Color.White;
+ 		lblWayP.font = BOLD;
+ 		GotoP.addLast(lblBearWayP = new mLabel("0"),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 		lblBearWayP.font = BOLD;
+@@ -396,6 +397,8 @@
+ 	final static Color YELLOW = new Color(255,255,0);
+ 	final static Color GREEN = new Color(0,255,0);
+ 	final static Color BLUE = new Color(0,255,255);
++	final static Color ORANGE = new Color(255,128,0);
++
+ 	/**
+ 	 * @param gd goto direction
+ 	 * @param sd sun direction
+@@ -428,11 +431,37 @@
+ 	}
+ 
+ 	private void drawArrows(Graphics g){
+-		if (g != null) {
++		if (g != null)
++		{
++			// select moveDirColor according to difference to gotoDir
++			Color moveDirColor = RED;
++			
++			if (gotoDir < 360 && gotoDir > -360 && moveDir < 360 && moveDir > -360)
++			{
++				float diff = java.lang.Math.abs(moveDir - gotoDir);
++				while (diff > 360)
++				{
++					diff -= 360.0f;
++				}
++				if (diff > 180)
++				{
++					diff = 360.0f - diff;
++				}
++				
++				if (diff <= 10)
++				{
++					moveDirColor = GREEN;
++				}
++				else if (diff <= 20)
++				{
++					moveDirColor = ORANGE;
++				}
++			}
++
+ 			// draw only valid arrows
+-			if (moveDir < 360 && moveDir > -360) drawArrow(g, moveDir, RED);
+-			if (gotoDir < 360 && gotoDir > -360) drawArrow(g, gotoDir, Color.DarkBlue);
+-			if (sunDir < 360 && sunDir> -360) drawArrow(g, sunDir, YELLOW);
++			if (gotoDir < 360 && gotoDir > -360) drawArrow(g, gotoDir, Color.DarkBlue, 1.0f);
++			if (moveDir < 360 && moveDir > -360) drawArrow(g, moveDir, moveDirColor, 1.0f);
++			if (sunDir < 360 && sunDir > -360) drawArrow(g, sunDir, YELLOW, 0.75f);
+ 		}
+ 	}
+ 
+@@ -442,13 +471,13 @@
+ 	 * @param angle angle of arrow
+ 	 * @param col color of arrow
+ 	 */
+-	private void drawArrow(Graphics g, float angle, Color col) {
++	private void drawArrow(Graphics g, float angle, Color col, float scale) {
+ 		float angleRad;
+ 		int x, y, centerX = location.width/2, centerY = location.height/2;
+ 
+ 		angleRad = (angle) * (float)java.lang.Math.PI / 180;
+-		x = centerX + new Float(centerX * java.lang.Math.sin(angleRad)).intValue();
+-		y = centerY - new Float(centerY * java.lang.Math.cos(angleRad)).intValue();
++		x = centerX + new Float(centerX * java.lang.Math.sin(angleRad) * scale).intValue();
++		y = centerY - new Float(centerY * java.lang.Math.cos(angleRad) * scale).intValue();
+ 		g.setPen(new Pen(col,Pen.SOLID,3));
+ 		g.drawLine(centerX,centerY,x,y);
+ 	}
+
+Modified: trunk/src/CacheWolf/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/MovingMap.java	2007-03-28 05:42:50 UTC (rev 655)
++++ trunk/src/CacheWolf/MovingMap.java	2007-03-28 21:45:55 UTC (rev 656)
+@@ -1857,7 +1857,7 @@
+ 	Graphics draw;
+ 	private MapInfoObject map=null;
+ 
+-	final static Color moveDirColor = new Color(255,0,0); // RED 
++	Color moveDirColor = new Color(255,0,0); // RED 
+ 	final static Color sunDirColor = new Color(255,255,0); // Yellow
+ 	//final static Color GREEN = new Color(0,255,0);
+ 	final static Color gotoDirColor = new Color(0,0,128); // dark blue
+@@ -1929,20 +1929,45 @@
+ 			// draw only valid arrows
+ 			if (moveDir < 360 && moveDir > -360) {
+ 				if (moveDirArrow == null) moveDirArrow = new Point[2];
+-				makeArrow(moveDirArrow, moveDir);
++				makeArrow(moveDirArrow, moveDir, 1.0f);
+ 			} else moveDirArrow = null;
+ 			if (gotoDir < 360 && gotoDir > -360) {
+ 				if (gotoDirArrow == null) gotoDirArrow = new Point[2];
+-				makeArrow(gotoDirArrow, gotoDir);
++				makeArrow(gotoDirArrow, gotoDir, 1.0f);
+ 			} else gotoDirArrow = null;
+ 			if (sunDir < 360 && sunDir> -360) {
+ 				if (sunDirArrow == null ) sunDirArrow = new Point[2];
+-				makeArrow(sunDirArrow, sunDir);
++				makeArrow(sunDirArrow, sunDir, 0.75f);
+ 			} else sunDirArrow = null;
+ 			if (java.lang.Math.abs(map.rotationRad) > 1.5 / 180 * java.lang.Math.PI)	{ // show northth arrow only if it has more than 1.5 degree deviation from vertical direction
+ 				if (northDirArrow == null) northDirArrow = new Point[2];
+-				makeArrow(northDirArrow, 0); // north direction
++				makeArrow(northDirArrow, 0, 1.0f); // north direction
+ 			} else northDirArrow = null;
++			
++			//select moveDirColor according to difference to gotoDir
++			moveDirColor = new Color(255,0,0); // red
++			
++			if (moveDirArrow != null && gotoDirArrow != null)
++			{
++				float diff = java.lang.Math.abs(moveDir - gotoDir);
++				while (diff > 360)
++				{
++					diff -= 360.0f;
++				}
++				if (diff > 180)
++				{
++					diff = 360.0f - diff;
++				}
++				
++				if (diff <= 10)
++				{
++					moveDirColor = new Color(0,255,0);// green
++				}
++				else if (diff <= 20)
++				{
++					moveDirColor = new Color(255,128,0);// orange
++				}
++			}
+ 		}
+ 
+ 	/**
+@@ -1951,8 +1976,9 @@
+ 	 * @param angle angle of arrow
+ 	 * @param col color of arrow
+ 	 */
+-	private void makeArrow(Point[] arrow, float angle) {
++	private void makeArrow(Point[] arrow, float angle, float scale) {
+ 		if (map == null) return;
++
+ 		float angleRad;
+ 		int centerX = location.width/2, centerY = location.height/2;
+ 		if (arrow[0] == null) arrow[0] = new Point();
+@@ -1960,17 +1986,17 @@
+ 		arrow[0].x = centerX;
+ 		arrow[0].y = centerY;
+ 		angleRad = angle * (float)java.lang.Math.PI / 180 + map.rotationRad;
+-		arrow[1].x = centerX + new Float(centerX * java.lang.Math.sin(angleRad)).intValue();
+-		arrow[1].y = centerY - new Float(centerY * java.lang.Math.cos(angleRad)).intValue();
++		arrow[1].x = centerX + new Float(centerX * java.lang.Math.sin(angleRad) * scale).intValue();
++		arrow[1].y = centerY - new Float(centerY * java.lang.Math.cos(angleRad) * scale).intValue();
+ 		//	g.setPen(new Pen(Color.Black,Pen.SOLID,7));
+ 		//	g.drawLine(centerX,centerY,x,y);
+ 	}
+ 
+ 	public void drawArrows(Graphics g) {
++		drawArrow(g, northDirArrow, northDirColor);
++		drawArrow(g, gotoDirArrow, gotoDirColor);
++		drawArrow(g, moveDirArrow, moveDirColor);
+ 		drawArrow(g, sunDirArrow, sunDirColor);
+-		drawArrow(g, moveDirArrow, moveDirColor);
+-		drawArrow(g, gotoDirArrow, gotoDirColor);
+-		drawArrow(g, northDirArrow, northDirColor);
+ 	}
+ 	
+ 	public void drawArrow(Graphics g, Point[] arrow, Color col) {
+
+
+
+From mik77 at mail.berlios.de  Thu Mar 29 22:04:33 2007
+From: mik77 at mail.berlios.de (mik77 at mail.berlios.de)
+Date: Thu, 29 Mar 2007 22:04:33 +0200
+Subject: [Cachewolf-svn] r657 - trunk/src/CacheWolf
+Message-ID: <200703292004.l2TK4Xlf011048@sheep.berlios.de>
+
+Author: mik77
+Date: 2007-03-29 22:04:28 +0200 (Thu, 29 Mar 2007)
+New Revision: 657
+
+Modified:
+   trunk/src/CacheWolf/GotoPanel.java
+   trunk/src/CacheWolf/MovingMap.java
+Log:
+Farben vom letzten Commit nochmal ge?\195?\164ndert:
+- ?\195?\188ber goto-Pfeil (5 Grad): dunkelgr?\195?\188n
+- unter 22,5 Grad: gr?\195?\188n
+- unter 45 Grad: orange
+- sonst: rot
+
+Modified: trunk/src/CacheWolf/GotoPanel.java
+===================================================================
+--- trunk/src/CacheWolf/GotoPanel.java	2007-03-28 21:45:55 UTC (rev 656)
++++ trunk/src/CacheWolf/GotoPanel.java	2007-03-29 20:04:28 UTC (rev 657)
+@@ -398,6 +398,7 @@
+ 	final static Color GREEN = new Color(0,255,0);
+ 	final static Color BLUE = new Color(0,255,255);
+ 	final static Color ORANGE = new Color(255,128,0);
++	final static Color DARKGREEN = new Color(0,128,0);
+ 
+ 	/**
+ 	 * @param gd goto direction
+@@ -448,11 +449,15 @@
+ 					diff = 360.0f - diff;
+ 				}
+ 				
+-				if (diff <= 10)
++				if (diff <= 5.0)
+ 				{
++					moveDirColor = DARKGREEN;
++				}
++				else if (diff <= 22.5)
++				{
+ 					moveDirColor = GREEN;
+ 				}
+-				else if (diff <= 20)
++				else if (diff <= 45.0)
+ 				{
+ 					moveDirColor = ORANGE;
+ 				}
+
+Modified: trunk/src/CacheWolf/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/MovingMap.java	2007-03-28 21:45:55 UTC (rev 656)
++++ trunk/src/CacheWolf/MovingMap.java	2007-03-29 20:04:28 UTC (rev 657)
+@@ -1959,11 +1959,15 @@
+ 					diff = 360.0f - diff;
+ 				}
+ 				
+-				if (diff <= 10)
++				if (diff <= 5.0)
+ 				{
++					moveDirColor = new Color(0,128,0);// darkgreen
++				}
++				else if (diff <= 22.5)
++				{
+ 					moveDirColor = new Color(0,255,0);// green
+ 				}
+-				else if (diff <= 20)
++				else if (diff <= 45.0)
+ 				{
+ 					moveDirColor = new Color(255,128,0);// orange
+ 				}
+
+
+
+From kalli at mail.berlios.de  Sat Mar 31 18:14:49 2007
+From: kalli at mail.berlios.de (kalli at mail.berlios.de)
+Date: Sat, 31 Mar 2007 18:14:49 +0200
+Subject: [Cachewolf-svn] r658 - trunk/resources
+Message-ID: <200703311614.l2VGEn0n006232@sheep.berlios.de>
+
+Author: kalli
+Date: 2007-03-31 18:14:45 +0200 (Sat, 31 Mar 2007)
+New Revision: 658
+
+Added:
+   trunk/resources/mnroute.tpl
+Log:
+Template fuer Mobile Navigator Routen Export
+
+Added: trunk/resources/mnroute.tpl
+===================================================================
+--- trunk/resources/mnroute.tpl	2007-03-29 20:04:28 UTC (rev 657)
++++ trunk/resources/mnroute.tpl	2007-03-31 16:14:45 UTC (rev 658)
+@@ -0,0 +1,6 @@
++<#-- Mobile Navigator Route -->
++<#-- newline: CR, LF, CRLF -->
++<tmpl_par name="newline" value="CRLF">
++<tmpl_loop cache_index>
++-|-|-|-|-|-|-|-|-|-|<tmpl_var name=LON>|<tmpl_var name=LAT>|-|<br/>
++</tmpl_loop>
+\ No newline at end of file
+
+
+

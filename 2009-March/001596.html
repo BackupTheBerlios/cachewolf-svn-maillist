@@ -1,0 +1,161 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1684 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-March/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1684%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200903092122.n29LMFJq003901%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001595.html">
+   <LINK REL="Next"  HREF="001597.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1684 - trunk/src/CacheWolf</H1>
+    <B>mik77 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1684%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200903092122.n29LMFJq003901%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1684 - trunk/src/CacheWolf">mik77 at mail.berlios.de
+       </A><BR>
+    <I>Mon Mar  9 22:22:15 CET 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001595.html">[Cachewolf-svn] r1683 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001597.html">[Cachewolf-svn] r1685 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1596">[ date ]</a>
+              <a href="thread.html#1596">[ thread ]</a>
+              <a href="subject.html#1596">[ subject ]</a>
+              <a href="author.html#1596">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mik77
+Date: 2009-03-09 22:22:14 +0100 (Mon, 09 Mar 2009)
+New Revision: 1684
+
+Modified:
+   trunk/src/CacheWolf/SpiderGC.java
+Log:
+ - first attempt to correct disabled/archived status when spidering
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2009-03-09 19:31:40 UTC (rev 1683)
++++ trunk/src/CacheWolf/SpiderGC.java	2009-03-09 21:22:14 UTC (rev 1684)
+@@ -29,6 +29,8 @@
+ import ewe.sys.*;
+ import ewe.sys.Double;
+ import ewe.util.*;
++import CacheWolf.navi.Metrics;
++
+ import com.stevesoft.ewe_pat.*;
+ import ewe.ui.*;
+ import ewe.data.Property;
+@@ -321,6 +323,18 @@
+ 		boolean doNotgetFound = options.foundCheckBox.getState();
+ 		boolean getImages = options.imagesCheckBox.getState();
+ 		options.close(0);
++		
++		Hashtable cachesToUpdate = new Hashtable(cacheDB.size());
++		double distanceInKm = distance;
++		if ( Global.getPref().metricSystem == Metrics.IMPERIAL ) {
++			distanceInKm = Metrics.convertUnit(distance, Metrics.MILES, Metrics.KILOMETER);
++		}
++		for(int i = 0; i&lt;cacheDB.size();i++){
++			ch = (CacheHolder)cacheDB.get(i);
++			if ( (ch.kilom &lt;= distanceInKm) &amp;&amp; !(doNotgetFound &amp;&amp; ch.is_found) ) {
++				cachesToUpdate.put(ch.wayPoint, new Integer(i));
++			}
++		}
+ 
+ 		//=======
+ 		// Prepare list of all caches that are to be spidered
+@@ -407,6 +421,8 @@
+ 								ch.is_available=is_available_GC;
+ 								chD=ch.getCacheDetails(true,false);
+ 								ch.detailsAdded();
++							} else {
++								cachesToUpdate.remove( ch.wayPoint );
+ 							}
+ 						}
+ 					} else distance = 0;
+@@ -456,17 +472,19 @@
+ 		boolean loadAllLogs = (MAXLOGS &gt; 5);
+ 
+ 		int spiderErrors = 0;
++		int totalCachesToLoad = cachesToLoad.size() + cachesToUpdate.size();
+ 		for(int i = 0; i&lt;cachesToLoad.size(); i++){
+ 			if (infB.isClosed) break;
+ 
+ 			wpt = (String)cachesToLoad.get(i);
+ 			// Get only caches not already available in the DB
+ 			if(searchWpt(wpt) == -1){
+-				infB.setInfo(MyLocale.getMsg(5513,&quot;Loading: &quot;) + wpt +&quot; (&quot; + (i+1) + &quot; / &quot; + cachesToLoad.size() + &quot;)&quot;);
++				infB.setInfo(MyLocale.getMsg(5513,&quot;Loading: &quot;) + wpt +&quot; (&quot; + (i+1) + &quot; / &quot; + totalCachesToLoad + &quot;)&quot;);
+ 				chD = new CacheHolderDetail();
+ 				chD.wayPoint=wpt;
+ 				int test = getCacheByWaypointName(chD,false,getImages,doNotgetFound,loadAllLogs);
+ 				if (test == -1) {
++					infB.close(0);
+ 					break;
+ 				} else if (test == 0) {
+ 					spiderErrors++;
+@@ -478,6 +496,27 @@
+ 				}
+ 			}
+ 		}
++		
++		if (!infB.isClosed) {
++			int j = 1;
++			for (Enumeration e = cachesToUpdate.elements() ; e.hasMoreElements() ; j++) {
++				int i = ((Integer)e.nextElement()).intValue();
++				ch = (CacheHolder)cacheDB.get(i);
++				infB.setInfo(MyLocale.getMsg(5513,&quot;Loading: &quot;) + ch.wayPoint +&quot; (&quot; + (cachesToLoad.size()+j) + &quot; / &quot; + totalCachesToLoad + &quot;)&quot;);
++				infB.redisplay();
++				if (ch.wayPoint.substring(0,2).equalsIgnoreCase(&quot;GC&quot;)) {
++					int test = spiderSingle(i, infB,false);
++					if (test == -1) {
++						break;
++					} else if (test == 0) {
++						spiderErrors++;
++					} else {
++						profile.hasUnsavedChanges=true;	
++					}
++				}
++			}
++		}
++		
+ 		infB.close(0);
+ 		Vm.showWait(false);
+ 		if ( spiderErrors &gt; 0) {
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001595.html">[Cachewolf-svn] r1683 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001597.html">[Cachewolf-svn] r1685 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1596">[ date ]</a>
+              <a href="thread.html#1596">[ thread ]</a>
+              <a href="subject.html#1596">[ subject ]</a>
+              <a href="author.html#1596">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

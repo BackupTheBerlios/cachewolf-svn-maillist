@@ -1,0 +1,1077 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1789 - in trunk/src: CacheWolf CacheWolf/navi exp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-May/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1789%20-%20in%20trunk/src%3A%20CacheWolf%20CacheWolf/navi%20exp&In-Reply-To=%3C200905090838.n498c3DD027771%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001706.html">
+   <LINK REL="Next"  HREF="001708.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1789 - in trunk/src: CacheWolf CacheWolf/navi exp</H1>
+    <B>engywuck at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1789%20-%20in%20trunk/src%3A%20CacheWolf%20CacheWolf/navi%20exp&In-Reply-To=%3C200905090838.n498c3DD027771%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1789 - in trunk/src: CacheWolf CacheWolf/navi exp">engywuck at mail.berlios.de
+       </A><BR>
+    <I>Sat May  9 10:38:03 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001706.html">[Cachewolf-svn] r1788 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001708.html">[Cachewolf-svn] r1790 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1707">[ date ]</a>
+              <a href="thread.html#1707">[ thread ]</a>
+              <a href="subject.html#1707">[ subject ]</a>
+              <a href="author.html#1707">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: engywuck
+Date: 2009-05-09 10:37:53 +0200 (Sat, 09 May 2009)
+New Revision: 1789
+
+Modified:
+   trunk/src/CacheWolf/CacheHolder.java
+   trunk/src/CacheWolf/CacheList.java
+   trunk/src/CacheWolf/DBStats.java
+   trunk/src/CacheWolf/DataMover.java
+   trunk/src/CacheWolf/Filter.java
+   trunk/src/CacheWolf/MainForm.java
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/Profile.java
+   trunk/src/CacheWolf/RadarPanel.java
+   trunk/src/CacheWolf/SearchCache.java
+   trunk/src/CacheWolf/ShowCacheInBrowser.java
+   trunk/src/CacheWolf/SpiderGC.java
+   trunk/src/CacheWolf/StatusBar.java
+   trunk/src/CacheWolf/myTableControl.java
+   trunk/src/CacheWolf/myTableModel.java
+   trunk/src/CacheWolf/navi/MovingMap.java
+   trunk/src/exp/ExploristExporter.java
+   trunk/src/exp/Exporter.java
+   trunk/src/exp/HTMLExporter.java
+   trunk/src/exp/KMLExporter.java
+   trunk/src/exp/TPLExporter.java
+   trunk/src/exp/TomTomExporter.java
+Log:
+Introducing property for cache visibility in the list. The property is_filtered(), which was (also) used for this up to now now can concentrate on its proper meaning: If a cache is matched by a filter or not. (<A HREF="http://www.geoclub.de/viewtopic.php?f=40&amp;t=33550">http://www.geoclub.de/viewtopic.php?f=40&amp;t=33550</A>)
+
+Modified: trunk/src/CacheWolf/CacheHolder.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolder.java	2009-05-09 07:28:59 UTC (rev 1788)
++++ trunk/src/CacheWolf/CacheHolder.java	2009-05-09 08:37:53 UTC (rev 1789)
+@@ -826,7 +826,10 @@
+ 	 * @return long value representing the boolean bit field
+ 	 */
+ 	private long boolFields2long() {
+-		long value = bool2BitMask(this.is_filtered(), 1)    | 
++		// To get the same list of visible caches after loading a profile,
++		// the property isVisible() is saved instead of is_filtered(), but at 
++		// the place where is_filtered() is read.
++		long value = bool2BitMask(this.isVisible(), 1)    | 
+ 		             bool2BitMask(this.is_available(), 2)   |
+ 		             bool2BitMask(this.is_archived(), 3)    |
+ 		             bool2BitMask(this.has_bugs(), 4)       |
+@@ -931,6 +934,29 @@
+ 	}
+ 
+ 
++	/**
++	 * Returns &lt;code&gt;true&lt;/code&gt; if the waypoint should appear in the cache list, 
++	 * &lt;code&gt;false&lt;/code&gt; if it should not appear.&lt;br&gt;
++	 * The method takes into account blacklist, filters, search results - everything
++	 * that determines if a cache is visible in the list or not. 
++	 * @return
++	 */
++	public boolean isVisible() {
++		Profile profile = Global.getProfile();
++		int filter = profile.getFilterActive();
++		boolean noShow=
++			(  (profile.showBlacklisted() != this.is_black())   
++				||
++			   (profile.showSearchResult() &amp;&amp; !this.is_flaged)   
++			    ||
++			   ( (filter==Filter.FILTER_ACTIVE||filter==Filter.FILTER_MARKED_ONLY) &amp;&amp;	
++			  	 (this.is_filtered())^profile.isFilterInverted())                            
++			  	||
++			   (filter==Filter.FILTER_CACHELIST) &amp;&amp; 
++			     !Global.mainForm.cacheList.contains(this.getWayPoint()));
++		return !noShow;
++	}
++
+ 	// Getter and Setter for private properties
+ 
+ 	/**
+@@ -1211,6 +1237,30 @@
+     	this.found = is_found;
+     }
+ 
++	/**
++	 * &lt;b&gt;&lt;u&gt;Important&lt;/u&gt;&lt;/b&gt;: This flag no longer indicates if a cache is visible
++	 * in the list. Instead, it now &lt;u&gt;only&lt;/u&gt; flags if the cache is filtered out
++	 * by filter criteria. Use &lt;code&gt;isVisible()&lt;/code&gt; instead.&lt;br&gt;
++	 * This property is affected by the following features:
++	 * &lt;ul&gt;
++	 * &lt;li&gt;&quot;Defining and applying&quot; a filter&lt;/li&gt;
++	 * &lt;li&gt;Filtering out checked or unchecked caches&lt;/li&gt;
++	 * &lt;/ul&gt;
++	 * It is &lt;u&gt;not&lt;/u&gt; affected by:
++	 * &lt;ul&gt;
++	 * &lt;li&gt;Inverting a filter&lt;/li&gt;
++	 * &lt;li&gt;Removing a filter&lt;/li&gt;
++	 * &lt;li&gt;Applying a filter&lt;/li&gt;
++	 * &lt;li&gt;Applying a cache tour filter&lt;/li&gt;
++	 * &lt;li&gt;Switching between normal view and blacklist view&lt;/li&gt;
++	 * &lt;li&gt;Performing searches&lt;/li&gt;
++	 * &lt;li&gt;Anything else that isn't directly connected to filters in 
++	 * it's proper sense.&lt;/li&gt;
++	 * &lt;/ul&gt;
++	 * The new method for deciding if a cache is visible or not is &lt;code&gt;isVisible()
++	 * &lt;/code&gt;.  
++	 * @return &lt;code&gt;True&lt;/code&gt; if filter criteria are matched
++	 */
+ 	public boolean is_filtered() {
+     	return filtered;
+     }
+@@ -1250,6 +1300,14 @@
+     	this.incomplete = is_incomplete;
+     }
+ 
++	/**
++	 * Determines if the blacklist status is set for the cache. Do not use this method
++	 * to check if the cache should be displayed. Use &lt;code&gt;isVisible()&lt;/code&gt; for
++	 * this, which already does this (and other) checks.&lt;br&gt;
++	 * Only use this method if you really want to inform yourself about the 
++	 * black status of the cache!
++	 * @return &lt;code&gt;true&lt;/code&gt; if he black status of the cache is set.
++	 */
+ 	public boolean is_black() {
+     	return black;
+     }
+
+Modified: trunk/src/CacheWolf/CacheList.java
+===================================================================
+--- trunk/src/CacheWolf/CacheList.java	2009-05-09 07:28:59 UTC (rev 1788)
++++ trunk/src/CacheWolf/CacheList.java	2009-05-09 08:37:53 UTC (rev 1789)
+@@ -75,7 +75,7 @@
+ 	/** This list mirrors the items in the list of selected caches for faster access. When the 
+      * list of selected caches is manipulated (btnUp, btnDown), this list is also kept up to date
+      */
+-	private Vector cacheList=new Vector(20);
++	private CacheDB cacheList=new CacheDB();
+ 	/** The full filename of the current file */
+ 	private String currFile=null;
+ 	
+@@ -89,7 +89,7 @@
+ 		public void startDragging(DragContext dc) {
+ 			 idx=getSelectedIndex(0);
+ 			 if (idx&gt;=0) {
+-				 CacheHolder ch=(CacheHolder)cacheList.get(idx);
++				 CacheHolder ch=cacheList.get(idx);
+ 				 wayPoint=ch.getWayPoint();
+ 				 IconAndText imgDrag=new IconAndText();
+ 				 imgDrag.addColumn(CacheType.cache2Img(ch.getType()));
+@@ -110,7 +110,7 @@
+ 			 Control c = getWindow().findChild(p.x,p.y);
+ 		     if (!(c instanceof myList)) { 
+ 		    	 // target is not myList =&gt; Remove dragged cache from list
+-		    	 cacheList.del(idx);
++		    	 cacheList.removeElementAt(idx);
+ 		    	 lstCaches.deleteItem(idx);
+ 		    	 repaint();
+ 		    	 changeUpDownButtonStatus();
+@@ -133,7 +133,7 @@
+ 			if (ev.type == KeyEvent.KEY_PRESS &amp;&amp; ev.target == this){
+ 				if (ev.key == IKeys.DELETE &amp;&amp; cacheList.size()&gt;0) {
+ 			    	 idx=getSelectedIndex(0);
+-					 cacheList.del(idx);
++					 cacheList.removeElementAt(idx);
+ 			    	 lstCaches.deleteItem(idx);
+ 			    	 repaint();
+ 			    	 changeUpDownButtonStatus();
+@@ -178,7 +178,7 @@
+ 		if (ev instanceof MenuEvent &amp;&amp; ev.type==MenuEvent.SELECTED) {
+ 			if (lstCaches.itemsSize()&gt;0 &amp;&amp; !needsInit) {
+ 				int lstCacheIdx=lstCaches.getSelectedIndex(0);
+-				CacheHolder ch=(CacheHolder)cacheList.get(lstCacheIdx);
++				CacheHolder ch=cacheList.get(lstCacheIdx);
+ 				int idx=Global.getProfile().cacheDB.getIndex(ch);
+ 				// Ensure that the main view is updated with the selected cache, i.e.
+ 				// DetailsPanel, HintLog, Pictures etc.
+@@ -227,7 +227,7 @@
+ 					// Swap items in hidden list
+ 					Object swap=cacheList.get(sel-1);
+ 					cacheList.set(sel-1,cacheList.get(sel));
+-					cacheList.set(sel,swap);
++					cacheList.set(sel,(CacheHolder)swap);
+ 					// Swap items in visible cachelist and repaint
+ 					swap=lstCaches.items.get(sel-1);
+ 					lstCaches.items.set(sel-1,lstCaches.items.get(sel));
+@@ -242,7 +242,7 @@
+ 					// Swap items in hidden list
+ 					Object swap=cacheList.get(sel+1);
+ 					cacheList.set(sel+1,cacheList.get(sel));
+-					cacheList.set(sel,swap);
++					cacheList.set(sel,(CacheHolder)swap);
+ 					// Swap items in visible cachelist and repaint
+ 					swap=lstCaches.items.get(sel+1);
+ 					lstCaches.items.set(sel+1,lstCaches.items.get(sel));
+@@ -261,39 +261,22 @@
+ 		Global.getProfile().selectionChanged = true;
+ 		CacheDB cacheDB=Global.getProfile().cacheDB;
+ 		CacheHolder ch;
+-		int wrongBlackStatus=0;
++		int wrongVisStatus=0;
+ 		String apply=&quot;\uFFFF&quot;+Convert.toString(applyCount++);
+-		// Start by setting all caches to filtered
++		Global.getProfile().setFilterActive(Filter.FILTER_CACHELIST);
+ 		for(int i = cacheDB.size()-1; i &gt;=0 ; i--){
+-			ch = cacheDB.get(i);
+-			ch.setFiltered(true) ; // ignore blacklist attribute
+-			ch.sort=apply;
++			cacheDB.get(i).sort=apply;
+ 		}
+-		// Now &quot;unfilter&quot; the caches in our list
+ 		for (int i = cacheList.size()-1; i&gt;=0; i--) {
+-			ch = (CacheHolder)cacheList.get(i);
+-			/* If the cache was reloaded from a GPX file since we dragged it into the list,
+-			   the pointer ch points to a CacheHolder object that is no longer part of cacheDB.
+-			   In this case we need to search the cacheDB for an object with the name of ch.wayPoint
+-			   and use that object. To speed up this process and avoid having to search the whole
+-			   cacheDB for each entry in cacheList, we simply compare the sort field of ch to apply.
+-			*/
+-			if (!ch.sort.equals(apply)) {
+-				ch=cacheDB.get(ch.getWayPoint());
+-				if (ch == null) continue;
+-			}
+-			if (ch.is_black()!=Global.getProfile().showBlacklisted()) 
+-				wrongBlackStatus++;
+-			else {
+-				ch.setFiltered(false);
+-				ch.sort=MyLocale.formatLong(i,&quot;00000&quot;);
+-			}
++			ch = cacheDB.get((cacheList.get(i)).getWayPoint());
++			if (!ch.isVisible()) wrongVisStatus++;
++			String s = MyLocale.formatLong(i,&quot;00000&quot;); 
++			ch.sort=s;
+ 		}
+ 		// The sort command places all filtered caches at the end
+ 		cacheDB.sort(new mySort(),false);
+-		Global.getProfile().setFilterActive(Filter.FILTER_CACHELIST);
+-		updateScreen(cacheList.size()-wrongBlackStatus);
+-		if (wrongBlackStatus&gt;0)
++		updateScreen(cacheList.size()-wrongVisStatus);
++		if (wrongVisStatus&gt;0)
+ 			(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;),MyLocale.getMsg(4600,&quot;Some cache(s) cannot be shown because of wrong blacklist status&quot;), FormBase.OKB)).execute();
+ 
+ 	}
+@@ -313,7 +296,7 @@
+ 			CacheHolder addiWpt;
+ 			for (int j=0; j&lt;ch.addiWpts.getCount();j++){
+ 				addiWpt = (CacheHolder)ch.addiWpts.get(j);
+-				if (!addiWpt.is_filtered()) cachesAdded|=addCache(addiWpt);
++				if (addiWpt.isVisible()) cachesAdded|=addCache(addiWpt);
+ 			}
+ 		}
+ 		// Update screen if any cache was added
+@@ -326,7 +309,7 @@
+ 
+ 	/** Add a cache to the visible and invisible list */
+ 	private boolean addCache(CacheHolder ch) {
+-		if (cacheList.find(ch)&lt;0) {
++		if (cacheList.getIndex(ch.getWayPoint())&lt;0) {
+ 			// Add cache reference to hidden list
+ 			cacheList.add(ch);
+ 			// Add Cache and cache icon to visible list
+@@ -338,7 +321,7 @@
+ 	}
+ 	
+ 	void updateScreen(int numRows) {
+-		Global.mainTab.tbP.myMod.numRows=numRows;
++//		Global.mainTab.tbP.myMod.numRows=numRows;
+ 		Global.mainTab.tbP.refreshTable(); // Update and repaint
+ 		int selPanel;
+ 		if ((selPanel=Global.mainTab.cardPanel.selectedItem)&gt;-1) {
+@@ -383,6 +366,7 @@
+ 	private void readFromFile(String fileName) {
+ 		if (needsInit)  {lstCaches.deleteItem(0);lstCaches.deleteItem(0);  needsInit=false; }
+ 		int select=-1;
++		boolean selected = false;
+ 		try {
+ 			FileReader in = new FileReader(fileName);
+ 			String wayPoint;
+@@ -392,14 +376,16 @@
+ 				// Select the cache starting with &gt;
+ 				if (wayPoint.startsWith(&quot;&gt;&quot;)) {
+ 					wayPoint=wayPoint.substring(1);
+-					select=lineNr;
++					selected = true;
+ 				}
+ 				// Only add the cache if it is in this profile
+ 				CacheHolder ch=Global.getProfile().cacheDB.get(wayPoint);
+ 				if (ch != null) {
+ 					addCache(ch);
++					if (selected) select = lineNr+
++					lineNr++;
+ 				}
+-				lineNr++;
++				selected = false;
+ 			}
+ 			in.close();
+ 		} catch(Exception e) {
+@@ -423,7 +409,7 @@
+ 			PrintWriter outp =  new PrintWriter(new BufferedWriter(new FileWriter(fileName)));
+ 			for (int i=0; i&lt;cacheList.size(); i++) {
+ 				// Put a &gt; in front of the selected cache
+-				outp.print((i==selectedIndex?&quot;&gt;&quot;:&quot;&quot;)+((CacheHolder)cacheList.get(i)).getWayPoint()+&quot;\n&quot;);
++				outp.print((i==selectedIndex?&quot;&gt;&quot;:&quot;&quot;)+(cacheList.get(i)).getWayPoint()+&quot;\n&quot;);
+ 			}
+ 			outp.close();
+ 		} catch(Exception e) {
+@@ -446,4 +432,13 @@
+ 			lblTitle.setText(localFileName);
+ 		lblTitle.repaint();
+ 	}
++	
++	/**
++	 * Determines if the cache tour contains a cache with a certain waypoint
++	 * @param waypoint Waypoint to check
++	 * @return &lt;code&gt;True&lt;/code&gt;: Contains waypoint, otherwise not.
++	 */
++	public boolean contains(String waypoint) {
++		return cacheList.getIndex(waypoint)&gt;=0;
++	}
+ }
+
+Modified: trunk/src/CacheWolf/DBStats.java
+===================================================================
+--- trunk/src/CacheWolf/DBStats.java	2009-05-09 07:28:59 UTC (rev 1788)
++++ trunk/src/CacheWolf/DBStats.java	2009-05-09 08:37:53 UTC (rev 1789)
+@@ -23,7 +23,7 @@
+ 		int counter = 0;
+ 		for(int i = 0; i&lt;cacheDB.size();i++){
+ 			holder = cacheDB.get(i);
+-			if(holder.is_black() == false &amp;&amp; holder.is_filtered() == false){
++			if(holder.isVisible()){
+ 				if(holder.getWayPoint().startsWith(&quot;GC&quot;) || holder.getWayPoint().startsWith(&quot;OC&quot;)) counter++;
+ 			}
+ 		}
+
+Modified: trunk/src/CacheWolf/DataMover.java
+===================================================================
+--- trunk/src/CacheWolf/DataMover.java	2009-05-09 07:28:59 UTC (rev 1788)
++++ trunk/src/CacheWolf/DataMover.java	2009-05-09 08:37:53 UTC (rev 1789)
+@@ -90,7 +90,7 @@
+ 		int count=0;
+ 		// Count the number of caches to move/delete/copy
+ 		for(int i = 0; i&lt;size; i++) {
+-			if(srcDB.get(i).is_filtered()==false) count++;
++			if(srcDB.get(i).isVisible()) count++;
+ 		}
+ 		myProgressBarForm pbf = new myProgressBarForm();
+ 		Handle h = new Handle();
+@@ -101,7 +101,7 @@
+ 		// Now do the actual work
+ 		for(int i = size-1; i&gt;=0; i--){
+ 			CacheHolder srcHolder=srcDB.get(i);
+-			if(srcHolder.is_filtered()==false){
++			if(srcHolder.isVisible()){
+ 				h.progress = ((float)nProcessed++)/(float)count;
+ 				h.changed();
+ 				//Now do the copy/delete/move of the cache
+
+Modified: trunk/src/CacheWolf/Filter.java
+===================================================================
+--- trunk/src/CacheWolf/Filter.java	2009-05-09 07:28:59 UTC (rev 1788)
++++ trunk/src/CacheWolf/Filter.java	2009-05-09 08:37:53 UTC (rev 1789)
+@@ -372,11 +372,8 @@
+ 	    int cacheRosePattern;
+ 	    int cacheSizePattern;
+ 	    double dummyd1;
+-	    boolean cacheFiltered;
++	    boolean cacheFiltered=false;
+ 	    do {
+-	    	cacheFiltered = ch.is_black()^Global.getProfile().showBlacklisted();
+-	    	if (cacheFiltered) break;
+-	    	
+ 	        ///////////////////////////////
+ 	        // Filter criterium 1: Cache type
+ 	        ///////////////////////////////
+@@ -599,23 +596,10 @@
+     }
+ 	
+ 	/**
+-	*	Invert is_filtered flag on all caches
++	*	Switches flag to invert filter property.
+ 	*/
+ 	public void invertFilter(){
+-		CacheDB cacheDB=Global.getProfile().cacheDB;
+-		CacheHolder ch;
+-		if (cacheDB.size()==0) return;
+-		Global.getProfile().selectionChanged = true;
+-		boolean showBlackListed=Global.getProfile().showBlacklisted();
+-		for(int i = cacheDB.size()-1; i &gt;=0 ; i--){
+-			ch = cacheDB.get(i);
+-			if (ch.is_black()==showBlackListed)
+-				ch.setFiltered(!ch.is_filtered()); // Only invert those that would be shown under blacklist filter
+-			else
+-				ch.setFiltered(true); // Hide all those that have the wrong is_black status
+-		}
+ 		Global.getProfile().setFilterInverted(!Global.getProfile().isFilterInverted());
+-		//Global.getProfile().hasUnsavedChanges=true;
+ 	}
+ 	
+ 	/**
+@@ -624,10 +608,8 @@
+ 	public void clearFilter(){
+ 		Global.getProfile().selectionChanged = true;
+ 		CacheDB cacheDB=Global.getProfile().cacheDB;
+-		CacheHolder ch;
+ 		for(int i = cacheDB.size()-1; i &gt;=0 ; i--){
+-			ch = cacheDB.get(i);
+-			ch.setFiltered((ch.is_black()^Global.getProfile().showBlacklisted())) ; // Always filter blacklisted caches
++			cacheDB.get(i).setFiltered(false);
+ 		}
+ 		Global.getProfile().setFilterActive(FILTER_INACTIVE);
+ 	}
+
+Modified: trunk/src/CacheWolf/MainForm.java
+===================================================================
+--- trunk/src/CacheWolf/MainForm.java	2009-05-09 07:28:59 UTC (rev 1788)
++++ trunk/src/CacheWolf/MainForm.java	2009-05-09 08:37:53 UTC (rev 1789)
+@@ -125,6 +125,7 @@
+ 		*/
+ 		mMenu.setTablePanel(mTab.getTablePanel());
+ 		if (infB != null) infB.close(0);
++		mTab.tbP.refreshTable();
+ 		mTab.tbP.selectFirstRow();
+ 		//mTab.tbP.tc.paintSelection();
+ 		Vm.showWait(false);
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2009-05-09 07:28:59 UTC (rev 1788)
++++ trunk/src/CacheWolf/MainMenu.java	2009-05-09 08:37:53 UTC (rev 1789)
+@@ -547,7 +547,7 @@
+ 					ch = cacheDB.get(i);
+ 					// This is an incremental filter, i.e. it keeps the existing filter
+ 					// status and only adds the marked caches to the filtered set
+-					if (ch.is_Checked &amp;&amp; !ch.is_filtered()) {
++					if (ch.is_Checked &amp;&amp; ch.isVisible()) {
+ 						ch.setFiltered(true);
+ 						filterChanged = true;
+ 					}
+@@ -565,7 +565,7 @@
+ 					ch = cacheDB.get(i);
+ 					// incremental filter. Keeps status of all marked caches and
+ 					// adds unmarked caches to filtered list
+-					if (!ch.is_Checked &amp;&amp; !ch.is_filtered()) {
++					if (!ch.is_Checked &amp;&amp; ch.isVisible()) {
+ 						ch.setFiltered(true);
+ 						filterChanged = true;
+ 					}
+@@ -581,9 +581,6 @@
+ 				filtBlack.modifiers=Global.getProfile().showBlacklisted()?filtBlack.modifiers|MenuItem.Checked:filtBlack.modifiers&amp;~MenuItem.Checked;
+ 				SearchCache ssc = new SearchCache(cacheDB);
+ 				ssc.clearSearch();// Clear search &amp; restore filter status
+-				//Filter flt=new Filter();
+-				//flt.clearFilter();
+-				Global.getProfile().restoreFilter();
+ 				tbp.refreshTable();
+ 			}
+ 			///////////////////////////////////////////////////////////////////////
+@@ -696,7 +693,7 @@
+ 		Vector cachesToUpdate = new Vector();
+ 		for(int i = 0; i &lt;	cacheDB.size(); i++){
+ 			ch = cacheDB.get(i);
+-			if(ch.is_Checked == true &amp;&amp; !ch.is_filtered()) {
++			if(ch.is_Checked == true &amp;&amp; ch.isVisible()) {
+ 				if ( ch.getWayPoint().length()&gt;1 &amp;&amp; (ch.getWayPoint().substring(0,2).equalsIgnoreCase(&quot;GC&quot;) 
+ 						|| ch.getWayPoint().substring(0,2).equalsIgnoreCase(&quot;OC&quot;)))
+ //					if ( (ch.wayPoint.length() &gt; 1 &amp;&amp; ch.wayPoint.substring(0,2).equalsIgnoreCase(&quot;GC&quot;)))
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2009-05-09 07:28:59 UTC (rev 1788)
++++ trunk/src/CacheWolf/MainTab.java	2009-05-09 08:37:53 UTC (rev 1789)
+@@ -121,7 +121,7 @@
+ 		}
+ 		super.onEvent(ev); //Make sure you call this.
+ 		// If we are in Listview update status
+-		if (this.getSelectedItem()==0 &amp;&amp; statBar!=null) statBar.updateDisplay();
++//		if (this.getSelectedItem()==0 &amp;&amp; statBar!=null) statBar.updateDisplay();
+ 	}
+ 
+ 	/**
+@@ -187,8 +187,6 @@
+ 			// If Solver or Details has changed, save Cache
+ 			updatePendingChanges();
+ 			if (detP.hasBlackStatusChanged()) {
+-				// filter out caches with wrong blacklist status
+-				Global.getProfile().checkBlacklistStatus();
+ 				tbP.refreshTable();
+ 			}
+ 			break;
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2009-05-09 07:28:59 UTC (rev 1788)
++++ trunk/src/CacheWolf/Profile.java	2009-05-09 08:37:53 UTC (rev 1789)
+@@ -66,6 +66,7 @@
+ 	private int filterActive = Filter.FILTER_INACTIVE;
+ 	private boolean filterInverted = false;
+ 	private boolean showBlacklisted = false;
++	private boolean showSearchResult = false;
+ 
+ 	private long filterAttrYes = 0l;
+ 	private long filterAttrNo = 0l;
+@@ -181,8 +182,6 @@
+ 			detfile.print(&quot;&lt;CACHELIST format=\&quot;decimal\&quot;&gt;\n&quot;);
+ 			detfile.print(&quot;    &lt;VERSION value = \&quot;2\&quot;/&gt;\n&quot;);
+ 			if (savedCentre.isValid())
+-//				detfile.print(&quot;    &lt;CENTRE lat=\&quot;&quot;+savedCentre.getNSLetter() + &quot; &quot; + savedCentre.getLatDeg(CWPoint.CW) + &quot;&deg; &quot; + savedCentre.getLatMin(CWPoint.CW)+ &quot;\&quot; &quot;+
+-//				&quot;long=\&quot;&quot;+savedCentre.getEWLetter() + &quot; &quot; + savedCentre.getLonDeg(CWPoint.CW) + &quot;&deg; &quot; + savedCentre.getLonMin(CWPoint.CW)+&quot;\&quot;/&gt;\n&quot;);
+ 				detfile.print(&quot;    &lt;CENTRE lat=\&quot;&quot;+savedCentre.latDec+&quot;\&quot; lon=\&quot;&quot;+savedCentre.lonDec+&quot;\&quot;/&gt;\n&quot;);
+ 			if(getLast_sync_opencaching() == null || getLast_sync_opencaching().endsWith(&quot;null&quot;) || getLast_sync_opencaching().equals(&quot;&quot;)){
+ 				setLast_sync_opencaching(&quot;20050801000000&quot;);
+@@ -194,7 +193,16 @@
+ 				setDistGC(&quot;0.0&quot;);
+ 			}
+ 
+-			detfile.print(&quot;    &lt;FILTER status = \&quot;&quot;+getFilterActive()+(isFilterInverted()?&quot;T&quot;:&quot;F&quot;)+ 
++			// If the current filter is a CacheTour filter, then save it as
++			// normal filter, because after loading there is no cache tour defined
++			// which could be used as filter criterium.
++			int activeFilterForSave;
++			if (getFilterActive()==Filter.FILTER_CACHELIST) {
++				activeFilterForSave = Filter.FILTER_ACTIVE;
++			} else {
++				activeFilterForSave = getFilterActive();
++			}
++			detfile.print(&quot;    &lt;FILTER status = \&quot;&quot;+activeFilterForSave+(isFilterInverted()?&quot;T&quot;:&quot;F&quot;)+ 
+ 					&quot;\&quot; rose = \&quot;&quot;+getFilterRose()+&quot;\&quot; type = \&quot;&quot;+getFilterType()+
+ 					&quot;\&quot; var = \&quot;&quot;+getFilterVar()+&quot;\&quot; dist = \&quot;&quot;+getFilterDist().replace('&quot;',' ')+&quot;\&quot; diff = \&quot;&quot;+
+ 					getFilterDiff()+&quot;\&quot; terr = \&quot;&quot;+getFilterTerr()+&quot;\&quot; size = \&quot;&quot;+getFilterSize()+&quot;\&quot; attributesYes = \&quot;&quot;+getFilterAttrYes()+
+@@ -360,17 +368,6 @@
+ 		}
+ 	}
+ 	
+-	void checkBlacklistStatus() {
+-		CacheHolder ch;
+-		for(int i = cacheDB.size()-1; i &gt;=0 ; i--){
+-			ch = cacheDB.get(i);
+-			if (ch.is_black() ^ showBlacklisted()) {
+-				ch.setFiltered(true);
+-				selectionChanged = true;
+-			}
+-		}
+-	}
+-
+ 	public int getCacheIndex(String wp) {
+ 		return cacheDB.getIndex(wp);
+ 	}
+@@ -433,7 +430,7 @@
+ 		CacheHolder ch;
+ 		for (int i = cacheDB.size() - 1; i &gt;= 0; i--) {
+ 			ch = cacheDB.get(i);
+-			if (ch.is_filtered() == false)
++			if (ch.isVisible())
+ 				ch.is_Checked = selectStatus;
+ 		}
+ 	}
+@@ -665,6 +662,24 @@
+ 		this.showBlacklisted = showBlacklisted;
+ 	}
+ 
++	/**
++	 * If &lt;code&gt;true&lt;/code&gt; then the cache list will only display the
++	 * caches that are result of a search.   
++	 * @return &lt;code&gt;True&lt;/code&gt; if list should only display search results
++	 */
++	public boolean showSearchResult() {
++		return showSearchResult;
++	}
++	
++	/**
++	 * Sets parameter if cache list should only display the caches that are
++	 * results of a search.
++	 * @param showSearchResult &lt;code&gt;True&lt;/code&gt;: List should only display search
++	 * results.
++	 */
++	public void setShowSearchResult(boolean showSearchResult){
++		this.showSearchResult = showSearchResult;
++	}
+ 	public long getFilterAttrYes() {
+ 		return filterAttrYes;
+ 	}
+
+Modified: trunk/src/CacheWolf/RadarPanel.java
+===================================================================
+--- trunk/src/CacheWolf/RadarPanel.java	2009-05-09 07:28:59 UTC (rev 1788)
++++ trunk/src/CacheWolf/RadarPanel.java	2009-05-09 08:37:53 UTC (rev 1789)
+@@ -105,7 +105,7 @@
+ 		double pi180=java.lang.Math.PI / 180.0;
+ 		for(int i = cacheDB.size()-1; i &gt;=0 ; i--){
+ 			holder = cacheDB.get(i);
+-			if(!holder.is_filtered() &amp;&amp; holder.pos.isValid()) {
++			if(holder.isVisible() &amp;&amp; holder.pos.isValid()) {
+ 				degrees = holder.degrees * pi180;
+ 				drX =new Float(holder.kilom/scale *  java.lang.Math.sin(degrees)).intValue();
+ 				drY = -new Float(holder.kilom/scale *  java.lang.Math.cos(degrees)).intValue();
+
+Modified: trunk/src/CacheWolf/SearchCache.java
+===================================================================
+--- trunk/src/CacheWolf/SearchCache.java	2009-05-09 07:28:59 UTC (rev 1788)
++++ trunk/src/CacheWolf/SearchCache.java	2009-05-09 08:37:53 UTC (rev 1789)
+@@ -28,7 +28,7 @@
+ 			int counter = 0;
+ 			if (searchInDescriptionAndNotes) {
+ 				for(int i=0 ; i&lt;cacheDB.size(); i++) {
+-					if (cacheDB.get(i).is_filtered()) break;
++					if (!cacheDB.get(i).isVisible()) break;
+ 					counter++;
+ 				}
+ 			}
+@@ -42,7 +42,7 @@
+ 			for(int i = 0;i &lt; cacheDB.size();i++){
+ 				cwp.setPosition(i);
+ 				ch = cacheDB.get(i);
+-				if (ch.is_filtered()) break; // Reached end of visible records
++				if (!ch.isVisible()) break; // Reached end of visible records
+ 				if(ch.getWayPoint().toUpperCase().indexOf(searchStr) &lt;0 &amp;&amp; 
+ 				   ch.getCacheName().toUpperCase().indexOf(searchStr) &lt;0 &amp;&amp; 
+ 				   ch.getCacheStatus().toUpperCase().indexOf(searchStr)&lt;0 &amp;&amp;
+@@ -50,31 +50,26 @@
+ 					ch.getExistingDetails().LongDescription.toUpperCase().indexOf(searchStr)&lt;0 &amp;&amp;
+ 					ch.getExistingDetails().CacheNotes.toUpperCase().indexOf(searchStr)&lt;0)){
+ 					ch.is_flaged = false;
+-					ch.setFiltered(true);
+ 				} else
+ 					ch.is_flaged=true;
+ 				if (cwp.isClosed()) break;
+ 			} // for
+ 			cwp.exit(0);
++			Global.getProfile().setShowSearchResult(true);
+ 		    Global.mainTab.tbP.selectRow(0);
+ 		} // if
+ 	}
+ 	
+ 	/**
+ 	* Method to remove the flag from all caches in the 
+-	* cache database. Restore to the state of the filter
++	* cache database.
+ 	*/
+ 	public void clearSearch(){
+ 	    Profile profile = Global.getProfile();
+ 		profile.selectionChanged = true;
+-		boolean filter_marked_only = profile.getFilterActive() == Filter.FILTER_MARKED_ONLY;
++		profile.setShowSearchResult(false);
+ 		for(int i = cacheDB.size()-1;i &gt;=0;i--){
+-			CacheHolder ch=cacheDB.get(i);
+-			ch.is_flaged=false;
+-			if (filter_marked_only) ch.setFiltered((ch.is_black()^Global.getProfile().showBlacklisted())) ;
++			cacheDB.get(i).is_flaged=false;
+ 		}
+-		//Global.getProfile().filterActive=Filter.filterActive; //TODO This is a hack. Need to tidy this up
+-		//Global.getProfile().filterInverted=Filter.filterInverted;
+-		profile.restoreFilter();
+ 	}
+ }
+
+Modified: trunk/src/CacheWolf/ShowCacheInBrowser.java
+===================================================================
+--- trunk/src/CacheWolf/ShowCacheInBrowser.java	2009-05-09 07:28:59 UTC (rev 1788)
++++ trunk/src/CacheWolf/ShowCacheInBrowser.java	2009-05-09 08:37:53 UTC (rev 1789)
+@@ -62,7 +62,7 @@
+ 		if (chD == null) return;
+ 		try {
+ 			Template tpl = new Template(args);
+-			if(!chD.is_filtered()){
++			if(chD.isVisible()){
+ 				Vm.showWait(true);
+ 				try {
+ 					if (chD.getWayPoint().startsWith(&quot;OC&quot;))
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2009-05-09 07:28:59 UTC (rev 1788)
++++ trunk/src/CacheWolf/SpiderGC.java	2009-05-09 08:37:53 UTC (rev 1789)
+@@ -1342,7 +1342,7 @@
+ 				}else {
+ 					CacheHolder cx=cacheDB.get(idx);
+ 					if (cx.is_Checked &amp;&amp; // Only re-spider existing addi waypoints that are ticked
+-				 	   !cx.is_filtered()) { // and are visible (i.e.  not filtered)
++				 	   cx.isVisible()) { // and are visible (i.e.  not filtered)
+ 					   cx.initStates(false);
+ 					   cx.update(hd);
+ 					   cx.is_Checked=true;
+
+Modified: trunk/src/CacheWolf/StatusBar.java
+===================================================================
+--- trunk/src/CacheWolf/StatusBar.java	2009-05-09 07:28:59 UTC (rev 1788)
++++ trunk/src/CacheWolf/StatusBar.java	2009-05-09 08:37:53 UTC (rev 1789)
+@@ -47,7 +47,7 @@
+ 		disp.setToolTip(MyLocale.getMsg(196,&quot;Total # of caches (GC&amp;OC)\nTotal # visible\nTotal # found&quot;));
+ 		addLast(lblCenter=new mLabel(&quot;&quot;),CellConstants.STRETCH, WEST|CellConstants.FILL);
+ 		lblCenter.setToolTip(MyLocale.getMsg(195,&quot;Current centre&quot;));
+-		updateDisplay();
++//		updateDisplay();
+ 	}
+ 	
+ 	public void updateDisplay(){
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2009-05-09 07:28:59 UTC (rev 1788)
++++ trunk/src/CacheWolf/myTableControl.java	2009-05-09 08:37:53 UTC (rev 1789)
+@@ -141,19 +141,19 @@
+ 			Vm.showWait(true);
+ 			// Count # of caches to delete
+ 			int allCount=0;
+-			int mainFilteredCount=0;
+-			int addiFilteredCount=0;
++			int mainNonVisibleCount=0;
++			int addiNonVisibleCount=0;
+ 			int shouldDeleteCount=0;
+ 			boolean deleteFiltered=true;  // Bisheriges Verhalten
+ 			for(int i = cacheDB.size()-1; i &gt;=0; i--){
+ 				CacheHolder currCache = cacheDB.get(i);
+ 				if ( currCache.is_Checked) {
+ 					allCount++;
+-					if (currCache.is_filtered()) {
++					if (! currCache.isVisible()) {
+ 						if (currCache.isAddiWpt()) {
+-							addiFilteredCount++;
++							addiNonVisibleCount++;
+ 						} else {
+-							mainFilteredCount++;
++							mainNonVisibleCount++;
+ 						}
+ 					}
+ 				}
+@@ -161,16 +161,16 @@
+ 			// Warn if there are ticked but invisible caches - and ask if they should be deleted,
+ 			// too.
+ 			shouldDeleteCount = allCount;
+-			if (addiFilteredCount + mainFilteredCount &gt; 0){
++			if (addiNonVisibleCount + mainNonVisibleCount &gt; 0){
+ 				if ((new MessageBox(MyLocale.getMsg(144,&quot;Warning&quot;),
+ 						            MyLocale.getMsg(1029, &quot;There are caches that are ticked but invisible.\n(Main caches: &quot;) + 
+-						            	mainFilteredCount + MyLocale.getMsg(1030, &quot;, additional Waypoints: &quot;) + 
+-						            	addiFilteredCount+&quot;)\n&quot; + MyLocale.getMsg(1031, &quot;Delete them, too?&quot;), 
++						            	mainNonVisibleCount + MyLocale.getMsg(1030, &quot;, additional Waypoints: &quot;) + 
++						            	addiNonVisibleCount+&quot;)\n&quot; + MyLocale.getMsg(1031, &quot;Delete them, too?&quot;), 
+ 						            	FormBase.YESB | FormBase.NOB)).execute() == FormBase.IDYES) {
+ 					deleteFiltered = true;
+ 				} else {
+ 					deleteFiltered = false;
+-					shouldDeleteCount = allCount - mainFilteredCount - addiFilteredCount;
++					shouldDeleteCount = allCount - mainNonVisibleCount - addiNonVisibleCount;
+ 				}
+ 			}
+ 			if (shouldDeleteCount&gt;0) {
+@@ -184,7 +184,7 @@
+ 					int size=cacheDB.size();
+ 					for(int i = size-1; i &gt;=0; i--){// Start Counting down, as the size decreases with each deleted cache
+ 						ch = cacheDB.get(i);
+-						if(ch.is_Checked &amp;&amp; (!ch.is_filtered() || deleteFiltered)) {
++						if(ch.is_Checked &amp;&amp; (ch.isVisible() || deleteFiltered)) {
+ 							nDeleted++;
+ 							h.progress = ((float)nDeleted)/(float)allCount;
+ 							h.changed();
+
+Modified: trunk/src/CacheWolf/myTableModel.java
+===================================================================
+--- trunk/src/CacheWolf/myTableModel.java	2009-05-09 07:28:59 UTC (rev 1788)
++++ trunk/src/CacheWolf/myTableModel.java	2009-05-09 08:37:53 UTC (rev 1789)
+@@ -86,7 +86,7 @@
+ 		picSizeReg=new mImage(&quot;sizeReg.png&quot;); picSizeReg.transparentColor=Color.White;
+ 		picSizeLarge=new mImage(&quot;sizeLarge.png&quot;); picSizeLarge.transparentColor=Color.White;
+ 		picSizeVLarge=new mImage(&quot;sizeVLarge.png&quot;); picSizeVLarge.transparentColor=Color.White;
+-		updateRows();
++//		updateRows();
+ 	}
+ 	
+ 	/**
+@@ -125,7 +125,7 @@
+ 	}
+ 	public void updateRows(){
+ 		Vector sortDB = new Vector();
+-		Vector filteredDB = new Vector();
++		Vector notVisibleDB = new Vector();
+ 		CacheHolder ch, addiWpt;
+ 		// sort cacheDB:
+ 		// - addi wpts are listet behind the main cache
+@@ -133,13 +133,13 @@
+ 		int size=cacheDB.size();
+ 		for (int i=0; i&lt;size; i++){
+ 			ch = cacheDB.get(i);
+-			if (ch.is_filtered()) {
+-				filteredDB.add(ch);
++			if (!ch.isVisible()) {
++				notVisibleDB.add(ch);
+ 			} else { // point is not filtered
+ 				if (ch.isAddiWpt()){ // unfiltered Addi Wpt
+ 					// check if main wpt is filtered
+ 					if(ch.mainCache != null) { // parent exists
+-						if (ch.mainCache.is_filtered()) 
++						if (! ch.mainCache.isVisible()) 
+ 							sortDB.add(ch); // Unfiltered Addi Wpt with filtered Main Wpt, show it on its own
+ 						// else Main cache is not filtered, Addi will be added below main cache further down
+ 					} else { //Addi without main Cache
+@@ -150,14 +150,14 @@
+ 					if (ch.hasAddiWpt()){
+ 						for (int j=0; j&lt;ch.addiWpts.getCount();j++){
+ 							addiWpt = (CacheHolder)ch.addiWpts.get(j);
+-							if (!addiWpt.is_filtered()) sortDB.add(addiWpt);
++							if (addiWpt.isVisible()) sortDB.add(addiWpt);
+ 						}
+ 					}// if hasAddiWpt
+ 				} // if AddiWpt
+ 			} // if filtered
+ 		}
+ 		// rebuild database
+-		cacheDB.rebuild(sortDB, filteredDB);
++		cacheDB.rebuild(sortDB, notVisibleDB);
+ 		this.numRows = sortDB.getCount();
+ 	}
+ 	
+@@ -270,7 +270,7 @@
+ 		if(row == -1) return colName[colMap[col]];
+ 		try { // Access to row can fail if many caches are deleted
+ 			CacheHolder ch = cacheDB.get(row);
+-			if(ch.is_filtered() == false){
++			if(ch!=null /*ch.isVisible()*/){ // Check of visibility needed here??
+ 				switch(colMap[col]) { // Faster than using column names
+ 					case 0: // Checkbox
+ 						if (ch.is_Checked) 
+@@ -424,7 +424,7 @@
+ 				for (int i=0;i&lt;addiCount;i++){
+ 					addiWpt = (CacheHolder)ch.addiWpts.get(i);
+ 					addiWpt.is_Checked = ch.is_Checked;
+-					if (!addiWpt.is_filtered()){
++					if (addiWpt.isVisible()){
+ 						tcControl.repaintCell(cacheDB.getIndex(addiWpt), x);
+ 					}
+ 				}
+
+Modified: trunk/src/CacheWolf/navi/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MovingMap.java	2009-05-09 07:28:59 UTC (rev 1788)
++++ trunk/src/CacheWolf/navi/MovingMap.java	2009-05-09 08:37:53 UTC (rev 1789)
+@@ -379,7 +379,7 @@
+ 			CacheHolder ch;
+ 			for (int i=cacheDB.size()-1; i&gt;=0; i--) {
+ 				ch = cacheDB.get(i);
+-				if (ch.is_Checked &amp;&amp; !ch.is_filtered() &amp;&amp; ch != mainT.ch) {
++				if (ch.is_Checked &amp;&amp; ch.isVisible() &amp;&amp; ch != mainT.ch) {
+ 					if (ch.pos.isValid()) addSymbol(ch.getCacheName(), ch, CacheType.cache2Img(ch.getType()), ch.pos);
+ 				}
+ 			}
+
+Modified: trunk/src/exp/ExploristExporter.java
+===================================================================
+--- trunk/src/exp/ExploristExporter.java	2009-05-09 07:28:59 UTC (rev 1788)
++++ trunk/src/exp/ExploristExporter.java	2009-05-09 08:37:53 UTC (rev 1789)
+@@ -127,9 +127,7 @@
+ 		int counter = 0;
+ 		int expCount = 0;
+ 		for (int i = 0; i &lt; cacheDB.size(); i++) {
+-			ch = cacheDB.get(i);
+-			if (ch.is_black() == false &amp;&amp; ch.is_filtered() == false)
+-				counter++;
++			if (cacheDB.get(i).isVisible()) counter++;
+ 		}
+ 
+ 		try {
+@@ -139,7 +137,7 @@
+ 										/ 200 + &quot;.gs&quot;))));
+ 			for (int i = 0; i &lt; cacheDB.size(); i++) {
+ 				ch = cacheDB.get(i);
+-				if (ch.is_black() == false &amp;&amp; ch.is_filtered() == false) {
++				if (ch.isVisible()) {
+ 					// all 200 caches we need a new file
+ 					if (expCount % 200 == 0 &amp;&amp; expCount &gt; 0) {
+ 						outp.close();
+
+Modified: trunk/src/exp/Exporter.java
+===================================================================
+--- trunk/src/exp/Exporter.java	2009-05-09 07:28:59 UTC (rev 1788)
++++ trunk/src/exp/Exporter.java	2009-05-09 08:37:53 UTC (rev 1789)
+@@ -92,8 +92,7 @@
+ 		int counter = 0;
+ 		int expCount = 0;
+ 		for(int i = 0; i&lt;cacheDB.size();i++){
+-			ch = cacheDB.get(i);
+-			if(ch.is_black() == false &amp;&amp; ch.is_filtered() == false) counter++;
++			if(cacheDB.get(i).isVisible()) counter++;
+ 		}
+ 
+ 		try{
+@@ -102,7 +101,7 @@
+ 			if (str != null) outp.print(str);
+ 			for(int i = 0; i&lt;cacheDB.size(); i++){
+ 				ch=cacheDB.get(i);
+-				if(ch.is_black() == false &amp;&amp; ch.is_filtered() == false){
++				if(ch.isVisible()){
+ 					expCount++;
+ 					h.progress = (float)expCount/(float)counter;
+ 					h.changed();
+
+Modified: trunk/src/exp/HTMLExporter.java
+===================================================================
+--- trunk/src/exp/HTMLExporter.java	2009-05-09 07:28:59 UTC (rev 1788)
++++ trunk/src/exp/HTMLExporter.java	2009-05-09 08:37:53 UTC (rev 1789)
+@@ -69,8 +69,7 @@
+ 			//Generate index page
+ 			int counter = 0;
+ 			for(int i = 0; i&lt;cacheDB.size();i++){
+-				ch = cacheDB.get(i);
+-				if(ch.is_black() == false &amp;&amp; ch.is_filtered() == false) counter++;
++				if(cacheDB.get(i).isVisible()) counter++;
+ 			}
+ 			
+ 			pbf.showMainTask = false;
+@@ -82,7 +81,7 @@
+ 				h.changed();
+ 
+ 				ch = cacheDB.get(i);
+-				if(	ch.is_black() == false &amp;&amp; ch.is_filtered() == false){
++				if(	ch.isVisible()){
+ 					det=ch.getExistingDetails();
+ 					varParams = new Hashtable();
+ 					varParams.put(&quot;TYPE&quot;, CacheType.transType(ch.getType()));
+
+Modified: trunk/src/exp/KMLExporter.java
+===================================================================
+--- trunk/src/exp/KMLExporter.java	2009-05-09 07:28:59 UTC (rev 1788)
++++ trunk/src/exp/KMLExporter.java	2009-05-09 08:37:53 UTC (rev 1789)
+@@ -75,8 +75,7 @@
+ 		int counter = 0;
+ 		int expCount = 0;
+ 		for(int i = 0; i&lt;cacheDB.size();i++){
+-			ch = cacheDB.get(i);
+-			if(ch.is_black() == false &amp;&amp; ch.is_filtered() == false) counter++;
++			if (cacheDB.get(i).isVisible()) counter++;
+ 		}
+ 		copyIcons(outFile.getParent());
+ 		buildOutDB();
+@@ -118,7 +117,7 @@
+ 							for(int j = 0; j&lt;ch.addiWpts.size(); j++){
+ 								addiWpt = (CacheHolder) ch.addiWpts.get(j);
+ 								expCount++;
+-								if (ch.pos.isValid() &amp;&amp;  ! addiWpt.is_filtered()){
++								if (ch.pos.isValid() &amp;&amp;  addiWpt.isVisible()){
+ 									if (! createdAdditionalWaypointsFolder) {
+ 										outp.print(startFolder(&quot;Additional Waypoints&quot;, false));
+ 										createdAdditionalWaypointsFolder = true;
+@@ -170,7 +169,7 @@
+ 		for(int i = 0; i&lt;cacheDB.size(); i++){
+ 			ch=cacheDB.get(i);
+ 			// TODO Das Argument nach STring zu casten gef&#228;llt mir nicht ganz...
+-			if(ch.is_black() == false &amp;&amp; ch.is_filtered() == false &amp;&amp; !ch.isAddiWpt()){
++			if(ch.isVisible() &amp;&amp; !ch.isAddiWpt()){
+ 				if (ch.is_found()) { tmp = (Vector) outCacheDB[FOUND].get(String.valueOf(ch.getType()));}
+ 				else if (ch.is_owned()) { tmp = (Vector) outCacheDB[OWNED].get(String.valueOf(ch.getType()));}
+ 				else if (ch.is_archived() || !ch.is_available()){ tmp = (Vector) outCacheDB[NOT_AVAILABLE].get(String.valueOf(ch.getType()));}
+
+Modified: trunk/src/exp/TPLExporter.java
+===================================================================
+--- trunk/src/exp/TPLExporter.java	2009-05-09 07:28:59 UTC (rev 1788)
++++ trunk/src/exp/TPLExporter.java	2009-05-09 08:37:53 UTC (rev 1789)
+@@ -159,7 +159,7 @@
+ 		int counter = 0;
+ 		for(int i = 0; i&lt;cacheDB.size();i++){
+ 			ch = cacheDB.get(i);
+-			if(ch.is_black() == false &amp;&amp; ch.is_filtered() == false) counter++;
++			if(cacheDB.get(i).isVisible() == false) counter++;
+ 		}
+ 		pbf.showMainTask = false;
+ 		pbf.setTask(h,&quot;Exporting ...&quot;);
+@@ -187,7 +187,7 @@
+ 				det = ch.getExistingDetails();
+ 				h.progress = (float)i/(float)counter;
+ 				h.changed();
+-				if(ch.is_black() == false &amp;&amp; ch.is_filtered() == false){
++				if(ch.isVisible()){
+ 					if (ch.pos.isValid() == false) continue;
+ 					try {
+ 						Regex dec = new Regex(&quot;[,.]&quot;,myFilter.decSep);
+
+Modified: trunk/src/exp/TomTomExporter.java
+===================================================================
+--- trunk/src/exp/TomTomExporter.java	2009-05-09 07:28:59 UTC (rev 1788)
++++ trunk/src/exp/TomTomExporter.java	2009-05-09 08:37:53 UTC (rev 1789)
+@@ -79,8 +79,7 @@
+ 		currExp = 0;
+ 		counter = 0;
+ 		for(int i = 0; i&lt;cacheDB.size();i++){
+-			holder = cacheDB.get(i);
+-			if(holder.is_black() == false &amp;&amp; holder.is_filtered() == false) counter++;
++			if(cacheDB.get(i).isVisible()) counter++;
+ 		}
+ 		
+ 		ext = format==TT_ASC?&quot;.asc&quot;:&quot;.ov2&quot;;
+@@ -93,7 +92,7 @@
+ 				out =  new RandomAccessFile(fileName,&quot;rw&quot;);
+ 				for(int i = 0; i&lt;cacheDB.size(); i++){
+ 					holder=cacheDB.get(i);
+-					if(holder.getType() == new Integer(CacheType.wayType[j][TT_WPT_NUM]).intValue() &amp;&amp; holder.is_black() == false &amp;&amp; holder.is_filtered() == false){
++					if(holder.getType() == new Integer(CacheType.wayType[j][TT_WPT_NUM]).intValue() &amp;&amp; holder.isVisible() == false){
+ 						currExp++;
+ 						h.progress = (float)currExp/(float)counter;
+ 						h.changed();
+@@ -137,8 +136,7 @@
+ 		int counter = 0;
+ 		int expCount = 0;
+ 		for(int i = 0; i&lt;cacheDB.size();i++){
+-			holder = cacheDB.get(i);
+-			if(holder.is_black() == false &amp;&amp; holder.is_filtered() == false) counter++;
++			if(cacheDB.get(i).isVisible()) counter++;
+ 		}
+ 
+ 		try{
+@@ -147,7 +145,7 @@
+ 			out =  new RandomAccessFile(fileName,&quot;rw&quot;);
+ 			for(int i = 0; i&lt;cacheDB.size(); i++){
+ 				holder=cacheDB.get(i);
+-				if(holder.is_black() == false &amp;&amp; holder.is_filtered() == false){
++				if(holder.isVisible()){
+ 					expCount++;
+ 					h.progress = (float)expCount/(float)counter;
+ 					h.changed();
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001706.html">[Cachewolf-svn] r1788 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001708.html">[Cachewolf-svn] r1790 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1707">[ date ]</a>
+              <a href="thread.html#1707">[ thread ]</a>
+              <a href="subject.html#1707">[ subject ]</a>
+              <a href="author.html#1707">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

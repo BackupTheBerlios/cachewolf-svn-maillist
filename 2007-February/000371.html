@@ -1,0 +1,370 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r563 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r563%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702112109.l1BL99ck021832%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000370.html">
+   <LINK REL="Next"  HREF="000372.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r563 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r563%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702112109.l1BL99ck021832%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r563 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Sun Feb 11 22:09:09 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000370.html">[Cachewolf-svn] r562 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000372.html">[Cachewolf-svn] r564 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#371">[ date ]</a>
+              <a href="thread.html#371">[ thread ]</a>
+              <a href="subject.html#371">[ subject ]</a>
+              <a href="author.html#371">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-02-11 22:09:06 +0100 (Sun, 11 Feb 2007)
+New Revision: 563
+
+Modified:
+   trunk/src/CacheWolf/InfoBox.java
+   trunk/src/CacheWolf/OCXMLImporter.java
+Log:
+Download von Opencaching: Warnungen werden nun in einer Liste angezeigt, nicht mehr f?\195?\188r jede ein extra Fenster
+Download von Opencaching: Code zum Download von Karten vollst?\195?\164ndig auskommentiert
+
+Modified: trunk/src/CacheWolf/InfoBox.java
+===================================================================
+--- trunk/src/CacheWolf/InfoBox.java	2007-02-11 21:06:18 UTC (rev 562)
++++ trunk/src/CacheWolf/InfoBox.java	2007-02-11 21:09:06 UTC (rev 563)
+@@ -3,77 +3,114 @@
+ import ewe.sys.*;
+ 
+ public class InfoBox extends Form{
+-	Locale l = Vm.getLocale();
+-	LocalResource lr = l.getLocalResource(&quot;cachewolf.Languages&quot;,true);
+-	MessageArea msgArea;
++	TextMessage msgArea;
+ 	mCheckBox mCB;
++	TextMessage warnings;
+ 	public boolean mCB_state = false;
+ 	mButton mB = new mButton(&quot;OK&quot;);
+ 	mButton mC = new mButton(&quot;Cancel&quot;);
+ 	mInput feedback = new mInput();
+ 	public final static int CHECKBOX = 1;
+ 	public final static int INPUT = 2;
++	public final static int DISPLAY_ONLY = 3;
++	public final static int PROGRESS_WITH_WARNINGS = 4;
+ 	private int type = 0;
+-		
++
+ 	public InfoBox(String title, String info){
+-		this.setPreferredSize(170,50);
++		this(title, info, DISPLAY_ONLY);
++
++		/*this.setPreferredSize(170,50);
+ 		this.title = title;
+-		this.addLast(msgArea = new MessageArea(&quot;&quot;), CellConstants.STRETCH, CellConstants.FILL);
++		msgArea = new MessageArea(&quot;&quot;), CellConstants.STRETCH, CellConstants.FILL)
++		this.addLast(scP = new ScrollBarPanel(msgArea));
+ 		msgArea.setText(info);
+ 		mB.setHotKey(0, IKeys.ACTION);
+ 		mB.setHotKey(0, IKeys.ENTER);
+ 		//mB.set(Control.Invisible, true);
+ 		//this.addLast(mB, CellConstants.STRETCH, CellConstants.FILL);
++		 */
++	}
+ 
+-	}
+-	
+ 	public String getInput(){
+ 		return feedback.getText();
+ 	}
+-	
++
+ 	public void addText(String t) {
+ 		msgArea.setText(msgArea.text + t);
+ 		this.repaintNow();
+ 	}
+-	
++
+ 	public InfoBox(String title, String info, int ty){
++		this(title, info, ty, true);
++	}
++
++	public InfoBox(String title, String info, int ty, boolean autoWrap) {
+ 		type = ty;
+-		this.setPreferredSize(150,50);
++		this.setPreferredSize(150,80);
+ 		this.title = title;
+-		if(type == CHECKBOX){
++		switch (type) {
++		case CHECKBOX: 
+ 			mCB = new mCheckBox(info);
+ 			this.addLast(mCB, CellConstants.STRETCH, CellConstants.FILL);
+-		}
+-		if(type == INPUT){
++			break;
++		case INPUT:
+ 			mLabel mL = new mLabel(info);
+ 			this.addNext(mL, CellConstants.STRETCH, CellConstants.FILL);
+ 			this.addLast(feedback, CellConstants.STRETCH, CellConstants.FILL);
++			break;
++		case DISPLAY_ONLY:
++			msgArea = new TextMessage(info);
++			msgArea.autoWrap = autoWrap;
++			this.addLast(msgArea.getScrollablePanel(), CellConstants.STRETCH, CellConstants.FILL);
++			break;
++		case PROGRESS_WITH_WARNINGS:
++			msgArea = new TextMessage(info);
++			msgArea.autoWrap = autoWrap;
++			msgArea.setPreferredSize(150, 80);
++			this.addLast(msgArea.getScrollablePanel(), CellConstants.HEXPAND | CellConstants.HGROW, CellConstants.HEXPAND | CellConstants.HGROW);
++			warnings = new TextMessage(&quot;&quot;);
++			warnings.autoWrap = autoWrap;
++			this.addLast(warnings.getScrollablePanel(), CellConstants.HEXPAND | CellConstants.VEXPAND |CellConstants.VGROW, CellConstants.HEXPAND | CellConstants.VEXPAND |CellConstants.VGROW);
++			mB.set(Control.Disabled, true);
++			mB.setPreferredSize(40, 20);
++			addLast(mB, CellConstants.DONTSTRETCH, CellConstants.DONTFILL);
++			break;
+ 		}
+ 		mC.setHotKey(0, IKeys.ESCAPE);
+-		this.addNext(mC, CellConstants.STRETCH, CellConstants.FILL);
+ 		mB.setHotKey(0, IKeys.ACTION);
+ 		mB.setHotKey(0, IKeys.ENTER);
+-		this.addLast(mB, CellConstants.STRETCH, CellConstants.FILL);
++		if (ty == CHECKBOX || ty == INPUT) {
++			this.addNext(mC, CellConstants.STRETCH, CellConstants.FILL);
++			this.addLast(mB, CellConstants.STRETCH, CellConstants.FILL);
++		}
+ 	}
+-	
++
+ 	public void setInfo(String info){
+ 		msgArea.setText(info);
+ 		this.repaintNow();
+ 	}
+-	
+-/*	public void addOkButton() { unfortunately this doesn't work
++
++	public void addWarning (String w) {
++		warnings.setText(warnings.text + w);
++	}
++	public void addOkButton() { //unfortunately this doesn't work
++		mB.set(Control.Disabled, false);
++		//addNext(mB);
++		//relayout(true);
+ 		//mB.set(Control.Invisible, false);
+ 		this.repaintNow();
+ 	}
+-*/
++
+ 	public void onEvent(Event ev){
+-		if(ev.target == mB){
+-			if(type == CHECKBOX) mCB_state = mCB.getState();
+-			this.close(Form.IDOK);
++		if (ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.PRESSED) {
++			if(ev.target == mB){
++				if(type == CHECKBOX) mCB_state = mCB.getState();
++				this.close(Form.IDOK);
++			}
++			if(ev.target == mC){
++				this.close(Form.IDCANCEL);
++			}
+ 		}
+-		if(ev.target == mC){
+-			this.close(Form.IDCANCEL);
+-		}
+ 		super.onEvent(ev);
+ 	}
+ }
+\ No newline at end of file
+
+Modified: trunk/src/CacheWolf/OCXMLImporter.java
+===================================================================
+--- trunk/src/CacheWolf/OCXMLImporter.java	2007-02-11 21:06:18 UTC (rev 562)
++++ trunk/src/CacheWolf/OCXMLImporter.java	2007-02-11 21:09:06 UTC (rev 563)
+@@ -31,6 +31,7 @@
+ 	boolean debugGPX = false;
+ 	Vector cacheDB;
+ 	InfoBox inf;
++	String Warnings = new String();
+ 	CacheHolder holder;
+ 	Preferences pref;
+ 	Profile profile;
+@@ -119,8 +120,9 @@
+ 			url +=&quot;&amp;charset=utf-8&quot;;
+ 			url +=&quot;&amp;cdata=0&quot;;
+ 			url +=&quot;&amp;session=0&quot;;
+-			inf = new InfoBox(&quot;Opencaching download&quot;, MyLocale.getMsg(1608,&quot;downloading data\n from opencaching&quot;));
+-			inf.setPreferredSize(210, 120);
++			inf = new InfoBox(&quot;Opencaching download&quot;, MyLocale.getMsg(1608,&quot;downloading data\n from opencaching&quot;), InfoBox.PROGRESS_WITH_WARNINGS, false);
++			inf.setPreferredSize(220, 300);
++			inf.relayout(false);
+ 			inf.exec();
+ 			//Vm.debug(url);
+ 			//get file
+@@ -148,25 +150,25 @@
+ 			}
+ 			zif.close();
+ 		}catch (ZipException e){
+-			finalMessage=MyLocale.getMsg(1614,&quot;Error while unzipping udpate file&quot;);
++			finalMessage = MyLocale.getMsg(1614,&quot;Error while unzipping udpate file&quot;);
+ 			success = false;
+ 		}catch (IOException e){
+-			if (e.getMessage().equalsIgnoreCase(&quot;no updates available&quot;)) { finalMessage=&quot;No updates available&quot;; success = false; }
++			if (e.getMessage().equalsIgnoreCase(&quot;no updates available&quot;)) { finalMessage = &quot;No updates available&quot;; success = false; }
+ 			else {
+ 			if (e.getMessage().equalsIgnoreCase(&quot;could not connect&quot;) ||
+ 					e.getMessage().equalsIgnoreCase(&quot;unkown host&quot;)) { // is there a better way to find out what happened?
+-				finalMessage=MyLocale.getMsg(1616,&quot;Error: could not download udpate file from opencaching.de&quot;);
++				finalMessage = MyLocale.getMsg(1616,&quot;Error: could not download udpate file from opencaching.de&quot;);
+ 			} else { finalMessage = &quot;IOException: &quot;+e.getMessage(); }
+ 			success = false;
+ 			}
+ 		}catch (IllegalArgumentException e) {
+-			finalMessage=MyLocale.getMsg(1621,&quot;Error parsing update file\n this is likely a bug in opencaching.de\nplease try again later\n, state:&quot;)+&quot; &quot;+state+&quot;, waypoint: &quot;+ holder.wayPoint;
++			finalMessage = MyLocale.getMsg(1621,&quot;Error parsing update file\n this is likely a bug in opencaching.de\nplease try again later\n, state:&quot;)+&quot; &quot;+state+&quot;, waypoint: &quot;+ holder.wayPoint;
+ 			success = false;
+ 			Vm.debug(&quot;Parse error: &quot; + state + &quot; &quot; + holder.wayPoint);
+ 			e.printStackTrace();
+ 		}catch (Exception e){ // here schould be used the correct exepion
+-			if (holder != null)	finalMessage=MyLocale.getMsg(1615,&quot;Error parsing update file, state:&quot;)+&quot; &quot;+state+&quot;, waypoint: &quot;+ holder.wayPoint;
+-			else finalMessage=MyLocale.getMsg(1615,&quot;Error parsing update file, state:&quot;)+&quot; &quot;+state+&quot;, waypoint: &lt;unkown&gt;&quot;;
++			if (holder != null)	finalMessage = MyLocale.getMsg(1615,&quot;Error parsing update file, state:&quot;)+&quot; &quot;+state+&quot;, waypoint: &quot;+ holder.wayPoint;
++			else finalMessage = MyLocale.getMsg(1615,&quot;Error parsing update file, state:&quot;)+&quot; &quot;+state+&quot;, waypoint: &lt;unkown&gt;&quot;;
+ 			success = false;
+ 			Vm.debug(&quot;Parse error: &quot; + state + &quot; &quot; + holder.wayPoint);
+ 			e.printStackTrace();
+@@ -176,11 +178,13 @@
+ 			profile.last_sync_opencaching = dateOfthisSync.format(&quot;yyyyMMddHHmmss&quot;);
+ 			//pref.savePreferences();
+ 			profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
+-			finalMessage=MyLocale.getMsg(1607,&quot;Update from opencaching successful&quot;);
++			finalMessage = MyLocale.getMsg(1607,&quot;Update from opencaching successful&quot;);
+ 		}
+-		inf.close(0);
+-		MessageBox mb = new MessageBox(&quot;Opencaching&quot;,finalMessage,MessageBox.OKB);
+-		mb.execute();
++		inf.setInfo(finalMessage);
++		inf.addOkButton();
++		//inf.close(0);
++//		MessageBox mb = new MessageBox(&quot;Opencaching&quot;,finalMessage,MessageBox.OKB);
++	//	mb.execute();
+ 	}
+ 	
+ 	public void startElement(String name, AttributeList atts){
+@@ -275,7 +279,7 @@
+ 
+ 	}
+ 	private void startCacheDesc(String name, AttributeList atts){
+-		inf.setInfo(MyLocale.getMsg(1611,&quot;Importing cache description:&quot;)+&quot; &quot; + numDescImported);
++		inf.setInfo(MyLocale.getMsg(1611,&quot;Importing cache description:&quot;)+&quot; &quot; + numDescImported + Warnings);
+ 		if (name.equals(&quot;cachedesc&quot;)){
+ 			ignoreDesc = false;
+ 		}
+@@ -292,12 +296,12 @@
+ 	
+ 	private void startPicture(String name, AttributeList atts){
+ 		if(name.equals(&quot;picture&quot;)){
+-			inf.setInfo(MyLocale.getMsg(1613,&quot;Pictures:&quot;)+&quot; &quot; + ++picCnt);
++			inf.setInfo(MyLocale.getMsg(1613,&quot;Pictures:&quot;)+&quot; &quot; + ++picCnt + Warnings);
+ 		}
+ 	}
+ 
+ 	private void startCacheLog(String name, AttributeList atts){
+-		inf.setInfo(MyLocale.getMsg(1612,&quot;Importing Cachlog:&quot;)+&quot; &quot; + numLogImported);
++		inf.setInfo(MyLocale.getMsg(1612,&quot;Importing Cachlog:&quot;)+&quot; &quot; + numLogImported + Warnings);
+ 		if (name.equals(&quot;logtype&quot;)){
+ 			if(atts.getValue(&quot;id&quot;).equals(&quot;1&quot;)) logIcon = GPXImporter.typeText2Image(&quot;Found&quot;);
+ 			if(atts.getValue(&quot;id&quot;).equals(&quot;2&quot;)) {
+@@ -337,12 +341,13 @@
+ 				holder.Images.clear();
+ 				holder.ImagesText.clear();
+ 			}
+-			if(holder.LatLon.length() &gt; 1 &amp;&amp; holder.is_archived == false &amp;&amp;
++/*			if(holder.LatLon.length() &gt; 1 &amp;&amp; holder.is_archived == false &amp;&amp;
+ 					pref.downloadMapsOC){
+ 				
+ 				ParseLatLon pll = new ParseLatLon(holder.LatLon,&quot;.&quot;);
+ 				pll.parse();
+-				MapLoader mpl = new MapLoader(pref.myproxy, pref.myproxyport);
++				
++ 				MapLoader mpl = new MapLoader(pref.myproxy, pref.myproxyport);
+ 				// MapLoader tests itself if the file already exists and doesnt download if so.
+ 				String filename = Global.getPref().baseDir + &quot;/maps/expedia/&quot; + holder.wayPoint + &quot;_map.gif&quot;;
+ 				if (!(new File(filename).getParentFile().isDirectory())) { // dir exists? 
+@@ -361,7 +366,8 @@
+ 					inf.setInfo(MyLocale.getMsg(1609,&quot;Importing Cache: &quot;)+&quot; &quot; + numCacheImported + &quot;\n&quot;+MyLocale.getMsg(1610,&quot;Downloading missing map&quot;)+&quot; 2&quot;);
+ 					//mpl.loadTo(filename, &quot;10&quot;); 
+ 					}
+-			}
++			} */
++
+ 			// save all
+ 			holder.saveCacheDetails(profile.dataDir);
+ 			profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
+@@ -429,7 +435,7 @@
+ 							(new MessageBox(MyLocale.getMsg(144, &quot;Warning&quot;),MyLocale.getMsg(1617, &quot;Ignoriere Fehler in html-Cache-Description: \&quot;&lt;img\&quot; without \&quot;src=\&quot; in cache &quot;+holder.wayPoint), MessageBox.OKB)).exec();
+ 							continue;
+ 						}
+-						inf.setInfo(MyLocale.getMsg(1611,&quot;Importing cache description:&quot;)+&quot; &quot; + numDescImported + &quot;\n&quot;+MyLocale.getMsg(1620, &quot;downloading embedded images: &quot;) + numDownloaded++);
++						inf.setInfo(MyLocale.getMsg(1611,&quot;Importing cache description:&quot;)+&quot; &quot; + numDescImported + &quot;\n&quot;+MyLocale.getMsg(1620, &quot;downloading embedded images: &quot;) + numDownloaded++ + Warnings);
+ 						if (imgRegexAlt.search(imgTag)) {
+ 							imgAltText=imgRegexAlt.stringMatched(1);
+ 							if (imgAltText==null)	imgAltText=imgRegexAlt.stringMatched(2);
+@@ -488,12 +494,13 @@
+ 				}
+ 			}
+ 		} catch (IOException e) {
+-			String ErrMessage = new String (&quot;Ignoring IOException: &quot;+e.getMessage())+ &quot;\nwhile downloading picture:&quot;+fileName+&quot;\nfrom URL:&quot;+fetchURL+&quot;\nin cache: &quot;+holder.wayPoint; 
++			String ErrMessage = new String (MyLocale.getMsg(1618,&quot;Ignoring error in cache: &quot;) + holder.wayPoint + &quot;: ignoring IOException: &quot;+e.getMessage()+ &quot; while downloading picture:&quot;+fileName+&quot; from URL:&quot;+fetchURL); 
+ 			if (e.getMessage().toLowerCase().equalsIgnoreCase(&quot;could not connect&quot;) ||
+ 					e.getMessage().equalsIgnoreCase(&quot;unkown host&quot;)) { // is there a better way to find out what happened?
+-				ErrMessage=MyLocale.getMsg(1618,&quot;Ignoring error in cache &quot;)+holder.wayPoint+MyLocale.getMsg(1619,&quot;: could not download image from URL: &quot;)+fetchURL;
++				ErrMessage = MyLocale.getMsg(1618,&quot;Ignoring error in cache: &quot;)+holder.wayPoint+MyLocale.getMsg(1619,&quot;: could not download image from URL: &quot;)+fetchURL;
+ 			} 
+-			(new MessageBox(MyLocale.getMsg(144, &quot;Warning&quot;), ErrMessage, MessageBox.OKB)).exec();
++			inf.addWarning(&quot;\n&quot;+ErrMessage);
++			//(new MessageBox(MyLocale.getMsg(144, &quot;Warning&quot;), ErrMessage, MessageBox.OKB)).exec();
+ 			Vm.debug(&quot;Could not load Image &quot; + fetchURL);
+ 			e.printStackTrace();
+ 		}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000370.html">[Cachewolf-svn] r562 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000372.html">[Cachewolf-svn] r564 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#371">[ date ]</a>
+              <a href="thread.html#371">[ thread ]</a>
+              <a href="subject.html#371">[ subject ]</a>
+              <a href="author.html#371">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,1322 @@
+From mik77 at mail.berlios.de  Sat Dec  4 10:54:18 2010
+From: mik77 at mail.berlios.de (mik77 at mail.berlios.de)
+Date: Sat,  4 Dec 2010 10:54:18 PM +0100
+Subject: [Cachewolf-svn] r2881 - trunk/src/CacheWolf/exp
+Message-ID: <20101204215418.45A4F480B86@sheep.berlios.de>
+
+Author: mik77
+Date: 2010-12-04 22:54:17 +0100 (Sat, 04 Dec 2010)
+New Revision: 2881
+
+Modified:
+   trunk/src/CacheWolf/exp/KMLExporter.java
+Log:
+only use default icons, if user icons are not available
+
+Modified: trunk/src/CacheWolf/exp/KMLExporter.java
+===================================================================
+--- trunk/src/CacheWolf/exp/KMLExporter.java	2010-11-27 19:31:12 UTC (rev 2880)
++++ trunk/src/CacheWolf/exp/KMLExporter.java	2010-12-04 21:54:17 UTC (rev 2881)
+@@ -256,7 +256,9 @@
+ 		} catch (IOException e) {
+ 		}
+ 		try {
+-			zif = new ZipFile (FileBase.getProgramDirectory() + FileBase.separator + "exporticons" + FileBase.separator + "exporticons" + FileBase.separator + "GoogleEarth.zip");
++      if (zif == null) {
++			  zif = new ZipFile (FileBase.getProgramDirectory() + FileBase.separator + "exporticons" + FileBase.separator + "exporticons" + FileBase.separator + "GoogleEarth.zip");
++			}
+ 			ZipEntry zipEnt;
+ 			int len;
+ 			String fileName;
+
+
+
+From mik77 at mail.berlios.de  Sun Dec 12 02:36:07 2010
+From: mik77 at mail.berlios.de (mik77 at mail.berlios.de)
+Date: Sun, 12 Dec 2010 02:36:07 PM +0100
+Subject: [Cachewolf-svn] r2882 - trunk/src/CacheWolf/imp
+Message-ID: <20101212133607.592FB480F94@sheep.berlios.de>
+
+Author: mik77
+Date: 2010-12-12 14:36:07 +0100 (Sun, 12 Dec 2010)
+New Revision: 2882
+
+Modified:
+   trunk/src/CacheWolf/imp/OCXMLImporter.java
+Log:
+"gesperrt" means archived, too
+
+Modified: trunk/src/CacheWolf/imp/OCXMLImporter.java
+===================================================================
+--- trunk/src/CacheWolf/imp/OCXMLImporter.java	2010-12-04 21:54:17 UTC (rev 2881)
++++ trunk/src/CacheWolf/imp/OCXMLImporter.java	2010-12-12 13:36:07 UTC (rev 2882)
+@@ -431,7 +431,7 @@
+ 				holder.setAvailable(true);
+ 			} else {
+ 				holder.setAvailable(false);
+-				if(atts.getValue("id").equals("3")) {
++				if( (atts.getValue("id").equals("3")) || (atts.getValue("id").equals("6")) ) {
+ 					holder.setArchived(true);
+ 				}
+ 			}
+
+
+
+From mik77 at mail.berlios.de  Tue Dec 14 10:07:57 2010
+From: mik77 at mail.berlios.de (mik77 at mail.berlios.de)
+Date: Tue, 14 Dec 2010 10:07:57 AM +0100
+Subject: [Cachewolf-svn] r2883 - in trunk/src/CacheWolf: . imp
+Message-ID: <20101214090757.7747F480BF3@sheep.berlios.de>
+
+Author: mik77
+Date: 2010-12-14 10:07:57 +0100 (Tue, 14 Dec 2010)
+New Revision: 2883
+
+Modified:
+   trunk/src/CacheWolf/Preferences.java
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+ - hidden pref to disable TB check when spidering
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2010-12-12 13:36:07 UTC (rev 2882)
++++ trunk/src/CacheWolf/Preferences.java	2010-12-14 09:07:57 UTC (rev 2883)
+@@ -288,6 +288,8 @@
+ 	public boolean exportGpxAsMyFinds = true;
+ 	/** Check if lastFound is newer than saved log*/
+ 	public boolean checkLog=false;
++	/** Check if presence of TBs changed*/
++	public boolean checkTBs=true;
+ 	/** menu of spider along a route exists*/
+ 	public boolean spiderRoute=false;
+ 	/** Download images when loading cache data */
+@@ -560,6 +562,8 @@
+ 		else if (name.equals("spider")) {
+ 			forceLogin = Boolean.valueOf(atts.getValue("forcelogin")).booleanValue();
+ 			checkLog = Boolean.valueOf(atts.getValue("checkLog")).booleanValue();
++      tmp = atts.getValue("checkTBs");
++			if (tmp != null) Boolean.valueOf(atts.getValue("checkTBs")).booleanValue();
+ 			spiderRoute = Boolean.valueOf(atts.getValue("spiderRoute")).booleanValue();
+ 			tmp = atts.getValue("spiderUpdates");
+ 			if (tmp != null) spiderUpdates=Convert.parseInt(tmp);
+@@ -724,7 +728,7 @@
+ 					        "\" addDetailsToWaypoint = \"" + SafeXML.strxmlencode(addDetailsToWaypoint) + "\" addDetailsToName = \"" + SafeXML.strxmlencode(addDetailsToName) + "\" />\n");
+ 			outp.print("    <opencaching lastSite=\""+lastOCSite+"\" downloadMissing=\"" + SafeXML.strxmlencode(downloadMissingOC) + "\"/>\n");
+ 			outp.print("    <location lat = \"" + SafeXML.clean(curCentrePt.getLatDeg(TransformCoordinates.DD)) + "\" long = \"" + SafeXML.clean(curCentrePt.getLonDeg(TransformCoordinates.DD)) + "\"/>\n");
+-			outp.print("    <spider forcelogin=\"" + SafeXML.strxmlencode(forceLogin) + "\" spiderUpdates=\"" + SafeXML.strxmlencode(spiderUpdates) + "\" checkLog=\"" + SafeXML.strxmlencode(checkLog)+ "\" spiderRoute=\"" + SafeXML.strxmlencode(spiderRoute) + "\" maxSpiderNumber=\"" + SafeXML.strxmlencode(maxSpiderNumber) + "\" downloadPics=\"" + SafeXML.strxmlencode(downloadPics) + "\" downloadTBs=\"" + SafeXML.strxmlencode(downloadTBs) +"\"/>\n");
++			outp.print("    <spider forcelogin=\"" + SafeXML.strxmlencode(forceLogin) + "\" spiderUpdates=\"" + SafeXML.strxmlencode(spiderUpdates) + "\" checkLog=\"" + SafeXML.strxmlencode(checkLog) + "\" checkTBs=\"" + SafeXML.strxmlencode(checkTBs) + "\" spiderRoute=\"" + SafeXML.strxmlencode(spiderRoute) + "\" maxSpiderNumber=\"" + SafeXML.strxmlencode(maxSpiderNumber) + "\" downloadPics=\"" + SafeXML.strxmlencode(downloadPics) + "\" downloadTBs=\"" + SafeXML.strxmlencode(downloadTBs) +"\"/>\n");
+ 			outp.print("    <gotopanel northcentered=\"" + SafeXML.strxmlencode(northCenteredGoto) + "\" />\n");
+ 			outp.print("    <details cacheSize=\"" + SafeXML.strxmlencode(maxDetails) + "\" delete=\"" + SafeXML.strxmlencode(deleteDetails) + "\"/>\n");
+ 			outp.print("    <metric type=\"" + SafeXML.strxmlencode(metricSystem) + "\"/>\n");
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2010-12-12 13:36:07 UTC (rev 2882)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2010-12-14 09:07:57 UTC (rev 2883)
+@@ -1935,7 +1935,7 @@
+ 	}
+ 	private boolean TBchanged(CacheHolder ch, String cacheDescription) {
+ 		// simplified Version: only presence is checked 
+-		if (pref.downloadTBs) {
++		if (pref.downloadTBs && pref.checkTBs ) {
+ 			boolean hasCoin=cacheDescription.indexOf("Geocoin") > -1;
+ 			boolean hasTB=cacheDescription.indexOf("Travel Bug Dog Tag") > -1;						
+ 			return (ch.has_bugs() != (hasCoin || hasTB));
+
+
+
+From araber95 at mail.berlios.de  Tue Dec 14 06:34:45 2010
+From: araber95 at mail.berlios.de (araber95 at mail.berlios.de)
+Date: Tue, 14 Dec 2010 06:34:45 PM +0100
+Subject: [Cachewolf-svn] r2884 - trunk/src/CacheWolf/imp
+Message-ID: <20101214173445.A38C9480C1E@sheep.berlios.de>
+
+Author: araber95
+Date: 2010-12-14 18:34:45 +0100 (Tue, 14 Dec 2010)
+New Revision: 2884
+
+Modified:
+   trunk/src/CacheWolf/imp/GCVoteImporter.java
+Log:
+changed username to "dummy" for gcvote import. 
+
+Modified: trunk/src/CacheWolf/imp/GCVoteImporter.java
+===================================================================
+--- trunk/src/CacheWolf/imp/GCVoteImporter.java	2010-12-14 09:07:57 UTC (rev 2883)
++++ trunk/src/CacheWolf/imp/GCVoteImporter.java	2010-12-14 17:34:45 UTC (rev 2884)
+@@ -79,7 +79,7 @@
+ 	public void doIt() {
+ 		ProgressBarForm pbf = new ProgressBarForm();
+ 		Handle h = new Handle();
+-		this.GCVUser = pref.myAlias;
++		this.GCVUser = "dummy"; // pref.myAlias;
+ 		this.GCVPassword = "";
+ 
+ 		int totalWaypoints = cacheDB.countVisible();
+
+
+
+From mik77 at mail.berlios.de  Wed Dec 15 09:09:28 2010
+From: mik77 at mail.berlios.de (mik77 at mail.berlios.de)
+Date: Wed, 15 Dec 2010 09:09:28 AM +0100
+Subject: [Cachewolf-svn] r2885 - trunk/src/CacheWolf/imp
+Message-ID: <20101215080928.ADFCD480C77@sheep.berlios.de>
+
+Author: mik77
+Date: 2010-12-15 09:09:28 +0100 (Wed, 15 Dec 2010)
+New Revision: 2885
+
+Modified:
+   trunk/src/CacheWolf/imp/GCVoteImporter.java
+Log:
+changed gcvote user from dummy to empty string
+
+Modified: trunk/src/CacheWolf/imp/GCVoteImporter.java
+===================================================================
+--- trunk/src/CacheWolf/imp/GCVoteImporter.java	2010-12-14 17:34:45 UTC (rev 2884)
++++ trunk/src/CacheWolf/imp/GCVoteImporter.java	2010-12-15 08:09:28 UTC (rev 2885)
+@@ -79,7 +79,7 @@
+ 	public void doIt() {
+ 		ProgressBarForm pbf = new ProgressBarForm();
+ 		Handle h = new Handle();
+-		this.GCVUser = "dummy"; // pref.myAlias;
++		this.GCVUser = ""; // pref.myAlias;
+ 		this.GCVPassword = "";
+ 
+ 		int totalWaypoints = cacheDB.countVisible();
+
+
+
+From mik77 at mail.berlios.de  Thu Dec 23 04:05:18 2010
+From: mik77 at mail.berlios.de (mik77 at mail.berlios.de)
+Date: Thu, 23 Dec 2010 04:05:18 PM +0100
+Subject: [Cachewolf-svn] r2886 - trunk/res_noewe
+Message-ID: <20101223150518.6BC33480264@sheep.berlios.de>
+
+Author: mik77
+Date: 2010-12-23 16:05:18 +0100 (Thu, 23 Dec 2010)
+New Revision: 2886
+
+Modified:
+   trunk/res_noewe/spider.def
+Log:
+first little adaption to new GC-design (logs)
+
+Modified: trunk/res_noewe/spider.def
+===================================================================
+--- trunk/res_noewe/spider.def	2010-12-15 08:09:28 UTC (rev 2885)
++++ trunk/res_noewe/spider.def	2010-12-23 15:05:18 UTC (rev 2886)
+@@ -42,6 +42,7 @@
+ # Version 9.0 - 20100630 adaption to new GC-design
+ # Version 10.0 - 20100729 adaption to new GC-design DateHiddenrex , optimized cacheOwnerRex araber95
+ # Version 11.0 - 20101110 adaption to new GC-design (maybe not complete)
++# Version 12.0 - 20101223 first little adaption to new GC-design (logs)
+ #============================================================
+ # A suffix of Rex indicates a regular expression
+ # A suffix of ExStart indicates the start of an Extractor search pattern
+@@ -136,7 +137,7 @@
+ nameExEnd          = <
+ dateExStart        = '\ />&nbsp;
+ dateExEnd          = \ by\ <a\ href='/profile/?guid=
+-logExStart         = found)<br/><br/>
++logExStart         = found)<br\ /><br\ />
+ logExEnd           = <br\ /><br\ /><small><a\ href="
+ logIdExStart         = '\ id='
+ logIdExEnd           = '>
+
+
+
+From araber95 at mail.berlios.de  Thu Dec 23 11:09:10 2010
+From: araber95 at mail.berlios.de (araber95 at mail.berlios.de)
+Date: Thu, 23 Dec 2010 11:09:10 PM +0100
+Subject: [Cachewolf-svn] r2887 - in trunk: res_noewe src/CacheWolf/imp
+Message-ID: <20101223220910.B810248026C@sheep.berlios.de>
+
+Author: araber95
+Date: 2010-12-23 23:09:10 +0100 (Thu, 23 Dec 2010)
+New Revision: 2887
+
+Modified:
+   trunk/res_noewe/spider.def
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+distance check : update for new gc design
+
+Modified: trunk/res_noewe/spider.def
+===================================================================
+--- trunk/res_noewe/spider.def	2010-12-23 15:05:18 UTC (rev 2886)
++++ trunk/res_noewe/spider.def	2010-12-23 22:09:10 UTC (rev 2887)
+@@ -73,7 +73,7 @@
+ availableRex       = <span\ class="Strike">
+ archivedRex        = <span\ class="OldWarning\ Strike">
+ PMRex              = small_profile.gif
+-distRex            = <br\ />(.*?)(?:km|mi)\\s*</td>
++distRex            = (.*?)(?:km|mi)
+ waypointRex        = \\(GC(.*?)\\)<br\ />
+ TypeRex            = k">\\s*<img\ src="/images/WptTypes/(.*?)\\.gif
+ SizeRex            = /container/(.*?)\\.gif
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2010-12-23 15:05:18 UTC (rev 2886)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2010-12-23 22:09:10 UTC (rev 2887)
+@@ -1725,20 +1725,31 @@
+ 	 * @return Distance
+ 	 */
+ 	private double getDistGC(String doc) throws Exception {
+-		if (doc.indexOf("Here") >= 0) {
+-			return (0);
+-		} else {
+-			RexPropDistance.search(doc);
+-			if (!RexPropDistance.didMatch()) {
+-				pref.log("check distRex in spider.def" 
+-						+ Preferences.NEWLINE + doc);
+-				return 0;
+-			}
++		Regex RexDistance = new Regex("k=(.*?)\"");
++		RexDistance.search(doc);
++		if (!RexDistance.didMatch()) {
++			pref.log("check distRex" + Preferences.NEWLINE + doc);
++			return 0;
++		}
++		String stmp = ewe.net.URL.decodeURL(RexDistance.stringMatched(1));
++		byte ctmp[] = stmp.getBytes();
++		ctmp[0]^='g';
++		ctmp[1]^='r';
++		ctmp[2]^='o';
++		ctmp[3]^='u';
++		ctmp[4]^='n';
++		ctmp[5]^='d';
++		ctmp[6]^='s';
++		stmp = new String(ctmp);
++		RexPropDistance.search(stmp); // km oder mi
++		pref.log(RexDistance.stringMatched(1)+" : "+stmp,null);
++		if (RexDistance.didMatch()) {
+ 			if (MyLocale.getDigSeparator().equals(","))
+ 				return Convert.toDouble(RexPropDistance.stringMatched(1)
+ 						.replace('.', ','));
+ 			return Convert.toDouble(RexPropDistance.stringMatched(1));
+ 		}
++		return 0;
+ 	}
+ 
+ 	/**
+
+
+
+From mik77 at mail.berlios.de  Fri Dec 24 12:23:23 2010
+From: mik77 at mail.berlios.de (mik77 at mail.berlios.de)
+Date: Fri, 24 Dec 2010 12:23:23 AM +0100
+Subject: [Cachewolf-svn] r2888 - in trunk: res_noewe src/CacheWolf/imp
+Message-ID: <20101223232323.6928648026C@sheep.berlios.de>
+
+Author: mik77
+Date: 2010-12-24 00:23:23 +0100 (Fri, 24 Dec 2010)
+New Revision: 2888
+
+Modified:
+   trunk/res_noewe/spider.def
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+some strings extracted to spider.def
+TODO added for decoding direction from image code
+
+Modified: trunk/res_noewe/spider.def
+===================================================================
+--- trunk/res_noewe/spider.def	2010-12-23 22:09:10 UTC (rev 2887)
++++ trunk/res_noewe/spider.def	2010-12-23 23:23:23 UTC (rev 2888)
+@@ -43,6 +43,7 @@
+ # Version 10.0 - 20100729 adaption to new GC-design DateHiddenrex , optimized cacheOwnerRex araber95
+ # Version 11.0 - 20101110 adaption to new GC-design (maybe not complete)
+ # Version 12.0 - 20101223 first little adaption to new GC-design (logs)
++# Version 12.0 - 20101224 adaption to new GC-design (decode distance)
+ #============================================================
+ # A suffix of Rex indicates a regular expression
+ # A suffix of ExStart indicates the start of an Extractor search pattern
+@@ -73,6 +74,8 @@
+ availableRex       = <span\ class="Strike">
+ archivedRex        = <span\ class="OldWarning\ Strike">
+ PMRex              = small_profile.gif
++distCodeRex        = k=(.*?)"\ style=
++distCodeKey        = groundspeak
+ distRex            = (.*?)(?:km|mi)
+ waypointRex        = \\(GC(.*?)\\)<br\ />
+ TypeRex            = k">\\s*<img\ src="/images/WptTypes/(.*?)\\.gif
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2010-12-23 22:09:10 UTC (rev 2887)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2010-12-23 23:23:23 UTC (rev 2888)
+@@ -155,6 +155,8 @@
+ 	private static String propPM;
+ 	private static Regex RexPropDirection;
+ 	private static Regex RexPropDistance;
++	private static Regex RexPropDistanceCode;
++	private static String DistanceCodeKey;
+ 	private static Regex RexPropWaypoint;
+ 	private static Regex RexPropType;
+ 	private static Regex RexPropSize;
+@@ -1425,6 +1427,8 @@
+ 			propPM = p.getProp("PMRex");
+ 			RexPropDirection = new Regex(p.getProp("directionRex"));
+ 			RexPropDistance = new Regex(p.getProp("distRex"));
++			RexPropDistanceCode = new Regex(p.getProp("distCodeRex"));
++			DistanceCodeKey = p.getProp("distCodeKey");
+ 			RexPropWaypoint = new Regex(p.getProp("waypointRex"));
+ 			RexPropType = new Regex(p.getProp("TypeRex"));
+ 			RexPropSize = new Regex(p.getProp("SizeRex"));
+@@ -1725,25 +1729,22 @@
+ 	 * @return Distance
+ 	 */
+ 	private double getDistGC(String doc) throws Exception {
+-		Regex RexDistance = new Regex("k=(.*?)\"");
+-		RexDistance.search(doc);
+-		if (!RexDistance.didMatch()) {
++		RexPropDistanceCode.search(doc);
++		if (!RexPropDistanceCode.didMatch()) {
+ 			pref.log("check distRex" + Preferences.NEWLINE + doc);
+ 			return 0;
+ 		}
+-		String stmp = ewe.net.URL.decodeURL(RexDistance.stringMatched(1));
++		String stmp = ewe.net.URL.decodeURL(RexPropDistanceCode.stringMatched(1));
+ 		byte ctmp[] = stmp.getBytes();
+-		ctmp[0]^='g';
+-		ctmp[1]^='r';
+-		ctmp[2]^='o';
+-		ctmp[3]^='u';
+-		ctmp[4]^='n';
+-		ctmp[5]^='d';
+-		ctmp[6]^='s';
++		byte ckey[] = DistanceCodeKey.getBytes();
++		int maxDecodeLength = java.lang.Math.min(stmp.length(), DistanceCodeKey.length());
++		for (int i=0; i<maxDecodeLength; i++) {
++		  ctmp[i]^=ckey[i];
++    }
+ 		stmp = new String(ctmp);
+ 		RexPropDistance.search(stmp); // km oder mi
+-		pref.log(RexDistance.stringMatched(1)+" : "+stmp,null);
+-		if (RexDistance.didMatch()) {
++		pref.log(RexPropDistanceCode.stringMatched(1)+" : "+stmp,null);
++		if (RexPropDistance.didMatch()) {
+ 			if (MyLocale.getDigSeparator().equals(","))
+ 				return Convert.toDouble(RexPropDistance.stringMatched(1)
+ 						.replace('.', ','));
+@@ -1855,6 +1856,10 @@
+ 	 * @return direction String
+ 	 */
+ 	private String getDirection(String doc) throws Exception {
++	  //TODO decode direction from image cache code
++	  return "";
++	  
++	  /*
+ 		RexPropDirection.search(doc);
+ 		if (!RexPropDirection.didMatch()) {
+ 			pref.log("check directionRex in spider.def" 
+@@ -1862,6 +1867,7 @@
+ 			return "";
+ 		}
+ 		return RexPropDirection.stringMatched(1);
++		*/
+ 	}
+ 
+ 	/*
+@@ -2232,8 +2238,8 @@
+ 		shortDescRex.search(doc);
+ 		if (!shortDescRex.didMatch()) {
+ 			if (shortDescRex_not_yet_found)
+-				pref.log("no shortDesc or check shortDescRex in spider.def"
+-						+ Preferences.NEWLINE + doc);
++				pref.log("no shortDesc or check shortDescRex in spider.def");
++				//		+ Preferences.NEWLINE + doc);
+ 		} else {
+ 			res = shortDescRex.stringMatched(1);
+ 			shortDescRex_not_yet_found = false;
+
+
+
+From mik77 at mail.berlios.de  Fri Dec 24 12:44:50 2010
+From: mik77 at mail.berlios.de (mik77 at mail.berlios.de)
+Date: Fri, 24 Dec 2010 12:44:50 AM +0100
+Subject: [Cachewolf-svn] r2889 - trunk/src/CacheWolf/imp
+Message-ID: <20101223234450.DEDAF48026C@sheep.berlios.de>
+
+Author: mik77
+Date: 2010-12-24 00:44:50 +0100 (Fri, 24 Dec 2010)
+New Revision: 2889
+
+Modified:
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+image code decoding extracted to decodeXor
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2010-12-23 23:23:23 UTC (rev 2888)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2010-12-23 23:44:50 UTC (rev 2889)
+@@ -1720,6 +1720,17 @@
+ 		}
+ 		return counter;
+ 	}
++	
++	private String decodeXor(String input, String key) {
++	  byte ctmp[] = input.getBytes();
++		byte ckey[] = key.getBytes();
++		int codeLength = input.length();
++		int keyLength = key.length();
++		for (int i=0; i<codeLength; i++) {
++		  ctmp[i]^=ckey[i%keyLength];
++    }
++		return new String(ctmp);
++  }
+ 
+ 	/**
+ 	 * Get the Distance to the centre
+@@ -1735,13 +1746,7 @@
+ 			return 0;
+ 		}
+ 		String stmp = ewe.net.URL.decodeURL(RexPropDistanceCode.stringMatched(1));
+-		byte ctmp[] = stmp.getBytes();
+-		byte ckey[] = DistanceCodeKey.getBytes();
+-		int maxDecodeLength = java.lang.Math.min(stmp.length(), DistanceCodeKey.length());
+-		for (int i=0; i<maxDecodeLength; i++) {
+-		  ctmp[i]^=ckey[i];
+-    }
+-		stmp = new String(ctmp);
++		stmp = decodeXor( stmp, DistanceCodeKey);
+ 		RexPropDistance.search(stmp); // km oder mi
+ 		pref.log(RexPropDistanceCode.stringMatched(1)+" : "+stmp,null);
+ 		if (RexPropDistance.didMatch()) {
+
+
+
+From mik77 at mail.berlios.de  Fri Dec 24 01:31:32 2010
+From: mik77 at mail.berlios.de (mik77 at mail.berlios.de)
+Date: Fri, 24 Dec 2010 01:31:32 AM +0100
+Subject: [Cachewolf-svn] r2890 - in trunk: res_noewe src/CacheWolf/imp
+Message-ID: <20101224003132.586BE48026C@sheep.berlios.de>
+
+Author: mik77
+Date: 2010-12-24 01:31:31 +0100 (Fri, 24 Dec 2010)
+New Revision: 2890
+
+Modified:
+   trunk/res_noewe/spider.def
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+some more spider adaptions and TODOs added
+
+Modified: trunk/res_noewe/spider.def
+===================================================================
+--- trunk/res_noewe/spider.def	2010-12-23 23:44:50 UTC (rev 2889)
++++ trunk/res_noewe/spider.def	2010-12-24 00:31:31 UTC (rev 2890)
+@@ -71,14 +71,14 @@
+ lineRex            = <tr\ bgcolor='#.{6}'\\s*class="Data\ BorderTop">((?s).*?)</tr>
+ directionRex       = /compass/(.*?).gif
+ logDateRex         = <td>\\s*(.*?)<br\ />\\s*<span\ class="Success">
+-availableRex       = <span\ class="Strike">
+-archivedRex        = <span\ class="OldWarning\ Strike">
++availableRex       = class="lnk\ \ Strike">
++archivedRex        = class="lnk\ OldWarning\ Strike\ Strike">
+ PMRex              = small_profile.gif
+ distCodeRex        = k=(.*?)"\ style=
+ distCodeKey        = groundspeak
+ distRex            = (.*?)(?:km|mi)
+ waypointRex        = \\(GC(.*?)\\)<br\ />
+-TypeRex            = k">\\s*<img\ src="/images/WptTypes/(.*?)\\.gif
++TypeRex            = k">\\s*<img\ src="http://www.geocaching.com/images/wpttypes/sm/(.*?)\\.gif
+ SizeRex            = /container/(.*?)\\.gif
+ DandTRex           = <td>\\s*\\((.*?)/(.*?)\\)<br
+ found              = alt="Found\ It!"
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2010-12-23 23:44:50 UTC (rev 2889)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2010-12-24 00:31:31 UTC (rev 2890)
+@@ -1815,6 +1815,7 @@
+ 	 * check for changed CacheSize
+ 	 */
+ 	private boolean sizeChanged(CacheHolder ch, String toCheck) {
++	  //TODO extract size from image code
+ 		RexPropSize.search(toCheck);
+ 		if (RexPropSize.didMatch()) {
+ 			String stmp = RexPropSize.stringMatched(1);
+@@ -1833,6 +1834,7 @@
+ 	 * check for changed Difficulty or Terrain
+ 	 */
+ 	private boolean difficultyOrTerrainChanged(CacheHolder ch, String toCheck) {
++	  //TODO extract D/T from image code
+ 		boolean ret = false;
+ 		RexPropDandT.search(toCheck);
+ 		if (RexPropDandT.didMatch()) {
+
+
+
+From salzkammergut at mail.berlios.de  Mon Dec 27 05:55:42 2010
+From: salzkammergut at mail.berlios.de (salzkammergut at mail.berlios.de)
+Date: Mon, 27 Dec 2010 05:55:42 PM +0100
+Subject: [Cachewolf-svn] r2891 - trunk/src/CacheWolf
+Message-ID: <20101227165543.1FAC7480587@sheep.berlios.de>
+
+Author: salzkammergut
+Date: 2010-12-27 17:55:42 +0100 (Mon, 27 Dec 2010)
+New Revision: 2891
+
+Modified:
+   trunk/src/CacheWolf/Profile.java
+Log:
+Eliminate unnecessary object creations
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2010-12-24 00:31:31 UTC (rev 2890)
++++ trunk/src/CacheWolf/Profile.java	2010-12-27 16:55:42 UTC (rev 2891)
+@@ -58,28 +58,28 @@
+ 	public CWPoint centre=new CWPoint();
+ 	/** The name of the profile. The baseDir in preferences is appended this name to give the dataDir where
+ 	 *  the index.xml and cache files live. (Excuse the English spelling of centre)     */
+-	public String name=new String();
++	public String name="";
+ 	/** This is the directory for the profile. It contains a closing /.   	 */
+-	public String dataDir = new String();
++	public String dataDir = "";
+ 
+ 	/** Last sync date for opencaching caches */
+-	private String last_sync_opencaching = new String();
++	private String last_sync_opencaching = "";
+ 
+ 	/** Distance for opencaching caches */
+-	private String distOC = new String();
++	private String distOC = "";
+ 
+ 	/** Distance for geocaching caches */
+-	private String distGC = new String();
+-	private String minDistGC = new String();
++	private String distGC = "";
++	private String minDistGC = "";
+ 	/** Direction for geocaching caches */
+-	private String directionGC = new String();
++	private String directionGC = "";
+ 	
+ 	private String gpxStyle =new String(); 
+ 	private String gpxTarget =new String(); 
+ 	private String gpxId =new String(); 
+ 
+ 	/** path to the maps of the profile relative to the maps root */
+-	private String relativeCustomMapsPath = new String();
++	private String relativeCustomMapsPath = "";
+ 
+ 	public final static boolean SHOW_PROGRESS_BAR = true;
+ 	public final static boolean NO_SHOW_PROGRESS_BAR = false;
+@@ -227,7 +227,7 @@
+ 			if (getDirectionGC() == null || getDirectionGC().endsWith("null") || getDirectionGC().equals("")) {
+ 				setDirectionGC("");
+ 			}
+-			
++
+ 			// If the current filter is a CacheTour filter, then save it as
+ 			// normal filter, because after loading there is no cache tour defined
+ 			// which could be used as filter criterium.
+
+
+
+From araber95 at mail.berlios.de  Mon Dec 27 09:00:38 2010
+From: araber95 at mail.berlios.de (araber95 at mail.berlios.de)
+Date: Mon, 27 Dec 2010 09:00:38 PM +0100
+Subject: [Cachewolf-svn] r2892 - in trunk: res_noewe/languages
+	src/CacheWolf/imp
+Message-ID: <20101227200038.727D0480587@sheep.berlios.de>
+
+Author: araber95
+Date: 2010-12-27 21:00:38 +0100 (Mon, 27 Dec 2010)
+New Revision: 2892
+
+Modified:
+   trunk/res_noewe/languages/DE.cfg
+   trunk/res_noewe/languages/EN.cfg
+   trunk/res_noewe/languages/FR.cfg
+   trunk/res_noewe/languages/NL.cfg
+   trunk/res_noewe/languages/PL.cfg
+   trunk/res_noewe/languages/SV.cfg
+   trunk/src/CacheWolf/imp/OCXMLImporterScreen.java
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+Changed direction selection (due to last gc change)
+
+Modified: trunk/res_noewe/languages/DE.cfg
+===================================================================
+--- trunk/res_noewe/languages/DE.cfg	2010-12-27 16:55:42 UTC (rev 2891)
++++ trunk/res_noewe/languages/DE.cfg	2010-12-27 20:00:38 UTC (rev 2892)
+@@ -514,8 +514,8 @@
+ 1626=Speichere bis zu x Logs:
+ 1627=Alle Caches
+ 1628=min. Abstand:
+-1629=Richtung (leer/N/N*/N,NE,E):
+-1630=z.B. leer oder N oder N* oder N,NE,E
++1629=Richtung (leer/von-bis(Grad)):
++1630=z.B. leer oder von-bis(Grad)
+ 1631=Aktualisiere h?chstens:
+ 1700=Fehler in Zeile:
+ 1701=Spalte:
+
+Modified: trunk/res_noewe/languages/EN.cfg
+===================================================================
+--- trunk/res_noewe/languages/EN.cfg	2010-12-27 16:55:42 UTC (rev 2891)
++++ trunk/res_noewe/languages/EN.cfg	2010-12-27 20:00:38 UTC (rev 2892)
+@@ -514,8 +514,8 @@
+ 1626=Max. save logs:
+ 1627=All caches
+ 1628=min. Distance:
+-1629=Direction (empty/N/N*/N,NE,E):
+-1630=e.g. blank or N or N* or N,NE,E
++1629 = direction (empty / from-to (degrees)):
++1630 = e.g. empty or low-high (degree)
+ 1631=Update upto:
+ 1700=Error on line:
+ 1701=position:
+
+Modified: trunk/res_noewe/languages/FR.cfg
+===================================================================
+--- trunk/res_noewe/languages/FR.cfg	2010-12-27 16:55:42 UTC (rev 2891)
++++ trunk/res_noewe/languages/FR.cfg	2010-12-27 20:00:38 UTC (rev 2892)
+@@ -514,8 +514,8 @@
+ 1626=Max Activit?:
+ 1627=Tous les caches
+ 1628=min. Distance:
+-1629=Direction (vide/N/N*/N,NE,E):
+-1630=par exemple nulle ou N ou N* ou N,NE,E
++1629 = direction (vide / ? partir de (degr?s)):
++1630 = par exemple, vide ou bas-haut (degr?)
+ 1631=max. Mises ? jour:
+ 1700=Erreur en lingne:
+ 1701=Colonne:
+
+Modified: trunk/res_noewe/languages/NL.cfg
+===================================================================
+--- trunk/res_noewe/languages/NL.cfg	2010-12-27 16:55:42 UTC (rev 2891)
++++ trunk/res_noewe/languages/NL.cfg	2010-12-27 20:00:38 UTC (rev 2892)
+@@ -514,8 +514,8 @@
+ 1626=Max Logs:
+ 1627=Alle caches
+ 1628=max. Afstand:
+-1629=Richting (leeg/N/N*/N,NE,E):
+-1630=bv. blanco of N of N* of N,NE,E
++1629 = richting (leeg / van-tot (graden)):
++1630 = bijvoorbeeld leeg of laag-hoog (graden)
+ 1631=Max. Updates:
+ 1700=Fout in lijn:
+ 1701=Positie:
+
+Modified: trunk/res_noewe/languages/PL.cfg
+===================================================================
+--- trunk/res_noewe/languages/PL.cfg	2010-12-27 16:55:42 UTC (rev 2891)
++++ trunk/res_noewe/languages/PL.cfg	2010-12-27 20:00:38 UTC (rev 2892)
+@@ -514,8 +514,8 @@
+ 1626=Max. logow:
+ 1627=Wszystkie skrzynki
+ 1628=min. Odleglosc:
+-1629=Kierunek (pusty/N/N*/N,NE,E):
+-1630=np. puste lub N lub N* lub N,S,E
++1629 = Kierunek (pusty / od-do (w stopniach)):
++1630 = np. puste lub niski-wysoki (w stopniach)
+ 1631=Max. Aktualizacje:
+ 1700=Blad on line:
+ 1701=pozycja:
+
+Modified: trunk/res_noewe/languages/SV.cfg
+===================================================================
+--- trunk/res_noewe/languages/SV.cfg	2010-12-27 16:55:42 UTC (rev 2891)
++++ trunk/res_noewe/languages/SV.cfg	2010-12-27 20:00:38 UTC (rev 2892)
+@@ -514,8 +514,8 @@
+ 1626=Max. spara loggar:
+ 1627=Alla cachar
+ 1628=min. Avst?nd:
+-1629=Direction (tom / N / N * / N, NE, E):
+-1630=t.ex. tom eller N eller N * eller N, NE, E
++1629 = riktning (tom / fr?n-till (grader)):
++1630 = t.ex. tom eller l?g-h?g (grad)
+ 1631=Uppdatera upto:
+ 1700=Fel p? rad:
+ 1701=position:
+
+Modified: trunk/src/CacheWolf/imp/OCXMLImporterScreen.java
+===================================================================
+--- trunk/src/CacheWolf/imp/OCXMLImporterScreen.java	2010-12-27 16:55:42 UTC (rev 2891)
++++ trunk/src/CacheWolf/imp/OCXMLImporterScreen.java	2010-12-27 20:00:38 UTC (rev 2892)
+@@ -150,7 +150,7 @@
+ 			this.addNext(new mLabel(MyLocale.getMsg(1629,"Richtung:")),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 			directionInput = new mInput();
+ 			directionInput.setText(Global.getProfile().getDirectionGC());
+-			directionInput.toolTip=MyLocale.getMsg(1630,"z.B. leer oder N oder N* oder N,NE,E");
++			directionInput.toolTip=MyLocale.getMsg(1630,"z.B. leer oder von-bis (Grad)");
+ 			this.addLast(directionInput,CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		}
+ 
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2010-12-27 16:55:42 UTC (rev 2891)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2010-12-27 20:00:38 UTC (rev 2892)
+@@ -238,10 +238,7 @@
+ 
+ 			cachesToUpdate = fillDownloadLists(pref.maxSpiderNumber, maxUpdate,
+ 					maxDistance, minDistance, directions, cachesToUpdate);
+-			if (cachesToUpdate == null) {
+-				cachesToUpdate = new Hashtable();
+-			}
+-			;
++			if (cachesToUpdate == null) { cachesToUpdate = new Hashtable(); };
+ 			if (!infB.isClosed) {
+ 				infB.setInfo(MyLocale.getMsg(5511, "Found ")
+ 						+ cachesToLoad.size()
+@@ -805,8 +802,6 @@
+ 			}
+ 			if (maxUpdate == -1)
+ 				maxUpdate = Integer.MAX_VALUE;
+-			// TODO maxUpdate in preferences ?
+-
+ 		}
+ 
+ 		// options for all
+@@ -823,7 +818,7 @@
+ 			profile.setDistGC(Double.toString(maxDistance));
+ 		}
+ 
+-		directions = mString.split(direction, ',');
++		directions = mString.split(direction, '-');
+ 		// works even if TYPE not in options
+ 		cacheTypeRestriction = options.getCacheTypeRestriction(p);
+ 		restrictedCacheType = options.getRestrictedCacheType(p);
+@@ -952,14 +947,14 @@
+ 						Global.mainTab.statBar.updateDisplay("working "
+ 								+ page_number + " / " + found_on_page);
+ 					String CacheDescriptionGC = RexPropLine.stringMatched(1);
+-					double gotDistance = getDistGC(CacheDescriptionGC);
++					String DistanceAndDirection = getDistanceAndDirection(CacheDescriptionGC);
++					double gotDistance = getDistGC(DistanceAndDirection);
+ 					String chWaypoint = getWP(CacheDescriptionGC);
+ 					if (gotDistance <= toDistance) {
+ 						CacheHolder ch = cacheDB.get(chWaypoint);
+ 						if (ch == null) { // not in DB
+ 							if (gotDistance >= fromDistance
+-									&& directionOK(directions,
+-											getDirection(CacheDescriptionGC))
++									&& directionOK(directions, getDirection(DistanceAndDirection))
+ 									&& doPMCache(CacheDescriptionGC)
+ 									&& cachesToLoad.size() < maxNew) {
+ 								if (CacheDescriptionGC.indexOf(propFound) != -1)
+@@ -1731,7 +1726,15 @@
+     }
+ 		return new String(ctmp);
+   }
+-
++	private String getDistanceAndDirection(String doc) {
++		RexPropDistanceCode.search(doc);
++		if (!RexPropDistanceCode.didMatch()) {
++			pref.log("check distRex" + Preferences.NEWLINE + doc);
++			return "";
++		}
++		String stmp = ewe.net.URL.decodeURL(RexPropDistanceCode.stringMatched(1));
++		return decodeXor( stmp, DistanceCodeKey);
++	}
+ 	/**
+ 	 * Get the Distance to the centre
+ 	 * 
+@@ -1740,15 +1743,7 @@
+ 	 * @return Distance
+ 	 */
+ 	private double getDistGC(String doc) throws Exception {
+-		RexPropDistanceCode.search(doc);
+-		if (!RexPropDistanceCode.didMatch()) {
+-			pref.log("check distRex" + Preferences.NEWLINE + doc);
+-			return 0;
+-		}
+-		String stmp = ewe.net.URL.decodeURL(RexPropDistanceCode.stringMatched(1));
+-		stmp = decodeXor( stmp, DistanceCodeKey);
+-		RexPropDistance.search(stmp); // km oder mi
+-		pref.log(RexPropDistanceCode.stringMatched(1)+" : "+stmp,null);
++		RexPropDistance.search(doc); // km oder mi
+ 		if (RexPropDistance.didMatch()) {
+ 			if (MyLocale.getDigSeparator().equals(","))
+ 				return Convert.toDouble(RexPropDistance.stringMatched(1)
+@@ -1863,18 +1858,13 @@
+ 	 * @return direction String
+ 	 */
+ 	private String getDirection(String doc) throws Exception {
+-	  //TODO decode direction from image cache code
+-	  return "";
+-	  
+-	  /*
+ 		RexPropDirection.search(doc);
+ 		if (!RexPropDirection.didMatch()) {
+-			pref.log("check directionRex in spider.def" 
+-					+ Preferences.NEWLINE + doc);
++			pref.log("check directionRex in spider.def" + Preferences.NEWLINE + doc);
+ 			return "";
+ 		}
+-		return RexPropDirection.stringMatched(1);
+-		*/
++		String s=RexPropDirection.stringMatched(1);
++		return s;
+ 	}
+ 
+ 	/*
+@@ -1883,18 +1873,19 @@
+ 	private boolean directionOK(String[] directions, String gotDirection) {
+ 		if (directions.length == 0)
+ 			return true; // nothing means all
+-		for (int i = 0; i < directions.length; i++) {
+-			if (directions[i].equals(gotDirection)) {
+-				return true;
+-			}
+-			int j = directions[i].indexOf("*");
+-			if (j > 0) {
+-				if (gotDirection.indexOf(directions[i].substring(0, 1)) > -1) {
+-					return true;
+-				}
+-			}
++		int lowerLimit = Common.parseInt(directions[0]);
++		int upperLimit = Common.parseInt(directions[1]);
++		int toCheck = Common.parseInt(gotDirection);
++		if (lowerLimit <= upperLimit) {
++			if ((toCheck>=lowerLimit) && (toCheck<=upperLimit))
++			{return true;}
++			else {return false;}
+ 		}
+-		return false;
++		else {
++			if ((toCheck>=lowerLimit) || (toCheck<=upperLimit))
++			{return true;}
++			else {return false;}
++		}
+ 	}
+ 
+ 	/*
+
+
+
+From araber95 at mail.berlios.de  Thu Dec 30 12:19:14 2010
+From: araber95 at mail.berlios.de (araber95 at mail.berlios.de)
+Date: Thu, 30 Dec 2010 12:19:14 AM +0100
+Subject: [Cachewolf-svn] r2893 - in trunk/tools: . ImageDecode
+	ImageDecode/classes ImageDecode/src
+Message-ID: <20101229231914.86638480784@sheep.berlios.de>
+
+Author: araber95
+Date: 2010-12-30 00:19:14 +0100 (Thu, 30 Dec 2010)
+New Revision: 2893
+
+Added:
+   trunk/tools/ImageDecode/
+   trunk/tools/ImageDecode/.classpath
+   trunk/tools/ImageDecode/.project
+   trunk/tools/ImageDecode/2.5_1.5.png
+   trunk/tools/ImageDecode/2_1.png
+   trunk/tools/ImageDecode/3_1.5.png
+   trunk/tools/ImageDecode/4.5_2.5.png
+   trunk/tools/ImageDecode/classes/
+   trunk/tools/ImageDecode/classes/ImageParser.class
+   trunk/tools/ImageDecode/decode_DTS/
+   trunk/tools/ImageDecode/large.png
+   trunk/tools/ImageDecode/micro.png
+   trunk/tools/ImageDecode/not_choosen.png
+   trunk/tools/ImageDecode/other.png
+   trunk/tools/ImageDecode/regular.png
+   trunk/tools/ImageDecode/small.png
+   trunk/tools/ImageDecode/src/
+   trunk/tools/ImageDecode/src/ImageParser.java
+Log:
+Brute Force
+
+Added: trunk/tools/ImageDecode/.classpath
+===================================================================
+--- trunk/tools/ImageDecode/.classpath	                        (rev 0)
++++ trunk/tools/ImageDecode/.classpath	2010-12-29 23:19:14 UTC (rev 2893)
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<classpath>
++	<classpathentry kind="src" path="src"/>
++	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
++	<classpathentry kind="output" path="classes"/>
++</classpath>
+
+Added: trunk/tools/ImageDecode/.project
+===================================================================
+--- trunk/tools/ImageDecode/.project	                        (rev 0)
++++ trunk/tools/ImageDecode/.project	2010-12-29 23:19:14 UTC (rev 2893)
+@@ -0,0 +1,17 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<projectDescription>
++	<name>GeoCaching</name>
++	<comment></comment>
++	<projects>
++	</projects>
++	<buildSpec>
++		<buildCommand>
++			<name>org.eclipse.jdt.core.javabuilder</name>
++			<arguments>
++			</arguments>
++		</buildCommand>
++	</buildSpec>
++	<natures>
++		<nature>org.eclipse.jdt.core.javanature</nature>
++	</natures>
++</projectDescription>
+
+Added: trunk/tools/ImageDecode/2.5_1.5.png
+===================================================================
+(Binary files differ)
+
+
+Property changes on: trunk/tools/ImageDecode/2.5_1.5.png
+___________________________________________________________________
+Added: svn:mime-type
+   + application/octet-stream
+
+Added: trunk/tools/ImageDecode/2_1.png
+===================================================================
+(Binary files differ)
+
+
+Property changes on: trunk/tools/ImageDecode/2_1.png
+___________________________________________________________________
+Added: svn:mime-type
+   + application/octet-stream
+
+Added: trunk/tools/ImageDecode/3_1.5.png
+===================================================================
+(Binary files differ)
+
+
+Property changes on: trunk/tools/ImageDecode/3_1.5.png
+___________________________________________________________________
+Added: svn:mime-type
+   + application/octet-stream
+
+Added: trunk/tools/ImageDecode/4.5_2.5.png
+===================================================================
+(Binary files differ)
+
+
+Property changes on: trunk/tools/ImageDecode/4.5_2.5.png
+___________________________________________________________________
+Added: svn:mime-type
+   + application/octet-stream
+
+Added: trunk/tools/ImageDecode/classes/ImageParser.class
+===================================================================
+(Binary files differ)
+
+
+Property changes on: trunk/tools/ImageDecode/classes/ImageParser.class
+___________________________________________________________________
+Added: svn:mime-type
+   + application/octet-stream
+
+Added: trunk/tools/ImageDecode/large.png
+===================================================================
+(Binary files differ)
+
+
+Property changes on: trunk/tools/ImageDecode/large.png
+___________________________________________________________________
+Added: svn:mime-type
+   + application/octet-stream
+
+Added: trunk/tools/ImageDecode/micro.png
+===================================================================
+(Binary files differ)
+
+
+Property changes on: trunk/tools/ImageDecode/micro.png
+___________________________________________________________________
+Added: svn:mime-type
+   + application/octet-stream
+
+Added: trunk/tools/ImageDecode/not_choosen.png
+===================================================================
+(Binary files differ)
+
+
+Property changes on: trunk/tools/ImageDecode/not_choosen.png
+___________________________________________________________________
+Added: svn:mime-type
+   + application/octet-stream
+
+Added: trunk/tools/ImageDecode/other.png
+===================================================================
+(Binary files differ)
+
+
+Property changes on: trunk/tools/ImageDecode/other.png
+___________________________________________________________________
+Added: svn:mime-type
+   + application/octet-stream
+
+Added: trunk/tools/ImageDecode/regular.png
+===================================================================
+(Binary files differ)
+
+
+Property changes on: trunk/tools/ImageDecode/regular.png
+___________________________________________________________________
+Added: svn:mime-type
+   + application/octet-stream
+
+Added: trunk/tools/ImageDecode/small.png
+===================================================================
+(Binary files differ)
+
+
+Property changes on: trunk/tools/ImageDecode/small.png
+___________________________________________________________________
+Added: svn:mime-type
+   + application/octet-stream
+
+Added: trunk/tools/ImageDecode/src/ImageParser.java
+===================================================================
+--- trunk/tools/ImageDecode/src/ImageParser.java	                        (rev 0)
++++ trunk/tools/ImageDecode/src/ImageParser.java	2010-12-29 23:19:14 UTC (rev 2893)
+@@ -0,0 +1,239 @@
++import java.awt.image.BufferedImage;
++import java.io.File;
++import java.io.IOException;
++import java.util.Hashtable;
++
++import javax.imageio.ImageIO;
++
++
++public class ImageParser {
++
++	static Hashtable<String, int[][]> validChars = new Hashtable<String, int[][]>();
++	
++	static {
++		validChars.put(".", new int[][] {
++				{0, 0, 0 },
++				{0, 0, 0 },
++				{0, 0, 0 },
++				{0, 0, 0 },
++				{0, 0, 0 },
++				{0, 0, 0 },
++				{0, 1, 0 },
++				{0, 1, 0 }
++		});
++		validChars.put("/", new int[][] {
++				{0, 0, 0, 0, 1},
++				{0, 0, 0, 1, 0},
++				{0, 0, 0, 1, 0},
++				{0, 0, 1, 0, 0},
++				{0, 0, 1, 0, 0},
++				{0, 1, 0, 0, 0},
++				{0, 1, 0, 0, 0},
++				{1, 0, 0, 0, 0}
++		});
++		validChars.put("1", new int[][] {
++				{0, 0, 1, 0, 0},
++				{1, 1, 1, 0, 0},
++				{0, 0, 1, 0, 0},
++				{0, 0, 1, 0, 0},
++				{0, 0, 1, 0, 0},
++				{0, 0, 1, 0, 0},
++				{0, 0, 1, 0, 0},
++				{1, 1, 1, 1, 1}
++		});
++		validChars.put("2", new int[][] {
++				{0, 1, 1, 1, 0},
++				{1, 0, 0, 0, 1},
++				{0, 0, 0, 0, 1},
++				{0, 0, 0, 1, 0},
++				{0, 0, 1, 0, 0},
++				{0, 1, 0, 0, 0},
++				{1, 0, 0, 0, 0},
++				{1, 1, 1, 1, 1}
++		});
++		validChars.put("3", new int[][] {
++				{0, 1, 1, 1, 0},
++				{1, 0, 0, 0, 1},
++				{0, 0, 0, 0, 1},
++				{0, 0, 1, 1, 0},
++				{0, 0, 0, 0, 1},
++				{0, 0, 0, 0, 1},
++				{1, 0, 0, 0, 1},
++				{0, 1, 1, 1, 0}
++		});
++		validChars.put("4", new int[][] {
++				{0, 0, 0, 0, 1, 0},
++				{0, 0, 0, 1, 1, 0},
++				{0, 0, 1, 0, 1, 0},
++				{0, 1, 0, 0, 1, 0},
++				{1, 0, 0, 0, 1, 0},
++				{1, 1, 1, 1, 1, 1},
++				{0, 0, 0, 0, 1, 0},
++				{0, 0, 0, 0, 1, 0}
++		});
++		validChars.put("5", new int[][] {
++				{1, 1, 1, 1, 1},
++				{1, 0, 0, 0, 0},
++				{1, 0, 0, 0, 0},
++				{1, 1, 1, 1, 0},
++				{0, 0, 0, 0, 1},
++				{0, 0, 0, 0, 1},
++				{1, 0, 0, 0, 1},
++				{0, 1, 1, 1, 0}
++		});
++	}
++	
++	private static void parseImage(File datei) {
++		if (datei.exists()) {
++			try {
++				BufferedImage bild = ImageIO.read(datei);
++
++				String chars = testValidChars(bild);
++				System.out.println(chars);
++				
++				String size= testSize(bild);
++				System.out.println(size);
++
++//				String image = printImage(bild);
++//				System.out.println(image);
++//				
++//				String alpha = printAlpha(bild);
++//				System.out.println(alpha);
++			} catch (IOException e) {
++				System.out.println("passt net");
++				e.printStackTrace();
++			}
++		} else {
++			System.out.println("File not found: "+datei.getAbsolutePath());
++		}
++	}
++
++	private static String testSize(BufferedImage bild) {
++		// -7005927
++		int rgb = bild.getRGB(5, 23);
++		if (rgb == -7005927) return "nano";
++		rgb = bild.getRGB(10, 23);
++		if (rgb == -7005927) return "small";
++		rgb = bild.getRGB(17, 23);
++		if (rgb == -7005927) return "regular";
++		rgb = bild.getRGB(26, 23);
++		if (rgb == -7005927) return "large";
++		rgb = bild.getRGB(40, 23);
++		if (rgb == -6735302) return "not_choosen";
++		rgb = bild.getRGB(41, 24);
++		if (rgb == -7005927) return "other";
++		return null;
++	}
++
++	private static String testValidChars(BufferedImage bild) {
++		StringBuffer sb = new StringBuffer();
++		for (int startX = 0; startX < bild.getWidth(); startX++) {
++			for (String validChar : validChars.keySet()) {
++				if (testValidChar(bild, startX, 4, validChars.get(validChar))) {
++	//				System.out.println(validChar);
++	//				System.out.println("at "+startX+"/"+startY);
++					sb.append(validChar);
++				} else {
++	//				System.out.println("keine "+validChar+" bei "+startX+"/"+startY);
++				}
++			}
++		}
++		return sb.toString();
++	}
++
++	private static boolean testValidChar(BufferedImage bild, int startX, int startY, int[][] validChar) {
++		for (int y = 0; y < validChar.length; y++) {
++			if (bild.getHeight() > startY+y) {
++				for (int x = 0; x < validChar[0].length; x++) {
++					if (bild.getWidth() > startX+x) {
++						int[] alpha = bild.getAlphaRaster().getPixel(startX+x, startY+y, new int[1]);
++						if ((alpha[0] == 0 && validChar[y][x] == 0) ||
++								(alpha[0] > 0 && validChar[y][x] > 0)) {
++							// matches
++						} else {
++							return false;
++						} 
++					} else {
++						return false;
++					}
++				}
++			} else {
++				return false;
++			}
++		}
++		return true;
++	}
++
++	private static String printImage(BufferedImage bild) {
++		StringBuffer sb = new StringBuffer();
++		for (int y = 0; y < bild.getHeight(); y++) {
++			for (int x = 0; x < bild.getWidth(); x++) {
++				int rgb = bild.getRGB(x, y);
++				int[] alpha = bild.getAlphaRaster().getPixel(x, y, new int[1]);
++//				Color farbe = new Color(rgb);
++//				sb.append(pad(alpha[0]) + "|" + pad(farbe.getRed())+" "+pad(farbe.getGreen())+" "+pad(farbe.getBlue()));
++				sb.append(pad(alpha[0]) + "|" + pad(rgb));
++				if (x == bild.getWidth()-1) {
++					sb.append("\n");
++				} else {
++					sb.append(", ");
++				}
++			}
++		}
++		return sb.toString();
++	}
++
++	private static String printAlpha(BufferedImage bild) {
++		StringBuffer sb = new StringBuffer();
++		for (int y = 0; y < bild.getHeight(); y++) {
++			for (int x = 0; x < bild.getWidth(); x++) {
++				int[] alpha = bild.getAlphaRaster().getPixel(x, y, new int[1]);
++				sb.append(alpha[0] > 0 ? 1 : 0);
++				if (x == bild.getWidth()-1) {
++					sb.append("\n");
++				} else {
++					sb.append(", ");
++				}
++			}
++		}
++		return sb.toString();
++	}
++
++	private static String pad(int number) {
++		Integer integer = new Integer(number);
++		String string = integer.toString();
++		int length = string.length();
++		for (int i = 0; i < 8 - length; i++) {
++			string = " "+string;
++		}
++		return string;
++	}
++
++	/**
++	 * @param args
++	 */
++	public static void main(String[] args) {
++		File datei ;
++		datei = new File("micro.png");
++		parseImage(datei);
++		datei = new File("small.png");
++		parseImage(datei);
++		datei = new File("regular.png");
++		parseImage(datei);
++		datei = new File("large.png");
++		parseImage(datei);
++		datei = new File("not_choosen.png");
++		parseImage(datei);
++		datei = new File("other.png");
++		parseImage(datei);
++		datei = new File("2_1.png");
++		parseImage(datei);
++		datei = new File("2.5_1.5.png");
++		parseImage(datei);
++		datei = new File("3_1.5.png");
++		parseImage(datei);
++		datei = new File("4.5_2.5.png");
++		parseImage(datei);
++	}
++
++}
+
+
+

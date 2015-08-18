@@ -1,0 +1,204 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2829 - in trunk: res_noewe src/CacheWolf/imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-October/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2829%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf/imp&In-Reply-To=%3C20101021203711.3A48D480EDE%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002816.html">
+   <LINK REL="Next"  HREF="002818.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2829 - in trunk: res_noewe src/CacheWolf/imp</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2829%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf/imp&In-Reply-To=%3C20101021203711.3A48D480EDE%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2829 - in trunk: res_noewe src/CacheWolf/imp">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Thu Oct 21 10:37:11 CEST 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002816.html">[Cachewolf-svn] r2828 - trunk/src/CacheWolf/navi
+</A></li>
+        <LI>Next message: <A HREF="002818.html">[Cachewolf-svn] r2830 - trunk/res_noewe/exporticons/exporticons
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2817">[ date ]</a>
+              <a href="thread.html#2817">[ thread ]</a>
+              <a href="subject.html#2817">[ subject ]</a>
+              <a href="author.html#2817">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2010-10-21 22:37:10 +0200 (Thu, 21 Oct 2010)
+New Revision: 2829
+
+Modified:
+   trunk/res_noewe/spider.def
+   trunk/src/CacheWolf/imp/GPXImporter.java
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+1. premium recognition updated (spider.def)
+2. import of images (for non premium, got gpx from premium)
+
+Modified: trunk/res_noewe/spider.def
+===================================================================
+--- trunk/res_noewe/spider.def	2010-10-21 14:22:50 UTC (rev 2828)
++++ trunk/res_noewe/spider.def	2010-10-21 20:37:10 UTC (rev 2829)
+@@ -103,7 +103,7 @@
+ fetchAllLogs       = &amp;log=y
+ cacheUnavailable   = cache\ is\ temporarily\ unavailable
+ cacheArchived      = cache\ has\ been\ archived
+-premiumCachepage   = viewable\ to\ Premium\ Members\ only.
++premiumCachepage   = Premium\ Member\ Only\ Cache
+ latLonRex          = tBody_LatLon&quot;\ style=&quot;font-weight:bold;&quot;&gt;((?s).*?)&lt;/span&gt;
+ shortDescRex       = tBody_ShortDescription&quot;&gt;((?s).*?)&lt;/span&gt;
+ longDescRex        = tBody_LongDescription&quot;&gt;((?s).*?)&lt;td\ valign=&quot;top&quot;\ width=&quot;10%&quot;&gt;\\s*&nbsp;\\s*&lt;/td
+
+Modified: trunk/src/CacheWolf/imp/GPXImporter.java
+===================================================================
+--- trunk/src/CacheWolf/imp/GPXImporter.java	2010-10-21 14:22:50 UTC (rev 2828)
++++ trunk/src/CacheWolf/imp/GPXImporter.java	2010-10-21 20:37:10 UTC (rev 2829)
+@@ -25,6 +25,8 @@
+     */
+ package CacheWolf.imp;
+ 
++import com.stevesoft.ewe_pat.Regex;
++
+ import CacheWolf.CacheDB;
+ import CacheWolf.CacheHolder;
+ import CacheWolf.CacheSize;
+@@ -41,6 +43,7 @@
+ import CacheWolf.STRreplace;
+ import CacheWolf.SafeXML;
+ import CacheWolf.Travelbug;
++import CacheWolf.imp.SpiderGC.SpiderProperties;
+ import ewe.io.FileInputStream;
+ import ewe.sys.Time;
+ import ewe.sys.Vm;
+@@ -82,6 +85,7 @@
+ 	public static final int DOIT_NOSPOILER = 1;
+ 	public static final int DOIT_WITHSPOILER = 2;
+ 	SpiderGC imgSpider;
++	SpiderProperties propsSpider;
+ 	StringBuffer strBuf;
+ 	private int doitHow;
+ 	
+@@ -537,20 +541,31 @@
+ 		
+ 		// just to be sure to have a spider object
+ 		if (imgSpider == null) imgSpider = new SpiderGC(pref, profile, false);
++		if (propsSpider == null) {propsSpider = imgSpider.new SpiderProperties();	}
+ 		
+-		if (fromTC) {
+-				imgSpider.getImages(holder.getCacheDetails(false).LongDescription, holder.getCacheDetails(false));
++		try {
++				if (fromTC) {
++						imgSpider.getImages(holder.getCacheDetails(false).LongDescription, holder.getCacheDetails(false),false);
++				}
++				else {
++					addr = &quot;<A HREF="http://www.geocaching.com/seek/cache_details.aspx?wp=">http://www.geocaching.com/seek/cache_details.aspx?wp=</A>&quot; + holder.getWayPoint() ;
++					cacheText = SpiderGC.fetch(addr,false);
++					if (cacheText.indexOf(propsSpider.getProp(&quot;premiumCachepage&quot;)) &gt; 0) {
++						// Premium cache spidered by non premium member
++						imgSpider.getImages(holder.getCacheDetails(false).LongDescription, holder.getCacheDetails(false),false);
++					}
++					else {
++						imgSpider.getImages(cacheText, holder.getCacheDetails(false),true);
++					}
++					try {
++						imgSpider.getAttributes(cacheText, holder.getCacheDetails(false));
++					} catch (Exception e) {
++						pref.log(&quot;unable to fetch attrivbutes for&quot;+holder.getWayPoint(), e);
++					}
++				}
++		} catch (Exception e1) {
++			// e1.printStackTrace();
+ 		}
+-		else {
+-			addr = &quot;<A HREF="http://www.geocaching.com/seek/cache_details.aspx?wp=">http://www.geocaching.com/seek/cache_details.aspx?wp=</A>&quot; + holder.getWayPoint() ;
+-			cacheText = SpiderGC.fetch(addr,false);
+-			imgSpider.getImages(cacheText, holder.getCacheDetails(false));
+-			try {
+-				imgSpider.getAttributes(cacheText, holder.getCacheDetails(false));
+-			} catch (Exception e) {
+-				pref.log(&quot;unable to fetch attrivbutes for&quot;+holder.getWayPoint(), e);
+-			}
+-		}
+ 	}
+ 	
+ 	public int getHow() {
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2010-10-21 14:22:50 UTC (rev 2828)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2010-10-21 20:37:10 UTC (rev 2829)
+@@ -2096,8 +2096,7 @@
+ 						// Images
+ 						// ==========
+ 						if (fetchImages) {
+-							getImages(completeWebPage, ch
+-									.getCacheDetails(false));
++							getImages(completeWebPage, ch.getCacheDetails(false),true);
+ 							pref.log(&quot;Got images&quot;);
+ 						}
+ 						// ==========
+@@ -2520,7 +2519,7 @@
+ 	 * @param chD
+ 	 *            The Cachedetails
+ 	 */
+-	public void getImages(String doc, CacheHolderDetail chD) {
++	public void getImages(String doc, CacheHolderDetail chD, boolean extractLongDesc) {
+ 		int imgCounter = 0;
+ 		int spiderCounter = 0;
+ 		String fileName, imgName, imgType, imgUrl, imgComment;
+@@ -2531,8 +2530,7 @@
+ 		CacheImages lastImages = null;
+ 
+ 		// First: Get current image object of waypoint before spidering images.
+-		CacheHolder oldCh = Global.getProfile().cacheDB.get(chD.getParent()
+-				.getWayPoint());
++		CacheHolder oldCh = Global.getProfile().cacheDB.get(chD.getParent().getWayPoint());
+ 		if (oldCh != null) {
+ 			lastImages = oldCh.getCacheDetails(false).images;
+ 		}
+@@ -2542,7 +2540,7 @@
+ 		// ========
+ 		String longDesc = &quot;&quot;;
+ 		try {
+-			if (chD.getParent().getWayPoint().startsWith(&quot;TC&quot;))
++			if (chD.getParent().getWayPoint().startsWith(&quot;TC&quot;) || !extractLongDesc)
+ 				longDesc = doc;
+ 			else
+ 				longDesc = getLongDesc(doc);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002816.html">[Cachewolf-svn] r2828 - trunk/src/CacheWolf/navi
+</A></li>
+	<LI>Next message: <A HREF="002818.html">[Cachewolf-svn] r2830 - trunk/res_noewe/exporticons/exporticons
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2817">[ date ]</a>
+              <a href="thread.html#2817">[ thread ]</a>
+              <a href="subject.html#2817">[ subject ]</a>
+              <a href="author.html#2817">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

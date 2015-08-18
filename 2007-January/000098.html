@@ -1,0 +1,578 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r381 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r381%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701121453.l0CErqun004176%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000097.html">
+   <LINK REL="Next"  HREF="000099.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r381 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r381%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701121453.l0CErqun004176%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r381 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Fri Jan 12 15:53:52 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000097.html">[Cachewolf-svn] [Feature #3039] Export TomTom OV2
+</A></li>
+        <LI>Next message: <A HREF="000099.html">[Cachewolf-svn] [Feature #2928] Sonnenrichtung in MovingMap anzeigen
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#98">[ date ]</a>
+              <a href="thread.html#98">[ thread ]</a>
+              <a href="subject.html#98">[ subject ]</a>
+              <a href="author.html#98">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-01-12 15:53:46 +0100 (Fri, 12 Jan 2007)
+New Revision: 381
+
+Modified:
+   trunk/src/CacheWolf/GotoPanel.java
+   trunk/src/CacheWolf/MapInfoObject.java
+   trunk/src/CacheWolf/MovingMap.java
+Log:
+[ Feature Request #2928 ] Sonnenrichtung in MovingMap anzeigen
+OutOfHeapSpace und kleinere Bugs in MovingMap besietigt
+Neues Menue in MovingMap: ausblenden der Map und Map-Dir w?\195?\164hlen
+
+Modified: trunk/src/CacheWolf/GotoPanel.java
+===================================================================
+--- trunk/src/CacheWolf/GotoPanel.java	2007-01-11 04:13:15 UTC (rev 380)
++++ trunk/src/CacheWolf/GotoPanel.java	2007-01-12 14:53:46 UTC (rev 381)
+@@ -380,8 +380,8 @@
+ 				lblDist.setText(dist.toString(3,0,0) + &quot; m&quot;);
+ 			}
+ 
+-			compassRose.setDirections((float)bearMov.value,(float)bearWayP.value, (float)sunAzimut.value);
+-
++			compassRose.setDirections((float)bearWayP.value, (float)sunAzimut.value, (float)bearMov.value);
++			
+ 			// Set background to signal quality
+ 			lblSats.backGround = GREEN;
+ 		}
+@@ -406,6 +406,7 @@
+ 		// In moving map mode
+ 		if (mmp != null &amp;&amp; runMovingMap ) { // neccessary in case of multi-threaded Java-VM: ticked could be called during load of mmp 
+ 			if ((fix &gt; 0) &amp;&amp; (gpsPosition.getSats()&gt;= 0)) {
++				mmp.directionArrows.setDirections(-361 /*(float)bearWayP.value*/, (float)sunAzimut.value, -361 /*(float)bearMov.value*/);
+ 				mmp.updatePosition(gpsPosition.latDec, gpsPosition.lonDec);
+ 				Vm.debug(&quot;ShowLastAddedPoint: voher&quot;);
+ 				mmp.ShowLastAddedPoint(currTrack);
+@@ -554,7 +555,9 @@
+ 			//Start moving map
+ 			if (ev.target == btnMap){
+ 				runMovingMap = true;
++				boolean runbefore=false;
+ 				if (mmp == null) mmp = new MovingMap(pref, this, cacheDB); // this also loads the list of maps
++				else runbefore = true;
+ 				if (serThread == null || !serThread.isAlive() ) {
+ 					// setze Zielpunkt als Ausgangspunkt, wenn GPS aus ist und lade entsprechende Karte
+ 					mmp.ignoreGps = false;
+@@ -562,7 +565,9 @@
+ 					mmp.ignoreGps = true;
+ 				}
+ 				if (currTrack != null) mmp.addTrack(currTrack);
++				if (runbefore) mmp.addOverlaySet(); // draw new trackpoints but only do so if OverlaySet needs to be updated, otherwise it is anyway newly created
+ 				mmp.setGotoPosition(toPoint.latDec, toPoint.lonDec);
++				// update cache symbols in map
+ 				if (mainT.tbP.myMod.cacheSelectionChanged) {
+ 					mainT.tbP.myMod.cacheSelectionChanged = false;
+ 					mmp.removeAllMapSymbolsButGoto();
+@@ -656,7 +661,7 @@
+ 		float angleRad;
+ 		int x, y, centerX = location.width/2, centerY = location.height/2;
+ 
+-		angleRad = angle * (float)java.lang.Math.PI / 180;
++		angleRad = (angle) * (float)java.lang.Math.PI / 180;
+ 		x = centerX + new Float(centerX * java.lang.Math.sin(angleRad)).intValue();
+ 		y = centerY - new Float(centerY * java.lang.Math.cos(angleRad)).intValue();
+ 		g.setPen(new Pen(col,Pen.SOLID,3));
+
+Modified: trunk/src/CacheWolf/MapInfoObject.java
+===================================================================
+--- trunk/src/CacheWolf/MapInfoObject.java	2007-01-11 04:13:15 UTC (rev 380)
++++ trunk/src/CacheWolf/MapInfoObject.java	2007-01-12 14:53:46 UTC (rev 381)
+@@ -31,6 +31,7 @@
+ 	public double transLatX, transLatY, transLonX, transLonY; // this are needed for the inervers calculation from lat/lon to x/y
+ 	public CWPoint center = new CWPoint();
+ 	public float sizeKm = 0; // diagonale
++	public float rotationRad; // contains the rotation of the map == north direction in rad
+ 	public String fileNameWFL = new String();
+ 	public String fileName = new String();
+ 	public String mapName = new String();
+@@ -120,11 +121,22 @@
+ 	center.set((lowlat + affine[4])/2,(lowlon + affine[5])/2);
+ 	sizeKm = java.lang.Math.abs((float)center.getDistance(lowlat, lowlon)) *2;
+ 	
++	//calculate reverse affine
+ 	double nenner=(-affine[1]*affine[2]+affine[0]*affine[3]);
+ 	transLatX = affine[3]/nenner; // nenner == 0 cannot happen as long als affine is correct
+ 	transLonX = -affine[2]/nenner;
+ 	transLatY = -affine[1]/nenner;
+ 	transLonY = affine[0]/nenner;
++	
++	// calculate north direction
++	float scaleX = 1/(float)java.lang.Math.sqrt(java.lang.Math.pow(transLonX,2)+java.lang.Math.pow(transLonY,2));
++ //	float scaleY = 1/(float)java.lang.Math.sqrt(java.lang.Math.pow(transLatX,2)+java.lang.Math.pow(transLatY,2));
++	float rotationX2x=(float)transLonX*scaleX;
++	float rotationX2y=(float)transLonY*scaleX;
++	//rotationY2y=-(float)transLatY*scaleY; // lat -&gt; y = -, y -&gt; y = +
++	//rotationY2x=-(float)transLatX*scaleY; // uncomment an make it a field of MapInfoObject if you need translation from x to x rotated
++	rotationRad = (float)java.lang.Math.atan(rotationX2y);
++	if (rotationX2x &lt; 0) rotationRad = (float)java.lang.Math.PI - rotationRad; 
+ }
+ 	
+ 	
+
+Modified: trunk/src/CacheWolf/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/MovingMap.java	2007-01-11 04:13:15 UTC (rev 380)
++++ trunk/src/CacheWolf/MovingMap.java	2007-01-12 14:53:46 UTC (rev 381)
+@@ -18,7 +18,8 @@
+ 	final static int noGPSData = 2; // red
+ 	final static int noGPS = 1; // no GPS-Position marker, manually disconnected 
+ 	final static int ignoreGPS = -1; // ignore even changes in GPS-signal (eg. from lost fix to gotFix) this is wanted when the map is moved manually
+-
++	
++	public MapSymbol gotoPos = null;
+ 	public int GpsStatus;
+ 	Preferences pref;
+ 	MovingMapPanel mmp;
+@@ -30,6 +31,7 @@
+ 	TrackOverlay[] TrackOverlays;
+ 	Vector tracks;
+ 	MapInfoObject currentMap;
++	ArrowsOnMap directionArrows = new ArrowsOnMap();
+ 	AniImage statusImageHaveSignal = new AniImage(&quot;position_green.png&quot;);
+ 	AniImage statusImageNoSignal = new AniImage(&quot;position_yellow.png&quot;);
+ 	AniImage statusImageNoGps = new AniImage(&quot;position_red.png&quot;);
+@@ -49,6 +51,8 @@
+ 	boolean autoSelectMap = true;
+ 	boolean forceMapLoad = true; // only needed to force updateposition to try to load the best map again after OutOfMemoryError after an repeated click on snap-to-gps
+ 	CWPoint lastUpatePosition = new CWPoint();
++	boolean mapHidden = false;
++	boolean noMapsAvailable;
+ 
+ 	public MovingMap(Preferences pref, GotoPanel gP, Vector cacheDB){
+ 		this.cacheDB = cacheDB;
+@@ -66,6 +70,9 @@
+ 		ButtonImageChooseMap.properties = AniImage.AlwaysOnTop;
+ 		ButtonImageGpsOn.setLocation(pref.myAppWidth-25, 10);
+ 		ButtonImageGpsOn.properties = AniImage.AlwaysOnTop;
++		directionArrows.properties = AniImage.AlwaysOnTop;
++		directionArrows.setLocation(Global.getPref().myAppWidth/2-directionArrows.getWidth()/2, 10);
++		mmp.addImage(directionArrows);
+ 		/*		arrowUp.setLocation(pref.myAppWidth/2, 10);
+ 		arrowDown.setLocation(pref.myAppWidth/2, pref.myAppHeight-20);
+ 		arrowLeft.setLocation(10, pref.myAppHeight/2+7);
+@@ -78,10 +85,11 @@
+ 		mmp.addImage(arrowDown);
+ 		mmp.addImage(arrowLeft);
+ 		mmp.addImage(arrowRight);
+-		 */		mmp.addImage(ButtonImageChooseMap);
+-		 mmp.addImage(ButtonImageGpsOn);
+-		 posCircle.properties = AniImage.AlwaysOnTop;
+-		 loadMaps(Global.getPref().baseDir+&quot;maps/standard/&quot;);
++		 */		
++		mmp.addImage(ButtonImageChooseMap);
++		mmp.addImage(ButtonImageGpsOn);
++		posCircle.properties = AniImage.AlwaysOnTop;
++		loadMaps(Global.getPref().baseDir+&quot;maps/standard/&quot;);
+ 	}
+ 
+ 	/**
+@@ -111,7 +119,10 @@
+ 			}catch(IOException ex){ } // TODO etwas genauer auch Fehlermeldung ausgeben? Bei vorhandenen .wfl-Datei mit ung&#252;ltigen Werten Fehler ausgeben oder wie jetz einfach ignorieren?
+ 		}
+ 		if (maps.isEmpty())
++			{
+ 			(new MessageBox(MyLocale.getMsg(327, &quot;Information&quot;), MyLocale.getMsg(326, &quot;Es steht keine kalibrierte Karte zur Verf&#252;gung&quot;), MessageBox.OKB)).execute();
++			noMapsAvailable = true;
++			} else noMapsAvailable = false;
+ 		tempMIO = new MapInfoObject(1.0);
+ 		maps.add(tempMIO);
+ 		tempMIO = new MapInfoObject(5.0);
+@@ -132,7 +143,7 @@
+ 	}
+ 
+ 	public final FormFrame myExec() {
+-		addOverlaySet(); // neccessary to draw points which were added when the MovingMap was not running, so that these pixels are not stored in the not-immediately-drawing-work-around
++		//addOverlaySet(); // neccessary to draw points which were added when the MovingMap was not running, so that these pixels are not stored in the not-immediately-drawing-work-around
+ 		return exec();
+ 	}
+ 	public void addTrack(Track tr) {
+@@ -158,7 +169,7 @@
+ 	 */
+ 
+ 	public void addOverlaySet() {
+-		//if (tracks == null) return; // no tracks
++		if (tracks == null) return; // no tracks
+ 		if (TrackOverlays != null) {
+ 			for (int i=0; i&lt; TrackOverlays.length; i++) {	destroyOverlay(i);	}
+ 		}
+@@ -177,6 +188,7 @@
+ 				i = yi*3+xi;
+ 				if (TrackOverlays[i]==null) { 
+ 					TrackOverlays[i]= new TrackOverlay(currentMap.calcLatLon(-upperleft.x+(xi-1)*ww, -upperleft.y+(yi-1)*wh), ww, wh, currentMap); 
++					TrackOverlays[i].properties |= mImage.IsInvisible;
+ 					TrackOverlays[i].move(0, 0);
+ 					TrackOverlays[i].tracks = this.tracks;
+ 					TrackOverlays[i].paintTracks();
+@@ -363,8 +375,28 @@
+ 		public void resetCenterOfMap() {
+ 			posCircleX = pref.myAppWidth/2; // maybe this could /should be repleced to windows size
+ 			posCircleY = pref.myAppHeight/2;
++			posCircle.properties &amp;= ~AniImage.IsInvisible;
+ 			posCircle.setLocation(posCircleX-posCircle.getWidth()/2, posCircleY-posCircle.getHeight()/2);
+ 		}
++		
++		public void mapMoved(int diffX, int diffY) {
++			int w = posCircle.getWidth();
++			int h = posCircle.getHeight();
++			int npx = posCircleX-w/2+diffX; 
++			int npy = posCircleY-h/2+diffY;
++			if (npx+w &gt;= 0 &amp;&amp; npx &lt;= this.width &amp;&amp; npy+h &gt;= 0 &amp;&amp; npy &lt; this.height)	
++				{
++				posCircle.properties &amp;= ~AniImage.IsInvisible;
++				posCircle.move(npx, npy);
++				} else {
++					posCircle.properties |= AniImage.IsInvisible;
++					posCircle.move(0,0);
++				}
++			posCircleX = posCircleX+diffX;
++			posCircleY = posCircleY+diffY;
++			updateSymbolPositions();
++			updateOverlayPos();
++		}
+ 
+ 		/**
+ 		 * get upper left corner of map on window
+@@ -416,7 +448,7 @@
+ 			}
+ 		}
+ 
+-		public void addSymbol(String name, String filename, double lat, double lon) {
++		public MapSymbol addSymbol(String name, String filename, double lat, double lon) {
+ 			if (symbols==null) symbols=new Vector();
+ 			MapSymbol ms = new MapSymbol(name, filename, lat, lon);
+ 			ms.loadImage();
+@@ -424,6 +456,7 @@
+ 			ms.pic.setLocation(pOnScreen.x-ms.pic.getWidth()/2, pOnScreen.y-ms.pic.getHeight()/2);
+ 			symbols.add(ms);
+ 			mmp.addImage(ms.pic);
++			return ms;
+ 		}
+ 		public void addSymbol(String name, AniImage imSymb, double lat, double lon) {
+ 			if (symbols==null) symbols=new Vector();
+@@ -438,15 +471,11 @@
+ 
+ 		public void setGotoPosition(double lat, double lon) {
+ 			removeMapSymbol(&quot;goto&quot;);
+-			addSymbol(&quot;goto&quot;, &quot;goto_map.png&quot;, lat, lon); 
++			gotoPos=addSymbol(&quot;goto&quot;, &quot;goto_map.png&quot;, lat, lon);
+ 		}
+ 
+ 		public CWPoint getGotoPos(){
+-			int symbNr;
+-			symbNr = findMapSymbol(&quot;goto&quot;);
+-			if (symbNr == -1) return null;
+-			MapSymbol ms = (MapSymbol) symbols.get(symbNr);
+-			return new CWPoint(ms.lat, ms.lon);
++			return new CWPoint(gotoPos.lat, gotoPos.lon);
+ 		}
+ 
+ 		public void removeAllMapSymbolsButGoto(){
+@@ -553,6 +582,7 @@
+ 			lastCompareY = Integer.MAX_VALUE;
+ 			autoSelectMap = true;
+ 			forceMapLoad = true;
++			showMap();
+ //			updatePosition(gotoPanel.gpsPosition.latDec, gotoPanel.gpsPosition.latDec); is called from GotoPanel.ticked
+ 		}
+ 
+@@ -589,7 +619,8 @@
+ 				} // give memory free before loading the new map to avoid out of memory error  
+ 				if (currentMap.fileName.length()&gt;0) mmp.mapImage = new AniImage(currentMap.fileName); // attention: when running in native java-vm, no exception will be thrown, not even OutOfMemeoryError
+ 				else mmp.mapImage = new AniImage();
+-				mmp.mapImage.properties = mmp.mapImage.properties | AniImage.IsMoveable; 
++				mmp.mapImage.properties = mmp.mapImage.properties | AniImage.IsMoveable;
++				if (mapHidden) mmp.mapImage.properties |= AniImage.IsInvisible;
+ 				mmp.mapImage.move(0,0);
+ 				mmp.addImage(mmp.mapImage);
+ 				mmp.images.moveToBack(mmp.mapImage);
+@@ -597,6 +628,7 @@
+ 				forceMapLoad = true; // forces updateOnlyPosition to redraw
+ 				updateOnlyPosition(lat, lon, false);
+ 				forceMapLoad = false;
++				directionArrows.setMap(currentMap);
+ 				inf.close(0);  // this doesn't work in a ticked-thread in the ewe-vm. That's why i made a new mThread in gotoPanel for ticked
+ 				Vm.showWait(false);
+ 				ignoreGps = saveIgnoreStatus;
+@@ -638,6 +670,20 @@
+ 				ignoreGps = saveIgnoreStatus;
+ 			}
+ 		}
++		
++		public void hideMap() {
++			if (mmp != null &amp;&amp; mmp.mapImage != null)
++				mmp.mapImage.properties |= AniImage.IsInvisible;
++			mapHidden = true;
++			repaintNow();
++		}
++		
++		public void showMap() {
++			if (mmp != null &amp;&amp; mmp.mapImage != null)
++				mmp.mapImage.properties &amp;= ~AniImage.IsInvisible;
++			mapHidden = false;
++			repaintNow();
++		}
+ 
+ 
+ 		public void onEvent(Event ev){
+@@ -659,19 +705,18 @@
+ 		boolean saveGpsIgnoreStatus;
+ 		public MovingMapPanel(MovingMap f){
+ 			this.mm = f;
+-			//this.autoMoveToTop = false;
+ 		}
+ 		public boolean imageBeginDragged(AniImage which,Point pos) {
+-			if (! (which == mapImage || which instanceof TrackOverlay) ) return false;
++			if (!(which == null || which == mapImage || which instanceof TrackOverlay) ) return false;
+ 			saveGpsIgnoreStatus = mm.ignoreGps; 
+ 			mm.ignoreGps = true;
+-			saveMapLoc = mapImage.getLocation(null);
++			saveMapLoc = pos;
+ 			return super.imageBeginDragged(mapImage, pos);
+ 		}
+ 
+ 		public boolean imageNotDragged(ImageDragContext dc,Point pos){
+ 			boolean ret = super.imageNotDragged(dc, pos);
+-			mapMoved(mapImage.location.x - saveMapLoc.x, mapImage.location.y - saveMapLoc.y);
++			mapMoved(pos.x - saveMapLoc.x, pos.y - saveMapLoc.y);
+ 			mm.ignoreGps = saveGpsIgnoreStatus;
+ 			return ret;
+ 
+@@ -686,15 +731,19 @@
+ 		}
+ 
+ 		public void mapMoved(int diffX, int diffY){
+-			Point p = mm.posCircle.getLocation(null);
+-			mm.posCircle.move(p.x+diffX, p.y+diffY);
+-			mm.posCircleX = mm.posCircleX+diffX;
+-			mm.posCircleY = mm.posCircleY+diffY;
+-			mm.updateSymbolPositions();
+-			mm.updateOverlayPos();
++			mm.mapMoved(diffX, diffY);
+ 			this.repaintNow();
+-
+ 		}
++		
++		public void doPaint(Graphics g,Rect area) {
++			super.doPaint(g, area);
++			if (mm.gotoPos != null) {
++			Point dest = mm.getXYinMap(mm.gotoPos.lat, mm.gotoPos.lon);
++			g.setPen(new Pen(Color.MediumBlue, Pen.SOLID, 3));
++			g.drawLine(mm.posCircleX, mm.posCircleY, dest.x, dest.y);
++			}
++		}
++		
+ 		public void chooseMap() {
+ 			CWPoint gpspos;
+ 			if (mm.gotoPanel.gpsPosition.Fix &gt; 0) gpspos = new CWPoint(mm.gotoPanel.gpsPosition.latDec, mm.gotoPanel.gpsPosition.lonDec);
+@@ -724,12 +773,16 @@
+ 		 *	Method to react to user.
+ 		 */
+ 		public void imageClicked(AniImage which, Point pos){
+-			if (which == mm.ButtonImageChooseMap){ 
+-				mapsMenu = new Menu(new String[]{&quot;Select a map manually&quot;, &quot;Change map directory&quot;}, &quot;map choice&quot;);
++			if (which == mm.ButtonImageChooseMap){
++				mapsMenu = new Menu(new String[]{&quot;Select a map manually$s&quot;, &quot;Change map directory$c&quot;}, &quot;map choice&quot;);
++				if (!mm.noMapsAvailable) 
++				{
++					if (mm.mapHidden) mapsMenu.addItem(&quot;show map&quot;);
++					else mapsMenu.addItem(&quot;hide map&quot;);
++				}
+ 				//m.set(Menu., status)
+ 				mapsMenu.exec(this, new Point(which.location.x, which.location.y), this);
+ 			}
+-			//chooseMap();	
+ 			if (which == mm.ButtonImageGpsOn) {
+ 				if (mm.gotoPanel.serThread == null || !mm.gotoPanel.serThread.isAlive()) {
+ 					mm.gotoPanel.startGps();
+@@ -744,7 +797,7 @@
+ 		if (which == mm.arrowUp)	{	moveMap(0,+10);	} */
+ 		}
+ 		public void onEvent(Event ev){
+-			//if (ev instanceof PenEvent &amp;&amp; ev.type == PenEvent.PEN_DOWN &amp;&amp; ev.target == this) mapsMenu.close();
++			if (mapsMenu != null &amp;&amp; ev instanceof PenEvent &amp;&amp; ev.type == PenEvent.PEN_DOWN &amp;&amp; ev.target == this) mapsMenu.close();
+ 			if (ev instanceof ControlEvent ) { 
+ 				if (ev.target == mapsMenu &amp;&amp; ev.type == MenuEvent.SELECTED ) {
+ 					if (ev.type == MenuEvent.ABORTED || ev.type == MenuEvent.CANCELLED || ev.type == MenuEvent.FOCUS_OUT) mapsMenu.close();
+@@ -766,10 +819,21 @@
+ 								mm.forceMapLoad();
+ 							}
+ 						}
++						//dont show map
++						if (mapsMenu.getSelectedItem() != null &amp;&amp; mapsMenu.getSelectedItem().toString().equalsIgnoreCase(&quot;hide map&quot;) )
++						{
++							mapsMenu.close();
++							mm.hideMap();
++						}
++						// show map
++						if (mapsMenu.getSelectedItem() != null &amp;&amp; mapsMenu.getSelectedItem().toString().equalsIgnoreCase(&quot;show map&quot;) )
++						{
++							mapsMenu.close();
++							mm.showMap();
++						}
++
+ 					}
+ 				}
+-
+-
+ 			}
+ 			super.onEvent(ev);
+ 		}
+@@ -918,3 +982,105 @@
+ 		}
+ 	}
+ 
++	class ArrowsOnMap extends AniImage {
++		float gotoDir = -361;
++		float sunDir = -361;
++		float moveDir = -361;
++		
++		int minY;
++		Graphics draw;
++		private MapInfoObject map=null;
++		public boolean dirsChanged = true;
++		
++		final static Color RED = new Color(255,0,0);
++		final static Color YELLOW = new Color(255,255,0);
++		final static Color GREEN = new Color(0,255,0);
++		final static Color BLUE = new Color(0,255,255);
++		/**
++		 * @param gd goto direction
++		 * @param sd sun direction
++		 * @param md moving direction
++		 */
++		public ArrowsOnMap(){
++			super();
++			newImage();
++		//	setDirections(90, 180, -90);
++		}
++		
++		public void newImage() {
++			setImage(new Image(80,80), Color.White);
++			draw = new Graphics(image);
++		}
++		public void setMap(MapInfoObject m) {
++			map = m;
++		}
++
++		public void setDirections(float gd, float sd, float md ) {
++			if (java.lang.Math.abs(gotoDir - gd) &gt; 1 // to save cpu-usage only update if the is a change of directions of more than 1 degree
++					|| java.lang.Math.abs(sunDir - sd) &gt; 1
++					|| java.lang.Math.abs(moveDir - md) &gt; 1)
++			{
++				dirsChanged = true;
++				gotoDir = gd;
++				sunDir = sd;
++				moveDir = md;
++				refresh();
++			}
++		}
++
++		/**
++		 * draw arrows for the directions of movement and destination waypoint
++		 * @param ctrl the control to paint on
++		 * @param moveDir degrees of movement
++		 * @param destDir degrees of destination waypoint
++		 */
++
++		public void doDraw(Graphics g,int options) {
++			if (map == null) return;
++			if (!dirsChanged) {
++				g.drawImage(image,mask,transparentColor,0,-minY,location.width,location.height);
++				return;
++			}
++			dirsChanged = false;
++			//super.doDraw(g, options);
++			draw.setColor(Color.White);
++			draw.fillRect(0, 0, location.width, location.height);
++			minY = Integer.MAX_VALUE;
++			drawArrows(draw);
++			draw.drawImage(image,mask,Color.DarkBlue,0,0,location.width,location.height); // this trick (note: wrong transparentColor) forces a redraw 
++			g.drawImage(image,mask,transparentColor,0,-minY,location.width,location.height);
++		}
++
++		private void drawArrows(Graphics g){
++			
++			if (g != null) {
++				// draw only valid arrows
++				if (moveDir &lt; 360 &amp;&amp; moveDir &gt; -360) drawArrow(g, moveDir, RED);
++				if (gotoDir &lt; 360 &amp;&amp; gotoDir &gt; -360) drawArrow(g, gotoDir, BLUE);
++				if (sunDir &lt; 360 &amp;&amp; sunDir&gt; -360) drawArrow(g, sunDir, YELLOW);
++				drawArrow(g, 0, Color.DarkBlue); // north direction
++			}
++		}
++
++		/**
++		 * draw single arrow 
++		 * @param g handle for drawing
++		 * @param angle angle of arrow
++		 * @param col color of arrow
++		 */
++		private void drawArrow(Graphics g, float angle, Color col) {
++			float angleRad;
++			int x, y, centerX = location.width/2, centerY = location.height/2;
++
++			angleRad = angle * (float)java.lang.Math.PI / 180 + map.rotationRad;
++			x = centerX + new Float(centerX * java.lang.Math.sin(angleRad)).intValue();
++			y = centerY - new Float(centerY * java.lang.Math.cos(angleRad)).intValue();
++		//	g.setPen(new Pen(Color.Black,Pen.SOLID,7));
++		//	g.drawLine(centerX,centerY,x,y);
++			g.setPen(new Pen(col,Pen.SOLID,3));
++			g.drawLine(centerX,centerY,x,y);
++			if (y &lt; minY) minY = y;
++			if (centerY &lt; minY) minY = centerY;
++		}
++	}
++
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000097.html">[Cachewolf-svn] [Feature #3039] Export TomTom OV2
+</A></li>
+	<LI>Next message: <A HREF="000099.html">[Cachewolf-svn] [Feature #2928] Sonnenrichtung in MovingMap anzeigen
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#98">[ date ]</a>
+              <a href="thread.html#98">[ thread ]</a>
+              <a href="subject.html#98">[ subject ]</a>
+              <a href="author.html#98">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,143 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1999 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-July/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1999%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200907071944.n67JiW7Z028480%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001917.html">
+   <LINK REL="Next"  HREF="001919.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1999 - trunk/src/CacheWolf</H1>
+    <B>engywuck at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1999%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200907071944.n67JiW7Z028480%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1999 - trunk/src/CacheWolf">engywuck at mail.berlios.de
+       </A><BR>
+    <I>Tue Jul  7 21:44:32 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001917.html">[Cachewolf-svn] r1998 - trunk/src/CacheWolf/imp
+</A></li>
+        <LI>Next message: <A HREF="001919.html">[Cachewolf-svn] r2000 - trunk/res_noewe
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1918">[ date ]</a>
+              <a href="thread.html#1918">[ thread ]</a>
+              <a href="subject.html#1918">[ subject ]</a>
+              <a href="author.html#1918">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: engywuck
+Date: 2009-07-07 21:44:28 +0200 (Tue, 07 Jul 2009)
+New Revision: 1999
+
+Modified:
+   trunk/src/CacheWolf/MainForm.java
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/Profile.java
+Log:
+Showing progress on loading index.xml.
+
+Modified: trunk/src/CacheWolf/MainForm.java
+===================================================================
+--- trunk/src/CacheWolf/MainForm.java	2009-07-07 18:06:31 UTC (rev 1998)
++++ trunk/src/CacheWolf/MainForm.java	2009-07-07 19:44:28 UTC (rev 1999)
+@@ -88,7 +88,7 @@
+ 			infB = new InfoBox(&quot;CacheWolf&quot;,MyLocale.getMsg(5000,&quot;Loading Cache-List&quot;));
+ 			infB.exec();
+ 			infB.waitUntilPainted(100);
+-			profile.readIndex();
++			profile.readIndex(infB);
+ 			pref.curCentrePt.set(profile.centre);
+ 			profile.updateBearingDistance();
+ 			setTitle(&quot;Cachewolf &quot;+Version.getRelease()+&quot; - &quot;+profile.name);
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2009-07-07 18:06:31 UTC (rev 1998)
++++ trunk/src/CacheWolf/MainMenu.java	2009-07-07 19:44:28 UTC (rev 1999)
+@@ -295,7 +295,7 @@
+ 					infB.exec();
+ 					infB.waitUntilPainted(1000);
+ 					Vm.showWait(infB, true);
+-					profile.readIndex();
++					profile.readIndex(infB);
+ 					Vm.showWait(infB, false);
+ 					pref.curCentrePt.set(profile.centre);
+                     filtBlack.modifiers=Global.getProfile().showBlacklisted()?filtBlack.modifiers|MenuItem.Checked:filtBlack.modifiers&amp;~MenuItem.Checked;
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2009-07-07 18:06:31 UTC (rev 1998)
++++ trunk/src/CacheWolf/Profile.java	2009-07-07 19:44:28 UTC (rev 1999)
+@@ -214,16 +214,22 @@
+ 		resetUnsavedChanges();
+ 	}
+ 
++	public void readIndex() {
++		readIndex(null);
++	}
+ 	/**
+ 	 *	Method to read the index.xml file that holds the total information
+ 	 *	on available caches in the database. The database in nothing else
+ 	 *	than the collection of caches in a directory.
+ 	 */
+-	public void readIndex() {
++	public void readIndex(InfoBox infoBox) {
+ 
+ 		try {
+ 			selectionChanged = true;
+ 			boolean fmtDec = false;
++			String mainInfoText = MyLocale.getMsg(5000,&quot;Loading Cache-List&quot;);
++			int wptNo=1;
++			int lastShownWpt=0;
+ 			char decSep = MyLocale.getDigSeparator().charAt(0);
+ 			char notDecSep = decSep == '.' ? ',' : '.';
+ 			FileReader in = new FileReader(dataDir + &quot;index.xml&quot;);
+@@ -244,6 +250,13 @@
+ 							new MessageBox(MyLocale.getMsg(144, &quot;Warning&quot;), MyLocale.getMsg(4407, &quot;The profile files are not in the current format.%0aTherefore they are now converted to the current format. Depending of the size of the profile and the computer involved this may take some minutes. Please bear with us until the conversion is done.&quot;), FormBase.OKB).execute();
+ 						}
+ 					}
++					if (infoBox!=null) {
++						if (wptNo - 10 &gt;= lastShownWpt) {
++							infoBox.setInfo(mainInfoText+&quot;\n&quot;+String.valueOf(wptNo));
++							lastShownWpt = wptNo;
++						}
++						wptNo++;
++					}
+ 					CacheHolder ch=new CacheHolder(text,indexXmlVersion);
+ 					cacheDB.add(ch);
+ 				} else if (text.indexOf(&quot;&lt;CENTRE&quot;)&gt;=0) { // lat=  lon=
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001917.html">[Cachewolf-svn] r1998 - trunk/src/CacheWolf/imp
+</A></li>
+	<LI>Next message: <A HREF="001919.html">[Cachewolf-svn] r2000 - trunk/res_noewe
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1918">[ date ]</a>
+              <a href="thread.html#1918">[ thread ]</a>
+              <a href="subject.html#1918">[ subject ]</a>
+              <a href="author.html#1918">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

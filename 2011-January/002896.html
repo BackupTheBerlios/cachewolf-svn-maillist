@@ -1,0 +1,225 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2907 - in trunk: res_noewe src/CacheWolf/imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2011-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2907%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf/imp&In-Reply-To=%3C20110108223916.30005480BEC%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002895.html">
+   <LINK REL="Next"  HREF="002893.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2907 - in trunk: res_noewe src/CacheWolf/imp</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2907%20-%20in%20trunk%3A%20res_noewe%20src/CacheWolf/imp&In-Reply-To=%3C20110108223916.30005480BEC%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2907 - in trunk: res_noewe src/CacheWolf/imp">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Sat Jan  8 11:39:15 CET 2011</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002895.html">[Cachewolf-svn] r2906 - in trunk/src/CacheWolf: . imp
+</A></li>
+        <LI>Next message: <A HREF="002893.html">[Cachewolf-svn] r2904 - branches/r1.2/src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2896">[ date ]</a>
+              <a href="thread.html#2896">[ thread ]</a>
+              <a href="subject.html#2896">[ subject ]</a>
+              <a href="author.html#2896">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2011-01-08 23:39:15 +0100 (Sat, 08 Jan 2011)
+New Revision: 2907
+
+Modified:
+   trunk/res_noewe/spider.def
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+so far
+
+Modified: trunk/res_noewe/spider.def
+===================================================================
+--- trunk/res_noewe/spider.def	2011-01-08 15:05:35 UTC (rev 2906)
++++ trunk/res_noewe/spider.def	2011-01-08 22:39:15 UTC (rev 2907)
+@@ -75,7 +75,7 @@
+ PMRex              = small_profile.gif
+ distCodeRex        = k=(.*?)&quot;\ style=
+ distCodeKey        = signalthefrog
+-distRex            = \\|(.*?)(?:km|mi)
++distRex            = (.*?)(?:km|mi)
+ DTSRex             = v=(.*?)&quot;\ style=
+ DTSCodeKey         = hbM9fjmrxy7z42LFD58BkKgPGdHscvCqNnw3ptO6lJ
+ waypointRex        = \\(GC(.*?)\\)&lt;br\ /&gt;
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2011-01-08 15:05:35 UTC (rev 2906)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2011-01-08 22:39:15 UTC (rev 2907)
+@@ -933,14 +933,13 @@
+ 						Global.mainTab.statBar.updateDisplay(&quot;working &quot;
+ 								+ page_number + &quot; / &quot; + found_on_page);
+ 					String CacheDescriptionGC = RexPropLine.stringMatched(1);
+-					String DistanceAndDirection = getDistanceAndDirection(CacheDescriptionGC);
+-					double gotDistance = getDistGC(DistanceAndDirection);
++					double[] DistanceAndDirection = getDistanceAndDirection(CacheDescriptionGC);
+ 					String chWaypoint = getWP(CacheDescriptionGC);
+-					if (gotDistance &lt;= toDistance) {
++					if (DistanceAndDirection[0] &lt;= toDistance) {
+ 						CacheHolder ch = cacheDB.get(chWaypoint);
+ 						if (ch == null) { // not in DB
+-							if (gotDistance &gt;= fromDistance
+-									&amp;&amp; directionOK(directions, getDirection(DistanceAndDirection))
++							if (DistanceAndDirection[0] &gt;= fromDistance
++									&amp;&amp; directionOK(directions, DistanceAndDirection[1])
+ 									&amp;&amp; doPMCache(chWaypoint, CacheDescriptionGC)
+ 									&amp;&amp; cachesToLoad.size() &lt; maxNew) {
+ 								if (CacheDescriptionGC.indexOf(propFound) != -1)
+@@ -1722,16 +1721,19 @@
+     }
+ 		return new String(ctmp);
+   }
+-	private String getDistanceAndDirection(String doc) {		
+-		if (spiderAllFinds) return &quot;&quot;;
++	private double[] getDistanceAndDirection(String doc) {
++		double[] distanceAndDirection={(0.0),(0.0)};
++		if (spiderAllFinds) return distanceAndDirection;
+ 		RexPropDistanceCode.search(doc);
+ 		if (!RexPropDistanceCode.didMatch()) {
+ 			pref.log(&quot;check distRex&quot; + Preferences.NEWLINE + doc);
+-			return &quot;&quot;;
++			return distanceAndDirection;
+ 		}
+ 		String stmp = ewe.net.URL.decodeURL(RexPropDistanceCode.stringMatched(1));
+-		String ret = decodeXor( stmp, DistanceCodeKey);
+-		if (ret.indexOf(&quot;km&quot;) == -1) {
++		String ret = decodeXor( stmp, DistanceCodeKey).replace('|', ' ');
++		RexPropDistance.search(ret); // km oder mi
++		if (!RexPropDistance.didMatch()) {
++			if (ret.indexOf(&quot;ere&quot;) &gt; -1) return distanceAndDirection; // zur Zeit &quot; Here -1&quot;
+ 			// Versuch den DistanceCodeKey automatisch zu bestimmen
+ 			// da dieser von gc mal wieder ge&#228;ndert wurde.
+ 			// todo Ben&#246;tigt ev noch weitere Anpassungen: | am Anfang, and calc of keylength
+@@ -1753,36 +1755,33 @@
+ 			RexPropDistanceCode.search(row);
+ 			if (!RexPropDistanceCode.didMatch()) {
+ 				pref.log(&quot;Didn't get DistanceCodeKey automaticly.&quot; + Preferences.NEWLINE);
+-				return &quot;&quot;;
++				return distanceAndDirection;
+ 			}
+ 			String coded = ewe.net.URL.decodeURL(RexPropDistanceCode.stringMatched(1));
+ 			String newkey=decodeXor(coded,thereitis);
+ 			int keylength=13; // wenn nicht 13 dann newkey auf wiederholung pr&#252;fen
+ 			DistanceCodeKey=newkey.substring(0, keylength);
+-			ret = decodeXor( stmp, DistanceCodeKey);
++			ret = decodeXor( stmp, DistanceCodeKey).replace('|', ' ');
++			RexPropDistance.search(ret); // km oder mi
+ 		}
+-		return ret;
+-	}
+-	/**
+-	 * Get the Distance to the centre
+-	 * 
+-	 * @param doc
+-	 *            A previously fetched cachepage
+-	 * @return Distance
+-	 */
+-	private double getDistGC(String doc) throws Exception {
+-		if (spiderAllFinds) return 0;
+-		RexPropDistance.search(doc); // km oder mi
++
+ 		if (RexPropDistance.didMatch()) {
+-			if (MyLocale.getDigSeparator().equals(&quot;,&quot;))
+-				return Convert.toDouble(RexPropDistance.stringMatched(1)
+-						.replace('.', ','));
+-			return Convert.toDouble(RexPropDistance.stringMatched(1));
++			if (MyLocale.getDigSeparator().equals(&quot;,&quot;)) {
++				distanceAndDirection[0] = Convert.toDouble(RexPropDistance.stringMatched(1).replace('.', ','));
++				String r = RexPropDistance.right(1).substring(3);  //3 expexts 2 char which are at moment &quot;km&quot; or &quot;mi&quot;
++				distanceAndDirection[1] = Convert.toDouble(r.replace('.', ','));
++			}
++			else {
++				distanceAndDirection[0] =  Convert.toDouble(RexPropDistance.stringMatched(1));
++				String r = RexPropDistance.right(1).substring(3);
++				distanceAndDirection[1] = Convert.toDouble(r);
++			}
+ 		}
+ 		else {
+ 			pref.log(&quot;(gc Code change ?) check distCodeKey in spider.def&quot; + Preferences.NEWLINE + doc);
+-			return 0;			
+ 		}
++		
++		return distanceAndDirection;
+ 	}
+ 
+ 	/**
+@@ -2062,36 +2061,14 @@
+ 		}
+ 	}
+ 
+-	/**
+-	 * Get the direction
+-	 * 
+-	 * @param doc String : A previously fetched cachepage
+-	 * @return direction String (degree)
+-	 */
+-	private String getDirection(String doc) throws Exception {
+-		String ret;
+-		String r=&quot;&quot;;
+-		if (doc.indexOf('|') &gt;- 1) {
+-			r=mString.split(doc, '|')[2];
+-		}
+-		if (r.indexOf('.') &gt; -1) {
+-			ret=mString.split(r,'.')[0];
+-		}
+-		else {
+-			ret=&quot;&quot;;
+-		}
+-		return ret;		
+-	}
+-
+ 	/*
+ 	 * if cache lies in the desired direction
+ 	 */
+-	private boolean directionOK(String[] directions, String gotDirection) {
++	private boolean directionOK(String[] directions, double toCheck) {
+ 		if (directions == null || directions.length == 0)
+ 			return true; // nothing means all
+ 		int lowerLimit = Common.parseInt(directions[0]);
+ 		int upperLimit = Common.parseInt(directions[1]);
+-		int toCheck = Common.parseInt(gotDirection);
+ 		if (lowerLimit &lt;= upperLimit) {
+ 			if ((toCheck&gt;=lowerLimit) &amp;&amp; (toCheck&lt;=upperLimit))
+ 			{return true;}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002895.html">[Cachewolf-svn] r2906 - in trunk/src/CacheWolf: . imp
+</A></li>
+	<LI>Next message: <A HREF="002893.html">[Cachewolf-svn] r2904 - branches/r1.2/src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2896">[ date ]</a>
+              <a href="thread.html#2896">[ thread ]</a>
+              <a href="subject.html#2896">[ subject ]</a>
+              <a href="author.html#2896">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

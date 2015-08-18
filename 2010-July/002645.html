@@ -1,0 +1,170 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2667 - in trunk/src/CacheWolf: . imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-July/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2667%20-%20in%20trunk/src/CacheWolf%3A%20.%20imp&In-Reply-To=%3C20100708232130.5B2F1480ABB%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002644.html">
+   <LINK REL="Next"  HREF="002646.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2667 - in trunk/src/CacheWolf: . imp</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2667%20-%20in%20trunk/src/CacheWolf%3A%20.%20imp&In-Reply-To=%3C20100708232130.5B2F1480ABB%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2667 - in trunk/src/CacheWolf: . imp">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Fri Jul  9 01:21:30 CEST 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002644.html">[Cachewolf-svn] r2666 - trunk/src/CacheWolf/imp
+</A></li>
+        <LI>Next message: <A HREF="002646.html">[Cachewolf-svn] r2668 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2645">[ date ]</a>
+              <a href="thread.html#2645">[ thread ]</a>
+              <a href="subject.html#2645">[ subject ]</a>
+              <a href="author.html#2645">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2010-07-09 01:21:30 +0200 (Fri, 09 Jul 2010)
+New Revision: 2667
+
+Modified:
+   trunk/src/CacheWolf/CacheHolder.java
+   trunk/src/CacheWolf/CacheTerrDiff.java
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+Main WP without Difficulty or Terrain (?older caches) see GCF0 (<A HREF="http://www.geoclub.de/viewtopic.php?f=40&amp;t=46531">http://www.geoclub.de/viewtopic.php?f=40&amp;t=46531</A>)
+
+Modified: trunk/src/CacheWolf/CacheHolder.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolder.java	2010-07-08 20:12:33 UTC (rev 2666)
++++ trunk/src/CacheWolf/CacheHolder.java	2010-07-08 23:21:30 UTC (rev 2667)
+@@ -1240,12 +1240,15 @@
+ 		setType(byteFromLong(value, 3));
+ 		setCacheSize(byteFromLong(value, 4));
+ 		setNoFindLogs((byteFromLong(value, 5)));
+-		if ( getHard() == CacheTerrDiff.CW_DT_ERROR 
+-				|| getTerrain() == CacheTerrDiff.CW_DT_ERROR 
+-				|| getCacheSize() == CacheSize.CW_SIZE_ERROR 
++		
++		if (
++				   getCacheSize() == CacheSize.CW_SIZE_ERROR 
+ 				|| getType() == CacheType.CW_TYPE_ERROR ) {
+ 			setIncomplete(true);
+ 		}
++		// no longer
++		 // getHard() == CacheTerrDiff.CW_DT_ERROR 
++		//	|| getTerrain() == CacheTerrDiff.CW_DT_ERROR
+ 	}
+ 	
+ 	/**
+@@ -1642,8 +1645,8 @@
+ 		boolean ret;
+ 		if (isCacheWpt()) {
+ 			if (getWayPoint().length() &lt; 3
+-					|| getHard() &lt;= CacheTerrDiff.CW_DT_UNSET
+-					|| getTerrain() &lt;= CacheTerrDiff.CW_DT_UNSET
++					// || getHard() &lt;= CacheTerrDiff.CW_DT_UNSET // possible for older caches see exmpl gcf0
++					// || getTerrain() &lt;= CacheTerrDiff.CW_DT_UNSET
+ 					|| getCacheSize() == CacheSize.CW_SIZE_ERROR
+ 					|| getCacheOwner().length() == 0
+ 					|| getDateHidden().length() == 0 
+
+Modified: trunk/src/CacheWolf/CacheTerrDiff.java
+===================================================================
+--- trunk/src/CacheWolf/CacheTerrDiff.java	2010-07-08 20:12:33 UTC (rev 2666)
++++ trunk/src/CacheWolf/CacheTerrDiff.java	2010-07-08 23:21:30 UTC (rev 2667)
+@@ -60,8 +60,8 @@
+ 		if (v1TerrDiff.equals(&quot;3.5&quot;)) { return CW_DT_35; }
+ 		if (v1TerrDiff.equals(&quot;4.5&quot;)) { return CW_DT_45; }
+ 		
+-		throw new IllegalArgumentException(&quot;error mapping terrain or difficulty&quot;);
+-	}
++		return CW_DT_ERROR; // simplyfied for &quot;-1&quot; for not set // no exception
++}
+ 	
+ 	/**
+ 	 * generate strings of terrain and difficulty for general use
+@@ -80,6 +80,7 @@
+ 		case CW_DT_40: return &quot;4.0&quot;;
+ 		case CW_DT_45: return &quot;4.5&quot;;
+ 		case CW_DT_50: return &quot;5.0&quot;;
++		case CW_DT_ERROR : return &quot;-.-&quot;;
+ 		default: throw new IllegalArgumentException(&quot;unmapped terrain or diffulty &quot;+terrdiff);
+ 		}
+ 	}
+@@ -101,6 +102,7 @@
+ 		case CW_DT_40: return &quot;4&quot;;
+ 		case CW_DT_45: return &quot;4.5&quot;;
+ 		case CW_DT_50: return &quot;5&quot;;
++		case CW_DT_ERROR : return &quot;-1&quot;;
+ 		default: throw new IllegalArgumentException(&quot;unmapped terrain or diffulty &quot;+terrdiff);
+ 		}
+ 	}
+@@ -123,6 +125,7 @@
+ 		case CW_DT_40: return true;
+ 		case CW_DT_45: return true;
+ 		case CW_DT_50: return true;
++		case CW_DT_ERROR: return true;
+ 		default: return false;
+ 		}
+ 	}
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2010-07-08 20:12:33 UTC (rev 2666)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2010-07-08 23:21:30 UTC (rev 2667)
+@@ -1516,7 +1516,7 @@
+ 		if(inRex.didMatch()) return inRex.stringMatched(1);
+ 		else {
+ 			pref.log(&quot;check difficultyRex in spider.def\n&quot;+doc);
+-			return &quot;&quot;;
++			return &quot;-1&quot;;
+ 		}
+ 	}
+ 
+@@ -1531,7 +1531,7 @@
+ 		if(inRex.didMatch()) return inRex.stringMatched(1);
+ 		else {
+ 			pref.log(&quot;check terrainRex in spider.def\n&quot;+doc);
+-			return &quot;&quot;;
++			return &quot;-1&quot;;
+ 		}
+ 	}
+ 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002644.html">[Cachewolf-svn] r2666 - trunk/src/CacheWolf/imp
+</A></li>
+	<LI>Next message: <A HREF="002646.html">[Cachewolf-svn] r2668 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2645">[ date ]</a>
+              <a href="thread.html#2645">[ thread ]</a>
+              <a href="subject.html#2645">[ subject ]</a>
+              <a href="author.html#2645">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

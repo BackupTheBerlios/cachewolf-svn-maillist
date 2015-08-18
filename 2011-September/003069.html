@@ -1,0 +1,134 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r3078 - trunk/src/CacheWolf/view/pda
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2011-September/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r3078%20-%20trunk/src/CacheWolf/view/pda&In-Reply-To=%3C20110910132152.254FA481270%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003067.html">
+   <LINK REL="Next"  HREF="003070.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r3078 - trunk/src/CacheWolf/view/pda</H1>
+    <B>apreisser at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r3078%20-%20trunk/src/CacheWolf/view/pda&In-Reply-To=%3C20110910132152.254FA481270%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r3078 - trunk/src/CacheWolf/view/pda">apreisser at mail.berlios.de
+       </A><BR>
+    <I>Sat Sep 10 03:21:51 CEST 2011</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003067.html">[Cachewolf-svn] r3076 - trunk/src/CacheWolf/view/pda
+</A></li>
+        <LI>Next message: <A HREF="003070.html">[Cachewolf-svn] r3079 - trunk/src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3069">[ date ]</a>
+              <a href="thread.html#3069">[ thread ]</a>
+              <a href="subject.html#3069">[ subject ]</a>
+              <a href="author.html#3069">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: apreisser
+Date: 2011-09-10 15:21:51 +0200 (Sat, 10 Sep 2011)
+New Revision: 3078
+
+Modified:
+   trunk/src/CacheWolf/view/pda/PDAListButtonObject.java
+Log:
+Problems with clipping area under PocketPC2003: NPE occurs under unkown circumstances.
+
+Modified: trunk/src/CacheWolf/view/pda/PDAListButtonObject.java
+===================================================================
+--- trunk/src/CacheWolf/view/pda/PDAListButtonObject.java	2011-09-10 10:46:08 UTC (rev 3077)
++++ trunk/src/CacheWolf/view/pda/PDAListButtonObject.java	2011-09-10 13:21:51 UTC (rev 3078)
+@@ -1,8 +1,7 @@
+ package CacheWolf.view.pda;
+ 
+-import ewe.fx.Color;
++import CacheWolf.Global;
+ import ewe.fx.Font;
+-import ewe.fx.FontMetrics;
+ import ewe.fx.Graphics;
+ import ewe.fx.Rect;
+ import ewe.ui.ButtonObject;
+@@ -17,12 +16,16 @@
+ 	}
+ 
+ 	public void paint(Graphics paramGraphics) {
++		try{
+ 		if ((this.soft) &amp;&amp; (this.control != null))
+ 			this.control.doBackground(paramGraphics);
+ 		if (this.text == null)
+ 			this.text = &quot;&quot;;
+ 		drawButton(paramGraphics);
+-		Rect localRect1 = paramGraphics.reduceClip(new Rect(this.borderWidth, this.borderWidth, this.size.width - (this.borderWidth * 2), this.size.height - (this.borderWidth * 2)));
++		Rect paramRect = new Rect(this.borderWidth, this.borderWidth, this.size.width - (this.borderWidth * 2), this.size.height - (this.borderWidth * 2));
++		Rect localRect1 = paramGraphics.reduceClip(paramRect);
++		//On PocketPC2003 sometimes reduceClip returns null. If this happens, the clipping area seems to be determined by its input parameter.
++		if (localRect1 == null) localRect1=paramRect;
+ 		try {
+ 			paramGraphics.setColor(foreground);
+ 			int x = 10;
+@@ -33,12 +36,17 @@
+ 				x += 10;
+ 			}
+ 			
+-			font = new Font(font.getName(), Font.BOLD, 40);
++			int fontSize = 40;
++			font = new Font(font.getName(), Font.BOLD, fontSize);
+ 			boolean found = false;
+ 			while (!found) {
+ 				Rect textRect = Gui.getSize(pdaListButton.getFontMetrics(), text, 5, 0);
+-				if (textRect.width &gt; localRect1.width &amp;&amp; textRect.height &gt; localRect1.height &amp;&amp; font.getSize() &gt; 5) {
+-					font = new Font(font.getName(), Font.BOLD, font.getSize() - 1);
++				if (textRect.width &gt; localRect1.width &amp;&amp; textRect.height &gt; localRect1.height &amp;&amp; fontSize &gt; 5) {
++					fontSize--;
++					Font tmpFont = new Font(font.getName(), Font.BOLD, fontSize);
++					if (tmpFont != null){
++						font = tmpFont;
++					}
+ 					textRect = Gui.getSize(pdaListButton.getFontMetrics(), text, 5, 0);
+ 				} else {
+ 					found = true;
+@@ -51,5 +59,9 @@
+ 		} finally {
+ 			paramGraphics.restoreClip(localRect1);
+ 		}
++		}
++		catch(Exception e){
++			Global.getPref().log(&quot;Mysterious Exception caught!&quot;, e, true);
++		}
+ 	}
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003067.html">[Cachewolf-svn] r3076 - trunk/src/CacheWolf/view/pda
+</A></li>
+	<LI>Next message: <A HREF="003070.html">[Cachewolf-svn] r3079 - trunk/src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3069">[ date ]</a>
+              <a href="thread.html#3069">[ thread ]</a>
+              <a href="subject.html#3069">[ subject ]</a>
+              <a href="author.html#3069">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,1333 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r476 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r476%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701310728.l0V7SKVH006498%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000254.html">
+   <LINK REL="Next"  HREF="000256.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r476 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r476%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701310728.l0V7SKVH006498%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r476 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Wed Jan 31 08:28:20 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000254.html">[Cachewolf-svn] r475 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000256.html">[Cachewolf-svn] r477 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#255">[ date ]</a>
+              <a href="thread.html#255">[ thread ]</a>
+              <a href="subject.html#255">[ subject ]</a>
+              <a href="author.html#255">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-01-31 08:28:01 +0100 (Wed, 31 Jan 2007)
+New Revision: 476
+
+Modified:
+   trunk/src/CacheWolf/Common.java
+   trunk/src/CacheWolf/Filter.java
+   trunk/src/CacheWolf/FilterScreen.java
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/Profile.java
+Log:
+Filter: Ueberarbeitet und mit farblicher Kennung der aktivern Filter
+Inkl. Speicherung im Profile
+TODO: Internationalisierung
+
+Modified: trunk/src/CacheWolf/Common.java
+===================================================================
+--- trunk/src/CacheWolf/Common.java	2007-01-30 03:03:52 UTC (rev 475)
++++ trunk/src/CacheWolf/Common.java	2007-01-31 07:28:01 UTC (rev 476)
+@@ -5,8 +5,14 @@
+ 
+ public final class Common {
+ 
++	private static char digSep=MyLocale.getDigSeparator().charAt(0);
++	private static char notDigSep=MyLocale.getDigSeparator().charAt(0)=='.'?',':'.';
++	
+ 	public static double parseDouble(String value){
+-		String a = new String();
++
++/*		The following code is EXTREMELY inefficient.
++        ============================================
++ 		String a = new String();
+ 		String b = new String();
+ 		char separator = '.';
+ 		double aDbl, bDbl;
+@@ -25,9 +31,16 @@
+ 		b = value.substring(value.indexOf(separator)+1);
+ 		bDbl = Convert.toDouble(b);
+ 		// Calc Minutes
+-		bDbl = bDbl / java.lang.Math.pow((double)10,(double)b.length());
++		bDbl = bDbl / java.lang.Math.pow((double)10,(double)b.length()); // Using pow is BAD NEWS!!!
+ 		
+ 		return aDbl&gt;=0?aDbl + bDbl:aDbl - bDbl;
++*/      
++		// This is at least a factor of 3 faster (returns 0 for invalid arguments)
++		try {
++			return java.lang.Double.parseDouble(value.replace(notDigSep,digSep));
++		} catch (Exception e) {
++			return 0.0;
++		}
+ 	}
+ 	public static String rot13 (String text) {
+ 		String dummy = new String();
+
+Modified: trunk/src/CacheWolf/Filter.java
+===================================================================
+--- trunk/src/CacheWolf/Filter.java	2007-01-30 03:03:52 UTC (rev 475)
++++ trunk/src/CacheWolf/Filter.java	2007-01-31 07:28:01 UTC (rev 476)
+@@ -8,10 +8,12 @@
+ /**
+ *	Class that actually filters the cache database.&lt;br&gt;
+ *	The class that uses this filter must set the different public variables.
++*   @author BilboWolf (optimiert von salzkammergut)
+ */
+ public class Filter{
+ 	
+ 	public static final int SMALLER = -1;
++	public static final int EQUAL = -1;
+ 	public static final int GREATER = 1;
+ 	public static final int FOUND = 2;
+ 	public static final int NOTFOUND = 3;
+@@ -69,13 +71,21 @@
+ 	public int typeMatchPattern = 0;
+ 	
+ 	public boolean foundByMe;
++	public boolean notFoundByMe;
++	
+ 	public boolean ownedByMe;
++	public boolean notOwnedByMe;
++	
+ 	//private boolean is_changed;
+ 	public int filterKriteria = 0;
+ 	
+-	boolean archived = false;
+-	boolean notAvailable = false;
++	public boolean archived = false;
++	public boolean notArchived = false;
+ 	
++	public boolean available=false;
++	public boolean notAvailable = false;
++	double pi180=java.lang.Math.PI / 180.0;
++	
+ 	/**
+ 	*	Apply a route filter. Each waypoint is on a seperate line.
+ 	*	We use a regex method to allow for different formats of waypoints:
+@@ -90,7 +100,7 @@
+ 		double lat,lon, calcDistance = 0;
+ 		try{
+ 			FileReader in = new FileReader(routeFile);
+-			String line = new String();
++			String line; 
+ 			while((line = in.readLine()) != null){
+ 				rex.search(line);
+ 				/*
+@@ -111,8 +121,8 @@
+ 					lat = Convert.toDouble(rex.stringMatched(2)) + Convert.toDouble(rex.stringMatched(3))/60 + Convert.toDouble(rex.stringMatched(5))/60000;
+ 					lon = Convert.toDouble(rex.stringMatched(7)) + Convert.toDouble(rex.stringMatched(8))/60 + Convert.toDouble(rex.stringMatched(10))/60000;
+ 				
+-					if(rex.stringMatched(1).equals(&quot;S&quot;) || rex.stringMatched(1).equals(&quot;s&quot;)) lat = lat * -1;
+-					if(rex.stringMatched(6).equals(&quot;W&quot;) || rex.stringMatched(6).equals(&quot;w&quot;)) lon = lon * -1;	
++					if(rex.stringMatched(1).equals(&quot;S&quot;) || rex.stringMatched(1).equals(&quot;s&quot;)) lat = -lat;
++					if(rex.stringMatched(6).equals(&quot;W&quot;) || rex.stringMatched(6).equals(&quot;w&quot;)) lon = -lon;	
+ 				
+ 					cwp = new CWPoint(lat, lon);
+ 					
+@@ -120,10 +130,10 @@
+ 				}
+ 			}
+ 			//initialize database
+-			for(int i = 0;i&lt;cacheDB.size(); i++){
++			for(int i = cacheDB.size()-1; i &gt;=0 ; i--){
+ 				ch = (CacheHolder)cacheDB.get(i);
+ 				ch.is_filtered = true;
+-				cacheDB.set(i, ch);
++				//cacheDB.set(i, ch);
+ 			}
+ 			// for each segment of the route...
+ 			for(int z=0;z&lt;wayPoints.size()-1;z++){
+@@ -132,7 +142,7 @@
+ 				fromPoint = (CWPoint)wayPoints.get(z);
+ 				toPoint = (CWPoint)wayPoints.get(z+1);
+ 				//... go through the current cache database
+-				for(int i = 0;i&lt;cacheDB.size(); i++){
++				for(int i = cacheDB.size()-1; i &gt;=0 ; i--){
+ 					ch = (CacheHolder)cacheDB.get(i);
+ 					cwp = new CWPoint(ch.LatLon, CWPoint.CW);
+ 					calcDistance = DistToSegment(fromPoint, toPoint, cwp);
+@@ -143,7 +153,7 @@
+ 						Vm.debug(&quot;Distcalc: &quot; + calcDistance + &quot;Cache: &quot; +ch.CacheName + &quot; / z is = &quot; + z);
+ 						ch.is_filtered = false;
+ 					}
+-					cacheDB.set(i, ch);
++					//cacheDB.set(i, ch);
+ 				} // for database
+ 			} // for segments
+ 			
+@@ -175,12 +185,12 @@
+ 		return java.lang.Math.abs(XTD);
+ 		*/
+ 		double dist = 0;
+-		double px = cwp.lonDec * java.lang.Math.PI / 180;
+-		double py = cwp.latDec * java.lang.Math.PI / 180;
+-		double X1 = fromPoint.lonDec * java.lang.Math.PI / 180;
+-		double Y1 = fromPoint.latDec * java.lang.Math.PI / 180;
+-		double X2 = toPoint.lonDec * java.lang.Math.PI / 180;
+-		double Y2 = toPoint.latDec * java.lang.Math.PI / 180;
++		double px = cwp.lonDec * pi180;
++		double py = cwp.latDec * pi180;
++		double X1 = fromPoint.lonDec * pi180;
++		double Y1 = fromPoint.latDec * pi180;
++		double X2 = toPoint.lonDec * pi180;
++		double Y2 = toPoint.latDec * pi180;
+ 		double dx = X2 - X1;
+ 		double dy = Y2 - Y1;
+ 		if(dx == 0 &amp;&amp; dy == 0){
+@@ -206,15 +216,9 @@
+ 	 */
+ 	public void showBlacklist(Vector cacheDB){
+ 		CacheHolder ch;
+-		for(int i = 0; i &lt; cacheDB.size(); i++){
++		for(int i = cacheDB.size()-1; i &gt;=0 ; i--){
+ 			ch = (CacheHolder)cacheDB.get(i);
+-			ch.is_filtered = true;
+-			//Vm.debug(ch.CacheName + &quot;: &quot; +ch.is_black);
+-			if(ch.is_black == true) {
+-				ch.is_filtered = false;
+-				//Vm.debug(&quot;==&gt;not filtered!&quot;);
+-			}
+-			cacheDB.set(i,ch);
++			ch.is_filtered=!ch.is_black;
+ 		}
+ 	}
+ 	
+@@ -224,131 +228,122 @@
+ 	*	not displaying a cache that is filtered.
+ 	*/
+ 	public void doFilter(Vector cacheDB, String dir){
+-		CacheHolder ch = new CacheHolder();
+-		int cacheTypePattern = 0;
+-		int cacheRosePattern = 0;
+-		int inDist = 0, matchDist = 0;
+-		int inDiff = 0, matchDiff = 0;
+-		int inTerr = 0, matchTerr = 0;
+-		int inFound = 0, matchFound = 0;
+-		int matchOwned = 0, inOwned = 0;
+-		int matchArchived = 0, inArchived = 0;
+-		int matchAvaliable = 0, inAvailable = 0;
+-		
+-		double dummyd1, dummyd2;
+-		String dummy = new String();
++		CacheHolder ch;
++		int cacheTypePattern;
++		int cacheRosePattern;
++		// Values from filterscreen are parsed outside the main filter loop (fsc=FilterSCreen)
++		double fscDist=Common.parseDouble(dist);  // Distance
++		double fscTerr=Common.parseDouble(terr);  // Terrain
++		double fscDiff=Common.parseDouble(diff);  // Difficulty
++		double dummyd1;
+ 		//Loop db and match once against type pattern and once against rose pattern
+-		//Default is_filtered = true, means will not be displayed!
+-		//If cache matches type and rose pattern then is_filtered is set to false
+-		//Still in the loop check aginst diff, terr, dist, found by, found last
+-		for(int i = 0; i &lt; cacheDB.size(); i++){
++		//Default is_filtered = false, means will be displayed!
++		//If cache does not match type or rose pattern then is_filtered is set to true
++		// and we proceed to next cache (no further tests needed)
++		//Then we check the other filter criteria one by one: As soon as one is found that
++		// eliminates the cache (i.e. sets is_filtered to true), we can skip the other tests
++		// A cache is only displayed (i.e. is_filtered = false) if it meets all 9 filter criteria
++		for(int i = cacheDB.size()-1; i &gt;=0 ; i--){
+ 			ch = (CacheHolder)cacheDB.get(i);
+-			ch.is_filtered = true;
++			ch.is_filtered = false;
++			///////////////////////////////
++			// Filter criterium 1: Cache type
++			///////////////////////////////
+ 			cacheTypePattern = 0;
+-			if(ch.type.equals(&quot;2&quot;)) cacheTypePattern |= TRADITIONAL;
+-			if(ch.type.equals(&quot;3&quot;)) cacheTypePattern |= MULTI;
+-			if(ch.type.equals(&quot;4&quot;)) cacheTypePattern |= VIRTUAL;
+-			if(ch.type.equals(&quot;5&quot;)) cacheTypePattern |= LETTER;
+-			if(ch.type.equals(&quot;6&quot;)|| ch.type.equals(&quot;453&quot;)) cacheTypePattern |= EVENT;
+-			if(ch.type.equals(&quot;8&quot;)) cacheTypePattern |= MYSTERY;
+-			if(ch.type.equals(&quot;11&quot;)) cacheTypePattern |= WEBCAM;
+-			if(ch.type.equals(&quot;12&quot;)) cacheTypePattern |= LOCLESS;
++			// As each cache can only have one type, we can use else if and set the type
++			if(ch.type.equals(&quot;2&quot;)) cacheTypePattern = TRADITIONAL;
++			else if(ch.type.equals(&quot;3&quot;)) cacheTypePattern = MULTI;
++			else if(ch.type.equals(&quot;4&quot;)) cacheTypePattern = VIRTUAL;
++			else if(ch.type.equals(&quot;5&quot;)) cacheTypePattern = LETTER;
++			else if(ch.type.equals(&quot;6&quot;)|| ch.type.equals(&quot;453&quot;)) cacheTypePattern = EVENT;
++			else if(ch.type.equals(&quot;8&quot;)) cacheTypePattern = MYSTERY;
++			else if(ch.type.equals(&quot;11&quot;)) cacheTypePattern = WEBCAM;
++			else if(ch.type.equals(&quot;12&quot;)) cacheTypePattern = LOCLESS;
++			else if(ch.type.equals(&quot;137&quot;))cacheTypePattern = EARTH;
++			else if(ch.type.equals(&quot;453&quot;))cacheTypePattern = MEGA;
+ 			if (CacheType.isAddiWpt(ch.type)) cacheTypePattern |= ADDIWPT;
+-			if(ch.type.equals(&quot;137&quot;))cacheTypePattern |= EARTH;
+-			if(ch.type.equals(&quot;453&quot;))cacheTypePattern |= MEGA;
++			if ((cacheTypePattern &amp; typeMatchPattern) == 0) { ch.is_filtered=true; continue; }
+ 			
+-			cacheRosePattern = 0;
+-			if(ch.bearing.equals(&quot;NW&quot;)) cacheRosePattern |= NW;
+-			if(ch.bearing.equals(&quot;NNW&quot;)) cacheRosePattern |= NNW;
+-			if(ch.bearing.equals(&quot;N&quot;)) cacheRosePattern |= N;
+-			if(ch.bearing.equals(&quot;NNE&quot;)) cacheRosePattern |= NNE;
+-			if(ch.bearing.equals(&quot;NE&quot;)) cacheRosePattern |= NE;
+-			if(ch.bearing.equals(&quot;WNW&quot;)) cacheRosePattern |= WNW;
+-			if(ch.bearing.equals(&quot;ENE&quot;)) cacheRosePattern |= ENE;
+-			if(ch.bearing.equals(&quot;W&quot;)) cacheRosePattern |= W;
+-			if(ch.bearing.equals(&quot;E&quot;)) cacheRosePattern |= E;
+-			if(ch.bearing.equals(&quot;WSW&quot;)) cacheRosePattern |= WSW;
+-			if(ch.bearing.equals(&quot;ESE&quot;)) cacheRosePattern |= ESE;
+-			if(ch.bearing.equals(&quot;SW&quot;)) cacheRosePattern |= SW;
+-			if(ch.bearing.equals(&quot;SSW&quot;)) cacheRosePattern |= SSW;
+-			if(ch.bearing.equals(&quot;S&quot;)) cacheRosePattern |= S;
+-			if(ch.bearing.equals(&quot;SSE&quot;)) cacheRosePattern |= SSE;
+-			if(ch.bearing.equals(&quot;SE&quot;)) cacheRosePattern |= SE;
+-
+-			if(dist.length()&gt;0){
+-				matchDist = 1;
+-				inDist = 0;
+-				dummy = ch.distance.substring(0,ch.distance.length()-3);
+-				dummyd1 = Common.parseDouble(dummy); 
+-				dummyd2 = Common.parseDouble(dist); 
+-				if(distdirec == SMALLER &amp;&amp; dummyd2 &lt;= dummyd1) inDist = 1;
+-				if(distdirec == GREATER &amp;&amp; dummyd2 &gt;= dummyd1) inDist = 1;
++			///////////////////////////////
++			// Filter criterium 2: Bearing from centre
++			///////////////////////////////
++			// The optimal number of comparisons to identify one of 16 objects is 4 (=log2(16))
++			// By using else if we can reduce the number of comparisons from 16 to just over 8
++			// By first checking the first letter, we can reduce the average number further to
++			// just under 5
++			if (ch.bearing.startsWith(&quot;N&quot;)) {
++				if(ch.bearing.equals(&quot;NW&quot;)) cacheRosePattern = NW;
++				else if(ch.bearing.equals(&quot;NNW&quot;)) cacheRosePattern = NNW;
++				else if(ch.bearing.equals(&quot;N&quot;)) cacheRosePattern = N;
++				else if(ch.bearing.equals(&quot;NNE&quot;)) cacheRosePattern = NNE;
++				else cacheRosePattern = NE;
++			} else if (ch.bearing.startsWith(&quot;E&quot;)) {
++				if(ch.bearing.equals(&quot;ENE&quot;)) cacheRosePattern = ENE;
++				else if(ch.bearing.equals(&quot;E&quot;)) cacheRosePattern = E;
++				else cacheRosePattern = ESE;
++			} else if (ch.bearing.startsWith(&quot;S&quot;)) {
++				if(ch.bearing.equals(&quot;SW&quot;)) cacheRosePattern = SW;
++				else if(ch.bearing.equals(&quot;SSW&quot;)) cacheRosePattern = SSW;
++				else if(ch.bearing.equals(&quot;S&quot;)) cacheRosePattern = S;
++				else if(ch.bearing.equals(&quot;SSE&quot;)) cacheRosePattern = SSE;
++				else cacheRosePattern = SE;
++			} else {
++				if(ch.bearing.equals(&quot;WNW&quot;)) cacheRosePattern = WNW;
++				else if(ch.bearing.equals(&quot;W&quot;)) cacheRosePattern = W;
++				else cacheRosePattern = WSW;
+ 			}
++			if ((cacheRosePattern &amp; roseMatchPattern) == 0) { ch.is_filtered=true; continue; }
+ 			
+-			if(diff.length()&gt;0){
+-				matchDiff = 1;
+-				inDiff = 0;
++			///////////////////////////////
++			// Filter criterium 3: Distance
++			///////////////////////////////
++			if(fscDist&gt;0.0){
++				dummyd1 = Common.parseDouble(ch.distance.substring(0,ch.distance.length()-3)); 
++				if(distdirec == SMALLER &amp;&amp; dummyd1 &gt; fscDist)  { ch.is_filtered=true; continue; }
++				if(distdirec == GREATER &amp;&amp; dummyd1 &lt; fscDist)  { ch.is_filtered=true; continue; }
++			}
++			///////////////////////////////
++			// Filter criterium 4: Difficulty
++			///////////////////////////////
++			if(fscDiff&gt;0.0){
+ 				dummyd1 = Common.parseDouble(ch.hard);
+-				dummyd2 = Common.parseDouble(diff);
+-				if(diffdirec == SMALLER &amp;&amp; dummyd2 &lt;= dummyd1) inDiff = 1;
+-				if(diffdirec == GREATER &amp;&amp; dummyd2 &gt;= dummyd1) inDiff = 1;
++				if(diffdirec == SMALLER &amp;&amp; dummyd1 &gt; fscDiff) { ch.is_filtered=true; continue; }
++				if(diffdirec == EQUAL &amp;&amp; dummyd1 != fscDiff) { ch.is_filtered=true; continue; }
++				if(diffdirec == GREATER &amp;&amp; dummyd1 &lt; fscDiff) { ch.is_filtered=true; continue; }
+ 			}
+-			
+-			if(terr.length()&gt;0){
+-				matchTerr = 1;
+-				inTerr = 0;
++			///////////////////////////////
++			// Filter criterium 5: Terrain
++			///////////////////////////////
++			if(fscTerr&gt;0.0){
+ 				dummyd1 = Common.parseDouble(ch.terrain);
+-				dummyd2 = Common.parseDouble(terr);
+-				if(terrdirec == SMALLER &amp;&amp; dummyd2 &lt;= dummyd1) inTerr = 1;
+-				if(terrdirec == GREATER &amp;&amp; dummyd2 &gt;= dummyd1) inTerr = 1;
++				if(terrdirec == SMALLER &amp;&amp;  dummyd1 &gt; fscTerr) { ch.is_filtered=true; continue; }
++				if(terrdirec == EQUAL &amp;&amp; dummyd1 != fscTerr) { ch.is_filtered=true; continue; }
++				if(terrdirec == GREATER &amp;&amp;  dummyd1 &lt; fscTerr) { ch.is_filtered=true; continue; }
+ 			}
++			///////////////////////////////
++			// Filter criterium 6: Found by me
++			///////////////////////////////
++			if((ch.is_found &amp;&amp; !foundByMe) ||
++			   (!ch.is_found &amp;&amp; !notFoundByMe)){ ch.is_filtered=true; continue; }
++
++			///////////////////////////////
++			// Filter criterium 7: Owned by me
++			///////////////////////////////
++			if((ch.is_owned &amp;&amp; !ownedByMe) ||
++			   (!ch.is_owned &amp;&amp; !notOwnedByMe)) { ch.is_filtered=true; continue; }
+ 			
+-			matchFound = 1;
+-			inFound = 1;
+-			if(foundByMe == false){
+-				matchFound = 0;
+-				if(ch.is_found == false) inFound = 0;
+-			}
+-			
+-			/*
+-			Vm.debug(&quot;Is found: &quot; + ch.is_found);
+-			Vm.debug(&quot;Params: &quot; +matchFound + &quot; / &quot; +inFound);
+-			Vm.debug(&quot; Matcher: &quot; +(~(matchFound ^ inFound)));
+-			
+-			Vm.debug(&quot; Boolean: &quot; +(foundByMe &amp;&amp; ch.is_found));
+-			*/
+-			
+-			if(ownedByMe){
+-				matchOwned = 1;
+-				inOwned = 0;
+-				if(ch.is_owned) inOwned = 1;
+-			}
+-			
+-			if(archived){
+-				matchArchived = 1;
+-				inArchived = 0;
+-				if(ch.is_archived) inArchived = 1;
+-			}
+-			if(notAvailable){
+-				matchAvaliable = 1;
+-				inAvailable = 0;
+-				if(ch.is_available) inAvailable = 1;
+-			}
++			///////////////////////////////
++			// Filter criterium 8: Archived
++			///////////////////////////////
++			if((ch.is_archived &amp;&amp; !archived) ||
++			   (!ch.is_archived &amp;&amp; !notArchived)){ ch.is_filtered=true; continue; }
+ 
++			///////////////////////////////
++			// Filter criterium 9: Unavailable
++			///////////////////////////////
++			if((ch.is_available &amp;&amp; !available) ||
++			   (!ch.is_available &amp;&amp; !notAvailable)) { ch.is_filtered=true; continue; }
+ 			
+-			
+-			if((cacheTypePattern &amp; typeMatchPattern) &gt;= 1 &amp;&amp;
+-					(cacheRosePattern &amp; roseMatchPattern) &gt;= 1 &amp;&amp; 
+-					//(~(matchDist ^ inDist)) == -2 &amp;&amp;
+-					//(~(matchDiff ^ inDiff)) == -2 &amp;&amp;
+-					//(~(matchTerr ^ inTerr)) == -2 &amp;&amp;
+-					(~(matchFound ^ inFound)) == -1 )
+-					//(~(matchOwned ^ inOwned)) == -2 &amp;&amp;
+-					//(~(matchArchived ^ inArchived)) == -2 &amp;&amp;
+-					//(~(matchAvaliable ^ inAvailable)) == -2)
+-					ch.is_filtered = false;
+-			if(ch.is_black) ch.is_filtered = true;
+-			cacheDB.set(i,ch);
+ 		} // for
+ 	}
+ 	
+@@ -357,11 +352,9 @@
+ 	*/
+ 	public void invertFilter(Vector cacheDB){
+ 		CacheHolder ch;
+-		for(int i = 0; i &lt; cacheDB.size(); i++){
++		for(int i = cacheDB.size()-1; i &gt;=0 ; i--){
+ 			ch = (CacheHolder)cacheDB.get(i);
+-			if(ch.is_filtered == true) ch.is_filtered = false;
+-			else ch.is_filtered = true;
+-			cacheDB.set(i, ch);
++			ch.is_filtered=!ch.is_filtered; // skg: More efficient
+ 		}
+ 	}
+ 	
+@@ -370,12 +363,18 @@
+ 	*/
+ 	public void clearFilter(Vector cacheDB){
+ 		CacheHolder ch;
+-		for(int i = 0; i &lt; cacheDB.size(); i++){
++		for(int i = cacheDB.size()-1; i &gt;=0 ; i--){
+ 			ch = (CacheHolder)cacheDB.get(i);
+-			ch.is_filtered = false;
+-			if(ch.is_black) ch.is_filtered = true;
+-			cacheDB.set(i, ch);
++			ch.is_filtered=ch.is_black; // Always filter blacklisted caches
+ 		}
++		Profile prof=Global.getProfile();
++		prof.filterType = new String(Profile.FILTERTYPE);
++		prof.filterRose = new String(Profile.FILTERROSE);
++		prof.filterVar = new String(Profile.FILTERVAR);
++		prof.filterDist=&quot;&quot;;
++		prof.filterDiff=&quot;&quot;;
++		prof.filterTerr=&quot;&quot;;
++		
+ 	}
+ }
+ 
+
+Modified: trunk/src/CacheWolf/FilterScreen.java
+===================================================================
+--- trunk/src/CacheWolf/FilterScreen.java	2007-01-30 03:03:52 UTC (rev 475)
++++ trunk/src/CacheWolf/FilterScreen.java	2007-01-31 07:28:01 UTC (rev 476)
+@@ -12,144 +12,379 @@
+ *	Class ID=700
+ */
+ public class FilterScreen extends Form{
++	private static final Color COLOR_FILTERINACTIVE=new Color(190,190,190);
++	private static final Color COLOR_FILTERACTIVE=new Color(0,255,0);
++    	
+ 	mButton btCancel, btApply,btRoute,btArea;
+ 	
+ 	mChoice distChc, difChc, terrChc, lastChc;
+-	mCheckBox foundChk, tradChk, virtualChk, eventChk, earthChk, megaChk;
+-	mCheckBox ownedChk, multiChk, letterChk, webcamChk, mysteryChk,addiWptChk, loclessChk;
+-	mInput distIn, difIn, terrIn, lastIn, foundIn;
++	mCheckBox foundChk, notFoundChk, tradChk, virtualChk, eventChk, earthChk, megaChk;
++	mCheckBox ownedChk, notOwnedChk, multiChk, letterChk, webcamChk, mysteryChk,addiWptChk, loclessChk;
++	mInput distIn, lastIn, foundIn, terrIn, difIn;
+ 	Vector cacheDB;
+-	mCheckBox archivedChk, notAvailableChk;
++	mCheckBox archivedChk,notArchivedChk, availableChk,notAvailableChk;
+ 	mCheckBox NW, NNW , N , NNE, NE;
+ 	mCheckBox ENE, E, ESE, SE, SSE, S;
+-	mCheckBox SSW, SW, WSW, W, WNW;
++	mCheckBox SSW, SW, WSW, W, WNW, chkDeselect,chkSelect;
+ 	String dir = new String();
+-	Locale l = Vm.getLocale();
+-	LocalResource lr = l.getLocalResource(&quot;cachewolf.Languages&quot;,true);
+ 	
+ 	CellPanel content = new CellPanel();
+-	ScrollBarPanel scp;
++	CellPanel pnlBearDist=new CellPanel();
++	CellPanel pnlAttributes=new CellPanel();
++	CellPanel pnlRatings=new CellPanel();
++	CellPanel pnlCacheTypes=new CellPanel();
++	CellPanel pnlContainer=new CellPanel();
++	CellPanel pnlSearch=new CellPanel();
++	CellPanel roseP = new CellPanel();
++	CardPanel cp=new CardPanel();
++	CellPanel pnlButtons=new CellPanel();
++	mButton btnBearing,btnTypes,btnAttributes,btnRatings,btnContainer,btnSearch;
++
++	private mButton addImg(String imgName) {
++		mButton mb=new mButton(new mImage(imgName)); mb.borderWidth=0; mb.modify(NotEditable|PreferredSizeOnly,0);
++		return mb;
++	}
++	private void addTitle(CellPanel c, String title) {
++		mLabel lblTitle;
++		c.addLast(lblTitle=new mLabel(title),HSTRETCH,FILL|CENTER);
++		lblTitle.backGround=new Color(127,127,127); 
++		lblTitle.foreGround=Color.White; 
++		lblTitle.setTag(INSETS,new Insets(2,0,4,0));
++		
++	}
+ 	
+-	public FilterScreen(Vector DB, String d){
+-		dir = d;
+-		cacheDB = DB;
+-		//Filter einlesen
++	public FilterScreen() {
++		this.title = MyLocale.getMsg(700,&quot;Set Filter&quot;);
++
++		//////////////////////////
++		// Panel 1 - Bearing &amp; Distance
++		//////////////////////////
++		addTitle(pnlBearDist,&quot;Bearings &amp; Distance&quot;);
++		pnlBearDist.addNext(new mLabel(MyLocale.getMsg(701,&quot;Distance: &quot;)),CellConstants.DONTSTRETCH, CellConstants.FILL);
++		pnlBearDist.addNext(distChc = new mChoice(new String[]{&quot;&lt;=&quot;, &quot;&gt;=&quot;},0),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		pnlBearDist.addLast(distIn = new mInput(),CellConstants.DONTSTRETCH, CellConstants.FILL);
++		pnlBearDist.addLast(new mLabel(&quot;&quot;));
++		roseP.addNext(NW = new mCheckBox(&quot;NW&quot;),CellConstants.HSTRETCH, CellConstants.FILL);
++		roseP.addNext(NNW = new mCheckBox(&quot;NNW&quot;),CellConstants.HSTRETCH, CellConstants.FILL);
++		roseP.addNext(N = new mCheckBox(&quot;N&quot;),CellConstants.HSTRETCH, CellConstants.FILL);
++		roseP.addLast(NNE = new mCheckBox(&quot;NNE&quot;),CellConstants.HSTRETCH, CellConstants.FILL);
+ 		
+-		//Werte setzen
+-		this.title = (String)lr.get(700,&quot;Set Filter&quot;);
++		roseP.addNext(NE = new mCheckBox(&quot;NE&quot;),CellConstants.HSTRETCH, CellConstants.FILL);
++		roseP.addNext(ENE = new mCheckBox(&quot;ENE&quot;),CellConstants.HSTRETCH, CellConstants.FILL);
++		roseP.addNext(E = new mCheckBox(&quot;E &quot;),CellConstants.HSTRETCH, CellConstants.FILL);
++		roseP.addLast(ESE = new mCheckBox(&quot;ESE&quot;),CellConstants.HSTRETCH, CellConstants.FILL);
++
++		roseP.addNext(SE = new mCheckBox(&quot;SE&quot;),CellConstants.HSTRETCH, CellConstants.FILL);
++		roseP.addNext(SSE = new mCheckBox(&quot;SSE&quot;),CellConstants.HSTRETCH, CellConstants.FILL);
++		roseP.addNext(S = new mCheckBox(&quot;S&quot;),CellConstants.HSTRETCH, CellConstants.FILL);
++		roseP.addLast(SSW = new mCheckBox(&quot;SSW&quot;),CellConstants.HSTRETCH, CellConstants.FILL);
++
++		roseP.addNext(SW = new mCheckBox(&quot;SW&quot;),CellConstants.HSTRETCH, CellConstants.FILL);
++		roseP.addNext(WSW = new mCheckBox(&quot;WSW&quot;),CellConstants.HSTRETCH, CellConstants.FILL);
++		roseP.addNext(W = new mCheckBox(&quot;W &quot;),CellConstants.HSTRETCH, CellConstants.FILL);
++		roseP.addLast(WNW = new mCheckBox(&quot;WNW&quot;),CellConstants.HSTRETCH, CellConstants.FILL);
++		roseP.addNext(chkDeselect=new mCheckBox(&quot;Deselect all&quot;));
++		chkDeselect.setTag(SPAN,new Dimension(2,1));
++		roseP.addLast(chkSelect=new mCheckBox(&quot;Select all&quot;));
++		pnlBearDist.addLast(roseP, CellConstants.STRETCH,CellConstants.FILL);
+ 		
+-		scp = new ScrollBarPanel(content);
++		//////////////////////////
++		// Panel 2 - Cache attributes
++		//////////////////////////
++		addTitle(pnlAttributes,&quot;Attributes&quot;);
++		mLabel lblTitleAtt; 
++		pnlAttributes.addLast(lblTitleAtt=new mLabel(&quot;Show all caches with status:&quot;),HSTRETCH,FILL);
++		lblTitleAtt.setTag(SPAN,new Dimension(2,1));
++		pnlAttributes.addNext(archivedChk = new mCheckBox(MyLocale.getMsg(710,&quot;Archived&quot;)), CellConstants.DONTSTRETCH, CellConstants.FILL);
++		pnlAttributes.addLast(notArchivedChk = new mCheckBox(&quot;Nicht archiviert&quot;), CellConstants.DONTSTRETCH, CellConstants.FILL);
+ 		
+-		content.addNext(new mLabel((String)lr.get(701,&quot;Distance: &quot;)),CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		content.addNext(distChc = new mChoice(new String[]{&quot;&lt;=&quot;, &quot;&gt;=&quot;},0),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		content.addLast(distIn = new mInput(),CellConstants.DONTSTRETCH, CellConstants.FILL);
++		pnlAttributes.addNext(availableChk = new mCheckBox(&quot;Suchbar&quot;), CellConstants.DONTSTRETCH, CellConstants.FILL);
++		pnlAttributes.addLast(notAvailableChk = new mCheckBox(MyLocale.getMsg(711,&quot;Not available&quot;)), CellConstants.DONTSTRETCH, CellConstants.FILL);
+ 		
+-		content.addNext(new mLabel((String)lr.get(702,&quot;Difficulty: &quot;)),CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		content.addNext(difChc = new mChoice(new String[]{&quot;&lt;=&quot;, &quot;&gt;=&quot;},0),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		content.addLast(difIn = new mInput(),CellConstants.DONTSTRETCH, CellConstants.FILL);
++		pnlAttributes.addNext(foundChk = new mCheckBox(MyLocale.getMsg(703,&quot;Found&quot;)), CellConstants.DONTSTRETCH, CellConstants.FILL);
++		pnlAttributes.addLast(notFoundChk = new mCheckBox(&quot;Noch nicht gefunden&quot;), CellConstants.DONTSTRETCH, CellConstants.FILL);
+ 		
+-		content.addNext(new mLabel(&quot;Terrain: &quot;),CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		content.addNext(terrChc = new mChoice(new String[]{&quot;&lt;=&quot;, &quot;&gt;=&quot;},0),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		content.addLast(terrIn = new mInput(),CellConstants.DONTSTRETCH, CellConstants.FILL);
++		pnlAttributes.addNext(ownedChk = new mCheckBox(MyLocale.getMsg(707,&quot;Owned&quot;)), CellConstants.DONTSTRETCH, CellConstants.FILL);
++		pnlAttributes.addLast(notOwnedChk = new mCheckBox(&quot;Anderer Besitzer&quot;), CellConstants.DONTSTRETCH, CellConstants.FILL);
++
++		//////////////////////////
++		// Panel 3 - Cache ratings
++		//////////////////////////
++		addTitle(pnlRatings,&quot;Cache ratings&quot;);
++		pnlRatings.addNext(new mLabel(MyLocale.getMsg(702,&quot;Difficulty: &quot;)),CellConstants.DONTSTRETCH, CellConstants.FILL);
++		pnlRatings.addNext(difChc = new mChoice(new String[]{&quot;&lt;=&quot;,&quot;=&quot;, &quot;&gt;=&quot;},0),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		//pnlRatings.addLast(difIn = new mChoice(new String[]{&quot;1.0&quot;, &quot;1.5&quot;, &quot;2.0&quot;, &quot;2.5&quot;, &quot;3.0&quot;, &quot;3.5&quot;, &quot;4.0&quot;, &quot;4.5&quot;, &quot;5.0&quot;},0),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		pnlRatings.addLast(difIn = new mInput(),CellConstants.DONTSTRETCH, CellConstants.FILL);
+ 		
+-		content.addNext(lastChc = new mChoice(new String[]{(String)lr.get(703,&quot;Found&quot;), (String)lr.get(704,&quot;Not found&quot;)},0),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		content.addNext(new mLabel((String)lr.get(705,&quot; last &quot;)),CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		content.addLast(lastIn = new mInput(),CellConstants.DONTSTRETCH, CellConstants.FILL);
++		pnlRatings.addNext(new mLabel(&quot;Terrain: &quot;),CellConstants.DONTSTRETCH, CellConstants.FILL);
++		pnlRatings.addNext(terrChc = new mChoice(new String[]{&quot;&lt;=&quot;, &quot;=&quot;, &quot;&gt;=&quot;},0),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		//pnlRatings.addLast(terrIn = new mChoice(new String[]{&quot;1.0&quot;, &quot;1.5&quot;, &quot;2.0&quot;, &quot;2.5&quot;, &quot;3.0&quot;, &quot;3.5&quot;, &quot;4.0&quot;, &quot;4.5&quot;, &quot;5.0&quot;},0),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		pnlRatings.addLast(terrIn = new mInput(),CellConstants.DONTSTRETCH, CellConstants.FILL);
++
++		//////////////////////////
++		// Panel 4 - Cache types
++		//////////////////////////
+ 		
+-		content.addNext(new mLabel((String)lr.get(706,&quot;Found by: &quot;)),CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		content.addLast(foundIn = new mInput(),CellConstants.DONTSTRETCH, CellConstants.FILL);
++		addTitle(pnlCacheTypes,&quot;Cache types&quot;);
++		pnlCacheTypes.addNext(addImg(&quot;2.png&quot;));
++		pnlCacheTypes.addNext(tradChk = new mCheckBox(&quot;Traditonal&quot;), CellConstants.DONTSTRETCH, CellConstants.FILL);
+ 		
+-		content.addNext(archivedChk = new mCheckBox((String)lr.get(710,&quot;Archived&quot;)), CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		archivedChk.state = (Global.getProfile().filterVar.charAt(0) == '1' ? true : false);
+-		content.addLast(notAvailableChk = new mCheckBox((String)lr.get(711,&quot;Not available&quot;)), CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		notAvailableChk.state = (Global.getProfile().filterVar.charAt(1) == '1' ? true : false);
++		pnlCacheTypes.addNext(addImg(&quot;3.png&quot;));
++		pnlCacheTypes.addLast(multiChk = new mCheckBox(&quot;Multi&quot;), CellConstants.DONTSTRETCH, CellConstants.FILL);
+ 		
+-		content.addNext(foundChk = new mCheckBox((String)lr.get(703,&quot;Found&quot;)), CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		foundChk.state = (Global.getProfile().filterVar.charAt(2) == '1' ? true : false);
+-		content.addLast(ownedChk = new mCheckBox((String)lr.get(707,&quot;Owned&quot;)), CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		ownedChk.state = (Global.getProfile().filterVar.charAt(3) == '1' ? true : false);
++		pnlCacheTypes.addNext(addImg(&quot;4.png&quot;));
++		pnlCacheTypes.addNext(virtualChk = new mCheckBox(&quot;Virtual&quot;), CellConstants.DONTSTRETCH, CellConstants.FILL);
+ 		
+-		CellPanel ctype = new CellPanel();
++		pnlCacheTypes.addNext(addImg(&quot;5.png&quot;));
++		pnlCacheTypes.addLast(letterChk = new mCheckBox(&quot;Letterbox&quot;), CellConstants.DONTSTRETCH, CellConstants.FILL);
+ 		
+-		ctype.addLast(new mLabel(&quot;__________&quot;));
+-		ctype.addNext(tradChk = new mCheckBox(&quot;Traditonal&quot;), CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		tradChk.state = (Global.getProfile().filterType.charAt(0) == '1' ? true : false);
+-		ctype.addNext(multiChk = new mCheckBox(&quot;Multi&quot;), CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		multiChk.state = (Global.getProfile().filterType.charAt(1) == '1' ? true : false);
+-		ctype.addLast(virtualChk = new mCheckBox(&quot;Virtual&quot;), CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		virtualChk.state = (Global.getProfile().filterType.charAt(2) == '1' ? true : false);
++		pnlCacheTypes.addNext(addImg(&quot;6.png&quot;));
++		pnlCacheTypes.addNext(eventChk = new mCheckBox(&quot;Event&quot;), CellConstants.DONTSTRETCH, CellConstants.FILL);
+ 		
+-		ctype.addNext(letterChk = new mCheckBox(&quot;Letterbox&quot;), CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		letterChk.state = (Global.getProfile().filterType.charAt(3) == '1' ? true : false);
+-		ctype.addNext(eventChk = new mCheckBox(&quot;Event&quot;), CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		eventChk.state = (Global.getProfile().filterType.charAt(4) == '1' ? true : false);
+-		ctype.addLast(webcamChk = new mCheckBox(&quot;Webcam&quot;), CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		webcamChk.state = (Global.getProfile().filterType.charAt(5) == '1' ? true : false);
++		pnlCacheTypes.addNext(addImg(&quot;11.png&quot;));
++		pnlCacheTypes.addLast(webcamChk = new mCheckBox(&quot;Webcam&quot;), CellConstants.DONTSTRETCH, CellConstants.FILL);
+ 		
+-		ctype.addNext(mysteryChk = new mCheckBox(&quot;Mystery&quot;), CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		mysteryChk.state = (Global.getProfile().filterType.charAt(6) == '1' ? true : false);
+-		ctype.addNext(earthChk = new mCheckBox(&quot;Earth&quot;), CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		earthChk.state = (Global.getProfile().filterType.charAt(7) == '1' ? true : false);
+-		ctype.addLast(loclessChk = new mCheckBox(&quot;Locationless&quot;), CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		loclessChk.state = (Global.getProfile().filterType.charAt(8) == '1' ? true : false);
++		pnlCacheTypes.addNext(addImg(&quot;8.png&quot;));
++		pnlCacheTypes.addNext(mysteryChk = new mCheckBox(&quot;Mystery&quot;), CellConstants.DONTSTRETCH, CellConstants.FILL);
+ 		
+-		ctype.addNext(megaChk = new mCheckBox(&quot;Mega-Ev.&quot;), CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		megaChk.state = (Global.getProfile().filterType.charAt(9) == '1' ? true : false);
+-		ctype.addLast(addiWptChk = new mCheckBox(&quot;Add. Wpt&quot;), CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		addiWptChk.state = (Global.getProfile().filterType.charAt(10) == '1' ? true : false);
+-		ctype.addLast(new mLabel(&quot;__________&quot;));
+-		content.addLast(ctype, CellConstants.STRETCH,CellConstants.FILL);
++		pnlCacheTypes.addNext(addImg(&quot;137.png&quot;));
++		pnlCacheTypes.addLast(earthChk = new mCheckBox(&quot;Earth&quot;), CellConstants.DONTSTRETCH, CellConstants.FILL);
+ 		
+-		CellPanel roseP = new CellPanel();
+-		//Image img = new Image(&quot;rose.png&quot;);
+-		//ImageControl ic = new ImageControl(img);
+-		//mLabel ic = new mLabel(&quot;&quot;);
+-		roseP.addNext(NW = new mCheckBox(&quot;NW&quot;),CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		NW.state = (Global.getProfile().filterRose.charAt(0) == '1' ? true : false);
+-		roseP.addNext(NNW = new mCheckBox(&quot;NNW&quot;),CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		NNW.state = (Global.getProfile().filterRose.charAt(1) == '1' ? true : false);
+-		roseP.addNext(N = new mCheckBox(&quot;N&quot;),CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		N.state = (Global.getProfile().filterRose.charAt(2) == '1' ? true : false);
+-		roseP.addLast(NNE = new mCheckBox(&quot;NNE&quot;),CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		NNE.state = (Global.getProfile().filterRose.charAt(3) == '1' ? true : false);
++		pnlCacheTypes.addNext(addImg(&quot;12.png&quot;));
++		pnlCacheTypes.addNext(loclessChk = new mCheckBox(&quot;Locationless&quot;), CellConstants.DONTSTRETCH, CellConstants.FILL);
+ 		
+-		roseP.addNext(NE = new mCheckBox(&quot;NE&quot;),CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		NE.state = (Global.getProfile().filterRose.charAt(4) == '1' ? true : false);
+-		roseP.addNext(WNW = new mCheckBox(&quot;WNW&quot;),CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		WNW.state = (Global.getProfile().filterRose.charAt(5) == '1' ? true : false);
+-		roseP.addNext(ENE = new mCheckBox(&quot;ENE&quot;),CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		ENE.state = (Global.getProfile().filterRose.charAt(6) == '1' ? true : false);
+-		roseP.addLast(W = new mCheckBox(&quot;W &quot;),CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		W.state = (Global.getProfile().filterRose.charAt(7) == '1' ? true : false);
++		pnlCacheTypes.addNext(addImg(&quot;453.png&quot;));
++		pnlCacheTypes.addLast(megaChk = new mCheckBox(&quot;Mega-Ev.&quot;), CellConstants.DONTSTRETCH, CellConstants.FILL);
+ 		
+-		roseP.addNext(E = new mCheckBox(&quot;E &quot;),CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		E.state = (Global.getProfile().filterRose.charAt(8) == '1' ? true : false);
+-		roseP.addNext(WSW = new mCheckBox(&quot;WSW&quot;),CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		WSW.state = (Global.getProfile().filterRose.charAt(9) == '1' ? true : false);
+-		roseP.addNext(ESE = new mCheckBox(&quot;ESE&quot;),CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		ESE.state = (Global.getProfile().filterRose.charAt(10) == '1' ? true : false);
+-		roseP.addLast(SW = new mCheckBox(&quot;SW&quot;),CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		SW.state = (Global.getProfile().filterRose.charAt(11) == '1' ? true : false);
++		pnlCacheTypes.addNext(addImg(&quot;110.png&quot;));
++		pnlCacheTypes.addLast(addiWptChk = new mCheckBox(&quot;Add. Wpt&quot;), CellConstants.DONTSTRETCH, CellConstants.FILL);
++		pnlCacheTypes.addLast(new mLabel(&quot;&quot;));
++
++		//////////////////////////
++		// Panel 5 - Cache container
++		//////////////////////////
++		addTitle(pnlContainer,&quot;Cache container&quot;);
++		pnlContainer.addLast(new mLabel(&quot;To be implemented&quot;));
+ 		
+-		roseP.addNext(SSW = new mCheckBox(&quot;SSW&quot;),CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		SSW.state = (Global.getProfile().filterRose.charAt(12) == '1' ? true : false);
+-		roseP.addNext(S = new mCheckBox(&quot;S&quot;),CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		S.state = (Global.getProfile().filterRose.charAt(13) == '1' ? true : false);
+-		roseP.addNext(SSE = new mCheckBox(&quot;SSE&quot;),CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		SSE.state = (Global.getProfile().filterRose.charAt(14) == '1' ? true : false);
+-		roseP.addLast(SE = new mCheckBox(&quot;SE&quot;),CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		SE.state = (Global.getProfile().filterRose.charAt(15) == '1' ? true : false);
++		//////////////////////////
++		// Panel 6 - Search
++		//////////////////////////
++		addTitle(pnlSearch,&quot;Search&quot;);
++		pnlSearch.addLast(new mLabel(&quot;To be implemented&quot;));
+ 		
+-		content.addLast(roseP, CellConstants.STRETCH,CellConstants.FILL);
++		lastChc = new mChoice(new String[]{MyLocale.getMsg(703,&quot;Found&quot;), MyLocale.getMsg(704,&quot;Not found&quot;)},0);
++		lastIn = new mInput();
++		foundIn = new mInput();
++/*		content.addNext(lastChc,CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		content.addNext(new mLabel(MyLocale.getMsg(705,&quot; last &quot;)),CellConstants.DONTSTRETCH, CellConstants.FILL);
++		content.addLast(lastIn,CellConstants.DONTSTRETCH, CellConstants.FILL);
++		
++		content.addNext(new mLabel(MyLocale.getMsg(706,&quot;Found by: &quot;)),CellConstants.DONTSTRETCH, CellConstants.FILL);
++		content.addLast(foundIn,CellConstants.DONTSTRETCH, CellConstants.FILL);
++*/		
++		Frame frmScreen=new Frame();
++		mLabel lblInfo; 
++		frmScreen.addLast(lblInfo=new mLabel(&quot;Note: Filters are additive, active filter=green&quot;)).setTag(SPAN,new Dimension(2,1));
++		lblInfo.setTag(INSETS,new Insets(0,0,2,0));
++		frmScreen.borderStyle=CellPanel.BDR_RAISEDOUTER|CellPanel.BDR_SUNKENINNER|CellPanel.BF_BOTTOM;
++		this.addLast(frmScreen,HSTRETCH,HFILL);
++		
++		CellPanel pnlButtons=new CellPanel();
++		pnlButtons.addLast(new mLabel(&quot;Filter&quot;));
++		pnlButtons.addLast(btnBearing=new mButton(&quot;Bearing&quot;));
++		pnlButtons.addLast(btnAttributes=new mButton(&quot;Attributes&quot;));
++		pnlButtons.addLast(btnRatings=new mButton(&quot;Ratings&quot;));
++		pnlButtons.addLast(btnTypes=new mButton(&quot;Types&quot;)); 
++		pnlButtons.addLast(btnContainer=new mButton(&quot;Container&quot;)); btnContainer.modify(Disabled,0);
++		pnlButtons.addLast(btnSearch=new mButton(&quot;Search&quot;)); btnSearch.modify(Disabled,0);
++		addNext(pnlButtons,HSTRETCH,FILL);
++
++		cp.addItem(pnlBearDist,&quot;Bear&quot;,null);
++		cp.addItem(pnlAttributes,&quot;Att&quot;,null);
++		cp.addItem(pnlRatings,&quot;DT&quot;,null); 
++		cp.addItem(pnlCacheTypes,&quot;Type&quot;,null);
++		cp.addItem(pnlContainer,&quot;Size&quot;,null);
++		cp.addItem(pnlSearch,&quot;Search&quot;,null);
++		addLast(cp);
++
+ 		CellPanel btPanel = new CellPanel();
+-		btPanel.addNext(btCancel = new mButton((String)lr.get(708,&quot;Cancel&quot;)),CellConstants.STRETCH, CellConstants.FILL);
+-		btPanel.addNext(btApply = new mButton((String)lr.get(709,&quot;Apply&quot;)),CellConstants.STRETCH, CellConstants.FILL);
++		btPanel.addNext(btCancel = new mButton(MyLocale.getMsg(708,&quot;Cancel&quot;)),CellConstants.STRETCH, CellConstants.FILL);
++		btPanel.addNext(btApply = new mButton(MyLocale.getMsg(709,&quot;Apply&quot;)),CellConstants.STRETCH, CellConstants.FILL);
+ 		btPanel.addLast(btRoute = new mButton(&quot;Route&quot;),CellConstants.STRETCH, CellConstants.FILL);
+-		content.addLast(btPanel.setTag(Control.SPAN, new Dimension(3,1)), CellConstants.STRETCH, CellConstants.FILL);
++		addLast(btPanel.setTag(Control.SPAN, new Dimension(3,1)), CellConstants.STRETCH, CellConstants.FILL);
++		setPreferredSize(240,240);
+ 		
+-		this.addLast(scp.getScrollablePanel(), CellConstants.STRETCH, CellConstants.FILL);
+ 	}
+ 	
++	
++	public void setData(Vector DB, String d){
++		dir = d;
++		cacheDB = DB;
++		Profile prof=Global.getProfile();
++
++		//////////////////////////
++		// Panel 1 - Bearing &amp; Distance
++		//////////////////////////
++		if (prof.filterDist.length()&gt;1) {
++			if (prof.filterDist.charAt(0)=='&lt;')
++				distChc.select(0);
++			else
++				distChc.select(1);
++			distIn.setText(prof.filterDist.substring(1));
++		} else {
++			distChc.select(0);
++			distIn.setText(&quot;&quot;);
++		}
++		// If filter has been corrupted, pad it to 11 characters
++		String fltRose=prof.filterRose;
++		if (fltRose.length()&lt;16) { 
++			fltRose=(fltRose+&quot;1111111111111111&quot;).substring(0,16); 
++			prof.filterRose=fltRose; 
++		}  
++		NW.state   = fltRose.charAt(0) == '1';
++		NNW.state  = fltRose.charAt(1) == '1';
++		N.state    = fltRose.charAt(2) == '1';
++		NNE.state  = fltRose.charAt(3) == '1';
++		
++		NE.state   = fltRose.charAt(4) == '1';
++		ENE.state  = fltRose.charAt(5) == '1';
++		E.state    = fltRose.charAt(6) == '1';
++		ESE.state  = fltRose.charAt(7) == '1';
++
++		SE.state   = fltRose.charAt(8) == '1';
++		SSE.state  = fltRose.charAt(9) == '1';
++		S.state    = fltRose.charAt(10) == '1';
++		SSW.state  = fltRose.charAt(11) == '1';
++
++		SW.state   = fltRose.charAt(12) == '1';
++		WSW.state  = fltRose.charAt(13) == '1';
++		W.state    = fltRose.charAt(14) == '1';
++		WNW.state  = fltRose.charAt(15) == '1';
++		
++		//////////////////////////
++		// Panel 2 - Cache attributes
++		//////////////////////////
++		String fltVar=prof.filterVar;
++		if (fltVar.length()&lt;8) { 
++			fltVar=(fltVar+&quot;11111111&quot;).substring(0,8); 
++			prof.filterVar=fltVar; 
++		}  
++		archivedChk.state      = fltVar.charAt(0) == '1';
++		availableChk.state     = fltVar.charAt(1) == '1';
++		foundChk.state         = fltVar.charAt(2) == '1';
++		ownedChk.state         = fltVar.charAt(3) == '1';
++		notArchivedChk.state   = fltVar.charAt(4) == '1';
++		notAvailableChk.state  = fltVar.charAt(5) == '1';
++		notFoundChk.state      = fltVar.charAt(6) == '1';
++		notOwnedChk.state      = fltVar.charAt(7) == '1';
++
++		//////////////////////////
++		// Panel 3 - Cache ratings
++		//////////////////////////
++		if (prof.filterDiff.length()&gt;1) {
++			if (prof.filterDiff.charAt(0)=='&lt;')
++				difChc.select(0);
++			else if (prof.filterDiff.charAt(0)=='=')
++				difChc.select(1);
++			else
++				difChc.select(2);
++			difIn.setText(prof.filterDiff.substring(1));
++		} else {
++			difChc.select(0);
++			difIn.setText(&quot;&quot;);
++		}
++
++		if (prof.filterTerr.length()&gt;1) {
++			if (prof.filterTerr.charAt(0)=='&lt;')
++				terrChc.select(0);
++			else if (prof.filterTerr.charAt(0)=='=')
++				terrChc.select(1);
++			else
++				terrChc.select(2);
++			terrIn.setText(prof.filterTerr.substring(1));
++		} else {
++			terrChc.select(0);
++			terrIn.setText(&quot;&quot;);
++		}
++
++
++		//////////////////////////
++		// Panel 4 - Cache types
++		//////////////////////////
++		
++		// If filter has been corrupted, pad it to 11 characters
++		String fltType=prof.filterType;
++		if (fltType.length()&lt;11) { 
++			fltType=(fltType+&quot;11111111111&quot;).substring(0,11); 
++			prof.filterType=fltType; 
++		}  
++		tradChk.state    = fltType.charAt(0) == '1';
++		multiChk.state   = fltType.charAt(1) == '1';
++		virtualChk.state = fltType.charAt(2) == '1';
++		letterChk.state  = fltType.charAt(3) == '1';
++		eventChk.state   = fltType.charAt(4) == '1';
++		webcamChk.state  = fltType.charAt(5) == '1';
++		mysteryChk.state = fltType.charAt(6) == '1';
++		earthChk.state   = fltType.charAt(7) == '1';
++		loclessChk.state = fltType.charAt(8) == '1';
++		megaChk.state    = fltType.charAt(9) == '1';
++		addiWptChk.state = fltType.charAt(10) == '1';
++
++		//////////////////////////
++		// Panel 5 - Cache container
++		//////////////////////////
++		
++		//////////////////////////
++		// Panel 6 - Search
++		//////////////////////////
++		
++		// Adjust colors of buttons depending on which filters are active
++		setColors();
++	}
++	
++	// Set the colors of the filter buttons according to which filters are active
++	private void setColors() {
++		// Panel 1 - Bearing &amp; Distance
++		if (distIn.getText().length()&gt;0 || 
++			  !(NW.getState() &amp;&amp; NNW.getState() &amp;&amp; N.getState() &amp;&amp; NNE.getState() &amp;&amp;
++				NE.getState() &amp;&amp; ENE.getState() &amp;&amp; E.getState() &amp;&amp; ESE.getState() &amp;&amp;
++				SE.getState() &amp;&amp; SSE.getState() &amp;&amp; S.getState() &amp;&amp; SSW.getState() &amp;&amp;
++				SW.getState() &amp;&amp; WSW.getState() &amp;&amp; W.getState() &amp;&amp; WNW.getState()))
++			btnBearing.backGround=COLOR_FILTERACTIVE;
++		else
++			btnBearing.backGround=COLOR_FILTERINACTIVE;
++		btnBearing.repaint();
++		
++		// Panel 2 - Cache attributes
++		if (!( archivedChk.getState()    &amp;&amp; availableChk.getState()    &amp;&amp; foundChk.getState()    &amp;&amp; ownedChk.getState() &amp;&amp;
++			   notArchivedChk.getState() &amp;&amp; notAvailableChk.getState() &amp;&amp; notFoundChk.getState() &amp;&amp; notOwnedChk.getState()))
++			btnAttributes.backGround=COLOR_FILTERACTIVE;
++		else
++			btnAttributes.backGround=COLOR_FILTERINACTIVE;
++		btnAttributes.repaint();
++		
++		// Panel 3 - Cache ratings
++		if (difIn.getText().length()&gt;0 || terrIn.getText().length()&gt;0)
++			btnRatings.backGround=COLOR_FILTERACTIVE;
++		else
++			btnRatings.backGround=COLOR_FILTERINACTIVE;
++		btnRatings.repaint();
++
++		// Panel 4 - Cache types
++		if (!(tradChk.getState() &amp;&amp; multiChk.getState() &amp;&amp; 	virtualChk.getState() &amp;&amp; letterChk.getState() &amp;&amp;
++		      eventChk.getState() &amp;&amp; webcamChk.getState() &amp;&amp; mysteryChk.getState() &amp;&amp; earthChk.getState() &amp;&amp;
++		      loclessChk.getState() &amp;&amp; megaChk.getState() &amp;&amp; !addiWptChk.getState())) 
++			btnTypes.backGround=COLOR_FILTERACTIVE;
++		else
++			btnTypes.backGround=COLOR_FILTERINACTIVE;
++		btnTypes.repaint();
++
++		// Panel 5 - Cache container
++
++		// Panel 6 - Search
++		
++	}
++	
+ 	/**
+ 	*	React to the users input, create a filter and set the variable of the filter.
+ 	*	@see Filter
+@@ -159,11 +394,11 @@
+ 			if (ev.target == btCancel){
+ 				this.close(0);
+ 			}
+-			if (ev.target == btRoute){
++			else if (ev.target == btRoute){
+ 				
+ 				File datei;
+ 				FileChooser fc = new FileChooser(FileChooser.OPEN, dir);
+-				fc.setTitle((String)lr.get(712,&quot;Select route file&quot;));
++				fc.setTitle(MyLocale.getMsg(712,&quot;Select route file&quot;));
+ 				if(fc.execute() != FormBase.IDCANCEL) {
+ 					datei = fc.getChosenFile();
+ 					InfoBox inf = new InfoBox(&quot;Distance?&quot;, &quot;Dist:&quot;, InfoBox.INPUT);
+@@ -177,29 +412,36 @@
+ 				this.close(0);
+ 				
+ 			}
+-			if (ev.target == btApply){
++			else if (ev.target == btApply){
+ 				Vm.showWait(true);
+ 				//Save filter required
+ 				Filter flt = new Filter();
+ 				flt.foundByMe = foundChk.getState();
++				flt.notFoundByMe = notFoundChk.getState();
+ 				flt.ownedByMe = ownedChk.getState();
++				flt.notOwnedByMe = notOwnedChk.getState();
+ 				
+ 				flt.dist = distIn.getText();
+ 				flt.diff = difIn.getText();
+ 				flt.terr = terrIn.getText();
+ 				flt.days = lastIn.getText();
+ 				flt.by = foundIn.getText();
++				flt.available = availableChk.getState();
+ 				flt.notAvailable = notAvailableChk.getState();
+ 				flt.archived = archivedChk.getState();
+-				String filterType = new String();
+-				String filterVar = new String();
+-				String filterRose = new String();
+-				filterVar = (archivedChk.getState() == true ? &quot;1&quot; : &quot;0&quot;)+
+-							(notAvailableChk.getState() == true ? &quot;1&quot; : &quot;0&quot;) +
+-							(foundChk.getState() == true ? &quot;1&quot; : &quot;0&quot;) +
+-							(ownedChk.getState() == true ? &quot;1&quot; : &quot;0&quot;);
++				flt.notArchived = notArchivedChk.getState();
++				String filterType;
++				String filterVar;
++				String filterRose;
++				filterVar = (archivedChk.getState()    ? &quot;1&quot; : &quot;0&quot;) +
++							(availableChk.getState()   ? &quot;1&quot; : &quot;0&quot;) +
++							(foundChk.getState()       ? &quot;1&quot; : &quot;0&quot;) +
++							(ownedChk.getState()       ? &quot;1&quot; : &quot;0&quot;) +
++							(notArchivedChk.getState() ? &quot;1&quot; : &quot;0&quot;) +
++							(notAvailableChk.getState()? &quot;1&quot; : &quot;0&quot;) +
++							(notFoundChk.getState()    ? &quot;1&quot; : &quot;0&quot;) +
++							(notOwnedChk.getState()    ? &quot;1&quot; : &quot;0&quot;);							
+ 							
+-							
+ 				int typeMatchPattern = 0;
+ 				if(tradChk.getState()) typeMatchPattern |= Filter.TRADITIONAL;
+ 				if(multiChk.getState()) typeMatchPattern |= Filter.MULTI;
+@@ -213,75 +455,128 @@
+ 				if(earthChk.getState()) typeMatchPattern |= Filter.EARTH;
+ 				if(megaChk.getState()) typeMatchPattern |= Filter.MEGA;
+ 				flt.typeMatchPattern = typeMatchPattern;
+-				filterType = 	(tradChk.getState() == true ? &quot;1&quot; : &quot;0&quot;) +
+-								(multiChk.getState() == true ? &quot;1&quot; : &quot;0&quot;) +
+-								(virtualChk.getState() == true ? &quot;1&quot; : &quot;0&quot;) +
+-								(letterChk.getState() == true ? &quot;1&quot; : &quot;0&quot;) +
+-								(eventChk.getState() == true ? &quot;1&quot; : &quot;0&quot;)+ 
+-								(webcamChk.getState() == true ? &quot;1&quot; : &quot;0&quot;)+
+-								(mysteryChk.getState() == true ? &quot;1&quot; : &quot;0&quot;)+
+-								(earthChk.getState() == true ? &quot;1&quot; : &quot;0&quot;)+
+-								(loclessChk.getState() == true ? &quot;1&quot; : &quot;0&quot;)+
+-								(megaChk.getState() == true ? &quot;1&quot; : &quot;0&quot;)+
+-								(addiWptChk.getState() == true ? &quot;1&quot; : &quot;0&quot;);
++				filterType = 	(tradChk.getState()    ? &quot;1&quot; : &quot;0&quot;) +
++								(multiChk.getState()   ? &quot;1&quot; : &quot;0&quot;) +
++								(virtualChk.getState() ? &quot;1&quot; : &quot;0&quot;) +
++								(letterChk.getState()  ? &quot;1&quot; : &quot;0&quot;) +
++								(eventChk.getState()   ? &quot;1&quot; : &quot;0&quot;) + 
++								(webcamChk.getState()  ? &quot;1&quot; : &quot;0&quot;) +
++								(mysteryChk.getState() ? &quot;1&quot; : &quot;0&quot;) +
++								(earthChk.getState()   ? &quot;1&quot; : &quot;0&quot;) +
++								(loclessChk.getState() ? &quot;1&quot; : &quot;0&quot;) +
++								(megaChk.getState()    ? &quot;1&quot; : &quot;0&quot;) +
++								(addiWptChk.getState() ? &quot;1&quot; : &quot;0&quot;);
+ 				
+ 				int roseMatchPattern = 0;
+-				if(N.getState()) roseMatchPattern |= Filter.N;
++				if(N.getState())   roseMatchPattern |= Filter.N;
+ 				if(NNE.getState()) roseMatchPattern |= Filter.NNE;
+-				if(NE.getState()) roseMatchPattern |= Filter.NE;
++				if(NE.getState())  roseMatchPattern |= Filter.NE;
+ 				if(ENE.getState()) roseMatchPattern |= Filter.ENE;
+-				if(E.getState()) roseMatchPattern |= Filter.E;
++				if(E.getState())   roseMatchPattern |= Filter.E;
+ 				if(ESE.getState()) roseMatchPattern |= Filter.ESE;
+-				if(SE.getState()) roseMatchPattern |= Filter.SE;
++				if(SE.getState())  roseMatchPattern |= Filter.SE;
+ 				if(SSE.getState()) roseMatchPattern |= Filter.SSE;
+ 				if(SSW.getState()) roseMatchPattern |= Filter.SSW;
+-				if(SW.getState()) roseMatchPattern |= Filter.SW;
++				if(SW.getState())  roseMatchPattern |= Filter.SW;
+ 				if(WSW.getState()) roseMatchPattern |= Filter.WSW;
+-				if(W.getState()) roseMatchPattern |= Filter.W;
++				if(W.getState())   roseMatchPattern |= Filter.W;
+ 				if(WNW.getState()) roseMatchPattern |= Filter.WNW;
+-				if(NW.getState()) roseMatchPattern |= Filter.NW;
++				if(NW.getState())  roseMatchPattern |= Filter.NW;
+ 				if(NNW.getState()) roseMatchPattern |= Filter.NNW;
+-				if(S.getState()) roseMatchPattern |= Filter.S;
++				if(S.getState())   roseMatchPattern |= Filter.S;
+ 				flt.roseMatchPattern = roseMatchPattern;
+-				filterRose = (N.getState() == true ? &quot;1&quot;:&quot;0&quot;)+
+-							 (NNE.getState() == true ? &quot;1&quot;:&quot;0&quot;)+
+-							 (NE.getState() == true ? &quot;1&quot;:&quot;0&quot;)+
+-							 (ENE.getState() == true ? &quot;1&quot;:&quot;0&quot;)+
+-							 (E.getState() == true ? &quot;1&quot;:&quot;0&quot;)+
+-							 (ESE.getState() == true ? &quot;1&quot;:&quot;0&quot;)+
+-							 (SE.getState() == true ? &quot;1&quot;:&quot;0&quot;)+
+-							 (SSE.getState() == true ? &quot;1&quot;:&quot;0&quot;)+
+-							 (SSW.getState() == true ? &quot;1&quot;:&quot;0&quot;)+
+-							 (SW.getState() == true ? &quot;1&quot;:&quot;0&quot;)+
+-							 (WSW.getState() == true ? &quot;1&quot;:&quot;0&quot;)+
+-							 (W.getState() == true ? &quot;1&quot;:&quot;0&quot;)+
+-							 (WNW.getState() == true ? &quot;1&quot;:&quot;0&quot;)+
+-							 (NW.getState() == true ? &quot;1&quot;:&quot;0&quot;)+
+-							 (NNW.getState() == true ? &quot;1&quot;:&quot;0&quot;)+
+-							 (S.getState() == true ? &quot;1&quot;:&quot;0&quot;);
++				filterRose = (NW.getState()  ? &quot;1&quot;:&quot;0&quot;)+
++							 (NNW.getState() ? &quot;1&quot;:&quot;0&quot;)+
++							 (N.getState()   ? &quot;1&quot;:&quot;0&quot;)+
++							 (NNE.getState() ? &quot;1&quot;:&quot;0&quot;)+
++							 (NE.getState()  ? &quot;1&quot;:&quot;0&quot;)+
++							 (ENE.getState() ? &quot;1&quot;:&quot;0&quot;)+
++							 (E.getState()   ? &quot;1&quot;:&quot;0&quot;)+
++							 (ESE.getState() ? &quot;1&quot;:&quot;0&quot;)+
++							 (SE.getState()  ? &quot;1&quot;:&quot;0&quot;)+
++							 (SSE.getState() ? &quot;1&quot;:&quot;0&quot;)+
++							 (S.getState()   ? &quot;1&quot;:&quot;0&quot;)+
++							 (SSW.getState() ? &quot;1&quot;:&quot;0&quot;)+
++							 (SW.getState()  ? &quot;1&quot;:&quot;0&quot;)+
++							 (WSW.getState() ? &quot;1&quot;:&quot;0&quot;)+
++							 (W.getState()   ? &quot;1&quot;:&quot;0&quot;)+
++							 (WNW.getState() ? &quot;1&quot;:&quot;0&quot;);
+ 				
+-				InfoBox infB = new InfoBox(&quot;Info&quot;,MyLocale.getMsg(713,&quot;Saving filter&quot;));
+-				infB.exec();
+ 				Profile pfl = Global.getProfile();
++				if(distChc.selectedIndex == 0) { 
++					flt.distdirec = Filter.SMALLER;
++					pfl.filterDist=&quot;&lt;&quot;+flt.dist;
++				} else { 
++					flt.distdirec = Filter.GREATER;
++					pfl.filterDist=&quot;&gt;&quot;+flt.dist;
++				}
++					
++				if(difChc.selectedIndex == 0) { 
++					flt.diffdirec = Filter.SMALLER;
++					pfl.filterDiff=&quot;&lt;&quot;+flt.diff;
++				} else if(difChc.selectedIndex == 1) { 
++					flt.diffdirec = Filter.EQUAL;
++					pfl.filterDiff=&quot;=&quot;+flt.diff;
++				} else {	
++					flt.diffdirec = Filter.GREATER;
++					pfl.filterDiff=&quot;&gt;&quot;+flt.diff;
++				}	
++					
++				if(terrChc.selectedIndex == 0) { 
++					flt.terrdirec = Filter.SMALLER;
++					pfl.filterTerr=&quot;&lt;&quot;+flt.terr;
++				} else if(terrChc.selectedIndex == 1){ 
++					flt.terrdirec = Filter.EQUAL;
++					pfl.filterTerr=&quot;=&quot;+flt.terr;
++				} else { 
++					flt.terrdirec = Filter.GREATER;
++					pfl.filterTerr=&quot;&gt;&quot;+flt.terr;
++				}
++				
++				if(lastChc.selectedIndex == 0) 
++					flt.daysdirec = Filter.FOUND;
++				else 
++					flt.daysdirec = Filter.NOTFOUND;
++
++				// Need to think about saving it here. If yes, we also need to save filter when we clear it.
++				// Maybe better to auto-save index upon exit
++				//InfoBox infB = new InfoBox(&quot;Info&quot;,MyLocale.getMsg(713,&quot;Saving filter&quot;));
++				//infB.exec();
+ 				pfl.filterRose = filterRose;
+ 				pfl.filterType = filterType;
+ 				pfl.filterVar = filterVar;
+-				pfl.saveIndex(Global.getPref());
+-				infB.close(0);
+-				
+-				if(distChc.selectedIndex == 1) flt.distdirec = Filter.SMALLER;
+-				else flt.distdirec = Filter.GREATER;
+-				if(difChc.selectedIndex == 1) flt.diffdirec = Filter.SMALLER;
+-				else flt.diffdirec = Filter.GREATER;
+-				if(terrChc.selectedIndex == 1) flt.terrdirec = Filter.SMALLER;
+-				else flt.terrdirec = Filter.GREATER;
+-				if(lastChc.selectedIndex == 0) flt.daysdirec = Filter.FOUND;
+-				else flt.daysdirec = Filter.NOTFOUND;
++				//pfl.saveIndex(Global.getPref());
++				//infB.close(0);
+ 				flt.doFilter(cacheDB, dir);
++				Global.mainTab.tbP.tc.scrollToVisible(0,0);
+ 				Vm.showWait(false);
+ 				//Tabelle neu zeichnen lassen!
+ 				this.close(0);
+ 			}
++			else if (ev.target == btnBearing) cp.select(0);
++			else if (ev.target == btnAttributes) cp.select(1);
++			else if (ev.target == btnRatings)cp.select(2);
++			else if (ev.target == btnTypes)cp.select(3);
++			else if (ev.target == btnContainer)cp.select(4);
++			else if (ev.target == btnSearch)cp.select(5);
++			else if (ev.target == chkDeselect) {
++				NW.state= NNW.state  = N.state    = NNE.state  = 
++				NE.state   = ENE.state  = E.state    = ESE.state  = 
++				SE.state   = SSE.state  = S.state    = SSW.state  = 
++				SW.state   = WSW.state  = W.state    = WNW.state = false; 
++				chkDeselect.state=false;
++				repaint();
++					
++			} else if (ev.target == chkSelect) {
++				NW.state= NNW.state  = N.state    = NNE.state  = 
++				NE.state   = ENE.state  = E.state    = ESE.state  = 
++				SE.state   = SSE.state  = S.state    = SSW.state  = 
++				SW.state   = WSW.state  = W.state    = WNW.state = true; 
++				chkSelect.state=false;
++				repaint();	
++			}
+ 		}
++		if (ev instanceof DataChangeEvent )	setColors();
++
+ 	}
+ }
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2007-01-30 03:03:52 UTC (rev 475)
++++ trunk/src/CacheWolf/MainMenu.java	2007-01-31 07:28:01 UTC (rev 476)
+@@ -32,6 +32,7 @@
+ 	private MenuItem mnuNewProfile, mnuOpenProfile, mnuEditProfile;
+ 	private Form father;
+ 	private TablePanel tbp;
++	private FilterScreen scnFilter=new FilterScreen();
+ 	
+ 	public MainMenu(Form f){
+ 		father = f;
+@@ -116,13 +117,14 @@
+ 		///////////////////////////////////////////////////////////////////////
+ 		// Create a combined &quot;Filter and Search&quot; pulldown menu for devices with small screens
+ 		///////////////////////////////////////////////////////////////////////
+-		MenuItem[] filterAndSearchMenuItems=new MenuItem[6];
++		MenuItem[] filterAndSearchMenuItems=new MenuItem[7];
+ 		filterAndSearchMenuItems[0]=filtCreate;
+ 		filterAndSearchMenuItems[1]=filtInvert;
+ 		filterAndSearchMenuItems[2]=filtClear;
+-		filterAndSearchMenuItems[3]=mnuSeparator;
+-		filterAndSearchMenuItems[4]=search;
+-		filterAndSearchMenuItems[5]=searchClr;
++		filterAndSearchMenuItems[3]=filtBlack;
++		filterAndSearchMenuItems[4]=mnuSeparator;
++		filterAndSearchMenuItems[5]=search;
++		filterAndSearchMenuItems[6]=searchClr;
+ 		
+ 		// Depending on screen width display either filter and searach menus or the combined menu 
+ 		if (MyLocale.getScreenWidth()&gt;300) {
+@@ -258,8 +260,8 @@
+ 				tbp.resetModel();
+ 			}
+ 			if(mev.selectedItem == filtCreate){
+-				FilterScreen fsc = new FilterScreen(cacheDB, pref.baseDir);
+-				fsc.execute(father.getFrame(), Gui.CENTER_FRAME);
++				scnFilter.setData(cacheDB, pref.baseDir);
++				scnFilter.execute(father.getFrame(), Gui.CENTER_FRAME);
+ 				tbp.refreshTable();
+ 			}
+ 			if(mev.selectedItem == filtInvert){
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2007-01-30 03:03:52 UTC (rev 475)
++++ trunk/src/CacheWolf/Profile.java	2007-01-31 07:28:01 UTC (rev 476)
+@@ -35,11 +35,17 @@
+ 	/** Distance for opencaching caches */
+ 	public String distOC = new String();
+ 	
+-	public String filterType = new String(&quot;11111111110&quot;);
+-	public String filterRose = new String(&quot;1111111111111111&quot;);
++	public final static String FILTERTYPE=&quot;11111111110&quot;;
++	public final static String FILTERROSE=&quot;1111111111111111&quot;;
++	public final static String FILTERVAR=&quot;11111111&quot;;
++	public String filterType = new String(FILTERTYPE);
++	public String filterRose = new String(FILTERROSE);
+ 	//filter settings for archived ... owner (section) in filterscreen
+-	public String filterVar = new String(&quot;1111&quot;);
+-	//TODO Add the current filter settings here so that they are restored when the profile is reloaded
++	public String filterVar = new String(FILTERVAR);
++	public String filterDist=new String(&quot;&quot;);
++	public String filterDiff=new String(&quot;&quot;);
++	public String filterTerr=new String(&quot;&quot;);
++	
+ 	//TODO Add other settings, such as max. number of logs to spider
+ 	//TODO Add settings for the preferred mapper to allow for maps other than expedia and other resolutions
+ 	
+@@ -93,7 +99,9 @@
+ 				distOC = &quot;0&quot;;
+ 			}
+ 			
+-			detfile.print(&quot;    &lt;FILTER rose = \&quot;&quot;+filterRose+&quot;\&quot; type = \&quot;&quot;+filterType+&quot;\&quot; var = \&quot;&quot;+filterVar+&quot;\&quot; /&gt;\n&quot;);
++			detfile.print(&quot;    &lt;FILTER rose = \&quot;&quot;+filterRose+&quot;\&quot; type = \&quot;&quot;+filterType+
++					 &quot;\&quot; var = \&quot;&quot;+filterVar+&quot;\&quot; dist = \&quot;&quot;+filterDist.replace('&quot;',' ')+&quot;\&quot; diff = \&quot;&quot;+
++					 filterDiff+&quot;\&quot; terr = \&quot;&quot;+filterTerr+&quot;\&quot; /&gt;\n&quot;);
+ 			detfile.print(&quot;    &lt;SYNCOC date = \&quot;&quot;+last_sync_opencaching+&quot;\&quot; dist = \&quot;&quot;+distOC+&quot;\&quot;/&gt;\n&quot;);
+ 			for(int i = 0; i&lt;cacheDB.size();i++){
+ 				ch = (CacheHolder)cacheDB.get(i);
+@@ -200,6 +208,9 @@
+ 					filterRose = ex.findNext();
+ 					filterType = ex.findNext();
+ 					filterVar = ex.findNext();
++					filterDist = ex.findNext();
++					filterDiff = ex.findNext();
++					filterTerr = ex.findNext();
+ //					 Bilbowolf: Pattern for storing filter &lt;FILTER type=&quot;01001101&quot; rose = &quot;010010101&quot; var = &quot;0101&quot; dist = &quot;&lt;12&quot; diff = &quot;&gt;13&quot; terr = &quot;&lt;1&quot;/&gt;
+ 				}
+ 			}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000254.html">[Cachewolf-svn] r475 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000256.html">[Cachewolf-svn] r477 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#255">[ date ]</a>
+              <a href="thread.html#255">[ thread ]</a>
+              <a href="subject.html#255">[ subject ]</a>
+              <a href="author.html#255">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

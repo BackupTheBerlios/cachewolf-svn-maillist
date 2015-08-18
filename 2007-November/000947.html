@@ -1,0 +1,264 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1054 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-November/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1054%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200711111049.lABAnhQG025613%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000946.html">
+   <LINK REL="Next"  HREF="000948.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1054 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1054%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200711111049.lABAnhQG025613%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1054 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sun Nov 11 11:49:43 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000946.html">[Cachewolf-svn] r1053 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000948.html">[Cachewolf-svn] r1055 - in trunk: resources src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#947">[ date ]</a>
+              <a href="thread.html#947">[ thread ]</a>
+              <a href="subject.html#947">[ subject ]</a>
+              <a href="author.html#947">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-11-11 11:49:40 +0100 (Sun, 11 Nov 2007)
+New Revision: 1054
+
+Modified:
+   trunk/src/CacheWolf/CacheHolder.java
+   trunk/src/CacheWolf/Profile.java
+Log:
+Moved the parsing of a &lt;CACHE.../&gt; line (in the index.xml) from Profile.java to CacheHolder.java. Should also be  slightly faster.
+
+Modified: trunk/src/CacheWolf/CacheHolder.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolder.java	2007-11-10 22:30:09 UTC (rev 1053)
++++ trunk/src/CacheWolf/CacheHolder.java	2007-11-11 10:49:40 UTC (rev 1054)
+@@ -103,6 +103,105 @@
+ 	update(ch);
+ }
+ 
++static char decSep,notDecSep;
++static {
++	decSep=MyLocale.getDigSeparator().charAt(0);
++	notDecSep=decSep=='.'?',':'.';
++}
++
++public CacheHolder(String xmlString) {
++	int start,end;
++	try {
++		start=xmlString.indexOf('&quot;'); end=xmlString.indexOf('&quot;',start+1);
++		CacheName = SafeXML.cleanback(xmlString.substring(start+1,end));
++		
++		start=xmlString.indexOf('&quot;',end+1); end=xmlString.indexOf('&quot;',start+1);
++		CacheOwner = SafeXML.cleanback(xmlString.substring(start+1,end));
++
++		// Assume coordinates are in decimal format
++		start=xmlString.indexOf('&quot;',end+1); end=xmlString.indexOf('&quot;',start+1);
++		double lat=Convert.parseDouble(xmlString.substring(start+1,end).replace(notDecSep,decSep));
++
++		start=xmlString.indexOf('&quot;',end+1); end=xmlString.indexOf('&quot;',start+1);
++		double lon=Convert.parseDouble(xmlString.substring(start+1,end).replace(notDecSep,decSep));
++		pos=new CWPoint(lat,lon);
++		LatLon=pos.toString();
++
++		start=xmlString.indexOf('&quot;',end+1); end=xmlString.indexOf('&quot;',start+1);
++		DateHidden = xmlString.substring(start+1,end); 
++		// Convert the US format to YYYY-MM-DD if necessary
++		if (DateHidden.indexOf('/')&gt;-1) DateHidden=DateFormat.MDY2YMD(DateHidden);
++		
++		start=xmlString.indexOf('&quot;',end+1); end=xmlString.indexOf('&quot;',start+1);
++		wayPoint = SafeXML.cleanback(xmlString.substring(start+1,end));
++
++		start=xmlString.indexOf('&quot;',end+1); end=xmlString.indexOf('&quot;',start+1);
++		CacheStatus = xmlString.substring(start+1,end);
++	
++		start=xmlString.indexOf('&quot;',end+1); end=xmlString.indexOf('&quot;',start+1);
++		type = xmlString.substring(start+1,end);
++		
++		start=xmlString.indexOf('&quot;',end+1); end=xmlString.indexOf('&quot;',start+1);
++		hard = xmlString.substring(start+1,end);
++
++		start=xmlString.indexOf('&quot;',end+1); end=xmlString.indexOf('&quot;',start+1);
++		terrain = xmlString.substring(start+1,end);
++		
++		// The next item was 'dirty' but this is no longer used.
++		start=xmlString.indexOf('&quot;',end+1); end=xmlString.indexOf('&quot;',start+1);
++		is_filtered = xmlString.substring(start+1,end).equals(&quot;true&quot;); 
++	
++		start=xmlString.indexOf('&quot;',end+1); end=xmlString.indexOf('&quot;',start+1);
++		CacheSize = xmlString.substring(start+1,end);
++
++		start=xmlString.indexOf('&quot;',end+1); end=xmlString.indexOf('&quot;',start+1);
++		is_available = xmlString.substring(start+1,end).equals(&quot;true&quot;);
++
++		start=xmlString.indexOf('&quot;',end+1); end=xmlString.indexOf('&quot;',start+1);
++		is_archived = xmlString.substring(start+1,end).equals(&quot;true&quot;);
++		
++		start=xmlString.indexOf('&quot;',end+1); end=xmlString.indexOf('&quot;',start+1);
++		has_bug = xmlString.substring(start+1,end).equals(&quot;true&quot;);
++		
++		start=xmlString.indexOf('&quot;',end+1); end=xmlString.indexOf('&quot;',start+1);
++		is_black = xmlString.substring(start+1,end).equals(&quot;true&quot;);
++		if(is_black) is_filtered = true;
++	
++		start=xmlString.indexOf('&quot;',end+1); end=xmlString.indexOf('&quot;',start+1);
++		is_owned = xmlString.substring(start+1,end).equals(&quot;true&quot;);
++	
++		start=xmlString.indexOf('&quot;',end+1); end=xmlString.indexOf('&quot;',start+1);
++		is_found = xmlString.substring(start+1,end).equals(&quot;true&quot;);
++	
++		start=xmlString.indexOf('&quot;',end+1); end=xmlString.indexOf('&quot;',start+1);
++		is_new = xmlString.substring(start+1,end).equals(&quot;true&quot;);
++	
++		start=xmlString.indexOf('&quot;',end+1); end=xmlString.indexOf('&quot;',start+1);
++		is_log_update = xmlString.substring(start+1,end).equals(&quot;true&quot;);
++	
++		start=xmlString.indexOf('&quot;',end+1); end=xmlString.indexOf('&quot;',start+1);
++		is_update = xmlString.substring(start+1,end).equals(&quot;true&quot;);
++	
++		// for backwards compatibility set value to true, if it is not in the file
++		start=xmlString.indexOf('&quot;',end+1); end=xmlString.indexOf('&quot;',start+1);
++		is_HTML = xmlString.substring(start+1,end).equals(&quot;false&quot;);
++	
++		start=xmlString.indexOf('&quot;',end+1); end=xmlString.indexOf('&quot;',start+1);
++		noFindLogs = Convert.toInt(xmlString.substring(start+1,end));
++	
++		start=xmlString.indexOf('&quot;',end+1); end=xmlString.indexOf('&quot;',start+1);
++		ocCacheID = xmlString.substring(start+1,end);
++	
++		start=xmlString.indexOf('&quot;',end+1); end=xmlString.indexOf('&quot;',start+1);
++		is_incomplete = xmlString.substring(start+1,end).equals(&quot;true&quot;);
++	
++		start=xmlString.indexOf('&quot;',end+1); end=xmlString.indexOf('&quot;',start+1);
++		lastSyncOC = xmlString.substring(start+1,end);
++	} catch (Exception ex) {
++		
++	}
++}
++
+ public void update(CacheHolder ch) {
+ 	/* Here we have to distinguish several cases:
+ 	   this.is_found       this                ch               Update 'this'
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2007-11-10 22:30:09 UTC (rev 1053)
++++ trunk/src/CacheWolf/Profile.java	2007-11-11 10:49:40 UTC (rev 1054)
+@@ -197,56 +197,11 @@
+ 			if (text!=null &amp;&amp; text.indexOf(&quot;decimal&quot;)&gt;0) fmtDec=true;
+ 			Extractor ex = new Extractor(null, &quot; = \&quot;&quot;, &quot;\&quot; &quot;, 0, true);
+ 			
+-			//OperationTimer optt = new OperationTimer();
+-			//optt.start(&quot;Reading...&quot;);
+-			
++			//ewe.sys.Time startT=new ewe.sys.Time();
+ 			while ((text = in.readLine()) != null){
+ 				// Check for Line with cache data
+ 				if (text.indexOf(&quot;&lt;CACHE &quot;)&gt;=0){
+-					ex.setSource(text);
+-					CacheHolder ch = new CacheHolder();
+-					ch.CacheName = SafeXML.cleanback(ex.findNext());
+-					ch.CacheOwner = SafeXML.cleanback(ex.findNext());
+-					if (fmtDec) {
+-						double lat=Convert.parseDouble(ex.findNext().replace(notDecSep,decSep));
+-						double lon=Convert.parseDouble(ex.findNext().replace(notDecSep,decSep));
+-						ch.pos=new CWPoint(lat,lon);
+-						ch.LatLon=ch.pos.toString();
+-					} else {
+-						ch.LatLon = SafeXML.cleanback(ex.findNext());
+-						ch.pos.set(ch.LatLon,CWPoint.CW);
+-					}
+-					ch.DateHidden = ex.findNext(); 
+-					// Convert the US format to YYYY-MM-DD if necessary
+-					if (ch.DateHidden.indexOf('/')&gt;-1) ch.DateHidden=DateFormat.MDY2YMD(ch.DateHidden);
+-					ch.wayPoint = SafeXML.cleanback(ex.findNext());
+-					ch.CacheStatus = ex.findNext();
+-					ch.type = ex.findNext();
+-					ch.hard = ex.findNext();
+-					ch.terrain = ex.findNext();
+-					// The next item was 'dirty' but this is no longer used.
+-					ch.is_filtered = ex.findNext().equals(&quot;true&quot;) ? true : false; 
+-					ch.CacheSize = ex.findNext();
+-					ch.is_available = ex.findNext().equals(&quot;true&quot;) ? true : false;
+-					ch.is_archived = ex.findNext().equals(&quot;true&quot;) ? true : false;
+-					ch.has_bug = ex.findNext().equals(&quot;true&quot;) ? true : false;
+-					ch.is_black = ex.findNext().equals(&quot;true&quot;) ? true : false;
+-					if(ch.is_black) ch.is_filtered = true;
+-					ch.is_owned = ex.findNext().equals(&quot;true&quot;) ? true : false;
+-					ch.is_found = ex.findNext().equals(&quot;true&quot;) ? true : false;
+-					ch.is_new = ex.findNext().equals(&quot;true&quot;) ? true : false;
+-					ch.is_log_update = ex.findNext().equals(&quot;true&quot;) ? true : false;
+-					ch.is_update = ex.findNext().equals(&quot;true&quot;) ? true : false;
+-					// for backwards compatibility set value to true, if it is not in the file
+-					ch.is_HTML = ex.findNext().equals(&quot;false&quot;) ? false : true;
+-					ch.noFindLogs = Convert.toInt(ex.findNext());
+-					ch.ocCacheID = ex.findNext();
+-					ch.is_incomplete = ex.findNext().equals(&quot;true&quot;) ? true : false;
+-					ch.lastSyncOC = ex.findNext();
+-					// remove &quot;/&gt;
+-					ch.ocCacheID = STRreplace.replace(ch.ocCacheID,&quot;\&quot;/&gt;&quot;, null);
+-					// remove additional &quot; if present
+-					ch.ocCacheID = STRreplace.replace(ch.ocCacheID,&quot;\&quot;&quot;, null);
++					CacheHolder ch=new CacheHolder(text);
+ 					cacheDB.add(ch);
+ 				} else if (text.indexOf(&quot;&lt;CENTRE&quot;)&gt;=0) { // lat=  lon=
+ 					if (fmtDec) {
+@@ -293,13 +248,10 @@
+ 				}
+ 			}
+ 			in.close();
+-			
+-			//optt.end();
+-			//long times[];
+-			//times = optt.getTimes();
+-			//Vm.debug(&quot;Reading ended: &quot; + times[0]);
+-			
+-			
++			//ewe.sys.Time endT=new ewe.sys.Time();
++			//Vm.debug(&quot;Time=&quot;+((((endT.hour*60+endT.minute)*60+endT.second)*1000+endT.millis)-(((startT.hour*60+startT.minute)*60+startT.second)*1000+startT.millis)));
++			//Vm.debug(&quot;Start:&quot;+startT.format(&quot;H:mm:ss.SSS&quot;));
++			//Vm.debug(&quot;End  :&quot;+endT.format(&quot;H:mm:ss.SSS&quot;));	
+ 			// Build references between caches and addi wpts
+ 			buildReferences();
+ 		} catch (FileNotFoundException e) {
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000946.html">[Cachewolf-svn] r1053 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000948.html">[Cachewolf-svn] r1055 - in trunk: resources src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#947">[ date ]</a>
+              <a href="thread.html#947">[ thread ]</a>
+              <a href="subject.html#947">[ subject ]</a>
+              <a href="author.html#947">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

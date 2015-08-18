@@ -1,0 +1,160 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r419 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r419%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701211251.l0LCpRIi019968%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000183.html">
+   <LINK REL="Next"  HREF="000185.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r419 - trunk/src/CacheWolf</H1>
+    <B>kalli at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r419%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701211251.l0LCpRIi019968%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r419 - trunk/src/CacheWolf">kalli at mail.berlios.de
+       </A><BR>
+    <I>Sun Jan 21 13:51:27 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000183.html">[Cachewolf-svn] [Feature #3062] MovingMap: Kartendownload von	Expedia
+</A></li>
+        <LI>Next message: <A HREF="000185.html">[Cachewolf-svn] r420 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#184">[ date ]</a>
+              <a href="thread.html#184">[ thread ]</a>
+              <a href="subject.html#184">[ subject ]</a>
+              <a href="author.html#184">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: kalli
+Date: 2007-01-21 13:51:22 +0100 (Sun, 21 Jan 2007)
+New Revision: 419
+
+Modified:
+   trunk/src/CacheWolf/Test.java
+Log:
+Tests f?\195?\188r Performance
+
+Modified: trunk/src/CacheWolf/Test.java
+===================================================================
+--- trunk/src/CacheWolf/Test.java	2007-01-20 23:03:13 UTC (rev 418)
++++ trunk/src/CacheWolf/Test.java	2007-01-21 12:51:22 UTC (rev 419)
+@@ -1,18 +1,82 @@
+ package CacheWolf;
+ 
+-import ewe.sys.Vm;
++import ewe.io.File;
++import ewe.io.IOException;
++import ewe.io.RandomAccessFile;
++import ewe.sys.*;
+ 
++import java.lang.Math;;
++ 
++
+ public class Test {
+ 	boolean allPassed=true; 
+ 
+ 	void testAll(){
+-		testRegex();
++		testPerformance();
++/*		testRegex();
+ 		if (allPassed) 
+ 			Vm.debug(&quot;SUCCESS: All tests passed&quot;); 
+ 		else 
+ 			Vm.debug(&quot;FAILURE: At least one test failed&quot;); 
++*/	}
++	void testPerformance(){
++		Time start, end;
++		int i;
++		double tmp;
++		
++		// 100.000 Sinus
++		start = new Time();
++		for (i=0; i&lt;100000; i++){
++			tmp = Math.sin(53);
++		}
++		end = new Time();
++		printResult(&quot;sin(53)&quot;, start, end, i);
++		
++		// 1.000 CWPoint via constructor
++		start = new Time();
++		for (i=0; i&lt;100; i++){
++			CWPoint cwP = new CWPoint(&quot;N 51&#176; 27.635 E 009&#176; 37.621&quot;, CWPoint.CW);
++		}
++		end = new Time();
++		printResult(&quot;CWPoint constructor&quot;, start, end, i);
++
++		// 1.000 CWPoint via set
++		start = new Time();
++		CWPoint cwSet = new CWPoint();
++		for (i=0; i&lt;100; i++){
++			cwSet.set(&quot;N 51&#176; 27.635 E 009&#176; 37.621&quot;, CWPoint.CW);
++		}
++		end = new Time();
++		printResult(&quot;CWPoint set&quot;, start, end, i);
++
++		// 1.000 filewrite
++		String fileName = new String(&quot;test.tmp&quot;);
++		try {
++			RandomAccessFile out =  new RandomAccessFile(fileName,&quot;rw&quot;);
++			start = new Time();
++			for (i=0; i&lt;10000; i++){
++				out.writeBytes(fileName);
++			}
++			end = new Time();
++			out.close();
++			File dfile = new File(fileName);
++			dfile.delete();
++		} catch (IOException e) {
++			// TODO Auto-generated catch block
++			e.printStackTrace();
++		}
++		printResult(&quot;Filewrite 10 Bytes&quot;, start, end, i);
++		
+ 	}
+ 	
++	void printResult(String what, Time start, Time end, int count){
++		String VM = Vm.getPlatform();
++		long time;
++		time = end.getTime() - start.getTime();
++		
++		Vm.debug(VM + &quot; &quot; +  Convert.toString(time) + &quot; msec &quot; + Convert.toString(count) + &quot; * &quot; + what);
++	}
++	
+ 	void testPassedRegex(String pattern, String expectedResult, int format) {
+ 		CWPoint coord = new CWPoint(pattern, CWPoint.REGEX);
+ 		String res = coord.toString(format);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000183.html">[Cachewolf-svn] [Feature #3062] MovingMap: Kartendownload von	Expedia
+</A></li>
+	<LI>Next message: <A HREF="000185.html">[Cachewolf-svn] r420 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#184">[ date ]</a>
+              <a href="thread.html#184">[ thread ]</a>
+              <a href="subject.html#184">[ subject ]</a>
+              <a href="author.html#184">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

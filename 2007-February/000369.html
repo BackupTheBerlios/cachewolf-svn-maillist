@@ -1,0 +1,1144 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r561 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r561%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702111934.l1BJYFvG016493%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000368.html">
+   <LINK REL="Next"  HREF="000370.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r561 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r561%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702111934.l1BJYFvG016493%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r561 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sun Feb 11 20:34:15 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000368.html">[Cachewolf-svn] r560 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000370.html">[Cachewolf-svn] r562 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#369">[ date ]</a>
+              <a href="thread.html#369">[ thread ]</a>
+              <a href="subject.html#369">[ subject ]</a>
+              <a href="author.html#369">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-02-11 20:34:09 +0100 (Sun, 11 Feb 2007)
+New Revision: 561
+
+Modified:
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/TablePanel.java
+   trunk/src/CacheWolf/myTableModel.java
+Log:
+Bugfix: Die Selektion in der Listenansicht war nicht synchron mit den anderen Ansichten nach Ausfuehren von
+Sort/Filter oder Suche. MainMenu aufgeraeumt, myTableModel aufgeraumt.
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2007-02-11 19:31:58 UTC (rev 560)
++++ trunk/src/CacheWolf/MainMenu.java	2007-02-11 19:34:09 UTC (rev 561)
+@@ -182,18 +182,9 @@
+ 		Global.mainTab.updatePendingChanges();
+ 		if (ev instanceof MenuEvent){ //&amp;&amp; ev.type == MenuEvent.PRESSED
+ 			MenuEvent mev = (MenuEvent)ev;
+-			if(mev.selectedItem == wolflang){
+-				InfoScreen is = new InfoScreen(File.getProgramDirectory() + &quot;/&quot; + &quot;wolflang.html&quot;, MyLocale.getMsg(118,&quot;WolfLanguage&quot;), true, pref);
+-				is.execute(father.getFrame(), Gui.CENTER_FRAME);
+-			}
+-			if(mev.selectedItem == about){
+-				InfoScreen is = new InfoScreen(File.getProgramDirectory() + &quot;/&quot; + &quot;info.html&quot;, MyLocale.getMsg(117,&quot;About&quot;),true, pref);
+-				is.execute(father.getFrame(), Gui.CENTER_FRAME);
+-			}
+-			if(mev.selectedItem == legend){
+-				InfoScreen is = new InfoScreen(File.getProgramDirectory() + &quot;/&quot; + &quot;legende.html&quot;, MyLocale.getMsg(155,&quot;Legend&quot;),true, pref);
+-				is.execute(father.getFrame(), Gui.CENTER_FRAME);
+-			}
++			///////////////////////////////////////////////////////////////////////
++			// subMenu for profiles, part of &quot;Application&quot; menu 
++			///////////////////////////////////////////////////////////////////////
+ 			if(mev.selectedItem == mnuNewProfile){
+ 				Global.mainTab.saveUnsavedChanges(true);
+ 				NewProfileForm f=new NewProfileForm(pref.baseDir);
+@@ -213,13 +204,11 @@
+ 					Global.mainTab.saveUnsavedChanges(true);
+ 					if (pref.selectProfile(profile,Preferences.PROFILE_SELECTOR_FORCED_ON,false)) {
+ 					profile.cacheDB.clear();
+-					tbp.setSelectedCache(-1);
+ 					profile.readIndex();
+ 					pref.curCentrePt.set(profile.centre);
+ 					filtBlack.modifiers&amp;=~MenuItem.Checked;
+ 					Filter.showBlacklisted=false;
+ 					tbp.resetModel();
+-					Global.mainTab.tbP.gotoFirstLine();
+ 				}
+ 			}
+ 			if(mev.selectedItem == mnuEditProfile){
+@@ -228,16 +217,123 @@
+ 			    tbp.refreshTable();
+ 				f.close(0);
+ 			}
++			///////////////////////////////////////////////////////////////////////
++			// subMenu for export, part of &quot;Application&quot; menu 
++			///////////////////////////////////////////////////////////////////////
++			if(mev.selectedItem == exporthtml){
++				HTMLExporter htm = new HTMLExporter(pref, profile);
++				htm.doIt();
++			}
++			if(mev.selectedItem == exportpcx5){
++				PCX5Exporter pcx = new PCX5Exporter( pref, profile);
++				pcx.doIt(PCX5Exporter.MODE_ASK);
++			} 
++			if(mev.selectedItem == exporttop50){
++				OVLExporter ovl = new OVLExporter(pref, profile);
++				ovl.doIt();
++			}
++			if(mev.selectedItem == exportGPX){
++				GPXExporter htm = new GPXExporter(pref, profile);
++				htm.doIt(1);
++			}
++			if(mev.selectedItem == exportASC){
++				ASCExporter asc = new ASCExporter(pref,profile);
++				asc.doIt();
++			}
++			if(mev.selectedItem == exportTomTom){
++				TomTomExporter tt = new TomTomExporter();
++				tt.doIt();
++			}
++			if(mev.selectedItem == exportMSARCSV){
++				MSARCSVExporter msar = new MSARCSVExporter(pref,profile);
++				msar.doIt();
++			}
++			if(mev.selectedItem == exportGPS){
++				Vm.showWait(true);
++				LocExporter loc = new LocExporter();
++				String tmpFileName = File.getProgramDirectory() + &quot;/temp.loc&quot;;
++				loc.setTmpFileName(tmpFileName);
++				loc.doIt(LocExporter.MODE_AUTO);
++				ProgressBarForm.display(MyLocale.getMsg(950,&quot;Transfer&quot;),MyLocale.getMsg(951,&quot;Sending to GPS&quot;), null);
++				try{
++					ewe.sys.Process p = Vm.exec(&quot;gpsbabel -i geo -f \&quot;&quot;+ tmpFileName +&quot;\&quot; -o garmin -F &quot; + pref.garminConn +&quot;:&quot;);
++					Vm.debug(&quot;gpsbabel -i geo -f  \&quot;&quot;+ tmpFileName +&quot;\&quot; -o garmin -F &quot; + pref.garminConn +&quot;:&quot;);
++					p.waitFor();
++				}catch(IOException ioex){};
++				ProgressBarForm.clear();
++				Vm.showWait(false);
++			}
++			if(mev.selectedItem == exportCacheMate){
++				Vm.showWait(true);
++				GPXExporter htm = new GPXExporter( pref, profile);
++				htm.doIt(0);
++				ProgressBarForm.display(&quot;CMCONVERT&quot;, MyLocale.getMsg(952,&quot;Converting...&quot;), null);
++				String cwd = new String();
++				cwd = File.getProgramDirectory() + &quot;/temp.gpx&quot;;
++				// add surrounding &quot;
++				cwd = &quot;\&quot;&quot; + cwd + &quot;\&quot;&quot;;
++				try{
++					//Vm.debug(File.getProgramDirectory() + &quot;/cmconvert/cmconvert &quot; + cwd);
++					ewe.sys.Process p = Vm.exec(File.getProgramDirectory() + &quot;/cmconvert/cmconvert &quot; + cwd);
++					p.waitFor();
++				}catch(IOException ioex){
++					//Vm.debug(&quot;Scheint ein Problem zu geben&quot;);
++				};
++				ProgressBarForm.clear();
++				Vm.showWait(false);
++			}
++			if(mev.selectedItem == exportOZI){
++				OziExporter ozi = new OziExporter( pref, profile);
++				ozi.doIt();
++			}
++			if(mev.selectedItem == exportKML){
++				KMLExporter kml = new KMLExporter( pref, profile);
++				kml.doIt();
++			}
++			if(mev.selectedItem == exportTPL){
++				FileChooser fc = new FileChooser(FileChooser.OPEN, File.getProgramDirectory());
++				fc.addMask(&quot;*.tpl&quot;);
++				fc.setTitle(MyLocale.getMsg(910,&quot;Select Template file&quot;));
++				if(fc.execute() != FileChooser.IDCANCEL){
++					TPLExporter tpl = new TPLExporter( pref,profile, fc.getChosenFile().toString());
++					tpl.doIt();
++				}
++			}
++			///////////////////////////////////////////////////////////////////////
++			// subMenu for maps, part of &quot;Application&quot; menu 
++			///////////////////////////////////////////////////////////////////////
++			if(mev.selectedItem == downloadmap){
++				MapLoaderGui mLG = new MapLoaderGui(cacheDB);
++				mLG.exec(); // .execute doesn't work because the tcp-socket uses another thread which cannot be startet if here .execute() is used!
++			}
++			if(mev.selectedItem == importmap){
++
++				Map map = new Map(pref);
++				map.importMap();
++			}
++			if(mev.selectedItem == kalibmap){
++				SelectMap sM = new SelectMap();
++				sM.execute();
++				if((sM.getSelectedMap()).length()&gt;0){
++					try {
++						Map map = new Map(pref, sM.getSelectedMap(),sM.worldfileexists);
++						map.execute(null, Gui.CENTER_FRAME);
++					} catch (java.lang.OutOfMemoryError e) {
++						MessageBox tmpMB=new MessageBox(MyLocale.getMsg(312, &quot;Error&quot;), MyLocale.getMsg(156,&quot;Out of memory error, map to big&quot;), MessageBox.OKB);
++						tmpMB.exec();
++					}
++				}
++			}
++			///////////////////////////////////////////////////////////////////////
++			// &quot;Application&quot; pulldown menu
++			///////////////////////////////////////////////////////////////////////
+ 			if(mev.selectedItem == preferences){
+-				tbp.saveColWith(pref);
++				tbp.saveColWidth(pref);
+ 				PreferencesScreen pfs = new PreferencesScreen(pref);
+ 				pfs.execute(father.getFrame(), Gui.CENTER_FRAME);
+ 				pref.readPrefFile();
+ 			}
+ 			if(mev.selectedItem == loadcaches){
+-				//LoadScreen lsc = new LoadScreen(cacheDB, myPreferences);
+-				//lsc.execute(father.getFrame(), Gui.CENTER_FRAME);
+-				//Vm.debug(&quot;Sending repaint!&quot;);
+ 				FileChooser fc = new FileChooser(FileChooser.OPEN|FileChooser.MULTI_SELECT, pref.baseDir);
+ 				fc.addMask(&quot;*.gpx,*.zip,*.loc&quot;);
+ 				fc.setTitle(MyLocale.getMsg(909,&quot;Select file(s)&quot;));
+@@ -277,6 +373,45 @@
+ 				filtBlack.modifiers&amp;=~MenuItem.Checked;
+ 				tbp.resetModel();
+ 			}
++			if(mev.selectedItem == spider){
++				SpiderGC spGC = new SpiderGC(pref, profile);
++				spGC.doIt();
++				tbp.resetModel();
++			}
++			if(mev.selectedItem == savenoxit){
++				profile.saveIndex(pref,Profile.SHOW_PROGRESS_BAR);
++				tbp.saveColWidth(pref);
++			}
++			
++			if(mev.selectedItem == savenexit){
++				profile.saveIndex(pref,Profile.SHOW_PROGRESS_BAR);
++				tbp.saveColWidth(pref);
++				ewe.sys.Vm.exit(0);
++			}
++			if(mev.selectedItem == exit){
++				Global.mainTab.saveUnsavedChanges(true);
++				ewe.sys.Vm.exit(0);
++			}
++
++			///////////////////////////////////////////////////////////////////////
++			// &quot;Search&quot; pulldown menu
++			///////////////////////////////////////////////////////////////////////
++			if(mev.selectedItem == search){
++				String srch = new InputBox(MyLocale.getMsg(119,&quot;Search for:&quot;)).input(&quot;&quot;,10);
++				if (srch != null) {
++					SearchCache ssc = new SearchCache(cacheDB);
++					ssc.search(srch);
++					tbp.refreshTable();
++				}
++			}
++			if(mev.selectedItem == searchClr){
++				SearchCache ssc = new SearchCache(cacheDB);
++				ssc.clearSearch();
++				tbp.refreshTable();		
++			}
++			///////////////////////////////////////////////////////////////////////
++			// &quot;Filter&quot; pulldown menu
++			///////////////////////////////////////////////////////////////////////
+ 			if(mev.selectedItem == filtApply){
+ 				Filter flt = new Filter();
+ 				flt.setFilter();
+@@ -293,6 +428,11 @@
+ 				flt.invertFilter();
+ 				tbp.refreshTable();
+ 			}
++			if(mev.selectedItem == filtClear){
++				Filter flt = new Filter();
++				flt.clearFilter();
++				tbp.refreshTable();
++			}
+ 			if(mev.selectedItem == filtBlack){
+ 				filtBlack.modifiers^=MenuItem.Checked;
+ 				Filter.showBlacklisted=!Filter.showBlacklisted;
+@@ -300,46 +440,6 @@
+ 				ssc.clearSearch();// Clear search &amp; restore filter status
+ 				tbp.refreshTable();
+ 			}
+-			if(mev.selectedItem == exportGPS){
+-				Vm.showWait(true);
+-				LocExporter loc = new LocExporter();
+-				String tmpFileName = File.getProgramDirectory() + &quot;/temp.loc&quot;;
+-				loc.setTmpFileName(tmpFileName);
+-				loc.doIt(LocExporter.MODE_AUTO);
+-				ProgressBarForm.display(MyLocale.getMsg(950,&quot;Transfer&quot;),MyLocale.getMsg(951,&quot;Sending to GPS&quot;), null);
+-				try{
+-					ewe.sys.Process p = Vm.exec(&quot;gpsbabel -i geo -f \&quot;&quot;+ tmpFileName +&quot;\&quot; -o garmin -F &quot; + pref.garminConn +&quot;:&quot;);
+-					Vm.debug(&quot;gpsbabel -i geo -f  \&quot;&quot;+ tmpFileName +&quot;\&quot; -o garmin -F &quot; + pref.garminConn +&quot;:&quot;);
+-					p.waitFor();
+-				}catch(IOException ioex){};
+-				ProgressBarForm.clear();
+-				Vm.showWait(false);
+-			}
+-			if(mev.selectedItem == exportCacheMate){
+-				Vm.showWait(true);
+-				GPXExporter htm = new GPXExporter( pref, profile);
+-				htm.doIt(0);
+-				ProgressBarForm.display(&quot;CMCONVERT&quot;, MyLocale.getMsg(952,&quot;Converting...&quot;), null);
+-				String cwd = new String();
+-				cwd = File.getProgramDirectory() + &quot;/temp.gpx&quot;;
+-				// add surrounding &quot;
+-				cwd = &quot;\&quot;&quot; + cwd + &quot;\&quot;&quot;;
+-				try{
+-					//Vm.debug(File.getProgramDirectory() + &quot;/cmconvert/cmconvert &quot; + cwd);
+-					ewe.sys.Process p = Vm.exec(File.getProgramDirectory() + &quot;/cmconvert/cmconvert &quot; + cwd);
+-					p.waitFor();
+-				}catch(IOException ioex){
+-					//Vm.debug(&quot;Scheint ein Problem zu geben&quot;);
+-				};
+-				ProgressBarForm.clear();
+-				Vm.showWait(false);
+-			}
+-			if(mev.selectedItem == filtClear){
+-				Filter flt = new Filter();
+-				flt.clearFilter();
+-				tbp.refreshTable();
+-			}
+-			
+ 			if(mev.selectedItem == filtSelected){
+ 				CacheHolder ch;
+ 				for(int i = cacheDB.size()-1; i&gt;=0; i--){
+@@ -349,71 +449,11 @@
+ 				}
+ 				tbp.refreshTable();
+ 			}
+-			
+-			if(mev.selectedItem == exportpcx5){
+-				PCX5Exporter pcx = new PCX5Exporter( pref, profile);
+-				pcx.doIt(PCX5Exporter.MODE_ASK);
+-			} 
+-			if(mev.selectedItem == exporttop50){
+-				OVLExporter ovl = new OVLExporter(pref, profile);
+-				ovl.doIt();
+-			}
+-			if(mev.selectedItem == exporthtml){
+-				HTMLExporter htm = new HTMLExporter(pref, profile);
+-				htm.doIt();
+-			}
+-			if(mev.selectedItem == exportGPX){
+-				GPXExporter htm = new GPXExporter(pref, profile);
+-				htm.doIt(1);
+-			}
+-			if(mev.selectedItem == exportASC){
+-				ASCExporter asc = new ASCExporter(pref,profile);
+-				asc.doIt();
+-			}
+-			if(mev.selectedItem == exportTomTom){
+-				TomTomExporter tt = new TomTomExporter();
+-				tt.doIt();
+-			}
+-			if(mev.selectedItem == exportMSARCSV){
+-				MSARCSVExporter msar = new MSARCSVExporter(pref,profile);
+-				msar.doIt();
+-			}
+-			if(mev.selectedItem == search){
+-				String srch = new InputBox(MyLocale.getMsg(119,&quot;Search for:&quot;)).input(&quot;&quot;,10);
+-				if (srch != null) {
+-					SearchCache ssc = new SearchCache(cacheDB);
+-					ssc.search(srch);
+-					tbp.refreshTable();
+-				}
+-			}
+-			if(mev.selectedItem == exportOZI){
+-				OziExporter ozi = new OziExporter( pref, profile);
+-				ozi.doIt();
+-			}
+-			if(mev.selectedItem == exportKML){
+-				KMLExporter kml = new KMLExporter( pref, profile);
+-				kml.doIt();
+-			}
+-
+-			if(mev.selectedItem == exportTPL){
+-				FileChooser fc = new FileChooser(FileChooser.OPEN, File.getProgramDirectory());
+-				fc.addMask(&quot;*.tpl&quot;);
+-				fc.setTitle(MyLocale.getMsg(910,&quot;Select Template file&quot;));
+-				if(fc.execute() != FileChooser.IDCANCEL){
+-					TPLExporter tpl = new TPLExporter( pref,profile, fc.getChosenFile().toString());
+-					tpl.doIt();
+-				}
+-			}
+-
+-			if(mev.selectedItem == searchClr){
+-				SearchCache ssc = new SearchCache(cacheDB);
+-				ssc.clearSearch();
+-				tbp.refreshTable();		
+-			}
+-			
++			///////////////////////////////////////////////////////////////////////
++			// &quot;Organize&quot; pulldown menu
++			///////////////////////////////////////////////////////////////////////
+ 			if(mev.selectedItem == orgCopy){
+ 				profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
+-
+ 				DataMover dm = new DataMover();
+ 				dm.copyCaches();
+ 				tbp.refreshTable();
+@@ -421,7 +461,6 @@
+ 
+ 			if(mev.selectedItem == orgMove){
+ 				profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
+-
+ 				DataMover dm = new DataMover();
+ 				dm.moveCaches();
+ 				tbp.refreshTable();
+@@ -429,63 +468,25 @@
+ 			
+ 			if(mev.selectedItem == orgDelete){
+ 				profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
+-
+ 				DataMover dm = new DataMover();
+ 				dm.deleteCaches();
+ 				tbp.refreshTable();
+ 			}
+-			
+-			if(mev.selectedItem == savenoxit){
+-				profile.saveIndex(pref,Profile.SHOW_PROGRESS_BAR);
+-				tbp.saveColWith(pref);
++			///////////////////////////////////////////////////////////////////////
++			// &quot;About&quot; pulldown menu
++			///////////////////////////////////////////////////////////////////////
++			if(mev.selectedItem == about){
++				InfoScreen is = new InfoScreen(File.getProgramDirectory() + &quot;/&quot; + &quot;info.html&quot;, MyLocale.getMsg(117,&quot;About&quot;),true, pref);
++				is.execute(father.getFrame(), Gui.CENTER_FRAME);
+ 			}
+-			
+-			if(mev.selectedItem == savenexit){
+-				profile.saveIndex(pref,Profile.SHOW_PROGRESS_BAR);
+-				tbp.saveColWith(pref);
+-				ewe.sys.Vm.exit(0);
++			if(mev.selectedItem == legend){
++				InfoScreen is = new InfoScreen(File.getProgramDirectory() + &quot;/&quot; + &quot;legende.html&quot;, MyLocale.getMsg(155,&quot;Legend&quot;),true, pref);
++				is.execute(father.getFrame(), Gui.CENTER_FRAME);
+ 			}
+-			if(mev.selectedItem == downloadmap){
+-				MapLoaderGui mLG = new MapLoaderGui(cacheDB);
+-				mLG.exec(); // .execute doesn't work because the tcp-socket uses another thread which cannot be startet if here .execute() is used!
++			if(mev.selectedItem == wolflang){
++				InfoScreen is = new InfoScreen(File.getProgramDirectory() + &quot;/&quot; + &quot;wolflang.html&quot;, MyLocale.getMsg(118,&quot;WolfLanguage&quot;), true, pref);
++				is.execute(father.getFrame(), Gui.CENTER_FRAME);
+ 			}
+-			if(mev.selectedItem == kalibmap){
+-				SelectMap sM = new SelectMap();
+-				sM.execute();
+-				if((sM.getSelectedMap()).length()&gt;0){
+-					try {
+-						Map map = new Map(pref, sM.getSelectedMap(),sM.worldfileexists);
+-						map.execute(null, Gui.CENTER_FRAME);
+-					} catch (java.lang.OutOfMemoryError e) {
+-						MessageBox tmpMB=new MessageBox(MyLocale.getMsg(312, &quot;Error&quot;), MyLocale.getMsg(156,&quot;Out of memory error, map to big&quot;), MessageBox.OKB);
+-						tmpMB.exec();
+-					}
+-				}
+-			}
+-			if(mev.selectedItem == importmap){
+-
+-				Map map = new Map(pref);
+-				map.importMap();
+-			}
+-			if(mev.selectedItem == chkVersion){
+-				Version vers = new Version();
+-				if(vers.newVersionAvailable(pref)){
+-					InfoBox inf = new InfoBox(&quot;New Version&quot;, &quot;New version\navailable.&quot;);// TODO Internationalisation when code has been written
+-					inf.execute();
+-				} else {
+-					InfoBox inf = new InfoBox(&quot;Version Check&quot;, &quot;You are at\nthe current version.&quot;);// TODO Internationalisation when code has been written
+-					inf.execute();
+-				}
+-			}
+-			if(mev.selectedItem == spider){
+-				SpiderGC spGC = new SpiderGC(pref, profile);
+-				spGC.doIt();
+-				tbp.resetModel();
+-			}
+-			if(mev.selectedItem == exit){
+-				Global.mainTab.saveUnsavedChanges(true);
+-				ewe.sys.Vm.exit(0);
+-			}
+ 			if(mev.selectedItem == sysinfo){
+ 				//Vm.debug(&quot;Checking system...&quot;);
+ 				String sysstring = new String();
+@@ -504,6 +505,17 @@
+ 				InfoScreen is = new InfoScreen(sysstring, &quot;System&quot;, false,pref);
+ 				is.execute(father.getFrame(), Gui.CENTER_FRAME);
+ 			}
++			if(mev.selectedItem == chkVersion){
++				Version vers = new Version();
++				if(vers.newVersionAvailable(pref)){
++					InfoBox inf = new InfoBox(&quot;New Version&quot;, &quot;New version\navailable.&quot;);// TODO Internationalisation when code has been written
++					inf.execute();
++				} else {
++					InfoBox inf = new InfoBox(&quot;Version Check&quot;, &quot;You are at\nthe current version.&quot;);// TODO Internationalisation when code has been written
++					inf.execute();
++				}
++			}
++
+ 		}
+ 	}
+ }
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2007-02-11 19:31:58 UTC (rev 560)
++++ trunk/src/CacheWolf/MainTab.java	2007-02-11 19:34:09 UTC (rev 561)
+@@ -1,5 +1,6 @@
+ package CacheWolf;
+ 
++import ewe.sys.Vm;
+ import ewe.ui.*;
+ import ewe.fx.*;
+ import ewe.util.*;
+@@ -63,7 +64,6 @@
+ 		nav = new Navigate();
+ 		c = this.addCard(gotoP = new GotoPanel(nav), &quot;Goto&quot;, null);
+ 		c.iconize(new Image(&quot;goto.gif&quot;),true);
+-		tbP.setPanels(gotoP, this);
+ 		nav.setGotoPanel(gotoP);
+ 
+ 		c = this.addCard(solverP = new SolverPanel(pref, profile), MyLocale.getMsg(1205,&quot;Solver&quot;), null);
+@@ -113,17 +113,20 @@
+ 	 */
+ 	public void newWaypoint(CacheHolder ch){
+ 		if (detP.isDirty()) detP.saveDirtyWaypoint();
++		Global.getProfile().hasUnsavedChanges=true;
+ 		String waypoint= ch.wayPoint = profile.getNewWayPointName();
+ 		ch.type = &quot;0&quot;;
+ 		ch.CacheSize = &quot;None&quot;;
+ 		cacheDB.add(ch);
+ 		Global.mainTab.tbP.myMod.updateRows();
+-		Global.mainTab.tbP.setSelectedCache(profile.getCacheIndex(waypoint));
++		Global.mainTab.tbP.selectRow(profile.getCacheIndex(waypoint));
+ 		//Global.mainTab.tbP.refreshTable();
+ 		if (this.cardPanel.selectedItem==1) { // Detailpanel already selected
+ 			postEvent(new MultiPanelEvent(MultiPanelEvent.SELECTED,detP,0));
+ 		} else	
+ 			select(detP);
++		Global.mainTab.tbP.refreshTable();
++	
+ 	}
+ 
+ 
+@@ -140,7 +143,7 @@
+ 			}
+ 			updatePendingChanges();
+ 			if(this.getSelectedItem() != 0){
+-				if (tbP.getSelectedCache()&gt;=cacheDB.size())
++				if (tbP.getSelectedCache()&gt;=cacheDB.size() || tbP.getSelectedCache()&lt;0)
+ 					ch=null;
+ 				else {
+ 					ch = (CacheHolder)cacheDB.get(tbP.getSelectedCache());
+@@ -254,9 +257,6 @@
+ 		}
+ 		if (saveIndex) profile.saveIndex(Global.getPref(),false);
+ 	}
+-
+-
+-	
+ }
+ 
+ 
+
+Modified: trunk/src/CacheWolf/TablePanel.java
+===================================================================
+--- trunk/src/CacheWolf/TablePanel.java	2007-02-11 19:31:58 UTC (rev 560)
++++ trunk/src/CacheWolf/TablePanel.java	2007-02-11 19:34:09 UTC (rev 561)
+@@ -8,19 +8,25 @@
+ /**
+ *	Class to display the cache database in a table.
+ *	Class ID = 1000
+-*   Changes:
+-*     20061124 salzkammergut: Bugfix 9529, Conversion to Mylocale
+-*     20061212 salzkammergut: Commented out line 186ff (eventually to be removed)
+ */
+ public class TablePanel extends CellPanel{
+ 	
+ 	myTableControl tc;
+ 	myTableModel myMod;
+-	int selectedCache=0;
+ 	Preferences pref;
+ 	Vector cacheDB;
+ 	MainTab myMaintab;
+ 	StatusBar statBar;
++	/** We keep track of the currently selected cache in two variables(for speed)
++	 * selectedIdx is the index in cacheDB, selectedch is the actual cache
++	 * selectedIdx=-1 if no caches are visible (i.e. database empty or filtered). In 
++	 * this case selectedch is &quot;null&quot;.
++	 * Otherwise selectedIdx points to a visible cache.
++	 * When the cacheDB is reorganized (by sort/filter/search), the selected cache
++	 * may end up at a new index.
++	 */
++	int selectedIdx=0;
++	CacheHolder selectedCh;
+ 	
+ 	public TablePanel(Preferences p, Profile profileXX, StatusBar statBar){
+ 		pref = Global.getPref();
+@@ -35,27 +41,45 @@
+ 		tc.setTableModel(myMod);
+ 	}
+ 	
+-	public void gotoFirstLine() {
+-		tc.scrollToVisible(0,0);
++	public void setSelectedCache(int row){
++		selectedCh=null;
++		if (row&gt;=0)  {
++			selectedCh=(CacheHolder) cacheDB.get(row);
++		} 		
++		selectedIdx=row;
++	
+ 	}
+ 	
+-	/** @deprecated */
+-	public void setPanels(GotoPanel gp, MainTab mt) {
+-		myMaintab = mt;
++	/** Mark the row as selected so that myTableModel can color it grey */
++	public void selectRow(int row) {
++		setSelectedCache(row);
++		tc.clearSelectedCells(null);
++		for(int i= 0; i &lt; myMod.MAXCOLUMNS; i++){
++			tc.addToSelection(row,i); 
++		}
+ 	}
+-
+-	public void setSelectedCache(int row){
+-		selectedCache=row;
+-	}
+ 	
+-	
++	/** Returns the index of the currently selected cache or -1 of the cache is no longer visible
++	 * due to a sort/filter or search operation
++	 * @return index of selected cache (-1 if not visible)
++	 */
+ 	public int getSelectedCache(){
+-		return selectedCache;
++		// If cacheDB is empty return -1, cannot select a cache
++		if (cacheDB.size()==0) return -1;
++		// If cacheDB has entries, but all are filtered, return -1
++		if (((CacheHolder)cacheDB.get(0)).is_filtered) return -1;
++		// Now we have at least one visible cache
++		// We had a previously selected cache, check whether it is now filtered
++		if (selectedCh==null || selectedCh.is_filtered) return 0; // Return first visible cache
++		// Check whether the order of the list has changed because of sort/filter/search operations
++		if (cacheDB.get(selectedIdx)==selectedCh) return selectedIdx;
++		// The position has changed, return the new position
++		return cacheDB.find(selectedCh);
+ 	}
+ 	
+-	public void saveColWith(Preferences pref){
++	public void saveColWidth(Preferences pref){
+ 		int j=0;
+-		for (int i = 0; i&lt;=11; i++){
++		for (int i = 0; i&lt;myMod.MAXCOLUMNS; i++){
+ 			if(pref.tablePrefs[i] == 1){
+ 				pref.tableWidth[i] = myMod.getColWidth(j++);
+ 			}
+@@ -65,41 +89,27 @@
+ 	
+ 	public void selectAndActive(int rownum){
+ 		tc.scrollToVisible(rownum, 0);
+-		tc.clearSelectedCells(new Vector());
+-		selectedCache = rownum;
+-		for(int i= 0; i &lt; 11; i++){
+-			tc.addToSelection(rownum,i); 
+-		}
++		selectRow(rownum);  // color it in grey
+ 	}
+ 	
+ 	public void resetModel() {
++		setSelectedCache(-1);
+ 		myMod.numRows = cacheDB.size();
+ 		Global.getProfile().updateBearingDistance();
+ 		Filter flt = new Filter();
+ 		flt.setFilter();
+ 		flt.doFilter();
+ 		refreshTable();
+-		selectedCache=0;
+ 	}
+ 	
+ 	/** Move all filtered caches to the end of the table and redesplay table */
+ 	//TODO Add a sort here to restore the sort after a filter
+ 	public void refreshTable(){
+ 		myMod.updateRows();
+-		tc.update(true);
++		// Check whether the currently selected cache is still visible
++		Global.mainTab.tbP.selectRow(getSelectedCache());
++		tc.update(true); // Update and repaint
+ 		if (statBar!=null) statBar.updateDisplay();
+ 	}
+ 	
+-	public void onEvent(Event ev)
+-	{
+-		if(ev instanceof TableEvent){
+-			Point a = new Point();
+-			Point dest = new Point();
+-			a = tc.getSelectedCell(dest);
+-			try {
+-				selectedCache = a.y;
+-			} catch(NullPointerException npe){}
+-		}
+-	  super.onEvent(ev); //Make sure you call this.
+-	}
+ }
+
+Modified: trunk/src/CacheWolf/myTableModel.java
+===================================================================
+--- trunk/src/CacheWolf/myTableModel.java	2007-02-11 19:31:58 UTC (rev 560)
++++ trunk/src/CacheWolf/myTableModel.java	2007-02-11 19:34:09 UTC (rev 561)
+@@ -16,45 +16,39 @@
+ */
+ public class myTableModel extends TableModel{
+ 	
++	public static final int MAXCOLUMNS=12;
++	// Colors for Cache status (BG unless otherwise stated)
++	private static final Color COLOR_FLAGED		= new Color(255,255,0);
++	private static final Color COLOR_FOUND		= new Color(152,251,152);
++	private static final Color COLOR_OWNED		= new Color(135,206,235);
++	private static final Color COLOR_AVAILABLE	= new Color(255,69,0);
++	private static final Color COLOR_ARCHIVED	= new Color(139,37,0);
++	private static final Color COLOR_SELECTED	= new Color(198,198,198);
++	private static final Color COLOR_ARCHFND_FG	= new Color(255,0,0); // Archived &amp;&amp; Found
++	private static final Color COLOR_ARCHFND_BG	= new Color(152,251,152);	
+ 	Vector cacheDB;
+ 	String[] colName;
++	int[] colWidth;
++	int [] colID; // The number of the column in the original sequence in the prefs file
++	int usedColumns; // Columns actually used (&lt;=MAXCOLUMNS)
+ 	static Image cacheImages[] = new Image[454];
+ 	static Image noFindLogs[] = new Image[4];
+-	int[] breiten;
+ 	Image red, blue, green, yellow;
+ 	mImage bug;
+ 	myTableControl tcControl;
+ 	boolean sortAsc = false;
+ 	FontMetrics fm;
+-	String nmCheck, nmQuest, nmD,nmT,nmWay,nmName,nmLoc,nmOwn,nmHid,nmStat,nmDist,nmBear = new String();
+ 	Image checkboxTicked,checkboxUnticked;
+-	static Color RED = new Color(255,0,0);
+ 	
+ 	public myTableModel(myTableControl tc, FontMetrics fm){
+ 		super();
+-		nmCheck = &quot; &quot;;
+-		nmQuest = &quot;?&quot;;
+-		nmD = MyLocale.getMsg(1000,&quot;D&quot;);
+-		nmT = MyLocale.getMsg(1001,&quot;T&quot;);
+-		nmWay = MyLocale.getMsg(1002,&quot;Waypoint&quot;);
+-		nmName = MyLocale.getMsg(1003,&quot;Name&quot;);
+-		nmLoc = MyLocale.getMsg(1004,&quot;Location&quot;);
+-		nmOwn = MyLocale.getMsg(1005,&quot;Owner&quot;);
+-		nmHid = MyLocale.getMsg(1006,&quot;Hidden&quot;);
+-		nmStat = MyLocale.getMsg(1007,&quot;Status&quot;);
+-		nmDist = MyLocale.getMsg(1008,&quot;Dist&quot;);
+-		nmBear = MyLocale.getMsg(1009,&quot;Bear&quot;);
++		cacheDB = Global.getProfile().cacheDB;
+ 		fm = this.fm;
+ 		tcControl = tc;
+ 		setColumnNamesAndWidths(); 
+-		cacheDB = Global.getProfile().cacheDB;
+ 		this.numRows = cacheDB.size();
+ 		Dimension selrow = new Dimension(-1,1);
+ 		this.cursorSize = selrow;
+-		//colName = new String[colNs.length];
+-		//colName = colNs;
+-		//breiten = new int[colWidth.length];
+-		//breiten = colWidth;
+ 		cacheImages[0] = new Image(&quot;0.png&quot;);
+ 		//cacheImages[1] = new Image();
+ 		cacheImages[2] = new Image(&quot;2.png&quot;);
+@@ -101,37 +95,26 @@
+ 	 */
+ 	public void setColumnNamesAndWidths() {
+ 		String [] spName = {&quot; &quot;,&quot;?&quot;,MyLocale.getMsg(1000,&quot;D&quot;),&quot;T&quot;,MyLocale.getMsg(1002,&quot;Waypoint&quot;),&quot;Name&quot;,MyLocale.getMsg(1004,&quot;Location&quot;),MyLocale.getMsg(1005,&quot;Owner&quot;),MyLocale.getMsg(1006,&quot;Hidden&quot;),MyLocale.getMsg(1007,&quot;Status&quot;),MyLocale.getMsg(1008,&quot;Dist&quot;),MyLocale.getMsg(1009,&quot;Bear&quot;)};
+-		String[] jester;
+-		int colWidth[];
+-		int colnum = 0;
++		// [0]TickBox, [1]Type, [2]Distance, [3]Terrain, [4]waypoint, [5]name, [6]coordinates, 
++		// [7]owner, [8]datehidden, [9]status, [10]distance, [11]bearing
+ 		Preferences pref=Global.getPref();
++		colName=new String[MAXCOLUMNS]; // Always dimension to max columns, a few columns could be wasted
++		colWidth=new int[MAXCOLUMNS];
++		colID=new int[MAXCOLUMNS];
+ 		
+-		for(int i = 0; i&lt;=11; i++){
+-			if(pref.tablePrefs[i] == 1) colnum++;
+-		}
+-		jester = new String[colnum];
+-		colWidth = new int[colnum];
+-		
+-		int ji = 0;
+-		for(int i = 0; i&lt;=11;i++){
++		usedColumns = 0;
++		for(int i = 0; i&lt;MAXCOLUMNS;i++){
+ 			if(pref.tablePrefs[i] == 1){
+-				jester[ji] = spName[i];
+-				colWidth[ji] = pref.tableWidth[i];
+-				ji++;
++				colName[usedColumns] = spName[i];
++				colWidth[usedColumns] = pref.tableWidth[i];
++				colID[usedColumns]=i;
++				usedColumns++;
+ 			}
+ 		}
+-		colName = jester;
+-		breiten = colWidth;
+-		this.numCols = colName.length;
++		this.numCols = usedColumns;
+ 		clearCellAdjustments();
+-		//remapColumns(null);
+ 	}
+ 	
+-	//RBpublic void setVector(Vector DB){
+-	//	cacheDB = DB;
+-	//	this.numRows = cacheDB.size();
+-	//}
+-	
+ 	public void updateRows(){
+ 		Vector sortDB = new Vector();
+ 		Vector filteredDB = new Vector();
+@@ -139,7 +122,8 @@
+ 		// sort cacheDB:
+ 		// - addi wpts are listet behind the main cache
+ 		// - filtered caches are moved to the end
+-		for (int i=0; i&lt;cacheDB.size(); i++){
++		int size=cacheDB.size();
++		for (int i=0; i&lt;size; i++){
+ 			ch = (CacheHolder) cacheDB.get(i);
+ 			if (ch.is_filtered) {
+ 				filteredDB.add(ch);
+@@ -176,52 +160,36 @@
+ 	* cache list, depending on different flags set to the cache.
+ 	*/
+ 	public TableCellAttributes getCellAttributes(int row,int col,boolean  isSelected, TableCellAttributes ta){
+-		try{
+-			ta = super.getCellAttributes(row, col, isSelected, ta);
+-			ta.alignment = ta.LEFT;
+-			ta.anchor = ta.LEFT;
+-			if(row &gt;= 0){ 
+-				CacheHolder ch = (CacheHolder)cacheDB.get(row);
+-				// Color code:
+-				// red := flagged
+-				if(ch.is_flaged == true) ta.fillColor = new Color(255,255,0);
+-				// green := found
+-				if(ch.is_found == true) ta.fillColor = new Color(152,251,152);
+-				// blue := owner
+-				if(ch.is_owned == true) ta.fillColor = new Color(135,206,235);
+-				if(ch.is_available == false) ta.fillColor = new Color(255,69,0);
+-				if(ch.is_archived == true) ta.fillColor = new Color(139,37,0);
+-				if(ch.is_available == false &amp;&amp; ch.is_found == true){
+-					//Green background
+-					ta.fillColor = new Color(152,251,152);
+-					//Change font color to red
+-					ta.foreground = new Color(255,0,0);
+-				}
+-				// yellow := new
+-				// check DateHidden ? &lt;7 days : new!
+-				// orange := updated (logs?)
+-				// grey := selected
+-				if(isSelected == true) ta.fillColor = new Color(198,198,198);
++		ta = super.getCellAttributes(row, col, isSelected, ta);
++		ta.alignment = ta.LEFT;
++		ta.anchor = ta.LEFT;
++		if(row &gt;= 0){ 
++			CacheHolder ch = (CacheHolder)cacheDB.get(row);
++			if(isSelected == true) ta.fillColor = COLOR_SELECTED;
++			else if(ch.is_available == false &amp;&amp; ch.is_found == true){
++				ta.fillColor = COLOR_ARCHFND_BG;   // Green BG
++				ta.foreground = COLOR_ARCHFND_FG;  // Red FG
+ 			}
+-		}catch(NumberFormatException nfe){}
+-		catch(IndexOutOfBoundsException abe){}
++			else if(ch.is_archived == true) ta.fillColor = COLOR_ARCHIVED;
++			else if(ch.is_available == false) ta.fillColor = COLOR_AVAILABLE;
++			else if(ch.is_owned == true) ta.fillColor = COLOR_OWNED;
++			else if(ch.is_found == true) ta.fillColor = COLOR_FOUND;
++			else if(ch.is_flaged == true) ta.fillColor = COLOR_FLAGED;
++		}
+ 		return ta;
+ 	}
+-	
+-	
+-	public int calculateColWidth(int col){
+-		//Vm.debug(&quot;myTableModel:: Calculating col width&quot; + col);
+-		int retval = 50;
+-		if(col == -1) retval = 0;
+-		try{
+-			if(col &gt;= 0) retval = breiten[col];
+-		}catch(Exception ex){}
+-		return retval;
+-	}
+-	
++
+ 	public int calculateRowHeight(int row){
+ 		return 18;
+ 	}
++
++	public int calculateColWidth(int col){
++		if(col == -1) 
++        	return 0;
++        else if (col&lt;usedColumns)
++        	return colWidth[col];
++        else return 0;
++	}
+ 	
+ 	/**
+ 	 * Need to override this method with a null return to avoid
+@@ -234,75 +202,67 @@
+ 	}
+ 
+ 	public Object getCellData(int row, int col){
+-		IconAndText wpVal = new IconAndText(); //(IImage)bug, &quot;Test Me&quot;, fm);
+-		Object rettext = new Object();
+-			if(row == -1) {
+-				rettext = (String)colName[col];
+-			}
+-			if(row &gt;= 0 ){
+-				try{
+-					CacheHolder ch = (CacheHolder)cacheDB.get(row);
+-					//Vm.debug(String.valueOf(row));
+-					//Vm.debug(String.valueOf(cols[col]));
+-					if(ch.is_filtered == false){
+-						try{
+-							if(colName[col].equals(nmCheck)) {
+-/* Replaced mCheckBox with two images: One showing the unticked box, one showing the ticked box
+-  								mCheckBox m = new mCheckBox();
+-								m.setTag(0, ch.wayPoint);
+-								if(ch.is_Checked == true) m.setState(true);
+-								else m.setState(false);
+-								rettext = m;*/
+-								if (ch.is_Checked) rettext=checkboxTicked; 
+-								else rettext=checkboxUnticked;
+-							}
+-							if(colName[col].equals(nmQuest)) rettext = (IImage) cacheImages[Convert.parseInt(ch.type)];
+-							if(colName[col].equals(nmD)) rettext = (String)ch.hard;
+-							if(colName[col].equals(nmT)) rettext = (String)ch.terrain;
+-							if(colName[col].equals(nmWay)){
+-								rettext = (String)ch.wayPoint;
+-								if(ch.is_log_update == true) wpVal = new IconAndText((IImage)blue, ch.wayPoint, fm);
+-								if(ch.is_update == true) wpVal = new IconAndText((IImage)red, ch.wayPoint, fm);
+-								if(ch.is_new == true) wpVal = new IconAndText((IImage)yellow, ch.wayPoint, fm);
+-								if(ch.is_log_update == false &amp;&amp;
+-								   ch.is_update == false &amp;&amp;
+-								   ch.is_new == false) rettext = (String)ch.wayPoint;
+-								else rettext = wpVal;
+-							}
+-							if(colName[col].equals(nmName)) {
+-								rettext = (String)ch.CacheName;
+-								wpVal = new IconAndText();
+-								if(ch.has_bug == true){
+-									wpVal.addColumn((IImage)bug);
+-								}
+-								if(ch.noFindLogs &gt; 0){
+-									if (ch.noFindLogs &gt; noFindLogs.length) wpVal.addColumn((IImage)noFindLogs[noFindLogs.length-1]);
+-									else wpVal.addColumn((IImage)noFindLogs[ch.noFindLogs-1]);
+-								}
+-								wpVal.addColumn(rettext);
+-								rettext = wpVal;
+-							}
+-							if(colName[col].equals(nmLoc)) {
+-								rettext = (String)ch.LatLon;
+-							}
+-							if(colName[col].equals(nmOwn)) rettext = (String)ch.CacheOwner;
+-							if(colName[col].equals(nmHid)) rettext = (String)ch.DateHidden;
+-							if(colName[col].equals(nmStat)) rettext = (String)ch.CacheStatus;
+-							if(colName[col].equals(nmDist)) rettext = (String)ch.distance;
+-							if(colName[col].equals(nmBear)) rettext = (String)ch.bearing;
+-						}catch(NumberFormatException nfe){}
+-					}
+-				}catch(ArrayIndexOutOfBoundsException abe){
+-					rettext = &quot;bug in progam, please report&quot;;
++		if(row == -1) {
++			return (String)colName[col];
++		} else {
++			CacheHolder ch = (CacheHolder)cacheDB.get(row);
++			if(ch.is_filtered == false){
++				switch(colID[col]) { // Faster than using column names
++					case 0: // Checkbox
++						if (ch.is_Checked) 
++							return checkboxTicked; 
++						else 
++							return checkboxUnticked;
++					case 1: // Type
++						try {
++							return (IImage) cacheImages[Convert.parseInt(ch.type)];
++						} catch (NumberFormatException e) { return &quot;?&quot;;}
++					case 2: // Difficulty;
++						return (String)ch.hard;
++					case 3: // Terrain
++						return (String)ch.terrain;
++					case 4: // Waypoint
++						if(ch.is_log_update) return new IconAndText((IImage)blue, ch.wayPoint, fm);
++						if(ch.is_update    ) return new IconAndText((IImage)red, ch.wayPoint, fm);
++						if(ch.is_new       ) return new IconAndText((IImage)yellow, ch.wayPoint, fm);
++						return (String)ch.wayPoint;
++					case 5: // Cachename
++						// Fast return for majority of case
++						if (ch.has_bug == false &amp;&amp; ch.noFindLogs==0) return (String)ch.CacheName; 
++						// Now need more checks
++						IconAndText wpVal = new IconAndText();
++						if(ch.has_bug == true) wpVal.addColumn((IImage)bug);
++						if(ch.noFindLogs &gt; 0){
++							if (ch.noFindLogs &gt; noFindLogs.length) 
++								wpVal.addColumn((IImage)noFindLogs[noFindLogs.length-1]);
++							else 
++								wpVal.addColumn((IImage)noFindLogs[ch.noFindLogs-1]);
++						}
++						wpVal.addColumn((String)ch.CacheName);
++						return wpVal;
++					case 6: // Location
++						return (String)ch.LatLon;
++					case 7: // Owner
++						return (String)ch.CacheOwner;
++					case 8: // Date hidden
++						return (String)ch.DateHidden;
++					case 9: // Status
++						return (String)ch.CacheStatus;
++					case 10: // Distance
++						return (String)ch.distance;
++					case 11: // Bearing
++						return (String)ch.bearing;
+ 				}
+ 			}
+-		return rettext;
++		}
++		return null;
+ 	}
+ 	
+ 	public boolean penPressed(Point onTable,Point cell){
+ 		boolean retval = false;
+ 		// Table header hit
+ 		try{
++			if (cell.y&gt;=0) Global.mainTab.tbP.setSelectedCache(cell.y);
+ 			// Check whether the click is on the checkbox image
+ 			if (cell.y&gt;=0 &amp;&amp; cell.x==0) {
+ 				Global.getProfile().selectionChanged = true;
+@@ -312,7 +272,8 @@
+ 				if (ch.hasAddiWpt()){
+ 					CacheHolder addiWpt;
+ 					int off = 1;
+-					for (int i=0;i&lt;ch.addiWpts.getCount();i++){
++					int addiCount=ch.addiWpts.getCount();
++					for (int i=0;i&lt;addiCount;i++){
+ 						addiWpt = (CacheHolder)ch.addiWpts.get(i);
+ 						addiWpt.is_Checked = ch.is_Checked;
+ 						if (!addiWpt.is_filtered){
+@@ -321,57 +282,31 @@
+ 					}
+ 					
+ 				}
+-				//updateRows();
+-				// Don't consume the event. Why ?
+ 			}
+-			if(cell.y == -1){
+-				if(sortAsc == false) sortAsc = true;
+-				else sortAsc = false;
+-				retval = true;
+-				if(colName[cell.x].equals(nmDist) == false){
+-					CacheHolder ch = new CacheHolder();
+-					Vm.showWait(true);
+-					Point a = new Point();
+-					a = tcControl.getSelectedCell(a);
+-					if(!(a == null)) ch = (CacheHolder)cacheDB.get(a.y);
++			if(cell.y == -1){ // Hit a header =&gt; sort the table accordingly
++				sortAsc=!sortAsc;
++				CacheHolder ch=null;
++				Vm.showWait(true);
++				Point a = tcControl.getSelectedCell(null);
++				if(a != null) ch = (CacheHolder)cacheDB.get(a.y);
++				if(colID[cell.x]!=10)
+ 					cacheDB.sort(new MyComparer(colName[cell.x]), sortAsc);
+-					updateRows();
+-					if(!(a == null)){
+-						int rownum = Global.getProfile().getCacheIndex(ch.wayPoint);
+-						if(rownum &gt;= 0){
+-							tcControl.scrollToVisible(rownum, 0);
+-							tcControl.clearSelectedCells(new Vector());
+-							for(int i= 0; i &lt; 11; i++){
+-								tcControl.addToSelection(rownum,i); 
+-							}
+-						}
+-					}
+-					Vm.showWait(false);
+-				}
+-				if(colName[cell.x].equals(nmDist)) {
+-					CacheHolder ch = new CacheHolder();
+-					Vm.showWait(true);
+-					Point a = new Point();
+-					Point dest = new Point();
+-					a = tcControl.getSelectedCell(dest);
+-					if(!(a == null)) ch = (CacheHolder)cacheDB.get(a.y);
++				else // Distance sort
+ 					cacheDB.sort(new DistComparer(), sortAsc);
+-					updateRows();
+-					if(!(a == null)){
+-						int rownum = Global.getProfile().getCacheIndex(ch.wayPoint);
+-						if(rownum &gt;= 0){
+-							tcControl.scrollToVisible(rownum, 0);
+-							tcControl.clearSelectedCells(new Vector());
+-							for(int i= 0; i &lt; 11; i++){
+-								tcControl.addToSelection(rownum,i); 
+-							}
++				updateRows();
++				if(a != null){
++					int rownum = Global.getProfile().getCacheIndex(ch.wayPoint);
++					if(rownum &gt;= 0){
++						tcControl.scrollToVisible(rownum, 0);
++						tcControl.clearSelectedCells(new Vector());
++						for(int i= 0; i &lt; MAXCOLUMNS; i++){
++							tcControl.addToSelection(rownum,i); 
+ 						}
+ 					}
+-					Vm.showWait(false);
+ 				}
+-				updateRows();
++				Vm.showWait(false);
+ 				tcControl.update(true);
+-				
++				retval = true;
+ 			}
+ 		}catch(NullPointerException npex){}
+ 		return retval;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000368.html">[Cachewolf-svn] r560 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000370.html">[Cachewolf-svn] r562 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#369">[ date ]</a>
+              <a href="thread.html#369">[ thread ]</a>
+              <a href="subject.html#369">[ subject ]</a>
+              <a href="author.html#369">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

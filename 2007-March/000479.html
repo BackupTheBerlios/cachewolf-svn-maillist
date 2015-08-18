@@ -1,0 +1,255 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r656 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-March/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r656%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200703282146.l2SLk0pm005548%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000478.html">
+   <LINK REL="Next"  HREF="000480.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r656 - trunk/src/CacheWolf</H1>
+    <B>mik77 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r656%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200703282146.l2SLk0pm005548%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r656 - trunk/src/CacheWolf">mik77 at mail.berlios.de
+       </A><BR>
+    <I>Wed Mar 28 23:46:00 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000478.html">[Cachewolf-svn] r655 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000480.html">[Cachewolf-svn] r657 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#479">[ date ]</a>
+              <a href="thread.html#479">[ thread ]</a>
+              <a href="subject.html#479">[ subject ]</a>
+              <a href="author.html#479">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mik77
+Date: 2007-03-28 23:45:55 +0200 (Wed, 28 Mar 2007)
+New Revision: 656
+
+Modified:
+   trunk/src/CacheWolf/GotoPanel.java
+   trunk/src/CacheWolf/MovingMap.java
+Log:
+- Schriftfarbe von &quot;Waypoint&quot; im GotoPanel auf Wei?\195?\159 ge?\195?\164ndert, damit es auf dem dunkelblauen Hintergrund lesbar wird
+- Einheitliche Reihenfolge beim Zeichen der Richtungspfeile (Nord)-&gt;Goto-&gt;Bewegungsrichtung-&gt;Sonne
+- Sonnenpfeil etwas verk?\195?\188rzt
+- Bewegungspfeil wird bei Ann?\195?\164herung an goto-Richtung erst orange (20?\194?\176) und dann gr?\195?\188n (10?\194?\176)
+
+=&gt; Alle Richtungsinformationen sind immer ablesbar und verdecken sich nicht mehr.
+
+Modified: trunk/src/CacheWolf/GotoPanel.java
+===================================================================
+--- trunk/src/CacheWolf/GotoPanel.java	2007-03-28 05:42:50 UTC (rev 655)
++++ trunk/src/CacheWolf/GotoPanel.java	2007-03-28 21:45:55 UTC (rev 656)
+@@ -137,6 +137,7 @@
+ 		//things about destination
+ 		GotoP.addLast(lblWayP = new mLabel(&quot;WayPoint&quot;),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		lblWayP.backGround = Color.DarkBlue;
++		lblWayP.foreGround = Color.White;
+ 		lblWayP.font = BOLD;
+ 		GotoP.addLast(lblBearWayP = new mLabel(&quot;0&quot;),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 		lblBearWayP.font = BOLD;
+@@ -396,6 +397,8 @@
+ 	final static Color YELLOW = new Color(255,255,0);
+ 	final static Color GREEN = new Color(0,255,0);
+ 	final static Color BLUE = new Color(0,255,255);
++	final static Color ORANGE = new Color(255,128,0);
++
+ 	/**
+ 	 * @param gd goto direction
+ 	 * @param sd sun direction
+@@ -428,11 +431,37 @@
+ 	}
+ 
+ 	private void drawArrows(Graphics g){
+-		if (g != null) {
++		if (g != null)
++		{
++			// select moveDirColor according to difference to gotoDir
++			Color moveDirColor = RED;
++			
++			if (gotoDir &lt; 360 &amp;&amp; gotoDir &gt; -360 &amp;&amp; moveDir &lt; 360 &amp;&amp; moveDir &gt; -360)
++			{
++				float diff = java.lang.Math.abs(moveDir - gotoDir);
++				while (diff &gt; 360)
++				{
++					diff -= 360.0f;
++				}
++				if (diff &gt; 180)
++				{
++					diff = 360.0f - diff;
++				}
++				
++				if (diff &lt;= 10)
++				{
++					moveDirColor = GREEN;
++				}
++				else if (diff &lt;= 20)
++				{
++					moveDirColor = ORANGE;
++				}
++			}
++
+ 			// draw only valid arrows
+-			if (moveDir &lt; 360 &amp;&amp; moveDir &gt; -360) drawArrow(g, moveDir, RED);
+-			if (gotoDir &lt; 360 &amp;&amp; gotoDir &gt; -360) drawArrow(g, gotoDir, Color.DarkBlue);
+-			if (sunDir &lt; 360 &amp;&amp; sunDir&gt; -360) drawArrow(g, sunDir, YELLOW);
++			if (gotoDir &lt; 360 &amp;&amp; gotoDir &gt; -360) drawArrow(g, gotoDir, Color.DarkBlue, 1.0f);
++			if (moveDir &lt; 360 &amp;&amp; moveDir &gt; -360) drawArrow(g, moveDir, moveDirColor, 1.0f);
++			if (sunDir &lt; 360 &amp;&amp; sunDir &gt; -360) drawArrow(g, sunDir, YELLOW, 0.75f);
+ 		}
+ 	}
+ 
+@@ -442,13 +471,13 @@
+ 	 * @param angle angle of arrow
+ 	 * @param col color of arrow
+ 	 */
+-	private void drawArrow(Graphics g, float angle, Color col) {
++	private void drawArrow(Graphics g, float angle, Color col, float scale) {
+ 		float angleRad;
+ 		int x, y, centerX = location.width/2, centerY = location.height/2;
+ 
+ 		angleRad = (angle) * (float)java.lang.Math.PI / 180;
+-		x = centerX + new Float(centerX * java.lang.Math.sin(angleRad)).intValue();
+-		y = centerY - new Float(centerY * java.lang.Math.cos(angleRad)).intValue();
++		x = centerX + new Float(centerX * java.lang.Math.sin(angleRad) * scale).intValue();
++		y = centerY - new Float(centerY * java.lang.Math.cos(angleRad) * scale).intValue();
+ 		g.setPen(new Pen(col,Pen.SOLID,3));
+ 		g.drawLine(centerX,centerY,x,y);
+ 	}
+
+Modified: trunk/src/CacheWolf/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/MovingMap.java	2007-03-28 05:42:50 UTC (rev 655)
++++ trunk/src/CacheWolf/MovingMap.java	2007-03-28 21:45:55 UTC (rev 656)
+@@ -1857,7 +1857,7 @@
+ 	Graphics draw;
+ 	private MapInfoObject map=null;
+ 
+-	final static Color moveDirColor = new Color(255,0,0); // RED 
++	Color moveDirColor = new Color(255,0,0); // RED 
+ 	final static Color sunDirColor = new Color(255,255,0); // Yellow
+ 	//final static Color GREEN = new Color(0,255,0);
+ 	final static Color gotoDirColor = new Color(0,0,128); // dark blue
+@@ -1929,20 +1929,45 @@
+ 			// draw only valid arrows
+ 			if (moveDir &lt; 360 &amp;&amp; moveDir &gt; -360) {
+ 				if (moveDirArrow == null) moveDirArrow = new Point[2];
+-				makeArrow(moveDirArrow, moveDir);
++				makeArrow(moveDirArrow, moveDir, 1.0f);
+ 			} else moveDirArrow = null;
+ 			if (gotoDir &lt; 360 &amp;&amp; gotoDir &gt; -360) {
+ 				if (gotoDirArrow == null) gotoDirArrow = new Point[2];
+-				makeArrow(gotoDirArrow, gotoDir);
++				makeArrow(gotoDirArrow, gotoDir, 1.0f);
+ 			} else gotoDirArrow = null;
+ 			if (sunDir &lt; 360 &amp;&amp; sunDir&gt; -360) {
+ 				if (sunDirArrow == null ) sunDirArrow = new Point[2];
+-				makeArrow(sunDirArrow, sunDir);
++				makeArrow(sunDirArrow, sunDir, 0.75f);
+ 			} else sunDirArrow = null;
+ 			if (java.lang.Math.abs(map.rotationRad) &gt; 1.5 / 180 * java.lang.Math.PI)	{ // show northth arrow only if it has more than 1.5 degree deviation from vertical direction
+ 				if (northDirArrow == null) northDirArrow = new Point[2];
+-				makeArrow(northDirArrow, 0); // north direction
++				makeArrow(northDirArrow, 0, 1.0f); // north direction
+ 			} else northDirArrow = null;
++			
++			//select moveDirColor according to difference to gotoDir
++			moveDirColor = new Color(255,0,0); // red
++			
++			if (moveDirArrow != null &amp;&amp; gotoDirArrow != null)
++			{
++				float diff = java.lang.Math.abs(moveDir - gotoDir);
++				while (diff &gt; 360)
++				{
++					diff -= 360.0f;
++				}
++				if (diff &gt; 180)
++				{
++					diff = 360.0f - diff;
++				}
++				
++				if (diff &lt;= 10)
++				{
++					moveDirColor = new Color(0,255,0);// green
++				}
++				else if (diff &lt;= 20)
++				{
++					moveDirColor = new Color(255,128,0);// orange
++				}
++			}
+ 		}
+ 
+ 	/**
+@@ -1951,8 +1976,9 @@
+ 	 * @param angle angle of arrow
+ 	 * @param col color of arrow
+ 	 */
+-	private void makeArrow(Point[] arrow, float angle) {
++	private void makeArrow(Point[] arrow, float angle, float scale) {
+ 		if (map == null) return;
++
+ 		float angleRad;
+ 		int centerX = location.width/2, centerY = location.height/2;
+ 		if (arrow[0] == null) arrow[0] = new Point();
+@@ -1960,17 +1986,17 @@
+ 		arrow[0].x = centerX;
+ 		arrow[0].y = centerY;
+ 		angleRad = angle * (float)java.lang.Math.PI / 180 + map.rotationRad;
+-		arrow[1].x = centerX + new Float(centerX * java.lang.Math.sin(angleRad)).intValue();
+-		arrow[1].y = centerY - new Float(centerY * java.lang.Math.cos(angleRad)).intValue();
++		arrow[1].x = centerX + new Float(centerX * java.lang.Math.sin(angleRad) * scale).intValue();
++		arrow[1].y = centerY - new Float(centerY * java.lang.Math.cos(angleRad) * scale).intValue();
+ 		//	g.setPen(new Pen(Color.Black,Pen.SOLID,7));
+ 		//	g.drawLine(centerX,centerY,x,y);
+ 	}
+ 
+ 	public void drawArrows(Graphics g) {
++		drawArrow(g, northDirArrow, northDirColor);
++		drawArrow(g, gotoDirArrow, gotoDirColor);
++		drawArrow(g, moveDirArrow, moveDirColor);
+ 		drawArrow(g, sunDirArrow, sunDirColor);
+-		drawArrow(g, moveDirArrow, moveDirColor);
+-		drawArrow(g, gotoDirArrow, gotoDirColor);
+-		drawArrow(g, northDirArrow, northDirColor);
+ 	}
+ 	
+ 	public void drawArrow(Graphics g, Point[] arrow, Color col) {
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000478.html">[Cachewolf-svn] r655 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000480.html">[Cachewolf-svn] r657 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#479">[ date ]</a>
+              <a href="thread.html#479">[ thread ]</a>
+              <a href="subject.html#479">[ subject ]</a>
+              <a href="author.html#479">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

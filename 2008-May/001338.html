@@ -1,0 +1,120 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1444 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-May/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1444%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200805041713.m44HDQqI010849%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001337.html">
+   <LINK REL="Next"  HREF="001339.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1444 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1444%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200805041713.m44HDQqI010849%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1444 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sun May  4 19:13:26 CEST 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001337.html">[Cachewolf-svn] r1443 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001339.html">[Cachewolf-svn] r1445 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1338">[ date ]</a>
+              <a href="thread.html#1338">[ thread ]</a>
+              <a href="subject.html#1338">[ subject ]</a>
+              <a href="author.html#1338">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2008-05-04 19:13:22 +0200 (Sun, 04 May 2008)
+New Revision: 1444
+
+Modified:
+   trunk/src/CacheWolf/Parser.java
+Log:
+Fix for crosstotal problem with large numbers. 
+See <A HREF="http://www.geoclub.de/viewtopic.php?f=40&amp;t=24306">http://www.geoclub.de/viewtopic.php?f=40&amp;t=24306</A>
+Crosstotals can now also be determined for strings - any non-numeric character is ignored.
+For numeric arguments only integer values are allowed! 
+
+Modified: trunk/src/CacheWolf/Parser.java
+===================================================================
+--- trunk/src/CacheWolf/Parser.java	2008-05-04 14:20:52 UTC (rev 1443)
++++ trunk/src/CacheWolf/Parser.java	2008-05-04 17:13:22 UTC (rev 1444)
+@@ -281,8 +281,18 @@
+ 	private String popCalcStackAsString() {
+ 		String s;
+ 		if (calcStack.get(calcStack.size()-1) instanceof Double) {
+-			s = ((java.lang.Double)calcStack.get(calcStack.size()-1)).toString().replace(',','.'); // always show numbers with decimal point;
+-			if (s.endsWith(&quot;.0&quot;)) s=s.substring(0,s.length()-2);
++			java.lang.Double D=((java.lang.Double)calcStack.get(calcStack.size()-1));
++			// Double.toString() formats numbers &gt; 1E7 and &lt; 1E-3 with exponential notation
++			// For large integers we therefore use Longs  
++			double d=D.doubleValue();
++			// If the double is an integer and within range of longs, use Long
++			if (java.lang.Math.floor(d)==d &amp;&amp; d&lt;java.lang.Long.MAX_VALUE &amp;&amp; d&gt;java.lang.Long.MIN_VALUE) {
++				java.lang.Long L=new java.lang.Long((long)d);
++				s=L.toString();
++			} else { // Use the default Double format
++				s = D.toString().replace(',','.'); // always show numbers with decimal point;
++				if (s.endsWith(&quot;.0&quot;)) s=s.substring(0,s.length()-2);
++			}
+ 		} else
+ 			s = (String)calcStack.get(calcStack.size()-1);
+ 		calcStack.removeElementAt(calcStack.size()-1);
+@@ -429,6 +439,11 @@
+     	return Global.mainTab.nav.gpsPos.toString();
+     }
+     
++    /**
++     *  Crosstotal: Works for both strings and numbers. For strings any non-numeric character is ignored
++     *  Warning: When the number is non-integer or &gt; 9223372036854775807, it is formatted using the E
++     *  notation, i.e. x.xxxxxxEyy. In this case the exponent yy is also included in the crosstotal 
++     */
+     private double funcCrossTotal(int nargs) throws Exception {
+     	int cycles=1;
+ 		if (nargs==2) cycles=(int)popCalcStackAsNumber(1);
+@@ -442,8 +457,6 @@
+ 			for (int i=0; i&lt;aString.length(); i++) {
+ 			   if (aString.charAt(i)&gt;='0' &amp;&amp; aString.charAt(i)&lt;='9')
+ 			      a += aString.charAt(i)-'0';
+-			   else
+-				  break; // break at first non numeric character 
+ 			}
+ 			aString=Convert.toString(a);
+     	} 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001337.html">[Cachewolf-svn] r1443 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001339.html">[Cachewolf-svn] r1445 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1338">[ date ]</a>
+              <a href="thread.html#1338">[ thread ]</a>
+              <a href="subject.html#1338">[ subject ]</a>
+              <a href="author.html#1338">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

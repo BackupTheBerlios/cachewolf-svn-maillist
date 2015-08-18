@@ -1,0 +1,344 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1175 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1175%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200801061416.m06EGF9P030370%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001067.html">
+   <LINK REL="Next"  HREF="001069.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1175 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1175%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200801061416.m06EGF9P030370%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1175 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sun Jan  6 15:16:15 CET 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001067.html">[Cachewolf-svn] r1174 - in trunk: res_noewe/languages src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001069.html">[Cachewolf-svn] r1176 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1068">[ date ]</a>
+              <a href="thread.html#1068">[ thread ]</a>
+              <a href="subject.html#1068">[ subject ]</a>
+              <a href="author.html#1068">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2008-01-06 15:16:02 +0100 (Sun, 06 Jan 2008)
+New Revision: 1175
+
+Modified:
+   trunk/src/CacheWolf/CacheList.java
+   trunk/src/CacheWolf/DataMover.java
+   trunk/src/CacheWolf/Filter.java
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/NewProfileForm.java
+   trunk/src/CacheWolf/Profile.java
+   trunk/src/CacheWolf/ProfilesForm.java
+   trunk/src/CacheWolf/SearchCache.java
+   trunk/src/CacheWolf/StatusBar.java
+   trunk/src/CacheWolf/TablePanel.java
+Log:
+Filter: Tidied up the saving of the filter status.
+
+Modified: trunk/src/CacheWolf/CacheList.java
+===================================================================
+--- trunk/src/CacheWolf/CacheList.java	2008-01-05 21:05:19 UTC (rev 1174)
++++ trunk/src/CacheWolf/CacheList.java	2008-01-06 14:16:02 UTC (rev 1175)
+@@ -283,8 +283,9 @@
+ 		}
+ 		// The sort command places all filtered caches at the end
+ 		cacheDB.sort(new mySort(),false);
+-		Filter.filterActive=Filter.FILTER_CACHELIST;
+-		Filter.filterInverted=false;
++		Global.getProfile().filterActive=Filter.FILTER_CACHELIST;
++		Global.getProfile().filterInverted=false;
++		Global.getProfile().hasUnsavedChanges=true;
+ 		updateScreen(cacheList.size()-wrongBlackStatus);
+ 		if (wrongBlackStatus&gt;0)
+ 			(new MessageBox(MyLocale.getMsg(5500,&quot;Error&quot;),MyLocale.getMsg(4600,&quot;Some cache(s) cannot be shown because of wrong blacklist status&quot;), MessageBox.OKB)).execute();
+
+Modified: trunk/src/CacheWolf/DataMover.java
+===================================================================
+--- trunk/src/CacheWolf/DataMover.java	2008-01-05 21:05:19 UTC (rev 1174)
++++ trunk/src/CacheWolf/DataMover.java	2008-01-06 14:16:02 UTC (rev 1175)
+@@ -54,7 +54,7 @@
+ 		}
+ 		processCaches(new Copier(MyLocale.getMsg(141, &quot;Copy&quot;),dstProfile));
+ 		// write indexfiles and keep the filter status
+-		dstProfile.saveIndex(pref, Profile.NO_SHOW_PROGRESS_BAR,dstProfile.filterActive,dstProfile.filterInverted);
++		dstProfile.saveIndex(pref, Profile.NO_SHOW_PROGRESS_BAR);
+ 	}
+ 	
+ 	public void moveCaches() {
+@@ -78,7 +78,7 @@
+ 		}
+ 		processCaches(new Mover(MyLocale.getMsg(142, &quot;Move&quot;),dstProfile));
+ 		// write indexfiles
+-		dstProfile.saveIndex(pref, Profile.NO_SHOW_PROGRESS_BAR,dstProfile.filterActive,dstProfile.filterInverted);
++		dstProfile.saveIndex(pref, Profile.NO_SHOW_PROGRESS_BAR); 
+ 		profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
+ 	}
+ 	
+
+Modified: trunk/src/CacheWolf/Filter.java
+===================================================================
+--- trunk/src/CacheWolf/Filter.java	2008-01-05 21:05:19 UTC (rev 1174)
++++ trunk/src/CacheWolf/Filter.java	2008-01-06 14:16:02 UTC (rev 1175)
+@@ -19,9 +19,9 @@
+ 	/** Toggle for showing blacklisted caches. Can be toggled through the Filter menu */
+ 	public static boolean showBlacklisted=false;
+ 	/** Indicator whether a filter is inverted */
+-	public static boolean filterInverted=false;
++	//public static boolean filterInverted=false;
+ 	/** Indicator whether a filter is active. Used in status bar to indicate filter status */
+-	public static int filterActive=FILTER_INACTIVE;
++	//public static int filterActive=FILTER_INACTIVE;
+ 	
+ 	private static final int SMALLER = -1;
+ 	private static final int EQUAL = 0;
+@@ -98,7 +98,6 @@
+ 	double fscTerr;
+ 	double fscDiff;
+ 	
+-	
+ 	private boolean archived = false;
+ 	private boolean notArchived = false;
+ 	
+@@ -465,7 +464,9 @@
+ 			}
+ 			
+ 		} // for
+-		filterActive=FILTER_ACTIVE;
++		Global.getProfile().filterActive=FILTER_ACTIVE;
++		Global.getProfile().filterInverted=false;
++		Global.getProfile().hasUnsavedChanges=true;
+ 	}
+ 	
+ 	/**
+@@ -483,7 +484,8 @@
+ 			else
+ 				ch.is_filtered=true; // Hide all those that have the wrong is_black status
+ 		}
+-		filterInverted=true;
++		Global.getProfile().filterInverted=true;
++		Global.getProfile().hasUnsavedChanges=true;
+ 	}
+ 	
+ 	/**
+@@ -496,8 +498,9 @@
+ 			ch = (CacheHolder)cacheDB.get(i);
+ 			ch.is_filtered=(ch.is_black^showBlacklisted) ; // Always filter blacklisted caches
+ 		}
+-		filterActive=FILTER_INACTIVE;
+-		filterInverted=false;
++		Global.getProfile().filterActive=FILTER_INACTIVE;
++		Global.getProfile().filterInverted=false;
++		Global.getProfile().hasUnsavedChanges=true;
+ 	}
+ 
+ 	public boolean hasFilter() {
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2008-01-05 21:05:19 UTC (rev 1174)
++++ trunk/src/CacheWolf/MainMenu.java	2008-01-06 14:16:02 UTC (rev 1175)
+@@ -253,7 +253,6 @@
+ 					Filter.showBlacklisted=false;
+ 					Global.mainForm.setTitle(&quot;Cachewolf &quot;+Version.getRelease()+&quot; - &quot;+profile.name);
+ 					infB.close(0);
+-					profile.restoreFilter(); // Restore the isActive &amp; isInverted status of the filter
+ 					tbp.resetModel();
+ 				}
+ 			}
+@@ -272,8 +271,6 @@
+ 				spGC.doIt();
+ 				cacheDB.clear();
+ 				profile.readIndex();
+-				profile.restoreFilter();
+-				profile.updateBearingDistance();
+ 				tbp.resetModel();
+ 			}
+ 			if(mev.selectedItem == loadcaches){
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2008-01-05 21:05:19 UTC (rev 1174)
++++ trunk/src/CacheWolf/MainTab.java	2008-01-06 14:16:02 UTC (rev 1175)
+@@ -372,6 +372,7 @@
+ 			}
+ 		}
+ 		if (saveIndex) profile.saveIndex(Global.getPref(),false);
++		Global.getPref().savePreferences();
+ 	}
+ 	
+ 	private void checkProfileChange() {
+
+Modified: trunk/src/CacheWolf/NewProfileForm.java
+===================================================================
+--- trunk/src/CacheWolf/NewProfileForm.java	2008-01-05 21:05:19 UTC (rev 1174)
++++ trunk/src/CacheWolf/NewProfileForm.java	2008-01-06 14:16:02 UTC (rev 1175)
+@@ -51,8 +51,8 @@
+ 						profileDir=&quot;&quot;;
+ 						this.close(-1);
+ 					}
+-					Filter.filterActive=Filter.FILTER_INACTIVE;
+-					Filter.filterInverted=false;
++					Global.getProfile().filterActive=Filter.FILTER_INACTIVE;
++					Global.getProfile().filterInverted=false;
+ 					this.close(0);
+ 				}
+ 			}
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2008-01-05 21:05:19 UTC (rev 1174)
++++ trunk/src/CacheWolf/Profile.java	2008-01-06 14:16:02 UTC (rev 1175)
+@@ -98,13 +98,13 @@
+ 	 *   
+ 	 *   Saves the index with the filter settings from Filter
+ 	 */
+-	public void saveIndex(Preferences pref, boolean showprogress){
+-		saveIndex(pref,showprogress, Filter.filterActive,Filter.filterInverted);
+-	}
++//	public void saveIndex(Preferences pref, boolean showprogress){
++//		saveIndex(pref,showprogress, Filter.filterActive,Filter.filterInverted);
++//	}
+ 
+ 	
+ 	/** Save index with filter settings given */ 
+-	public void saveIndex(Preferences pref, boolean showprogress, int saveFilterActive, boolean saveFilterInverted){
++	public void saveIndex(Preferences pref, boolean showprogress) { 
+ 		ProgressBarForm pbf = new ProgressBarForm();
+ 		Handle h = new Handle();
+ 		if(showprogress){
+@@ -146,7 +146,7 @@
+ 				distOC = &quot;0&quot;;
+ 			}
+ 
+-			detfile.print(&quot;    &lt;FILTER status = \&quot;&quot;+saveFilterActive+(saveFilterInverted?&quot;T&quot;:&quot;F&quot;)+ 
++			detfile.print(&quot;    &lt;FILTER status = \&quot;&quot;+filterActive+(filterInverted?&quot;T&quot;:&quot;F&quot;)+ 
+ 					&quot;\&quot; rose = \&quot;&quot;+filterRose+&quot;\&quot; type = \&quot;&quot;+filterType+
+ 					&quot;\&quot; var = \&quot;&quot;+filterVar+&quot;\&quot; dist = \&quot;&quot;+filterDist.replace('&quot;',' ')+&quot;\&quot; diff = \&quot;&quot;+
+ 					filterDiff+&quot;\&quot; terr = \&quot;&quot;+filterTerr+&quot;\&quot; size = \&quot;&quot;+filterSize+&quot;\&quot; /&gt;\n&quot;);
+@@ -277,7 +277,7 @@
+ 			if (filterInverted) 
+ 				flt.invertFilter();
+ 		} else if (filterActive==Filter.FILTER_CACHELIST) {
+-			flt.filterActive=filterActive;
++			//flt.filterActive=filterActive;
+ 		}
+ 	}
+ 
+
+Modified: trunk/src/CacheWolf/ProfilesForm.java
+===================================================================
+--- trunk/src/CacheWolf/ProfilesForm.java	2008-01-05 21:05:19 UTC (rev 1174)
++++ trunk/src/CacheWolf/ProfilesForm.java	2008-01-06 14:16:02 UTC (rev 1175)
+@@ -118,8 +118,8 @@
+ 				close(-1);
+ 			}
+ 			if (ev.target == btnOK || ev.target == choice){
+-				Filter.filterActive=Filter.FILTER_INACTIVE;
+-				Filter.filterInverted=false;
++				Global.getProfile().filterActive=Filter.FILTER_INACTIVE;
++				Global.getProfile().filterInverted=false;
+ 				if (choice.getSelectedItem()!=null) {
+ 					newSelectedProfile=choice.getSelectedItem().toString();
+ 					close(1);
+
+Modified: trunk/src/CacheWolf/SearchCache.java
+===================================================================
+--- trunk/src/CacheWolf/SearchCache.java	2008-01-05 21:05:19 UTC (rev 1174)
++++ trunk/src/CacheWolf/SearchCache.java	2008-01-06 14:16:02 UTC (rev 1175)
+@@ -54,8 +54,8 @@
+ 			ch.is_flaged=false;
+ 			ch.is_filtered=(ch.is_black^Filter.showBlacklisted) ;
+ 		}
+-		Global.getProfile().filterActive=Filter.filterActive; //TODO This is a hack. Need to tidy this up
+-		Global.getProfile().filterInverted=Filter.filterInverted;
++		//Global.getProfile().filterActive=Filter.filterActive; //TODO This is a hack. Need to tidy this up
++		//Global.getProfile().filterInverted=Filter.filterInverted;
+ 		Global.getProfile().restoreFilter();
+ 	}
+ }
+
+Modified: trunk/src/CacheWolf/StatusBar.java
+===================================================================
+--- trunk/src/CacheWolf/StatusBar.java	2008-01-05 21:05:19 UTC (rev 1174)
++++ trunk/src/CacheWolf/StatusBar.java	2008-01-06 14:16:02 UTC (rev 1175)
+@@ -46,9 +46,9 @@
+ 					MyLocale.getMsg(4502,&quot;Fnd:&quot;) + &quot; &quot; + stats.totalFound() + &quot;  &quot;;
+ 		disp.setText(strStatus);
+ 		// Indicate that a filter is active in the status line
+-		if (Filter.filterActive==Filter.FILTER_ACTIVE)
++		if (Global.getProfile().filterActive==Filter.FILTER_ACTIVE)
+ 			btnFlt.backGround=new Color(0,255,0);
+-		else if (Filter.filterActive==Filter.FILTER_CACHELIST)
++		else if (Global.getProfile().filterActive==Filter.FILTER_CACHELIST)
+ 			btnFlt.backGround=new Color(0,0,255);
+ 		else
+ 			btnFlt.backGround=null;
+@@ -65,7 +65,7 @@
+ 		if (ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.PRESSED){
+ 			if (ev.target == btnFlt){
+ 				Filter flt = new Filter();
+-				if (Filter.filterActive==Filter.FILTER_INACTIVE) {
++				if (Global.getProfile().filterActive==Filter.FILTER_INACTIVE) {
+ 					flt.setFilter();
+ 					flt.doFilter();
+ 				} else {
+
+Modified: trunk/src/CacheWolf/TablePanel.java
+===================================================================
+--- trunk/src/CacheWolf/TablePanel.java	2008-01-05 21:05:19 UTC (rev 1174)
++++ trunk/src/CacheWolf/TablePanel.java	2008-01-06 14:16:02 UTC (rev 1175)
+@@ -79,9 +79,7 @@
+ 	public void resetModel() {
+ 		myMod.numRows = cacheDB.size();
+ 		Global.getProfile().updateBearingDistance();
+-		Filter flt = new Filter();
+-		flt.setFilter();
+-		flt.doFilter();
++		Global.getProfile().restoreFilter(); // Restore the isActive &amp; isInverted status of the filter
+ 		tc.scrollToVisible(0,0);
+ 		refreshTable();
+ 	}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001067.html">[Cachewolf-svn] r1174 - in trunk: res_noewe/languages src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001069.html">[Cachewolf-svn] r1176 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1068">[ date ]</a>
+              <a href="thread.html#1068">[ thread ]</a>
+              <a href="subject.html#1068">[ subject ]</a>
+              <a href="author.html#1068">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

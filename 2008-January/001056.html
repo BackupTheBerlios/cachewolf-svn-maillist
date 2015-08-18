@@ -1,0 +1,335 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1163 - in trunk: res_noewe/languages src/exp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1163%20-%20in%20trunk%3A%20res_noewe/languages%20src/exp&In-Reply-To=%3C200801021945.m02JjPB1003897%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001055.html">
+   <LINK REL="Next"  HREF="001057.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1163 - in trunk: res_noewe/languages src/exp</H1>
+    <B>tweetyhh at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1163%20-%20in%20trunk%3A%20res_noewe/languages%20src/exp&In-Reply-To=%3C200801021945.m02JjPB1003897%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1163 - in trunk: res_noewe/languages src/exp">tweetyhh at mail.berlios.de
+       </A><BR>
+    <I>Wed Jan  2 20:45:25 CET 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001055.html">[Cachewolf-svn] r1162 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001057.html">[Cachewolf-svn] r1164 - in trunk: res_noewe resources src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1056">[ date ]</a>
+              <a href="thread.html#1056">[ thread ]</a>
+              <a href="subject.html#1056">[ subject ]</a>
+              <a href="author.html#1056">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: tweetyhh
+Date: 2008-01-02 20:45:17 +0100 (Wed, 02 Jan 2008)
+New Revision: 1163
+
+Added:
+   trunk/src/exp/DistanceComparer.java
+Modified:
+   trunk/res_noewe/languages/DE.cfg
+   trunk/src/exp/MagellanExporter.java
+Log:
+Update Magellan Exporter:
+- placed and lastFound fields are now filled with data.
+- new &quot;hidden&quot; Feature: If in the Cachewolf directory now are a &quot;magellan.cfg&quot; file the
+exporter will read it: &quot;NameOfFile=coordinate&quot;
+it then asks for a directory, where to store die exportet Files. For everey line there will be files like
+&quot;NameOfFile#.gs&quot; which will contains the caches in order from the coordinate, which should be 
+in the normal Format of &quot;N 53&#176; 36.167 E 010&#176; 00.000&quot;
+
+
+Modified: trunk/res_noewe/languages/DE.cfg
+===================================================================
+--- trunk/res_noewe/languages/DE.cfg	2008-01-01 19:18:41 UTC (rev 1162)
++++ trunk/res_noewe/languages/DE.cfg	2008-01-02 19:45:17 UTC (rev 1163)
+@@ -381,6 +381,11 @@
+ 		1801=Kacheln herunterladen
+ 		2000=GPX Export
+ 		2001=von
++		2100=Magellan Exporter
++		2101=Fehler beim laden der Datei magellan.cfg
++		2102=Zieldatei w&#228;hlen
++		2103=Fehler beim lesen der Datei magellan.cfg
++		2104=Ausgabeverzeichnis f&#252;r die .gs Dateien ausw&#228;hlen
+ 		2500=Fehler beim Laden oder unkekanntes Attribut
+ 		2501=Nicht immer zug%e4nglich
+ 		2502=Immer zug%e4nglich (24/7)
+
+Added: trunk/src/exp/DistanceComparer.java
+===================================================================
+--- trunk/src/exp/DistanceComparer.java	2008-01-01 19:18:41 UTC (rev 1162)
++++ trunk/src/exp/DistanceComparer.java	2008-01-02 19:45:17 UTC (rev 1163)
+@@ -0,0 +1,25 @@
++package exp;
++
++import CacheWolf.CWPoint;
++import CacheWolf.CacheHolder;
++import ewe.util.Comparer;
++
++public class DistanceComparer implements Comparer {
++	
++	CWPoint centre;
++	
++	public DistanceComparer(CWPoint centre) {
++		this.centre = centre;
++	}
++
++	public int compare(Object one, Object two) {
++		if ((! (one instanceof CacheHolder)) &amp;&amp; (!(two instanceof CacheHolder))) {
++			return 0;
++		} else {
++			CacheHolder a = (CacheHolder) one;
++			CacheHolder b = (CacheHolder) two;
++			return (int) ((a.pos.getDistance(centre) - b.pos.getDistance(centre)) * 1000);
++		}
++	}
++	
++}
+
+
+Property changes on: trunk/src/exp/DistanceComparer.java
+___________________________________________________________________
+Name: svn:mime-type
+   + text/x-java
+Name: svn:keywords
+   + Author Date Id Rev URL
+Name: svn:eol-style
+   + native
+
+Modified: trunk/src/exp/MagellanExporter.java
+===================================================================
+--- trunk/src/exp/MagellanExporter.java	2008-01-01 19:18:41 UTC (rev 1162)
++++ trunk/src/exp/MagellanExporter.java	2008-01-02 19:45:17 UTC (rev 1163)
+@@ -3,10 +3,15 @@
+ import CacheWolf.*;
+ import ewe.sys.*;
+ import ewe.filechooser.FileChooser;
++import ewe.io.BufferedReader;
+ import ewe.io.BufferedWriter;
+ import ewe.io.File;
++import ewe.io.FileNotFoundException;
++import ewe.io.FileReader;
+ import ewe.io.FileWriter;
++import ewe.io.LineNumberReader;
+ import ewe.io.PrintWriter;
++import ewe.io.StringStream;
+ import ewe.ui.ProgressBarForm;
+ import ewe.util.*;
+ import ewe.io.IOException;
+@@ -51,10 +56,50 @@
+ 		expName = expName.substring(expName.indexOf(&quot;.&quot;) + 1);
+ 	}
+ 
++	public void doIt() {
++		File configFile = new File(&quot;magellan.cfg&quot;);
++		if (configFile.exists()) {
++			FileChooser fc = new FileChooser(FileChooser.DIRECTORY_SELECT, pref.getExportPath(expName+&quot;Dir&quot;));
++			fc.setTitle(MyLocale.getMsg(2104, &quot;Choose directory for exporting .gs files&quot;));
++			String targetDir;
++			if(fc.execute() != FileChooser.IDCANCEL){
++				targetDir = fc.getChosen() + &quot;/&quot;;
++				pref.setExportPath(expName+&quot;Dir&quot;, targetDir);
++
++				CWPoint centre = profile.centre;
++				try {
++					LineNumberReader reader = new LineNumberReader(new BufferedReader(new FileReader(configFile)));
++					String line, fileName, coordinate;
++					while ((line = reader.readLine()) != null)  {
++						StringTokenizer tokenizer = new StringTokenizer(line,&quot;=&quot;);
++						fileName = targetDir + tokenizer.nextToken().trim() + &quot;.gs&quot;;
++						coordinate = tokenizer.nextToken().trim();
++						CWPoint point = new CWPoint(coordinate);
++						DistanceComparer dc = new DistanceComparer(point);
++						cacheDB.sort(dc, false);
++						doIt(fileName);
++					}
++					reader.close();
++				} catch (FileNotFoundException e) {
++					InfoBox info = new InfoBox(MyLocale.getMsg(2100, &quot;Magellan Exporter&quot;),MyLocale.getMsg(2101, &quot;Failure at loading magellan.cfg\n&quot; + e.getMessage()));
++					info.show();
++				} catch (IOException e) {
++					InfoBox info = new InfoBox(MyLocale.getMsg(2100, &quot;Magellan Exporter&quot;),MyLocale.getMsg(2103, &quot;Failure at reading magellan.cfg\n&quot; + e.getMessage()));
++					info.show();
++				} finally {
++					cacheDB.sort(new DistanceComparer(centre),false);
++				}
++			}
++		}
++		else {
++			doIt(null);
++		}
++	}
++	
+ 	/**
+ 	 * Does the most work for exporting data
+ 	 */
+-	public void doIt() {
++	public void doIt(String baseFileName) {
+ 		File outFile;
+ 		String fileBaseName;
+ 		String str = null;
+@@ -63,9 +108,13 @@
+ 		ProgressBarForm pbf = new ProgressBarForm();
+ 		Handle h = new Handle();
+ 
+-		outFile = getOutputFile();
+-		if (outFile == null)
+-			return;
++		if (baseFileName == null) {
++			outFile = getOutputFile();
++			if (outFile == null)
++				return;
++		} else {
++			outFile = new File(baseFileName);
++		}
+ 
+ 		fileBaseName = outFile.getFullPath();
+ 		// cut .gs
+@@ -137,7 +186,7 @@
+ 		File file;
+ 		FileChooser fc = new FileChooser(FileChooser.SAVE, pref
+ 				.getExportPath(expName));
+-		fc.setTitle(&quot;Select target file:&quot;);
++		fc.setTitle(MyLocale.getMsg(2102, &quot;Select target file:&quot;));
+ 		fc.addMask(mask);
+ 		if (fc.execute() != FileChooser.IDCANCEL) {
+ 			file = fc.getChosenFile();
+@@ -156,6 +205,14 @@
+ 	 * @return formated cache data
+ 	 */
+ 	public String record(CacheHolderDetail chD) {
++		/*
++		static protected final int GC_AW_PARKING = 50;
++		static protected final int GC_AW_STAGE_OF_MULTI = 51;
++		static protected final int GC_AW_QUESTION = 52;
++		static protected final int GC_AW_FINAL = 53;
++		static protected final int GC_AW_TRAILHEAD = 54;
++		static protected final int GC_AW_REFERENCE = 55;
++		*/
+ 		StringBuffer sb = new StringBuffer();
+ 		sb.append(&quot;$PMGNGEO,&quot;);
+ 		sb.append(chD.pos.getLatDeg(CWPoint.DMM));
+@@ -166,26 +223,53 @@
+ 		sb.append(chD.pos.getLonMin(CWPoint.DMM));
+ 		sb.append(&quot;,&quot;);
+ 		sb.append(&quot;E,&quot;);
+-		sb.append(&quot;0000,&quot;);
+-		sb.append(&quot;F,&quot;); // or &quot;M&quot; ?
++		sb.append(&quot;0000,&quot;); // Height
++		sb.append(&quot;M,&quot;); // in meter
+ 		sb.append(chD.wayPoint);
+ 		sb.append(&quot;,&quot;);
+-		sb.append(removeCommas(chD.CacheName));
++		String add = &quot;&quot;;
++		if (chD.isAddiWpt()) {
++			if (chD.type.equals(&quot;50&quot;)) {
++				add = &quot;Pa:&quot;;
++			} else if (chD.type.equals(&quot;51&quot;)) {
++				add = &quot;St:&quot;;
++			} else if (chD.type.equals(&quot;52&quot;)) {
++				add = &quot;Qu:&quot;; 
++			} else if (chD.type.equals(&quot;53&quot;)) {	
++				add = &quot;Fi:&quot;;
++			} else if (chD.type.equals(&quot;54&quot;)) {
++				add = &quot;Tr:&quot;;
++			} else if (chD.type.equals(&quot;55&quot;)) {	
++				add = &quot;Re:&quot;;
++			}
++			sb.append(add).append(removeCommas(chD.CacheName));
++		} else {
++			sb.append(removeCommas(chD.CacheName));
++		}		
+ 		sb.append(&quot;,&quot;);
+ 		sb.append(removeCommas(chD.CacheOwner));
+ 		sb.append(&quot;,&quot;);
+ 		sb.append(removeCommas(Common.rot13(chD.Hints)));
+ 		sb.append(&quot;,&quot;);
+-		// Rewrite Unknown Caches
+-		if (!chD.type.equals(&quot;8&quot;)) {
++		
++		if (!add.equals(&quot;&quot;)) { // Set Picture in Explorist to Virtual
++			sb.append(&quot;Virtual Cache&quot;);
++		} else if (!chD.type.equals(&quot;8&quot;)) { // Rewrite Unknown Caches
+ 			sb.append(CacheType.transType(chD.type));
+ 		} else {
+ 			sb.append(&quot;Mystery Cache&quot;);
+ 		}
+ 		sb.append(&quot;,&quot;);
+-		sb.append(&quot;&quot;); // UNKNOWN // Time
++		sb.append(toGsDateFormat(chD.DateHidden));  // created - DDMMYYY, YYY = year - 1900
+ 		sb.append(&quot;,&quot;);
+-		sb.append(&quot;&quot;); // UNKNOWN // TIME
++		String lastFound = &quot;0000&quot;;
++		for (int i = 0; i &lt; chD.CacheLogs.size(); i++) {
++			if (chD.CacheLogs.getLog(i).isFoundLog() &amp;&amp; chD.CacheLogs.getLog(i).getDate().compareTo(lastFound) &gt; 0 ) {
++				lastFound = chD.CacheLogs.getLog(i).getDate();
++			}
++		}
++		
++		sb.append(toGsDateFormat(lastFound)); // lastFound - DDMMYYY, YYY = year - 1900
+ 		sb.append(&quot;,&quot;);
+ 		sb.append(removeCommas(chD.hard));
+ 		sb.append(&quot;,&quot;);
+@@ -211,4 +295,19 @@
+ 	private String removeCommas(String input) {
+ 		return input.replace(',', '.');
+ 	}
+-}
++	
++	/**
++	 * change the Dateformat from &quot;yyyy-mm-dd&quot; to ddmmyyy, where yyy is years after 1900 
++	 * @param input Date in yyyy-mm-dd
++ 	 * @return Date in ddmmyyy
++	 */
++	private String toGsDateFormat(String input) {
++		if (input.length() &gt;= 10) {
++			return input.substring(8, 10) + input.substring(5, 7) + &quot;1&quot; + input.substring(2, 4);
++		} 
++		else {
++			return &quot;&quot;;
++		}
++	}
++	
++}
+\ No newline at end of file
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001055.html">[Cachewolf-svn] r1162 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001057.html">[Cachewolf-svn] r1164 - in trunk: res_noewe resources src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1056">[ date ]</a>
+              <a href="thread.html#1056">[ thread ]</a>
+              <a href="subject.html#1056">[ subject ]</a>
+              <a href="author.html#1056">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

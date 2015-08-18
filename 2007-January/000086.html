@@ -1,0 +1,150 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r377 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r377%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701102052.l0AKqRK4015913%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000085.html">
+   <LINK REL="Next"  HREF="000087.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r377 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r377%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701102052.l0AKqRK4015913%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r377 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Wed Jan 10 21:52:27 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000085.html">[Bug #8313] Pfeile auf Goto-Panel &#252;bermalt alles
+</A></li>
+        <LI>Next message: <A HREF="000087.html">[Cachewolf-svn] [Bug #9134] Download von OC: could not write to file
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#86">[ date ]</a>
+              <a href="thread.html#86">[ thread ]</a>
+              <a href="subject.html#86">[ subject ]</a>
+              <a href="author.html#86">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-01-10 21:52:24 +0100 (Wed, 10 Jan 2007)
+New Revision: 377
+
+Modified:
+   trunk/src/CacheWolf/OCXMLImporter.java
+Log:
+fixed:[ Bug #9134 ] Download von OC: could not write to file
+
+Modified: trunk/src/CacheWolf/OCXMLImporter.java
+===================================================================
+--- trunk/src/CacheWolf/OCXMLImporter.java	2007-01-10 18:57:52 UTC (rev 376)
++++ trunk/src/CacheWolf/OCXMLImporter.java	2007-01-10 20:52:24 UTC (rev 377)
+@@ -165,7 +165,8 @@
+ 			Vm.debug(&quot;Parse error: &quot; + state + &quot; &quot; + holder.wayPoint);
+ 			e.printStackTrace();
+ 		}catch (Exception e){ // here schould be used the correct exepion
+-			finalMessage=MyLocale.getMsg(1615,&quot;Error parsing update file, state:&quot;)+&quot; &quot;+state+&quot;, waypoint: &quot;+ holder.wayPoint;
++			if (holder != null)	finalMessage=MyLocale.getMsg(1615,&quot;Error parsing update file, state:&quot;)+&quot; &quot;+state+&quot;, waypoint: &quot;+ holder.wayPoint;
++			else finalMessage=MyLocale.getMsg(1615,&quot;Error parsing update file, state:&quot;)+&quot; &quot;+state+&quot;, waypoint: &lt;unkown&gt;&quot;;
+ 			success = false;
+ 			Vm.debug(&quot;Parse error: &quot; + state + &quot; &quot; + holder.wayPoint);
+ 			e.printStackTrace();
+@@ -546,38 +547,37 @@
+ 		
+ 	}
+ 	
+-	private String fetch(String address, String fileName ) throws IOException
++	private String fetch(String addr, String fileName ) throws IOException
+ 	   	{
++			final int maxRedirections = 5;
+ 			//Vm.debug(address);
+-			String redirect;
+-
+-			HttpConnection conn, fileConn;
+-			
+-			if(pref.myproxy.length() &gt; 0){
+-				conn = new HttpConnection(pref.myproxy, Convert.parseInt(pref.myproxyport), address);
+-				Vm.debug(&quot;Proxy here: &quot; + address);
+-			} else {
+-				conn = new HttpConnection(address);
++			HttpConnection conn = null;
++			Socket sock = null;
++			int i=-1;
++			String address = new String(addr);
++			while (address != null &amp;&amp; i &lt;= maxRedirections ) { // allow max 5 redirections (http 302 location)
++				i++;
++				if(pref.myproxy.length() &gt; 0){
++					conn = new HttpConnection(pref.myproxy, Convert.parseInt(pref.myproxyport), address);
++					Vm.debug(&quot;Proxy here: &quot; + address);
++				} else {
++					conn = new HttpConnection(address);
++				}
++				conn.setRequestorProperty(&quot;USER_AGENT&quot;, &quot;Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.7.5) Gecko/20041107 Firefox/1.0&quot;);
++				conn.setRequestorProperty(&quot;Connection&quot;, &quot;close&quot;);
++				conn.documentIsEncoded = true;
++				sock = conn.connect();
++				address = conn.getRedirectTo();
++				if (address != null){
++					if (holder != null) fileName = holder.wayPoint + &quot;_&quot; + Common.ClearForFileName(address.substring(address.lastIndexOf(&quot;/&quot;)+1));
++					else fileName = Common.ClearForFileName(address.substring(address.lastIndexOf(&quot;/&quot;)+1));
++				}
+ 			}
+-			conn.setRequestorProperty(&quot;USER_AGENT&quot;, &quot;Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.7.5) Gecko/20041107 Firefox/1.0&quot;);
+-			conn.setRequestorProperty(&quot;Connection&quot;, &quot;close&quot;);
+-			conn.documentIsEncoded = true;
+-			Socket sock = conn.connect();
+-			redirect = conn.getRedirectTo();
+-			if (redirect != null){
+-				//Vm.debug(&quot;Redirect: &quot; + redirect);
+-				fileConn = conn.getRedirectedConnection(redirect);
+-			}
+-			else {
+-				fileConn = conn;
+-			}
+-			sock = fileConn.connect();
+-			ByteArray daten = fileConn.readData(sock);
++			if (i &gt; maxRedirections) throw new IOException(&quot;too many http redirections while trying to fetch: &quot;+addr + &quot; only &quot;+maxRedirections+&quot; are allowed&quot;);
++			//Vm.debug(&quot;Redirect: &quot; + redirect);
++			ByteArray daten = conn.readData(sock);
+ 			
+ 			//save file
+-			if (redirect != null){
+-				fileName = redirect.substring(redirect.lastIndexOf(&quot;/&quot;)+1);
+-			}
+ 			//Vm.debug(&quot;Save: &quot; + myPref.mydatadir + fileName);
+ 			//Vm.debug(&quot;Daten: &quot; + daten.length);
+ 			BufferedOutputStream outp =  new BufferedOutputStream(new FileOutputStream(profile.dataDir + fileName));
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000085.html">[Bug #8313] Pfeile auf Goto-Panel &#252;bermalt alles
+</A></li>
+	<LI>Next message: <A HREF="000087.html">[Cachewolf-svn] [Bug #9134] Download von OC: could not write to file
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#86">[ date ]</a>
+              <a href="thread.html#86">[ thread ]</a>
+              <a href="subject.html#86">[ subject ]</a>
+              <a href="author.html#86">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

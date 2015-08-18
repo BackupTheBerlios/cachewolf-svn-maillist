@@ -1,0 +1,468 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2855 - trunk/src/CacheWolf/imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-November/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2855%20-%20trunk/src/CacheWolf/imp&In-Reply-To=%3C20101115143127.3283C481185%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002842.html">
+   <LINK REL="Next"  HREF="002844.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2855 - trunk/src/CacheWolf/imp</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2855%20-%20trunk/src/CacheWolf/imp&In-Reply-To=%3C20101115143127.3283C481185%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2855 - trunk/src/CacheWolf/imp">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Mon Nov 15 03:31:26 CET 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002842.html">[Cachewolf-svn] r2854 - in branches/r1.2: res_noewe	res_noewe/languages res_noewe/webmapservices src/CacheWolf/imp
+</A></li>
+        <LI>Next message: <A HREF="002844.html">[Cachewolf-svn] r2856 - branches/r1.2/src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2843">[ date ]</a>
+              <a href="thread.html#2843">[ thread ]</a>
+              <a href="subject.html#2843">[ subject ]</a>
+              <a href="author.html#2843">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2010-11-15 15:31:26 +0100 (Mon, 15 Nov 2010)
+New Revision: 2855
+
+Modified:
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+adapting &quot;quick download&quot; to lastest changes of gc
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2010-11-10 21:22:44 UTC (rev 2854)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2010-11-15 14:31:26 UTC (rev 2855)
+@@ -594,11 +594,10 @@
+ 		double len = middle.getDistance(rm) * 2.0;
+ 		page_number++;
+ 		String listPage = getMapListPage(middle, north, west, south, east);
+-		int i = listPage.indexOf(&quot;\&quot;count\&quot;:&quot;);
+-		pref.log(&quot;&quot; + north + &quot; &quot; + west + &quot; &quot; + south + &quot; &quot; + east + &quot; &quot;
+-				+ listPage.substring(i, i + 12) + &quot; len=&quot; + len);
+-		if ((listPage.indexOf(&quot;\&quot;count\&quot;: 501&quot;) &gt; -1)
+-				|| (listPage.indexOf(&quot;\&quot;count\&quot;: 0&quot;) &gt; -1 &amp;&amp; len &gt; 30)) {
++		int i = listPage.indexOf(&quot;\&quot;count\\\&quot;:&quot;); // \&quot;count\&quot;:
++		pref.log(&quot;&quot; + north + &quot; &quot; + west + &quot; &quot; + south + &quot; &quot; + east + &quot; &quot; + listPage.substring(i) + &quot;\n len=&quot; + len);
++		if ((listPage.indexOf(&quot;\&quot;count\\\&quot;: 501&quot;) &gt; -1)
++		||  (listPage.indexOf(&quot;\&quot;count\\\&quot;: 0&quot;) &gt; -1 &amp;&amp; len &gt; 30)) {
+ 			double northsouthmiddle = (north + south) / 2.0;
+ 			double westeastmiddle = (west + east) / 2.0;
+ 			getCaches(north, west, northsouthmiddle, westeastmiddle, setCachesToLoad);
+@@ -624,11 +623,11 @@
+ 		int posOwn=5;       //o
+ 		int posAvailable=6; //ia
+ 		// ignoring first 3 lines
+-		for (int i = 3; i &lt; caches.length; i++) {
++		for (int i = 4; i &lt; caches.length; i++) {
+ 			if (infB.isClosed) return;
+ 			
+ 			//cut away name to prevent parsing errors			
+-			int WpIndex = caches[i].indexOf(&quot;\&quot;gc\&quot;&quot;);
++			int WpIndex = caches[i].indexOf(&quot;\&quot;gc\\\&quot;&quot;);
+ 			String elements[] = mString.split(caches[i].substring(WpIndex), ',');
+ 			
+ 			boolean found = (elements[posFound].indexOf(&quot;true&quot;) &gt; -1 ? true : false);
+@@ -639,7 +638,8 @@
+ 				if (restrictedCacheType != cacheType) continue;
+ 			}
+ 
+-			String wp = mString.split(elements[posWP], '\&quot;')[3];			
++			String wp = mString.split(elements[posWP], '\&quot;')[3];
++			wp=wp.substring(0, wp.length()-1);
+ 			CacheHolder ch = cacheDB.get(wp);
+ 			if (ch == null) {
+ 
+@@ -648,8 +648,8 @@
+ 				String own = mString.split(elements[posOwn], ':')[1];
+ 				boolean available = (elements[posAvailable].indexOf(&quot;true&quot;) &gt; -1 ? true : false);
+ 				
+-				int NameIndex = caches[i].indexOf(&quot;\&quot;nn\&quot;&quot;);
+-				String cacheName = caches[i].substring (NameIndex + 6, WpIndex - 2 );
++				int NameIndex = caches[i].indexOf(&quot;\&quot;nn\\\&quot;&quot;);
++				String cacheName = caches[i].substring (NameIndex + 8, WpIndex - 4 );
+ 				cacheName = STRreplace.replace(cacheName, &quot;\\\&quot;&quot;, &quot;\&quot;&quot; );
+ 
+ 				ch = new CacheHolder();
+@@ -1314,8 +1314,7 @@
+ 					// sb.append(URL.encodeURL(&quot;__EVENTVALIDATION&quot;,false));
+ 					// sb.append(&quot;=&quot;);
+ 					// sb.append(URL.encodeURL(eventvalidation,false));
+-					loginPage = fetch_post(loginPageUrl, sb.toString(),
+-							nextPage, true); // /login/default.aspx
++					loginPage = fetch_post(loginPageUrl, sb.toString(), true);
+ 					if (loginPage.indexOf(loginSuccess) &gt; 0)
+ 						pref.log(&quot;Login successful: &quot; + pref.myAlias);
+ 					else {
+@@ -1388,7 +1387,7 @@
+ 			// + &quot;&amp;&quot; + URL.encodeURL(&quot;__EVENTVALIDATION&quot;,false) +&quot;=&quot;+
+ 			// URL.encodeURL(eventvalidation,false);
+ 			try {
+-				loginPage = fetch_post(loginPageUrl, postStr, nextPage, true);
++				loginPage = fetch_post(loginPageUrl, postStr, true);
+ 				pref.log(&quot;Switched to English&quot;);
+ 			} catch (Exception ex) {
+ 				pref.log(&quot;Error switching to English: check/n&quot; + loginPageUrl
+@@ -1455,17 +1454,17 @@
+ 
+ 		String url;
+ 		if (spiderAllFinds) {
+-			url = propFirstPageFinds
+-					+ encodeUTF8URL(Utils.encodeJavaUtf8String(pref.myAlias));
++			url = propFirstPageFinds + encodeUTF8URL(Utils.encodeJavaUtf8String(pref.myAlias));
+ 		} else {
+ 			url = propFirstPage + origin.getLatDeg(TransformCoordinates.DD)
+-					+ propFirstPage2
+-					+ origin.getLonDeg(TransformCoordinates.DD)
+-					+ propMaxDistance + Integer.toString(distance);
++				+ propFirstPage2
++				+ origin.getLonDeg(TransformCoordinates.DD)
++				+ propMaxDistance + Integer.toString(distance);
+ 			if (doNotgetFound)
+ 				url = url + propShowOnlyFound;
+ 		}
+ 		url = url + cacheTypeRestriction;
++		
+ 		try {
+ 			htmlListPage = fetch(url, false);
+ 			pref.log(&quot;[getFirstListPage] Got first page &quot; + url);
+@@ -1484,18 +1483,18 @@
+ 	 * in: ... out: page_number,htmlPage
+ 	 */
+ 	private void getAListPage(int distance, String whatPage) {
+-		String postStr;
++		String url;
+ 		if (spiderAllFinds) {
+-			postStr = propFirstPage;
++			url = propFirstPage;
+ 		} else {
+-			postStr = propFirstPage + origin.getLatDeg(TransformCoordinates.DD)
+-					+ propFirstPage2
+-					+ origin.getLonDeg(TransformCoordinates.DD)
+-					+ propMaxDistance + Integer.toString(distance);
++			url = propFirstPage + origin.getLatDeg(TransformCoordinates.DD)
++				+ propFirstPage2
++				+ origin.getLonDeg(TransformCoordinates.DD)
++				+ propMaxDistance + Integer.toString(distance);
+ 			if (doNotgetFound)
+-				postStr = postStr + propShowOnlyFound;
++				url = url + propShowOnlyFound;
+ 		}
+-		postStr = postStr + cacheTypeRestriction;
++		url = url + cacheTypeRestriction;
+ 
+ 		Regex rexViewstate = new Regex(&quot;id=\&quot;__VIEWSTATE\&quot; value=\&quot;(.*?)\&quot; /&gt;&quot;);
+ 		String viewstate;
+@@ -1504,97 +1503,108 @@
+ 			viewstate = rexViewstate.stringMatched(1);
+ 		} else {
+ 			viewstate = &quot;&quot;;
+-			pref.log(&quot;[getAListPage] check rexViewstate in SpiderGC.java&quot;
+-					+ Preferences.NEWLINE + htmlListPage);
++			pref.log(&quot;[getAListPage] check rexViewstate in SpiderGC.java&quot; + Preferences.NEWLINE + htmlListPage);
+ 		}
+ 
+-		Regex rexViewstate1 = new Regex(
+-				&quot;id=\&quot;__VIEWSTATE1\&quot; value=\&quot;(.*?)\&quot; /&gt;&quot;);
++		Regex rexViewstate1 = new Regex(&quot;id=\&quot;__VIEWSTATE1\&quot; value=\&quot;(.*?)\&quot; /&gt;&quot;);
+ 		String viewstate1;
+ 		rexViewstate1.search(htmlListPage);
+ 		if (rexViewstate1.didMatch()) {
+ 			viewstate1 = rexViewstate1.stringMatched(1);
+ 		} else {
+ 			viewstate1 = &quot;&quot;;
+-			pref.log(&quot;[getAListPage] check rexViewstate1 in SpiderGC.java&quot;
+-					+ Preferences.NEWLINE + htmlListPage);
++			pref.log(&quot;[getAListPage] check rexViewstate1 in SpiderGC.java&quot; + Preferences.NEWLINE + htmlListPage);
+ 		}
+ 
+ 		/*
+ 		 * rexEventvalidation.search(htmlPage);
+-		 * if(rexEventvalidation.didMatch()){ eventvalidation =
+-		 * rexEventvalidation.stringMatched(1); } else { eventvalidation = &quot;&quot;; }
++		 * if(rexEventvalidation.didMatch()){ 
++		 * eventvalidation = rexEventvalidation.stringMatched(1); } 
++		 * else { eventvalidation = &quot;&quot;; }
+ 		 */
+ 
+-		String url = URL.encodeURL(&quot;__EVENTTARGET&quot;, false) + &quot;=&quot;
+-				+ URL.encodeURL(whatPage, false) + &quot;&amp;&quot;
+-				+ URL.encodeURL(&quot;__EVENTARGUMENT&quot;, false) + &quot;=&quot;
+-				+ URL.encodeURL(&quot;&quot;, false) + &quot;&amp;&quot;
+-				+ URL.encodeURL(&quot;__VIEWSTATEFIELDCOUNT&quot;, false) + &quot;=2&quot; + &quot;&amp;&quot;
+-				+ URL.encodeURL(&quot;__VIEWSTATE&quot;, false) + &quot;=&quot;
+-				+ URL.encodeURL(viewstate, false) + &quot;&amp;&quot;
+-				+ URL.encodeURL(&quot;__VIEWSTATE1&quot;, false) + &quot;=&quot;
+-				+ URL.encodeURL(viewstate1, false);
+-		// + &quot;&amp;&quot; + URL.encodeURL(&quot;__EVENTVALIDATION&quot;,false) + &quot;=&quot; +
+-		// URL.encodeURL(eventvalidation,false);
++		String postData = &quot;__EVENTTARGET=&quot; + URL.encodeURL(whatPage, false) + &quot;&amp;&quot; +
++						  &quot;__EVENTARGUMENT=&quot; + &quot;&amp;&quot; +
++						  &quot;__VIEWSTATEFIELDCOUNT=2&quot; + &quot;&amp;&quot; +
++						  &quot;__VIEWSTATE=&quot; + URL.encodeURL(viewstate, false) + &quot;&amp;&quot; +
++						  &quot;__VIEWSTATE1=&quot; + URL.encodeURL(viewstate1, false); // + &quot;&amp;&quot; +
++						  //&quot;__EVENTVALIDATION=&quot; + URL.encodeURL(eventvalidation,false);
+ 		try {
+-			htmlListPage = fetch_post(postStr, url, p.getProp(&quot;nextListPage&quot;),
+-					true);
+-			pref.log(&quot;[getAListPage] Got list page: &quot;
+-					+ URL.encodeURL(whatPage, false));
++			htmlListPage = fetch_post(url, postData, true);
++			pref.log(&quot;[getAListPage] Got list page: &quot; + URL.encodeURL(whatPage, false));
+ 		} catch (Exception ex) {
+ 			pref.log(&quot;[getAListPage] Error getting a list page&quot; + url, ex);
+ 		}
+ 	}
+ 
+ 	/* */
+-	private String getMapListPage(CWPoint middle, double north, double west,
+-			double south, double east) {
++	private String getMapListPage(CWPoint middle, double north, double west, double south, double east) {
++		String ret;
++		
++		String referer = &quot;<A HREF="http://www.geocaching.com/map/default.aspx">http://www.geocaching.com/map/default.aspx</A>&quot; + 
++		&quot;?lat=&quot;	+ middle.getLatDeg(TransformCoordinates.DD) + 
++		&quot;&amp;lng=&quot;	+ middle.getLonDeg(TransformCoordinates.DD);
+ 
+-		String url = &quot;<A HREF="http://www.geocaching.com/map/default.aspx">http://www.geocaching.com/map/default.aspx</A>&quot; + &quot;?lat=&quot;
+-				+ middle.getLatDeg(TransformCoordinates.DD) + &quot;&amp;lng=&quot;
+-				+ middle.getLonDeg(TransformCoordinates.DD);
++		String url = &quot;<A HREF="http://www.geocaching.com/map/default.aspx/MapAction">http://www.geocaching.com/map/default.aspx/MapAction</A>&quot;;
+ 
+-		String strLeft = MyLocale.formatDouble(west, &quot;00.00000&quot;).replace(',',
+-				'.');
+-		String strUp = MyLocale.formatDouble(north, &quot;00.00000&quot;).replace(',',
+-				'.');
+-		String strRight = MyLocale.formatDouble(east, &quot;00.00000&quot;).replace(',',
+-				'.');
+-		String strDown = MyLocale.formatDouble(south, &quot;00.00000&quot;).replace(',',
+-				'.');
++		String strLeft = MyLocale.formatDouble(west, &quot;#0.00000&quot;).replace(',','.');
++		String strUp = MyLocale.formatDouble(north, &quot;#0.00000&quot;).replace(',','.');
++		String strRight = MyLocale.formatDouble(east, &quot;#0.00000&quot;).replace(',','.');
++		String strDown = MyLocale.formatDouble(south, &quot;#0.00000&quot;).replace(',','.');
++		String param1 = &quot;{\&quot;dto\&quot;:{\&quot;data\&quot;:{\&quot;c\&quot;:1,\&quot;m\&quot;:\&quot;\&quot;,\&quot;d\&quot;:\&quot;&quot;;
++		String param2 = strUp + &quot;|&quot; + strDown + &quot;|&quot; + strRight + &quot;|&quot; + strLeft;
++		//String param3 = &quot;\&quot;},\&quot;ut\&quot;:\&quot;WQZID4ZFAYC6SFPYDLA632UY6Y6NBSLQY3VWLUKML2MZ5WN377MNTSARCO5JE7MUFIXJ4P4MHLY6VLXAP4DDCURO3E\&quot;}}&quot;;
++		String param3 = &quot;\&quot;},\&quot;ut\&quot;:\&quot;FOUTFKOKLELXOQSV5FY2MWTVZDFOIRRFBBKZYJNIJL3L45ZASVQDMLLGRRNCSHNA2LWSKIMJGRRLUTGIKWPRM5CDCWNJBFCJGC7AFSI\&quot;}}&quot;;
++		String postData = param1+param2+param3;
+ 
+-		String eo_cb_param1 = &quot;eo_cb_param=%7B%22c%22%3A%201%2C%20%22m%22%3A%20%22%22%2C%20%22d%22%3A%20%22&quot;;
+-		String eo_cb_param2 = strUp + &quot;|&quot; + strDown + &quot;|&quot; + strRight + &quot;|&quot;
+-				+ strLeft + &quot;%22%7D&quot;;
+-		String ret;
+-		String doc = &quot;&quot;;
+ 		try {
+-
+-			doc = &quot;eo_cb_id=ctl00_ContentBody_cbAjax&quot;
+-					+ &quot;&amp;&quot;
+-					+ eo_cb_param1
+-					+ eo_cb_param2
+-					+ &quot;&amp;__eo_obj_states=&quot;
+-					+
+-					// &quot;&amp;__VIEWSTATE=&quot;+viewstate+
+-					&quot;&amp;__VIEWSTATE=%2FwEPDwULLTEyOTYyNjYwNjkPZBYCZg9kFgZmD2QWAgIODxYCHgdWaXNpYmxlaGQCAQ9kFhICBQ8WAh4EVGV4dGRkAgkPFgIfAQUWWW91IGFyZSBub3QgbG9nZ2VkIGluLmQCCw8PFgQeC05hdmlnYXRlVXJsBZEBaHR0cDovL3d3dy5nZW9jYWNoaW5nLmNvbS9sb2dpbi9kZWZhdWx0LmFzcHg%2FUkVTRVQ9WSZyZWRpcj1odHRwJTNhJTJmJTJmd3d3Lmdlb2NhY2hpbmcuY29tJTJmbWFwJTJmZGVmYXVsdC5hc3B4JTNmbGF0JTNkNDYuNjE1OTclMjZsbmclM2QxMy44NDg3Mx8BBQZMb2cgaW5kZAIPD2QWAgIBDw8WAh8BZGRkAhEPZBYCAgEPD2QPZAUMRFFJQkFBQUFBQUE9ZAIfDxYCHwBnZAInDw8WBB8CBQwvcmV2aWV3cy9ncHMfAQULR1BTIFJldmlld3NkZAIrD2QWAgIBDw8WAh8BBZcCPGlmcmFtZSBzcmM9Imh0dHA6Ly9iYW5tYW41Lmdyb3VuZHNwZWFrLmNvbS9iYW5tYW41L2FkLmFzcHg%2FWm9uZUlEPTkmVGFzaz1HZXQmU2l0ZUlEPTEmWD0nMzdlYWVjMTQzODVjNDc1Y2JiZjFhODk0YTgzOTNiMGMnIiB3aWR0aD0iMTIwIiBoZWlnaHQ9IjI0MCIgTWFyZ2lud2lkdGg9IjAiIE1hcmdpbmhlaWdodD0iMCIgSHNwYWNlPSIwIiBWc3BhY2U9IjAiIEZyYW1lYm9yZGVyPSIwIiBTY3JvbGxpbmc9Im5vIiBzdHlsZT0id2lkdGg6MTIwcHg7SGVpZ2h0OjI0MHB4OyI%2BPC9pZnJhbWU%2BZGQCLQ9kFgJmD2QWAmYPFgIeC18hSXRlbUNvdW50AgYWDAIBD2QWAgIBDw8WCB4PQ29tbWFu
+ ZEFyZ3VtZW50BQVlbi1VUx4LQ29tbWFuZE5hbWUFDVNldFRlbXBMb2NhbGUfAQUHRW5nbGlzaB4QQ2F1c2VzVmFsaWRhdGlvbmhkZAICD2QWAgIBDw8WCB8EBQVkZS1ERR8FBQ1TZXRUZW1wTG9jYWxlHwEFB0RldXRzY2gfBmhkZAIDD2QWAgIBDw8WCB8EBQVmci1GUh8FBQ1TZXRUZW1wTG9jYWxlHwEFCUZyYW7Dp2Fpcx8GaGRkAgQPZBYCAgEPDxYIHwQFBXB0LVBUHwUFDVNldFRlbXBMb2NhbGUfAQUKUG9ydHVndcOqcx8GaGRkAgUPZBYCAgEPDxYIHwQFBWNzLUNaHwUFDVNldFRlbXBMb2NhbGUfAQUJxIxlxaF0aW5hHwZoZGQCBg9kFgICAQ8PFggfBAUFc3YtU0UfBQUNU2V0VGVtcExvY2FsZR8BBQdTdmVuc2thHwZoZGQCAw8WAh8BBSxTZXJ2ZXI6IFdFQjA4OyBCdWlsZDogVEZTLlJlbGVhc2VfMjAxMDA4MzAuMWRkkWJYA8UHbJ38zIk7cJhELr1nbU4%3D&quot;
+-					+ &quot;&amp;eo_version=5.0.51.2&quot;
+-					+ &quot;&amp;=on&amp;=&amp;=&amp;=2&amp;=3&amp;=4&amp;=5&amp;=1858&amp;=6&amp;=8&amp;=11&amp;=137&amp;=13&amp;=453&amp;=3653&amp;=on&amp;=&quot;
+-					+ &quot;&amp;__EVENTVALIDATION=&quot; + &quot;&amp;__EVENTTARGET=&quot;
+-					+ &quot;&amp;__EVENTARGUMENT=&quot;;
+-
+-			ret = fetch_post(url, doc, &quot;/map/default.aspx&quot;, false);
+-			pref.log(&quot;[getAListPage] Got map Cachepage: &quot;);
++		ret = post(url, postData, referer, false);
+ 		} catch (Exception ex) {
+ 			ret = &quot;&quot;;
+-			pref.log(&quot;[getAListPage] Error getting map Cachepage&quot; + url + doc, ex);
++			pref.log(&quot;[SpiderGC:getMapListPage] Error getting map Cachepage&quot; + url + postData, ex);
+ 		}
+ 		return ret;
++ 	}
++
++	private static String post(String url, String postData, String referer, boolean withResponseHeaders) {
++		HttpConnection conn;
++		try {
++			conn = new HttpConnection(url);
++			JavaUtf8Codec codec = new ewe.io.JavaUtf8Codec();
++			conn.documentIsEncoded = true;
++			conn.setRequestorProperty(&quot;User-Agent&quot;,&quot;Mozilla/5.0 (Windows; U; Windows NT 6.0; de; rv:1.9.2.12) Gecko/20101026 Firefox/3.6.12&quot;);
++			conn.setRequestorProperty(&quot;Accept&quot;,&quot;application/json, text/javascript, */*; q=0.01&quot;);
++			conn.setRequestorProperty(&quot;Accept-Language&quot;,&quot;de-de,de;q=0.8,en-us;q=0.5,en;q=0.3&quot;);
++			conn.setRequestorProperty(&quot;Accept-Encoding&quot;,&quot;gzip,deflate&quot;);
++			conn.setRequestorProperty(&quot;Accept-Charset&quot;,&quot;ISO-8859-1,utf-8;q=0.7,*;q=0.7&quot;);
++			conn.setRequestorProperty(&quot;Keep-Alive&quot;,&quot;115&quot;);
++			conn.setRequestorProperty(&quot;Proxy-Connection&quot;,&quot;keep-alive&quot;);
++			conn.setRequestorProperty(&quot;Content-Type&quot;, &quot;application/json; charset=UTF-8&quot;);
++			conn.setRequestorProperty(&quot;X-Requested-With&quot;,&quot;XMLHttpRequest&quot;);
++			conn.setRequestorProperty(&quot;Referer&quot;,referer);
++			conn.setRequestorProperty(&quot;Pragma&quot;,&quot;no-cache&quot;);
++			conn.setRequestorProperty(&quot;Cache-Control&quot;,&quot;no-cache&quot;);
++			if (cookieSession.length() &gt; 0) { conn.setRequestorProperty(&quot;Cookie&quot;, &quot;ASP.NET_SessionId=&quot; + cookieSession + &quot;; userid=&quot; + cookieID); }
++			conn.setRequestorProperty(&quot;Connection&quot;, &quot;close&quot;);
++			//conn.setPostData(codec.encodeText(postData.toCharArray(), 0, postData.length(), true, null));
++			conn.setPostData(postData);
++			Socket sock = conn.connect();
++			// CharArray c_data = conn.readText(sock, codec);
++			ByteArray daten = conn.readData(sock);
++			CharArray c_data = codec.decodeText(daten.data, 0, daten.length, true, null);
++			
++			sock.close();
++			
++			if (withResponseHeaders)
++				return getResponseHeaders(conn) + c_data.toString();
++			else
++				return c_data.toString();
++		} catch (Exception e) {
++			pref.log(&quot;[fetch_post] Ignored Exception&quot;, e, true);
++		}
++		return &quot;&quot;;
+ 	}
+ 
+-	/* */
+-
+ 	/**
+ 	 * check if new Update exists
+ 	 * 
+@@ -2972,29 +2982,19 @@
+ 	public static String fetch(String address, boolean withResponseHeaders) {
+ 		CharArray c_data;
+ 		try {
+-			HttpConnection conn;
+ 			if (pref.myproxy.length() &gt; 0 &amp;&amp; pref.proxyActive) {
+-				pref.log(&quot;[fetch]:Using proxy: &quot; + pref.myproxy + &quot; / &quot;
+-						+ pref.myproxyport);
++				pref.log(&quot;[fetch]:Using proxy: &quot; + pref.myproxy + &quot; / &quot; + pref.myproxyport);
+ 			}
+-			conn = new HttpConnection(address);
+-			conn.setRequestorProperty(&quot;User-Agent&quot;,
+-					&quot;Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.7.5) Gecko/20041107 Firefox/1.0&quot;);
+-			if (cookieSession.length() &gt; 0) {
+-				conn.setRequestorProperty(&quot;Cookie&quot;, &quot;ASP.NET_SessionId=&quot; + cookieSession + &quot;; userid=&quot; + cookieID);
+-				pref.log(&quot;[fetch]:Cookie Zeug: &quot; + &quot;Cookie: ASP.NET_SessionId=&quot;
+-						+ cookieSession + &quot;; userid=&quot; + cookieID);
+-			} else
+-				pref.log(&quot;[fetch]:No Cookie found&quot;, null);
++			HttpConnection conn = new HttpConnection(address);
++			conn.setRequestorProperty(&quot;User-Agent&quot;, &quot;Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.7.5) Gecko/20041107 Firefox/1.0&quot;);
++			if (cookieSession.length() &gt; 0) {conn.setRequestorProperty(&quot;Cookie&quot;, &quot;ASP.NET_SessionId=&quot; + cookieSession + &quot;; userid=&quot; + cookieID);};
+ 			conn.setRequestorProperty(&quot;Connection&quot;, &quot;close&quot;);
+ 			conn.documentIsEncoded = true;
+-			pref.log(&quot;[fetch]:Connecting &quot; + address);
+ 			Socket sock = conn.connect();
+ 			pref.log(&quot;[fetch]:Connect ok! &quot; + address);
+-			// ByteArray daten = conn.readData(sock);
+ 			JavaUtf8Codec codec = new JavaUtf8Codec();
+-			// c_data = codec.decodeText(daten.data, 0, daten.length, true,
+-			// null);
++			// ByteArray daten = conn.readData(sock);
++			// c_data = codec.decodeText(daten.data, 0, daten.length, true, null);
+ 			c_data = conn.readText(sock, codec);
+ 			sock.close();
+ 			pref.log(&quot;[fetch]:Read data ok &quot; + address);
+@@ -3004,8 +3004,6 @@
+ 				return c_data.toString();
+ 		} catch (IOException ioex) {
+ 			pref.log(&quot;IOException in fetch&quot;, ioex);
+-		} finally {
+-			// continue
+ 		}
+ 		return &quot;&quot;;
+ 	}
+@@ -3015,40 +3013,29 @@
+ 	 * This method does exactly that. Actually this method is generic in the
+ 	 * sense that it can be used to post to a URL using http post.
+ 	 */
+-	private static String fetch_post(String address, String document,
+-			String path, boolean withResponseHeaders) {
+-		HttpConnection conn;
++	private static String fetch_post(String address, String postData, boolean withResponseHeaders) {
+ 		try {
+-			conn = new HttpConnection(address);
++			HttpConnection conn = new HttpConnection(address);
+ 			JavaUtf8Codec codec = new JavaUtf8Codec();
+ 			conn.documentIsEncoded = true;
+-			conn.setRequestorProperty(&quot;User-Agent&quot;,
+-					&quot;Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.7.5) Gecko/20041107 Firefox/1.0&quot;);
+-			conn.setPostData(codec.encodeText(document.toCharArray(), 0, document.length(), true, null));
++			conn.setRequestorProperty(&quot;User-Agent&quot;,&quot;Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.7.5) Gecko/20041107 Firefox/1.0&quot;);
++			conn.setPostData(codec.encodeText(postData.toCharArray(), 0, postData.length(), true, null));
+ 			conn.setRequestorProperty(&quot;Content-Type&quot;, &quot;application/x-www-form-urlencoded&quot;);
+-			if (cookieSession.length() &gt; 0) {
+-				conn.setRequestorProperty(&quot;Cookie&quot;, &quot;ASP.NET_SessionId=&quot;
+-						+ cookieSession + &quot;; userid=&quot; + cookieID);
+-				pref.log(&quot;[fetch_post] &quot; + &quot;Cookie: ASP.NET_SessionId=&quot;
+-						+ cookieSession + &quot;; userid=&quot; + cookieID);
+-			} else {
+-				pref.log(&quot;[fetch_post]:No Cookie found&quot;, null);
+-			}
++			if (cookieSession.length() &gt; 0) { conn.setRequestorProperty(&quot;Cookie&quot;, &quot;ASP.NET_SessionId=&quot; + cookieSession + &quot;; userid=&quot; + cookieID);};
+ 			conn.setRequestorProperty(&quot;Connection&quot;, &quot;close&quot;);
+ 			Socket sock = conn.connect();
+ 			pref.log(&quot;[fetch_post]:Connect ok! &quot; + address);
+ 			// ByteArray daten = conn.readData(sock);
+ 			CharArray c_data = conn.readText(sock, codec);
+ 			pref.log(&quot;[fetch_post]:Read data ok &quot; + address);
+-			// CharArray c_data = codec.decodeText(daten.data, 0, daten.length,
+-			// true, null);
++			// CharArray c_data = codec.decodeText(daten.data, 0, daten.length, true, null);
+ 			sock.close();
+ 			if (withResponseHeaders)
+ 				return getResponseHeaders(conn) + c_data.toString();
+ 			else
+ 				return c_data.toString();
+ 		} catch (Exception e) {
+-			// pref.log(&quot;[fetch_post] Ignored Exception&quot;, e, true);
++			pref.log(&quot;[fetch_post] Ignored Exception&quot;, e, true);
+ 		}
+ 		return &quot;&quot;;
+ 	}
+@@ -3107,8 +3094,7 @@
+ 		String bugList;
+ 		try {
+ 			// infB.setInfo(oldInfoBox+&quot;\nGetting bug: &quot;+bug);
+-			bugList = fetch(p.getProp(&quot;getBugByName&quot;)
+-					+ STRreplace.replace(SafeXML.clean(name), &quot; &quot;, &quot;+&quot;), false);
++			bugList = fetch(p.getProp(&quot;getBugByName&quot;) + STRreplace.replace(SafeXML.clean(name), &quot; &quot;, &quot;+&quot;), false);
+ 			pref.log(&quot;[getBugId] Fetched bugId: &quot; + name);
+ 		} catch (Exception ex) {
+ 			pref.log(&quot;[getBugId] Could not fetch bug list&quot; + name, ex);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002842.html">[Cachewolf-svn] r2854 - in branches/r1.2: res_noewe	res_noewe/languages res_noewe/webmapservices src/CacheWolf/imp
+</A></li>
+	<LI>Next message: <A HREF="002844.html">[Cachewolf-svn] r2856 - branches/r1.2/src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2843">[ date ]</a>
+              <a href="thread.html#2843">[ thread ]</a>
+              <a href="subject.html#2843">[ subject ]</a>
+              <a href="author.html#2843">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

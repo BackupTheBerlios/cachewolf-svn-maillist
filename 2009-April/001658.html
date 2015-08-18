@@ -1,0 +1,1855 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1740 - in trunk/src: CacheWolf CacheWolf/navi exp	utils
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-April/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1740%20-%20in%20trunk/src%3A%20CacheWolf%20CacheWolf/navi%20exp%0A%09utils&In-Reply-To=%3C200904071752.n37Hq8on012653%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001657.html">
+   <LINK REL="Next"  HREF="001659.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1740 - in trunk/src: CacheWolf CacheWolf/navi exp	utils</H1>
+    <B>engywuck at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1740%20-%20in%20trunk/src%3A%20CacheWolf%20CacheWolf/navi%20exp%0A%09utils&In-Reply-To=%3C200904071752.n37Hq8on012653%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1740 - in trunk/src: CacheWolf CacheWolf/navi exp	utils">engywuck at mail.berlios.de
+       </A><BR>
+    <I>Tue Apr  7 19:52:08 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001657.html">[Cachewolf-svn] r1739 - trunk/res_noewe
+</A></li>
+        <LI>Next message: <A HREF="001659.html">[Cachewolf-svn] r1741 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1658">[ date ]</a>
+              <a href="thread.html#1658">[ thread ]</a>
+              <a href="subject.html#1658">[ subject ]</a>
+              <a href="author.html#1658">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: engywuck
+Date: 2009-04-07 19:51:40 +0200 (Tue, 07 Apr 2009)
+New Revision: 1740
+
+Added:
+   trunk/src/CacheWolf/CacheDB.java
+   trunk/src/utils/MutableInteger.java
+Modified:
+   trunk/src/CacheWolf/CacheList.java
+   trunk/src/CacheWolf/CalcPanel.java
+   trunk/src/CacheWolf/DBStats.java
+   trunk/src/CacheWolf/DataMover.java
+   trunk/src/CacheWolf/DetailsPanel.java
+   trunk/src/CacheWolf/Filter.java
+   trunk/src/CacheWolf/GPXImporter.java
+   trunk/src/CacheWolf/LOCXMLImporter.java
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/MyComparer.java
+   trunk/src/CacheWolf/OCXMLImporter.java
+   trunk/src/CacheWolf/Parser.java
+   trunk/src/CacheWolf/Profile.java
+   trunk/src/CacheWolf/RadarPanel.java
+   trunk/src/CacheWolf/SearchCache.java
+   trunk/src/CacheWolf/SpiderGC.java
+   trunk/src/CacheWolf/StatusBar.java
+   trunk/src/CacheWolf/TablePanel.java
+   trunk/src/CacheWolf/TravelbugJourneyScreen.java
+   trunk/src/CacheWolf/myInteractivePanel.java
+   trunk/src/CacheWolf/myTableControl.java
+   trunk/src/CacheWolf/myTableModel.java
+   trunk/src/CacheWolf/navi/GotoPanel.java
+   trunk/src/CacheWolf/navi/MapLoaderGui.java
+   trunk/src/CacheWolf/navi/MovingMap.java
+   trunk/src/exp/ExploristExporter.java
+   trunk/src/exp/Exporter.java
+   trunk/src/exp/HTMLExporter.java
+   trunk/src/exp/KMLExporter.java
+   trunk/src/exp/TPLExporter.java
+   trunk/src/exp/TomTomExporter.java
+Log:
+Introducing new class (CacheDB) to hold the list of caches. Main benefit in current implementation: Search by waypoint doesn't need to iterate over database to search for it, because internally a hashtable is invoked.
+Code changes in other classes are numerous but insignificant.
+
+Added: trunk/src/CacheWolf/CacheDB.java
+===================================================================
+--- trunk/src/CacheWolf/CacheDB.java	2009-04-05 22:21:10 UTC (rev 1739)
++++ trunk/src/CacheWolf/CacheDB.java	2009-04-07 17:51:40 UTC (rev 1740)
+@@ -0,0 +1,179 @@
++package CacheWolf;
++
++import utils.MutableInteger;
++import ewe.util.Comparer;
++import ewe.util.Hashtable;
++import ewe.util.Vector;
++
++/**
++ * @author torsti
++ *
++ */
++/**
++ * @author torsti
++ *
++ */
++public class CacheDB {
++	
++	/**
++	 * Stores the CacheHolder objects
++	 */
++	private Vector vectorDB = new Vector();
++	/**
++	 * Stores the reference of waypoints to index positions (in vectorDB).
++	 */
++	private Hashtable hashDB = new Hashtable();
++	
++	/** Gets the existing MutableInteger object from a given waypoint, or,
++	 * if not existant, creates a new one, and fills it with the given integer. 
++	 * @param waypoint The waypoint whos MutableIntger object is to use
++	 * @param newValue The integer value you want to assign to the object
++	 * @return The newly created or reused and freshly assigned object
++	 */
++	private MutableInteger getIntObj(String waypoint, int newValue) {
++		MutableInteger obj = (MutableInteger) hashDB.get(waypoint);
++		if (obj == null) {
++			obj = new MutableInteger();			
++		}
++		obj.setInt(newValue);
++		return obj;
++	}
++	
++	/** Gets the stored CacheHolder object by its position in the Cache List.
++	 * @param index Index of cache 
++	 * @return CacheHolder object with corresponding index
++	 */
++	public CacheHolder get(int index) {
++		return (CacheHolder) vectorDB.get(index);
++	}
++
++	/** Gets the stored CacheHolder object by its waypoint. If no such Cache exists,
++	 * null is returned.
++	 * @param waypoint Waypoint of cache we want
++	 * @return CacheHolder object with corresponding waypoint
++	 */
++	public CacheHolder get(String waypoint){
++		int idx = this.getIndex(waypoint);
++		if (idx &lt; 0) return null;
++		return this.get(idx);
++	}
++	
++	/** Gets the index of the cache with a given waypoint. 
++	 * @param waypoint Waypoint of cache we want
++	 * @return Index of CacheHolder object in cache list.
++	 */
++	public int getIndex(String waypoint) {
++		Object obj = hashDB.get(waypoint);
++		int result;
++		if (obj == null) {
++			result = -1;
++		} else {
++			result = ((MutableInteger)obj).getInt();
++		}
++		return result;
++	}
++
++	/** Gets the index of a certain CacheHolder object. 
++	 * @param ch CacheHolder object
++	 * @return Index of CacheHolder object in cache list.
++	 */
++	public int getIndex(CacheHolder ch) {
++		return getIndex(ch.getWayPoint());
++	}
++
++	/** Sets a CacheHolder object at a certain position in the cache list. If this position 
++	 * is already occupied by a cache object, this one discarded.
++	 * @param index Index where to set object
++	 * @param ch CacheHolder object to set
++	 */
++	public void set(int index, CacheHolder ch) {
++		CacheHolder oldObj = (CacheHolder) vectorDB.get(index);
++	    vectorDB.set(index, ch);
++	    hashDB.put(ch.getWayPoint(), this.getIntObj(ch.getWayPoint(), index));
++	    if (oldObj!=null) {
++	    	hashDB.remove(oldObj.getWayPoint());
++	    }
++    }
++
++	/** Append a CacheHolder object at the end of the cache list. If a cache with same waypoint
++	 * is already existant in the cache list, then the old object is overwritten and the new object
++	 * is positioned at the position of the old object (so in this case &lt;code&gt;add&lt;/code&gt; acts like
++	 * &lt;code&gt;set&lt;/code&gt;.
++	 * @param ch CacheHolder object to append
++	 */
++	public void add(CacheHolder ch) {
++		if (this.getIndex(ch)&gt;0) {
++			this.set(this.getIndex(ch), ch);
++		} else {
++			vectorDB.add(ch);
++			hashDB.put(ch.getWayPoint(), this.getIntObj(ch.getWayPoint(), vectorDB.size()-1));
++		}
++    }
++
++	/** The number of caches in the cache list.
++	 * @return number
++	 */
++	public int size() {
++	    return vectorDB.size();
++    }
++
++	/**
++	 * Removes all cache objects from the list.
++	 */
++	public void clear() {
++	    hashDB.clear();
++	    vectorDB.clear();
++    }
++
++	/** Removes a CacheHolder object at the specified position in the cache list. The following
++	 * elements are renumbered.
++	 * @param index The index of element to remove
++	 */
++	public void removeElementAt(int index) {
++		CacheHolder ch = this.get(index);
++	    vectorDB.removeElementAt(index);
++	    hashDB.remove(ch.getWayPoint());
++	    // When one element has been removed, we have to update the index
++	    // references in the hashtable, as the indexes of waypoints changed.
++	    for (int i=index; i&lt;vectorDB.size(); i++) {
++	    	CacheHolder ch2 = this.get(i);
++	    	hashDB.put(ch2.getWayPoint(), this.getIntObj(ch2.getWayPoint(), i));
++	    }
++    }
++
++	/**Sorts the caches in the list
++	 * @param comparer Comparer object
++	 * @param descending descending or not
++	 */
++	public void sort(Comparer comparer, boolean descending) {
++	    vectorDB.sort(comparer, descending);
++	    // When elements have been sorted we have to update the index
++	    // references in the hashtable, as the indexes of waypoints changed.
++	    for (int i=0; i&lt;vectorDB.size(); i++) {
++	    	CacheHolder ch = this.get(i);
++	    	hashDB.put(ch.getWayPoint(), this.getIntObj(ch.getWayPoint(), i));
++	    }
++    }
++
++	/** Adds the caches of one CacheDB to current one. Caches are appended at the end.
++	 * @param caches CacheDB to append
++	 */
++	public void addAll(CacheDB caches) {
++		addAll(caches.vectorDB);
++	}
++
++	/** Adds a Vector of CacheHolder objects to current database. Caches are appended at the end.
++	 * @param caches Vector of caches to append
++	 */
++	public void addAll(Vector caches) {
++		int oldSize = vectorDB.size();
++		vectorDB.addAll(caches);
++		for (int i=0; i&lt;caches.size(); i++) {
++			int pos;
++			CacheHolder currCache = (CacheHolder) vectorDB.get(i+oldSize);
++			pos = i+oldSize;
++			hashDB.put(currCache.getWayPoint(), this.getIntObj(currCache.getWayPoint(), pos));
++		}
++	}
++	
++}
+
+Modified: trunk/src/CacheWolf/CacheList.java
+===================================================================
+--- trunk/src/CacheWolf/CacheList.java	2009-04-05 22:21:10 UTC (rev 1739)
++++ trunk/src/CacheWolf/CacheList.java	2009-04-07 17:51:40 UTC (rev 1740)
+@@ -179,7 +179,7 @@
+ 			if (lstCaches.itemsSize()&gt;0 &amp;&amp; !needsInit) {
+ 				int lstCacheIdx=lstCaches.getSelectedIndex(0);
+ 				CacheHolder ch=(CacheHolder)cacheList.get(lstCacheIdx);
+-				int idx=Global.getProfile().cacheDB.find(ch);
++				int idx=Global.getProfile().cacheDB.getIndex(ch);
+ 				// Ensure that the main view is updated with the selected cache, i.e.
+ 				// DetailsPanel, HintLog, Pictures etc.
+ 				int activeTab=Global.mainTab.cardPanel.selectedItem;
+@@ -259,13 +259,13 @@
+ 	/** Apply the cache list */
+ 	public void applyCacheList() {
+ 		Global.getProfile().selectionChanged = true;
+-		Vector cacheDB=Global.getProfile().cacheDB;
++		CacheDB cacheDB=Global.getProfile().cacheDB;
+ 		CacheHolder ch;
+ 		int wrongBlackStatus=0;
+ 		String apply=&quot;\uFFFF&quot;+Convert.toString(applyCount++);
+ 		// Start by setting all caches to filtered
+ 		for(int i = cacheDB.size()-1; i &gt;=0 ; i--){
+-			ch = (CacheHolder)cacheDB.get(i);
++			ch = cacheDB.get(i);
+ 			ch.setFiltered(true) ; // ignore blacklist attribute
+ 			ch.sort=apply;
+ 		}
+@@ -282,7 +282,7 @@
+ 				int idx=Global.getProfile().getCacheIndex(ch.getWayPoint());
+ 				if (idx==-1) continue;
+ 				ch=null;
+-				ch=(CacheHolder) cacheDB.get(idx);
++				ch=cacheDB.get(idx);
+ 			}
+ 			if (ch.is_black()!=Global.getProfile().showBlacklisted()) 
+ 				wrongBlackStatus++;
+@@ -308,7 +308,7 @@
+ 		if (needsInit)  {lstCaches.deleteItem(0);lstCaches.deleteItem(0);  needsInit=false; lstCaches.repaint(); }
+ 		int idx=Global.getProfile().getCacheIndex(wayPoint);
+ 		if (idx==-1) return false;
+-		CacheHolder ch=(CacheHolder) Global.getProfile().cacheDB.get(idx);
++		CacheHolder ch=Global.getProfile().cacheDB.get(idx);
+ 		boolean cachesAdded=false;
+ 		// Add main cache
+ 		cachesAdded|=addCache(ch);
+@@ -391,7 +391,7 @@
+ 			FileReader in = new FileReader(fileName);
+ 			String wayPoint;
+ 			int idx;
+-			Vector cacheDB=Global.getProfile().cacheDB;
++			CacheDB cacheDB=Global.getProfile().cacheDB;
+ 			int lineNr=0;
+ 			while ((wayPoint = in.readLine()) != null){
+ 				wayPoint=wayPoint.trim();
+@@ -403,7 +403,7 @@
+ 				// Only add the cache if it is in this profile
+ 				idx=Global.getProfile().getCacheIndex(wayPoint);
+ 				if (idx&gt;=0) {
+-					addCache((CacheHolder) cacheDB.get(idx));
++					addCache(cacheDB.get(idx));
+ 				}
+ 				lineNr++;
+ 			}
+
+Modified: trunk/src/CacheWolf/CalcPanel.java
+===================================================================
+--- trunk/src/CacheWolf/CalcPanel.java	2009-04-05 22:21:10 UTC (rev 1739)
++++ trunk/src/CacheWolf/CalcPanel.java	2009-04-07 17:51:40 UTC (rev 1740)
+@@ -43,7 +43,7 @@
+ 	CWPoint coordInp = new CWPoint();
+ 	CWPoint coordOut = new CWPoint();
+ 	// Needed for creation of new waypoint
+-	Vector cacheDB;
++	CacheDB cacheDB;
+ 	MainTab mainT;
+ 	Preferences pref;
+ 	Profile profile;
+
+Modified: trunk/src/CacheWolf/DBStats.java
+===================================================================
+--- trunk/src/CacheWolf/DBStats.java	2009-04-05 22:21:10 UTC (rev 1739)
++++ trunk/src/CacheWolf/DBStats.java	2009-04-07 17:51:40 UTC (rev 1740)
+@@ -6,9 +6,9 @@
+  * Use this class to obtain statistics or information on a cache database.
+  */
+ public class DBStats {
+-	Vector cacheDB = new Vector();
++	CacheDB cacheDB = null;
+ 	
+-	public DBStats(Vector db){
++	public DBStats(CacheDB db){
+ 		cacheDB = db;
+ 	}
+ 	
+@@ -23,7 +23,7 @@
+ 		CacheHolder holder;
+ 		int counter = 0;
+ 		for(int i = 0; i&lt;cacheDB.size();i++){
+-			holder = (CacheHolder)cacheDB.get(i);
++			holder = cacheDB.get(i);
+ 			if(holder.is_black() == false &amp;&amp; holder.is_filtered() == false){
+ 				if(holder.getWayPoint().startsWith(&quot;GC&quot;) || holder.getWayPoint().startsWith(&quot;OC&quot;)) counter++;
+ 			}
+@@ -39,7 +39,7 @@
+ 		CacheHolder holder;
+ 		int counter = 0;
+ 		for(int i = 0; i&lt;cacheDB.size();i++){
+-			holder = (CacheHolder)cacheDB.get(i);
++			holder = cacheDB.get(i);
+ 			if(holder.is_black() == false){
+ 				if(holder.getWayPoint().startsWith(&quot;GC&quot;) || holder.getWayPoint().startsWith(&quot;OC&quot;)) counter++;
+ 			}
+@@ -51,7 +51,7 @@
+ 		CacheHolder holder;
+ 		int counter = 0;
+ 		for(int i = 0; i&lt;cacheDB.size();i++){
+-			holder = (CacheHolder)cacheDB.get(i);
++			holder = cacheDB.get(i);
+ 			if(holder.is_found() == true) {
+ 				if(holder.getWayPoint().startsWith(&quot;GC&quot;) || holder.getWayPoint().startsWith(&quot;OC&quot;)) counter++;
+ 			}
+@@ -69,4 +69,4 @@
+ //TODO OziExporter.java
+ //TODO PCX5Exporter.java
+ //TODO TomTomASCExporter.ja
+-//TODO TomTomOV2Exporter.ja
+\ No newline at end of file
++//TODO TomTomOV2Exporter.ja
+
+Modified: trunk/src/CacheWolf/DataMover.java
+===================================================================
+--- trunk/src/CacheWolf/DataMover.java	2009-04-05 22:21:10 UTC (rev 1739)
++++ trunk/src/CacheWolf/DataMover.java	2009-04-07 17:51:40 UTC (rev 1740)
+@@ -15,7 +15,7 @@
+ */
+ public class DataMover {
+ 
+-	Vector srcDB, dstDB;
++	CacheDB srcDB, dstDB;
+ 	Preferences pref;
+ 	Profile profile;
+ 	
+@@ -91,7 +91,7 @@
+ 		int count=0;
+ 		// Count the number of caches to move/delete/copy
+ 		for(int i = 0; i&lt;size; i++) {
+-			if(((CacheHolder)srcDB.get(i)).is_filtered()==false) count++;
++			if(srcDB.get(i).is_filtered()==false) count++;
+ 		}
+ 		myProgressBarForm pbf = new myProgressBarForm();
+ 		Handle h = new Handle();
+@@ -101,7 +101,7 @@
+ 		int nProcessed=0;
+ 		// Now do the actual work
+ 		for(int i = size-1; i&gt;=0; i--){
+-			CacheHolder srcHolder=(CacheHolder)srcDB.get(i);
++			CacheHolder srcHolder=srcDB.get(i);
+ 			if(srcHolder.is_filtered()==false){
+ 				h.progress = ((float)nProcessed++)/(float)count;
+ 				h.changed();
+
+Modified: trunk/src/CacheWolf/DetailsPanel.java
+===================================================================
+--- trunk/src/CacheWolf/DetailsPanel.java	2009-04-05 22:21:10 UTC (rev 1739)
++++ trunk/src/CacheWolf/DetailsPanel.java	2009-04-07 17:51:40 UTC (rev 1740)
+@@ -23,7 +23,7 @@
+ 	mComboBox chcStatus = new mComboBox(new String[]{&quot;&quot;, MyLocale.getMsg(313,&quot;Flag 1&quot;), MyLocale.getMsg(314,&quot;Flag 2&quot;), MyLocale.getMsg(315,&quot;Flag 3&quot;), MyLocale.getMsg(316,&quot;Flag 4&quot;), MyLocale.getMsg(317,&quot;Search&quot;), MyLocale.getMsg(318,&quot;Found&quot;), MyLocale.getMsg(319,&quot;Not Found&quot;), MyLocale.getMsg(320,&quot;Owner&quot;)},0);
+ 	mButton btnNewWpt, btnShowBug, btnShowMap, btnGoto, btnAddPicture, btnBlack, btnNotes, btnSave, btnCancel;
+ 	mButton btnFoundDate,btnHiddenDate;
+-	Vector cacheDB;
++	CacheDB cacheDB;
+ 	CacheHolder thisCache;
+ 	int dbIndex = -1;
+ 	CellPanel pnlTools = new CellPanel(); 
+
+Modified: trunk/src/CacheWolf/Filter.java
+===================================================================
+--- trunk/src/CacheWolf/Filter.java	2009-04-05 22:21:10 UTC (rev 1739)
++++ trunk/src/CacheWolf/Filter.java	2009-04-07 17:51:40 UTC (rev 1740)
+@@ -118,7 +118,7 @@
+ 	*/
+ 	public void doFilterRoute(File routeFile, double distance){
+ 		Global.getProfile().selectionChanged = true;
+-		Vector cacheDB=Global.getProfile().cacheDB;
++	    CacheDB cacheDB=Global.getProfile().cacheDB;
+ 		//load file into a vector:
+ 		Vector wayPoints = new Vector();
+ 		Regex rex = new Regex(&quot;(N|S).*?([0-9]{1,2}).*?([0-9]{1,3})(,|.)([0-9]{1,3}).*?(E|W).*?([0-9]{1,2}).*?([0-9]{1,3})(,|.)([0-9]{1,3})&quot;);
+@@ -164,7 +164,7 @@
+ 			}
+ 			//initialise database
+ 			for(int i = cacheDB.size()-1; i &gt;=0 ; i--){
+-				ch = (CacheHolder)cacheDB.get(i);
++				ch = cacheDB.get(i);
+ 				ch.in_range = false;
+ 				//cacheDB.set(i, ch);
+ 			}
+@@ -176,7 +176,7 @@
+ 				toPoint = (CWPoint)wayPoints.get(z+1);
+ 				//... go through the current cache database
+ 				for(int i = cacheDB.size()-1; i &gt;=0 ; i--){
+-					ch = (CacheHolder)cacheDB.get(i);
++					ch = cacheDB.get(i);
+ 					cwp = new CWPoint(ch.LatLon, CWPoint.CW);
+ 					calcDistance = DistToSegment(fromPoint, toPoint, cwp);
+ 					calcDistance = (calcDistance*180*60)/java.lang.Math.PI;
+@@ -190,7 +190,7 @@
+ 				} // for database
+ 			} // for segments
+ 			for(int i = cacheDB.size()-1; i &gt;=0 ; i--){
+-				ch = (CacheHolder)cacheDB.get(i);
++				ch = cacheDB.get(i);
+ 				if(ch.is_filtered() == false &amp;&amp; ch.in_range == false) ch.setFiltered(true);
+ 			}
+ 		}catch(FileNotFoundException fnex){
+@@ -328,7 +328,7 @@
+ 	*	not displaying a cache that is filtered.
+ 	*/
+ 	public void doFilter(){
+-		Vector cacheDB=Global.getProfile().cacheDB;
++		CacheDB cacheDB=Global.getProfile().cacheDB;
+ 		Hashtable examinedCaches;
+ 		if (cacheDB.size()==0) return;
+ 		if (!hasFilter()) { // If the filter was completely reset, we can just clear it
+@@ -340,7 +340,7 @@
+ 		examinedCaches = new Hashtable(cacheDB.size());
+ 		
+ 		for(int i = cacheDB.size()-1; i &gt;=0 ; i--){
+-			ch = (CacheHolder)cacheDB.get(i);
++			ch = cacheDB.get(i);
+ 			if (examinedCaches.containsKey(ch)) continue;
+ 			
+ 			boolean filterCache = excludedByFilter(ch);
+@@ -603,13 +603,13 @@
+ 	*	Invert is_filtered flag on all caches
+ 	*/
+ 	public void invertFilter(){
+-		Vector cacheDB=Global.getProfile().cacheDB;
++		CacheDB cacheDB=Global.getProfile().cacheDB;
+ 		CacheHolder ch;
+ 		if (cacheDB.size()==0) return;
+ 		Global.getProfile().selectionChanged = true;
+ 		boolean showBlackListed=Global.getProfile().showBlacklisted();
+ 		for(int i = cacheDB.size()-1; i &gt;=0 ; i--){
+-			ch = (CacheHolder)cacheDB.get(i);
++			ch = cacheDB.get(i);
+ 			if (ch.is_black()==showBlackListed)
+ 				ch.setFiltered(!ch.is_filtered()); // Only invert those that would be shown under blacklist filter
+ 			else
+@@ -624,10 +624,10 @@
+ 	*/
+ 	public void clearFilter(){
+ 		Global.getProfile().selectionChanged = true;
+-		Vector cacheDB=Global.getProfile().cacheDB;
++		CacheDB cacheDB=Global.getProfile().cacheDB;
+ 		CacheHolder ch;
+ 		for(int i = cacheDB.size()-1; i &gt;=0 ; i--){
+-			ch = (CacheHolder)cacheDB.get(i);
++			ch = cacheDB.get(i);
+ 			ch.setFiltered((ch.is_black()^Global.getProfile().showBlacklisted())) ; // Always filter blacklisted caches
+ 		}
+ 		Global.getProfile().setFilterActive(FILTER_INACTIVE);
+
+Modified: trunk/src/CacheWolf/GPXImporter.java
+===================================================================
+--- trunk/src/CacheWolf/GPXImporter.java	2009-04-05 22:21:10 UTC (rev 1739)
++++ trunk/src/CacheWolf/GPXImporter.java	2009-04-07 17:51:40 UTC (rev 1740)
+@@ -17,7 +17,7 @@
+ 	
+ 	static Preferences pref;
+ 	Profile profile;
+-	Vector cacheDB;
++	CacheDB cacheDB;
+ 	CacheHolderDetail chD;
+ 	String strData, saveDir, logData, logIcon, logDate, logFinder, logId;
+ 	boolean inWpt, inCache, inLogs, inBug;
+@@ -55,7 +55,7 @@
+ 		//index db for faster search
+ 		CacheHolder ch;
+ 		for(int i = 0; i&lt;cacheDB.size();i++){
+-			ch = (CacheHolder)cacheDB.get(i);
++			ch = cacheDB.get(i);
+ 			DBindex.put(ch.getWayPoint(), new Integer(i));
+ 		}//for
+ 	}
+@@ -322,7 +322,7 @@
+ 			//Update cache data
+ 			else {
+ 				//Vm.debug(&quot;it is not new!&quot;);
+-				CacheHolderDetail oldCh= new CacheHolderDetail((CacheHolder) cacheDB.get(index));
++				CacheHolderDetail oldCh= new CacheHolderDetail(cacheDB.get(index));
+ 				try {
+ 					//Vm.debug(&quot;Try to load&quot;);
+ 					oldCh.readCache(saveDir);
+
+Modified: trunk/src/CacheWolf/LOCXMLImporter.java
+===================================================================
+--- trunk/src/CacheWolf/LOCXMLImporter.java	2009-04-05 22:21:10 UTC (rev 1739)
++++ trunk/src/CacheWolf/LOCXMLImporter.java	2009-04-07 17:51:40 UTC (rev 1740)
+@@ -38,7 +38,7 @@
+  */
+ public class LOCXMLImporter extends MinML {
+ 	boolean debugXML = false;
+-	Vector cacheDB;
++	CacheDB cacheDB;
+ 	Preferences pref;
+ 	Profile profile;
+ 	String file;
+@@ -55,7 +55,7 @@
+ 		file = f;
+ 		CacheHolder ch;
+ 		for(int i = 0; i&lt;cacheDB.size();i++){
+-			ch = (CacheHolder)cacheDB.get(i);
++			ch = cacheDB.get(i);
+ 			DBindexWpt.put(ch.getWayPoint(), new Integer(i));
+ 		}//for
+ 	}
+@@ -160,7 +160,7 @@
+ 			ch.setWayPoint(wpt);
+ 			return ch;
+ 		}
+-		ch = new CacheHolderDetail((CacheHolder) cacheDB.get(index));
++		ch = new CacheHolderDetail(cacheDB.get(index));
+ 		try {
+ 			ch.readCache(profile.dataDir);
+ 		} catch (Exception e) {Vm.debug(&quot;Could not open file: &quot; + e.toString());};
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2009-04-05 22:21:10 UTC (rev 1739)
++++ trunk/src/CacheWolf/MainMenu.java	2009-04-07 17:51:40 UTC (rev 1740)
+@@ -254,7 +254,7 @@
+ 	public void onEvent(Event ev){
+ 		Preferences pref=Global.getPref();
+ 		Profile profile=Global.getProfile();
+-		Vector cacheDB=profile.cacheDB;
++		CacheDB cacheDB=profile.cacheDB;
+ 		Global.mainTab.updatePendingChanges();
+ 		if (ev instanceof MenuEvent){ //&amp;&amp; ev.type == MenuEvent.PRESSED
+ 			MenuEvent mev = (MenuEvent)ev;
+@@ -540,7 +540,7 @@
+ 				CacheHolder ch;
+ 				boolean filterChanged = false;
+ 				for(int i = cacheDB.size()-1; i&gt;=0; i--){
+-					ch = (CacheHolder)cacheDB.get(i);
++					ch = cacheDB.get(i);
+ 					// This is an incremental filter, i.e. it keeps the existing filter
+ 					// status and only adds the marked caches to the filtered set
+ 					if (ch.is_Checked &amp;&amp; !ch.is_filtered()) {
+@@ -558,7 +558,7 @@
+ 				CacheHolder ch;
+ 				boolean filterChanged = false;
+ 				for(int i = cacheDB.size()-1; i &gt;=0; i--){
+-					ch = (CacheHolder)cacheDB.get(i);
++					ch = cacheDB.get(i);
+ 					// incremental filter. Keeps status of all marked caches and
+ 					// adds unmarked caches to filtered list
+ 					if (!ch.is_Checked &amp;&amp; !ch.is_filtered()) {
+@@ -586,7 +586,7 @@
+ 			// &quot;Organise&quot; pulldown menu
+ 			///////////////////////////////////////////////////////////////////////
+ 			if(mev.selectedItem == orgNewWP){
+-				if (Global.mainTab.tbP.getSelectedCache() &gt;= 0) Global.mainTab.lastselected = ((CacheHolder)cacheDB.get(Global.mainTab.tbP.getSelectedCache())).getWayPoint();
++				if (Global.mainTab.tbP.getSelectedCache() &gt;= 0) Global.mainTab.lastselected = cacheDB.get(Global.mainTab.tbP.getSelectedCache()).getWayPoint();
+ 				Global.mainTab.newWaypoint(new CacheHolder());
+ 			}
+ 
+@@ -677,7 +677,7 @@
+ 	public static void updateSelectedCaches(TablePanel tablePanel) {
+ 		Preferences pref=Global.getPref();
+ 		Profile profile=Global.getProfile();
+-		Vector cacheDB=profile.cacheDB;
++		CacheDB cacheDB=profile.cacheDB;
+ 		CacheHolder ch;
+ 		
+ 		SpiderGC spider = new SpiderGC(pref, profile, false);
+@@ -691,7 +691,7 @@
+ 		
+ 		Vector cachesToUpdate = new Vector();
+ 		for(int i = 0; i &lt;	cacheDB.size(); i++){
+-			ch = (CacheHolder)cacheDB.get(i);
++			ch = cacheDB.get(i);
+ 			if(ch.is_Checked == true &amp;&amp; !ch.is_filtered()) {
+ 				if ( ch.getWayPoint().length()&gt;1 &amp;&amp; (ch.getWayPoint().substring(0,2).equalsIgnoreCase(&quot;GC&quot;) 
+ 						|| ch.getWayPoint().substring(0,2).equalsIgnoreCase(&quot;OC&quot;)))
+@@ -721,7 +721,7 @@
+ 		boolean forceLogin=Global.getPref().forceLogin; // To ensure that spiderSingle only logs in once if forcedLogin=true
+ 		for(int j = 0; j &lt;	cachesToUpdate.size(); j++){
+ 			int i = ((Integer)cachesToUpdate.get(j)).intValue();
+-			ch = (CacheHolder)cacheDB.get(i);
++			ch = cacheDB.get(i);
+ //			infB.setInfo(&quot;Loading: &quot; + ch.wayPoint);
+ 			infB.setInfo(MyLocale.getMsg(5513,&quot;Loading: &quot;) + ch.getWayPoint() +&quot; (&quot; + (j+1) + &quot; / &quot; + cachesToUpdate.size() + &quot;)&quot;);
+ 			infB.redisplay();
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2009-04-05 22:21:10 UTC (rev 1739)
++++ trunk/src/CacheWolf/MainTab.java	2009-04-07 17:51:40 UTC (rev 1740)
+@@ -20,7 +20,7 @@
+ 	DescriptionPanel descP= new DescriptionPanel();
+ 	HintLogPanel hintLP = new HintLogPanel();
+ 	TablePanel tbP;
+-	Vector cacheDB;
++	CacheDB cacheDB;
+ 	public DetailsPanel detP = new DetailsPanel();
+ 	CalcPanel calcP;
+ 	Preferences pref;
+@@ -140,7 +140,7 @@
+ 				ch=null; chD=null; 
+ 				lastselected=&quot;&quot;;
+ 			} else {
+-				ch = (CacheHolder)cacheDB.get(tbP.getSelectedCache());
++				ch = cacheDB.get(tbP.getSelectedCache());
+ 				lastselected=ch.getWayPoint();  // Used in Parser.Skeleton
+ 				try {
+ 					chD = ch.getCacheDetails(true);
+@@ -311,7 +311,7 @@
+ 		mainCache=lastselected;
+ 		int selectedIndex = profile.getCacheIndex( lastselected );
+ 		if (selectedIndex &gt;= 0) {
+-			CacheHolder selectedCache = (CacheHolder) profile.cacheDB.get( selectedIndex );
++			CacheHolder selectedCache = profile.cacheDB.get( selectedIndex );
+ 			if ( selectedCache.isAddiWpt() ) {
+ 				mainCache = selectedCache.mainCache.getWayPoint();
+ 			}			
+
+Modified: trunk/src/CacheWolf/MyComparer.java
+===================================================================
+--- trunk/src/CacheWolf/MyComparer.java	2009-04-05 22:21:10 UTC (rev 1739)
++++ trunk/src/CacheWolf/MyComparer.java	2009-04-07 17:51:40 UTC (rev 1740)
+@@ -10,73 +10,73 @@
+ public class MyComparer implements Comparer{
+ 	Vector cacheDB;
+ 	
+-	public MyComparer(Vector cacheDB, int colToCompare, int visibleSize){
++	public MyComparer(CacheDB cacheDB, int colToCompare, int visibleSize){
+ 		//visibleSize=Global.mainTab.tbP.myMod.numRows;
+ 		if (visibleSize&lt;2) return;
+ 		for (int i=visibleSize; i&lt;cacheDB.size(); i++) {
+-			CacheHolder ch=(CacheHolder) cacheDB.get(i);
++			CacheHolder ch=cacheDB.get(i);
+ 			ch.sort=&quot;\uFFFF&quot;;
+ 		}
+ 		if (colToCompare==1) {
+ 			for (int i=0; i&lt;visibleSize; i++) {
+-				CacheHolder ch=(CacheHolder) cacheDB.get(i);
++				CacheHolder ch=cacheDB.get(i);
+ 				ch.sort=String.valueOf(ch.getType());
+ 			}
+ 		} else if (colToCompare==2) {
+ 			for (int i=0; i&lt;visibleSize; i++) {
+-				CacheHolder ch=(CacheHolder) cacheDB.get(i);
++				CacheHolder ch=cacheDB.get(i);
+ 				ch.sort=ch.getHard();
+ 			}
+ 		} else if (colToCompare==3) {
+ 			for (int i=0; i&lt;visibleSize; i++) {
+-				CacheHolder ch=(CacheHolder) cacheDB.get(i);
++				CacheHolder ch=cacheDB.get(i);
+ 				ch.sort=ch.getTerrain();
+ 			}
+ 		} else if (colToCompare==4) {
+ 			for (int i=0; i&lt;visibleSize; i++) {
+-				CacheHolder ch=(CacheHolder) cacheDB.get(i);
++				CacheHolder ch=cacheDB.get(i);
+ 				ch.sort=ch.getWayPoint().toUpperCase();
+ 			}
+ 		} else if (colToCompare==5) {
+ 			for (int i=0; i&lt;visibleSize; i++) {
+-				CacheHolder ch=(CacheHolder) cacheDB.get(i);
++				CacheHolder ch=cacheDB.get(i);
+ 				ch.sort=ch.getCacheName().toLowerCase();
+ 			}
+ 		} else if (colToCompare==6) {
+ 			for (int i=0; i&lt;visibleSize; i++) {
+-				CacheHolder ch=(CacheHolder) cacheDB.get(i);
++				CacheHolder ch=cacheDB.get(i);
+ 				ch.sort=ch.LatLon;
+ 			}
+ 		} else if (colToCompare==7) {
+ 			for (int i=0; i&lt;visibleSize; i++) {
+-				CacheHolder ch=(CacheHolder) cacheDB.get(i);
++				CacheHolder ch=cacheDB.get(i);
+ 				ch.sort=ch.getCacheOwner().toLowerCase();
+ 			}
+ 		} else if (colToCompare==8) {
+ 			for (int i=0; i&lt;visibleSize; i++) {
+-				CacheHolder ch=(CacheHolder) cacheDB.get(i);
++				CacheHolder ch=cacheDB.get(i);
+ 				ch.sort=ch.getDateHidden();
+ 			}
+ 		} else if (colToCompare==9) {
+ 			for (int i=0; i&lt;visibleSize; i++) {
+-				CacheHolder ch=(CacheHolder) cacheDB.get(i);
++				CacheHolder ch=cacheDB.get(i);
+ 				ch.sort=ch.getCacheStatus();
+ 			}
+ 		} else if (colToCompare==10) {
+ 			for (int i=0; i&lt;visibleSize; i++) {
+-				CacheHolder ch=(CacheHolder) cacheDB.get(i);
++				CacheHolder ch=cacheDB.get(i);
+ 				// CHECK Is the formatting correctly done?
+ 				ch.sort = MyLocale.formatDouble(ch.kilom*1000, &quot;000000000000&quot;);
+ 			}
+ 		} else if (colToCompare==11) {
+ 			for (int i=0; i&lt;visibleSize; i++) {
+-				CacheHolder ch=(CacheHolder) cacheDB.get(i);
++				CacheHolder ch=cacheDB.get(i);
+ 				ch.sort=ch.bearing;
+ 			}
+ 			
+ 		} else if (colToCompare==12) {
+ 			for (int i=0; i&lt;visibleSize; i++) {
+-				CacheHolder ch=(CacheHolder) cacheDB.get(i);
++				CacheHolder ch=cacheDB.get(i);
+ 				if (ch.getCacheSize().length()==0) ch.sort=&quot;?&quot;;
+ 				else switch (ch.getCacheSize().charAt(0)) {
+ 					case 'M': ch.sort=&quot;1&quot;; break;
+@@ -89,7 +89,7 @@
+ 			}
+ 		} else if (colToCompare==13) {
+ 			for (int i=0; i&lt;visibleSize; i++) {
+-				CacheHolder ch=(CacheHolder) cacheDB.get(i);
++				CacheHolder ch=cacheDB.get(i);
+ 				if (ch.getWayPoint().startsWith(&quot;OC&quot;))
+ 					ch.sort=MyLocale.formatLong(ch.getNumRecommended(),&quot;00000&quot;);
+ 				else
+@@ -97,7 +97,7 @@
+ 			}			
+ 		} else if (colToCompare==14) {
+ 			for (int i=0; i&lt;visibleSize; i++) {
+-				CacheHolder ch=(CacheHolder) cacheDB.get(i);
++				CacheHolder ch=cacheDB.get(i);
+ 				if (ch.getWayPoint().startsWith(&quot;OC&quot;))
+ 					ch.sort=MyLocale.formatLong(ch.recommendationScore,&quot;00000&quot;);
+ 				else
+
+Modified: trunk/src/CacheWolf/OCXMLImporter.java
+===================================================================
+--- trunk/src/CacheWolf/OCXMLImporter.java	2009-04-05 22:21:10 UTC (rev 1739)
++++ trunk/src/CacheWolf/OCXMLImporter.java	2009-04-07 17:51:40 UTC (rev 1740)
+@@ -34,7 +34,7 @@
+ 	int numCacheImported, numDescImported, numLogImported= 0;
+ 
+ 	boolean debugGPX = false;
+-	Vector cacheDB;
++	CacheDB cacheDB;
+ 	InfoBox inf;
+ 	CacheHolder ch;
+ 	CacheHolderDetail chD;
+@@ -74,7 +74,7 @@
+ 		}
+ 		user = p.myAlias.toLowerCase();
+ 		for(int i = 0; i&lt;cacheDB.size();i++){
+-			ch = (CacheHolder)cacheDB.get(i);
++			ch = cacheDB.get(i);
+ 			DBindexWpt.put(ch.getWayPoint(), new Integer(i));
+ 			if (!ch.getOcCacheID().equals(&quot;&quot;))
+ 				DBindexID.put(ch.getOcCacheID(), new Integer(i));
+@@ -92,7 +92,7 @@
+ 	 * @return true, if some change was made to the cacheDB
+ 	 */
+ 	public boolean syncSingle(int number, InfoBox infB) {
+-		ch = (CacheHolder)cacheDB.get(number);
++		ch = cacheDB.get(number);
+ 		chD= null; //new CacheHolderDetail(ch); //TODO is this still correct? use getDetails ?
+ 
+ 		if (infB.isClosed) {
+@@ -175,7 +175,7 @@
+ 		profile.setDistOC(dist);
+ 		// Clear status of caches in db
+ 		for(int i = cacheDB.size()-1; i&gt;=0 ;i--){
+-			ch = (CacheHolder)cacheDB.get(i);
++			ch = cacheDB.get(i);
+ 			ch.setUpdated(false);
+ 			ch.setNew(false);
+ 			ch.setLog_updated(false);
+@@ -746,7 +746,7 @@
+ 			chD = new CacheHolderDetail();
+ 			return chD;
+ 		}
+-		chD = ((CacheHolder) cacheDB.get(index)).getCacheDetails(true);
++		chD = cacheDB.get(index).getCacheDetails(true);
+ /*		try {
+ 			chD.readCache(profile.dataDir);
+ 		} catch (Exception e) {Vm.debug(&quot;Could not open file: &quot; + e.toString());};
+@@ -754,4 +754,4 @@
+ 	}
+ 
+ 
+-}
+\ No newline at end of file
++}
+
+Modified: trunk/src/CacheWolf/Parser.java
+===================================================================
+--- trunk/src/CacheWolf/Parser.java	2009-04-05 22:21:10 UTC (rev 1739)
++++ trunk/src/CacheWolf/Parser.java	2009-04-07 17:51:40 UTC (rev 1740)
+@@ -224,7 +224,7 @@
+ 		if (varName.startsWith(&quot;$&quot;)) { // Potential coordinate
+ 			int idx=Global.getProfile().getCacheIndex(varName.substring(1));
+ 			if (idx!=-1) { // Found it!
+-				CacheHolder ch=(CacheHolder)Global.getProfile().cacheDB.get(idx);
++				CacheHolder ch=Global.getProfile().cacheDB.get(idx);
+ 				// Check whether coordinates are valid
+ 				cwPt.set(ch.pos);
+ 				if (cwPt.isValid() )
+@@ -547,7 +547,7 @@
+     		int i=Global.getProfile().getCacheIndex(waypointName);
+     		if (i&lt;0) err(MyLocale.getMsg(1714,&quot;Goto: Waypoint does not exist: &quot;)+waypointName);
+     		cwPt.set(coord);
+-    		CacheHolder ch=((CacheHolder)Global.getProfile().cacheDB.get(i));
++    		CacheHolder ch=Global.getProfile().cacheDB.get(i);
+     		ch.LatLon=cwPt.toString(CWPoint.CW);
+     		ch.pos.set(cwPt);
+     		ch.calcDistance(Global.getPref().curCentrePt); // Update distance/bearing
+@@ -666,8 +666,8 @@
+     	int ci=Global.getProfile().getCacheIndex(waypointName);
+     	if (ci&lt;0) return;
+     	// If it is an addi, find its main cache
+-    	if (((CacheHolder) Global.getProfile().cacheDB.get(ci)).isAddiWpt()) {
+-    		waypointName=((CacheHolder) Global.getProfile().cacheDB.get(ci)).mainCache.getWayPoint();
++    	if (Global.getProfile().cacheDB.get(ci).isAddiWpt()) {
++    		waypointName=Global.getProfile().cacheDB.get(ci).mainCache.getWayPoint();
+     	}
+    		int nStages=-1;
+     	if (nargs==1) {
+@@ -709,7 +709,7 @@
+     	} else {
+ 	    	int i=Global.getProfile().getCacheIndex(waypointName);
+ 			if (i&lt;0) err(MyLocale.getMsg(1714,&quot;Goto: Waypoint does not exist: &quot;)+waypointName);
+-	   	    CacheHolder ch=(CacheHolder)Global.getProfile().cacheDB.get(i);
++	   	    CacheHolder ch=Global.getProfile().cacheDB.get(i);
+ 			CacheHolder addiWpt;
+ 	   	    if (ch.hasAddiWpt()){
+ 	   	    	op.append(&quot;cls()\n&quot;);
+@@ -893,7 +893,7 @@
+ 		if (varName.startsWith(&quot;$&quot;)) { // Potential coordinate
+ 			int idx=Global.getProfile().getCacheIndex(varName.substring(1));
+ 			if (idx!=-1) { // Yes, is a coordinate
+-				CacheHolder ch=(CacheHolder)Global.getProfile().cacheDB.get(idx);
++				CacheHolder ch=Global.getProfile().cacheDB.get(idx);
+ 				// Check whether new coordinates are valid
+ 				String coord=popCalcStackAsString();
+ 				cwPt.set(coord);
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2009-04-05 22:21:10 UTC (rev 1739)
++++ trunk/src/CacheWolf/Profile.java	2009-04-07 17:51:40 UTC (rev 1740)
+@@ -25,7 +25,7 @@
+ 	/** The list of caches (CacheHolder objects). A pointer to this object exists in many classes in parallel to
+ 	 *  this object, i.e. the respective class contains both a {@link Profile} object and a cacheDB Vector. 
+ 	 */
+-	public Vector cacheDB=new Vector();
++	public CacheDB cacheDB=new CacheDB();
+ 	/** The centre point of this group of caches. Read from ans stored to index.xml file */
+ 	public CWPoint centre=new CWPoint();
+ 	/** The name of the profile. The baseDir in preferences is appended this name to give the dataDir where
+@@ -206,7 +206,7 @@
+ 					h.progress = (float) i / (float) size;
+ 					h.changed();
+ 				}
+-				ch = (CacheHolder) cacheDB.get(i);
++				ch = cacheDB.get(i);
+ 				// //Vm.debug(&quot;Saving: &quot; + ch.CacheName);
+ 				if (ch.getWayPoint().length() &gt; 0) { // TODO &amp;&amp; ch.LongDescription.equals(&quot;An
+ /*					detfile.print(&quot;    &lt;CACHE name = \&quot;&quot;+SafeXML.clean(ch.CacheName)+&quot;\&quot; owner = \&quot;&quot;+SafeXML.clean(ch.CacheOwner)+
+@@ -356,10 +356,9 @@
+ 	}
+ 	
+ 	void checkBlacklistStatus() {
+-		Vector cacheDB=Global.getProfile().cacheDB;
+ 		CacheHolder ch;
+ 		for(int i = cacheDB.size()-1; i &gt;=0 ; i--){
+-			ch = (CacheHolder)cacheDB.get(i);
++			ch = cacheDB.get(i);
+ 			if (ch.is_black() ^ showBlacklisted()) {
+ 				ch.setFiltered(true);
+ 				selectionChanged = true;
+@@ -368,15 +367,7 @@
+ 	}
+ 
+ 	public int getCacheIndex(String wp) {
+-		int retval = -1;
+-		CacheHolder ch;
+-		for (int i = 0; i &lt; cacheDB.size(); i++) {
+-			ch = (CacheHolder) cacheDB.get(i);
+-			if (ch.getWayPoint().equals(wp)) {
+-				return i;
+-			}
+-		}
+-		return retval;
++		return cacheDB.getIndex(wp);
+ 	}
+ 
+ 	/** Get a unique name for a new waypoint */
+@@ -390,7 +381,7 @@
+ 		// Create new waypoint,look if not in db
+ 		for (int i = 0; i &lt; s; i++) {
+ 			strWp = &quot;CW&quot; + MyLocale.formatLong(lgWp, &quot;0000&quot;);
+-			if (((CacheHolder) cacheDB.get(i)).getWayPoint().indexOf(strWp) &gt;= 0) {
++			if (cacheDB.get(i).getWayPoint().indexOf(strWp) &gt;= 0) {
+ 				// waypoint exists in database
+ 				lgWp++;
+ 				i = -1; // Because i++ will be executed next, so we start the loop with 0
+@@ -427,7 +418,7 @@
+ 			mainindex = getCacheIndex(&quot;CW&quot; + mainwpt);
+ 		if (mainindex &lt; 0)
+ 			throw new IllegalArgumentException(&quot;no main cache found for: &quot; + ch.getWayPoint());
+-		CacheHolder mainch = (CacheHolder) cacheDB.get(mainindex);
++		CacheHolder mainch = cacheDB.get(mainindex);
+ 		mainch.addiWpts.add(ch);
+ 		ch.mainCache = mainch;
+ 	}
+@@ -441,7 +432,7 @@
+ 		selectionChanged = true;
+ 		CacheHolder ch;
+ 		for (int i = cacheDB.size() - 1; i &gt;= 0; i--) {
+-			ch = (CacheHolder) cacheDB.get(i);
++			ch = cacheDB.get(i);
+ 			if (ch.is_filtered() == false)
+ 				ch.is_Checked = selectStatus;
+ 		}
+@@ -458,7 +449,7 @@
+ 		numCachesInArea = 0;
+ 		boolean isAddi = false;
+ 		for (int i = cacheDB.size() - 1; i &gt;= 0; i--) {
+-			ch = (CacheHolder) cacheDB.get(i);
++			ch = cacheDB.get(i);
+ 			if (!onlyOfSelected || ch.is_Checked) {
+ 				if (ch.pos == null) { // this can not happen
+ 					tmpca.set(ch.LatLon);
+@@ -491,11 +482,11 @@
+ 	 */
+ 	public void updateBearingDistance(){
+ 		CWPoint centerPoint = new CWPoint(Global.getPref().curCentrePt); // Clone current centre to be sure
+-		int anz = cacheDB.getCount();
++		int anz = cacheDB.size();
+ 		CacheHolder ch;
+ 		// Jetzt durch die CacheDaten schleifen
+ 		while(--anz &gt;= 0){
+-			ch = (CacheHolder)cacheDB.get(anz); // This returns a pointer to the CacheHolder object
++			ch = cacheDB.get(anz); // This returns a pointer to the CacheHolder object
+ 			ch.calcDistance(centerPoint);
+ 		}
+ 		// The following call is not very clean as it mixes UI with base classes
+@@ -515,7 +506,7 @@
+ 		Integer index;
+ 		// Build index for faster search and clear all references
+ 		for (int i = cacheDB.size() - 1; i &gt;= 0; i--) {
+-			ch = (CacheHolder) cacheDB.get(i);
++			ch = cacheDB.get(i);
+ 			ch.addiWpts.clear();
+ 			ch.mainCache = null;
+ 			// if (ch.wayPoint.startsWith(&quot;GC&quot;)) // Only put potential master caches into the index
+@@ -524,7 +515,7 @@
+ 		// Build references
+ 		int max = cacheDB.size();
+ 		for (int i = 0; i &lt; max; i++) {
+-			ch = (CacheHolder) cacheDB.get(i);
++			ch = cacheDB.get(i);
+ 			if (ch.isAddiWpt()) {
+ 				// search main cache
+ 				index = (Integer) dbIndex.get(&quot;GC&quot; + ch.getWayPoint().substring(2));
+@@ -534,7 +525,7 @@
+ 					index = (Integer) dbIndex.get(&quot;CW&quot;+ ch.getWayPoint().substring(2));
+ 
+ 				if (index != null) {
+-					mainCh = (CacheHolder) cacheDB.get(index.intValue());
++					mainCh = cacheDB.get(index.intValue());
+ 					mainCh.addiWpts.add(ch);
+ 					ch.mainCache = mainCh;
+ 					ch.setAttributesFromMainCache(mainCh);
+@@ -543,7 +534,7 @@
+ 		}// for
+ 		// sort addi wpts
+ 		for (int i = 0; i &lt; max; i++) {
+-			ch = (CacheHolder) cacheDB.get(i);
++			ch = cacheDB.get(i);
+ 			if (ch.hasAddiWpt() &amp;&amp; (ch.addiWpts.size() &gt; 1)) {
+ 				// ch.addiWpts.sort(new
+ 				// MyComparer(ch.addiWpts,MyLocale.getMsg(1002,&quot;Waypoint&quot;),ch.addiWpts.size()),
+
+Modified: trunk/src/CacheWolf/RadarPanel.java
+===================================================================
+--- trunk/src/CacheWolf/RadarPanel.java	2009-04-05 22:21:10 UTC (rev 1739)
++++ trunk/src/CacheWolf/RadarPanel.java	2009-04-07 17:51:40 UTC (rev 1740)
+@@ -16,7 +16,7 @@
+ 	mButton btPlus = new mButton(&quot;   +   &quot;);
+ 	int toggleMod = 0; //0 = cacheicons, 1= cacheWP, 2 = cacheNames
+ 	Preferences pref;
+-	Vector cacheDB;
++	CacheDB cacheDB;
+ 	myInteractivePanel iActP;
+ 	double scale;
+ 	int scaleKm = 30;
+@@ -51,7 +51,7 @@
+ 	* database. It also calculates the maximum size available for drawing 
+ 	* the radar.
+ 	*/
+-	public void setParam(Preferences p, Vector db, String sWp){
++	public void setParam(Preferences p, CacheDB db, String sWp){
+ 		selectedWaypoint = sWp;
+ 		pref = p;
+ 		cacheDB = db;
+@@ -105,7 +105,7 @@
+ 		double degrees;
+ 		double pi180=java.lang.Math.PI / 180.0;
+ 		for(int i = cacheDB.size()-1; i &gt;=0 ; i--){
+-			holder = (CacheHolder)cacheDB.get(i);
++			holder = cacheDB.get(i);
+ 			if(!holder.is_filtered() &amp;&amp; holder.pos.isValid()) {
+ 				degrees = holder.degrees * pi180;
+ 				x =new Float(holder.kilom/scale *  java.lang.Math.sin(degrees)).intValue();
+
+Modified: trunk/src/CacheWolf/SearchCache.java
+===================================================================
+--- trunk/src/CacheWolf/SearchCache.java	2009-04-05 22:21:10 UTC (rev 1739)
++++ trunk/src/CacheWolf/SearchCache.java	2009-04-07 17:51:40 UTC (rev 1740)
+@@ -9,9 +9,9 @@
+ */
+ public class SearchCache {
+ 
+-	Vector cacheDB;
++	CacheDB cacheDB;
+ 	
+-	public SearchCache(Vector DB){
++	public SearchCache(CacheDB DB){
+ 		cacheDB = DB;
+ 	}
+ 	
+@@ -31,7 +31,7 @@
+ 			//TableModel will be responsible for displaying
+ 			//marked caches.
+ 			for(int i = 0;i &lt; cacheDB.size();i++){
+-				ch = (CacheHolder)cacheDB.get(i);
++				ch = cacheDB.get(i);
+ 				if (ch.is_filtered()) break; // Reached end of visible records
+ 				if(ch.getWayPoint().toUpperCase().indexOf(searchStr) &lt;0 &amp;&amp; 
+ 				   ch.getCacheName().toUpperCase().indexOf(searchStr) &lt;0 &amp;&amp; 
+@@ -52,7 +52,7 @@
+ 	public void clearSearch(){
+ 		Global.getProfile().selectionChanged = true;
+ 		for(int i = cacheDB.size()-1;i &gt;=0;i--){
+-			CacheHolder ch=((CacheHolder)cacheDB.get(i));
++			CacheHolder ch=cacheDB.get(i);
+ 			ch.is_flaged=false;
+ 			//ch.setFiltered((ch.is_black()^Global.getProfile().showBlacklisted())) ;
+ 		}
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2009-04-05 22:21:10 UTC (rev 1739)
++++ trunk/src/CacheWolf/SpiderGC.java	2009-04-07 17:51:40 UTC (rev 1740)
+@@ -57,7 +57,7 @@
+ 	private static String cookieSession = &quot;&quot;;
+ 	private static double distance = 0;
+ 	private Regex inRex = new Regex();
+-	private Vector cacheDB;
++	private CacheDB cacheDB;
+ 	private Vector cachesToLoad = new Vector();
+ 	private Hashtable indexDB;
+ 	private InfoBox infB;
+@@ -212,7 +212,7 @@
+ 	public int spiderSingle(int number, InfoBox infB, boolean forceLogin){
+ 		int ret=-1;
+ 		this.infB = infB;
+-		CacheHolder ch = (CacheHolder)cacheDB.get(number);
++		CacheHolder ch = cacheDB.get(number);
+ 		if (ch.isAddiWpt()) return -1;  // No point re-spidering an addi waypoint, comes with parent
+ 
+ 		// check if we need to login
+@@ -235,7 +235,7 @@
+ 			if (ret == 1) {
+ 				pref.log(&quot;Saving to:&quot; + profile.dataDir);
+ 				chD.saveCacheDetails(profile.dataDir);
+-				((CacheHolder) cacheDB.get(number)).update(chD);
++				cacheDB.get(number).update(chD);
+ 			}
+ 		}catch(Exception ex){
+ 			pref.log(&quot;Error spidering &quot; + chD.getWayPoint() + &quot; in spiderSingle&quot;);
+@@ -298,7 +298,7 @@
+ 		CacheHolder ch;
+ 		//index the database for faster searching!
+ 		for(int i = 0; i&lt;cacheDB.size();i++){
+-			ch = (CacheHolder)cacheDB.get(i);
++			ch = cacheDB.get(i);
+ 			indexDB.put(ch.getWayPoint(), new Integer(i));
+ 			ch.setNew(false);
+ 		}
+@@ -364,7 +364,7 @@
+ 			distanceInKm = Metrics.convertUnit(distance, Metrics.MILES, Metrics.KILOMETER);
+ 		}
+ 		for(int i = 0; i&lt;cacheDB.size();i++){
+-			ch = (CacheHolder)cacheDB.get(i);
++			ch = cacheDB.get(i);
+ 			if (spiderAllFinds) {
+ 				if ( (ch.getWayPoint().substring(0,2).equalsIgnoreCase(&quot;GC&quot;)) ) {
+ 					cachesToUpdate.put(ch.getWayPoint(), new Integer(i));
+@@ -462,7 +462,7 @@
+ 							}
+ 						} else {
+ 							pref.log(waypoint+&quot; already in DB&quot;);
+-							ch=(CacheHolder) cacheDB.get(nr.intValue());
++							ch=cacheDB.get(nr.intValue());
+ 							// If the &lt;strike&gt; tag is used, the cache is marked as unavailable or archived
+ 							boolean is_archived_GC=lineRex.stringMatched(1).indexOf(&quot;&lt;strike&gt;&lt;font color=\&quot;red\&quot;&gt;&quot;)!=-1;
+ 							boolean is_available_GC=lineRex.stringMatched(1).indexOf(&quot;&lt;strike&gt;&quot;)==-1;
+@@ -581,7 +581,7 @@
+ 			int j = 1;
+ 			for (Enumeration e = cachesToUpdate.elements() ; e.hasMoreElements() ; j++) {
+ 				int i = ((Integer)e.nextElement()).intValue();
+-				ch = (CacheHolder)cacheDB.get(i);
++				ch = cacheDB.get(i);
+ 				infB.setInfo(MyLocale.getMsg(5513,&quot;Loading: &quot;) + ch.getWayPoint() +&quot; (&quot; + (cachesToLoad.size()+j) + &quot; / &quot; + totalCachesToLoad + &quot;)&quot;);
+ 				infB.redisplay();
+ 
+@@ -1344,7 +1344,7 @@
+ 				counter++;
+ 				int idx=profile.getCacheIndex(adWayPoint);
+ 				if (idx&gt;=0) {
+-					cxD=new CacheHolderDetail((CacheHolder) cacheDB.get(idx));
++					cxD=new CacheHolderDetail(cacheDB.get(idx));
+ 					try{ // If addi exists, try to read it to preserve the notes
+ 						cxD.readCache(profile.dataDir);
+ 					} catch (Exception ex) {};
+@@ -1369,7 +1369,7 @@
+ 					cxD.setUpdated(false);
+ 					cacheDB.add(new CacheHolder(cxD));
+ 				}else {
+-					CacheHolder cx=(CacheHolder) cacheDB.get(idx);
++					CacheHolder cx=cacheDB.get(idx);
+ 					if (cx.is_Checked &amp;&amp; // Only re-spider existing addi waypoints that are ticked
+ 				 	   !cx.is_filtered()) { // and are visible (i.e.  not filtered)
+ 					   cx.update(cxD);
+
+Modified: trunk/src/CacheWolf/StatusBar.java
+===================================================================
+--- trunk/src/CacheWolf/StatusBar.java	2009-04-05 22:21:10 UTC (rev 1739)
++++ trunk/src/CacheWolf/StatusBar.java	2009-04-07 17:51:40 UTC (rev 1740)
+@@ -20,7 +20,7 @@
+ 	mImage imgCacheTour;
+ 	boolean MobileVGA;
+ 	
+-	public StatusBar(Preferences p, Vector db){
++	public StatusBar(Preferences p, CacheDB db){
+ 		pref=p;
+ 		int sw = MyLocale.getScreenWidth();
+ 		MobileVGA = (Vm.isMobile() &amp;&amp; sw &gt;= 400);
+
+Modified: trunk/src/CacheWolf/TablePanel.java
+===================================================================
+--- trunk/src/CacheWolf/TablePanel.java	2009-04-05 22:21:10 UTC (rev 1739)
++++ trunk/src/CacheWolf/TablePanel.java	2009-04-07 17:51:40 UTC (rev 1740)
+@@ -13,7 +13,7 @@
+ 	myTableControl tc;
+ 	myTableModel myMod;
+ 	Preferences pref;
+-	Vector cacheDB;
++	CacheDB cacheDB;
+ 	MainTab myMaintab;
+ 	StatusBar statBar;
+ 	/** We keep track of the currently selected cache in two variables(for speed)
+@@ -102,7 +102,7 @@
+ 		Vector oldVisibleCaches = null;
+ 		int sel = getSelectedCache();
+ 		if ((sel &gt;= 0) &amp;&amp; (sel &lt; cacheDB.size()) ) // sel &gt; cacheDB.size() can happen if you load a new profile, which is smaller than the old profile and you selected one cache that exceeds the number of caches in the new profile  
+-			wayPoint = ((CacheHolder)cacheDB.get(sel)).getWayPoint();
++			wayPoint = cacheDB.get(sel).getWayPoint();
+ 		else wayPoint = null;
+ 		// Then: remember all caches that are visible before the refresh
+ 		if (wayPoint != null) {
+
+Modified: trunk/src/CacheWolf/TravelbugJourneyScreen.java
+===================================================================
+--- trunk/src/CacheWolf/TravelbugJourneyScreen.java	2009-04-05 22:21:10 UTC (rev 1739)
++++ trunk/src/CacheWolf/TravelbugJourneyScreen.java	2009-04-07 17:51:40 UTC (rev 1740)
+@@ -58,13 +58,13 @@
+ 	private String waypoint=&quot;&quot;;
+ 	
+ 	public TravelbugJourneyScreen() {
+-		Vector cacheDB=Global.getProfile().cacheDB;
++		CacheDB cacheDB=Global.getProfile().cacheDB;
+ 		SplittablePanel split = new SplittablePanel(PanelSplitter.VERTICAL);
+ 		CellPanel tablepane = split.getNextPanel();
+ 		int curCacheNo=Global.mainTab.tbP.getSelectedCache();
+ 		String cache=&quot;&quot;;
+ 		if (curCacheNo&gt;=0 &amp;&amp; curCacheNo&lt;cacheDB.size()) {
+-			ch=(CacheHolder)cacheDB.elementAt(curCacheNo);
++			ch=cacheDB.get(curCacheNo);
+ 			cache=MyLocale.getMsg(6022,&quot;: Current cache: &quot;)+ch.getWayPoint()+&quot; - &quot;+ch.getCacheName();
+ 			waypoint=ch.getWayPoint();
+ 			chD=new CacheHolderDetail(ch);
+
+Modified: trunk/src/CacheWolf/myInteractivePanel.java
+===================================================================
+--- trunk/src/CacheWolf/myInteractivePanel.java	2009-04-05 22:21:10 UTC (rev 1739)
++++ trunk/src/CacheWolf/myInteractivePanel.java	2009-04-07 17:51:40 UTC (rev 1740)
+@@ -55,8 +55,8 @@
+ 		timePenOn=Vm.getTimeStampLong();
+ 		setFont(font);
+ 		RadarPanelImage imgRP=(RadarPanelImage) which;
+-		ewe.util.Vector cacheDB=Global.getProfile().cacheDB;
+-		CacheHolder ch=(CacheHolder) cacheDB.get(imgRP.rownum);
++		CacheDB cacheDB=Global.getProfile().cacheDB;
++		CacheHolder ch=cacheDB.get(imgRP.rownum);
+ 		String s=ch.getWayPoint()+&quot;  &quot;+ch.getCacheSize()+&quot; / &quot;+strDifficulty+&quot;=&quot;+ch.getHard()+&quot;  &quot;+strTerrain+&quot;=&quot;+ch.getTerrain();
+ 		String s1=ch.getCacheName();
+ 		if (s1.length()&gt;40) s1=s1.substring(0,40);
+@@ -102,11 +102,11 @@
+ 	
+ 	public void startDragging(DragContext dc) {
+ 		if (!Global.mainForm.cacheListVisible) return;
+-		Vector cacheDB=Global.getProfile().cacheDB;
++		CacheDB cacheDB=Global.getProfile().cacheDB;
+ //Vm.debug(&quot;myIAP startDrag &quot;+dc.start.x+&quot;/&quot;+dc.start.y);
+ 		int idx=Global.getProfile().getCacheIndex(wayPoint); 
+ 		if (idx&gt;=0) {
+-			 CacheHolder ch=(CacheHolder) cacheDB.get(idx);
++			 CacheHolder ch=cacheDB.get(idx);
+ 			 //wayPoint=ch.wayPoint;
+ 			 //Vm.debug(&quot;Waypoint : &quot;+ch.wayPoint);
+ 			 IconAndText icnDrag=new IconAndText();
+@@ -132,8 +132,8 @@
+ 		AniImage dragImage=null;
+ 		if (which instanceof RadarPanelImage) {
+ 			RadarPanelImage imgRP=(RadarPanelImage) which;
+-			ewe.util.Vector cacheDB=Global.getProfile().cacheDB;
+-			CacheHolder ch=(CacheHolder) cacheDB.get(imgRP.rownum);
++			CacheDB cacheDB=Global.getProfile().cacheDB;
++			CacheHolder ch=cacheDB.get(imgRP.rownum);
+ 			wayPoint=ch.getWayPoint();
+ 			
+ 			int tw,th;
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2009-04-05 22:21:10 UTC (rev 1739)
++++ trunk/src/CacheWolf/myTableControl.java	2009-04-07 17:51:40 UTC (rev 1740)
+@@ -15,7 +15,7 @@
+ 
+ 	public Preferences pref;
+ 	public Profile profile;
+-	public Vector cacheDB;
++	public CacheDB cacheDB;
+ 	public TablePanel tbp;
+ 	
+ 	private MenuItem miOpen, miGoto, miCenter;
+@@ -102,10 +102,10 @@
+ 				else if (ev.key == IKeys.ACTION || ev.key == IKeys.ENTER) Global.mainTab.select(Global.mainTab.descP);
+ 				else if (ev.key == IKeys.DOWN) Global.mainTab.tbP.selectRow(java.lang.Math.min(cursor.y+ 1, model.numRows-1)); 
+ 				else if (ev.key == IKeys.UP) Global.mainTab.tbP.selectRow(java.lang.Math.max(cursor.y-1, 0));
+-				else if (ev.key == IKeys.LEFT &amp;&amp; Global.mainForm.cacheListVisible &amp;&amp; cursor.y&gt;=0 &amp;&amp; cursor.y&lt;tbp.myMod.numRows) Global.mainForm.cacheList.addCache(((CacheHolder)cacheDB.elementAt(cursor.y)).getWayPoint()); 
++				else if (ev.key == IKeys.LEFT &amp;&amp; Global.mainForm.cacheListVisible &amp;&amp; cursor.y&gt;=0 &amp;&amp; cursor.y&lt;tbp.myMod.numRows) Global.mainForm.cacheList.addCache(cacheDB.get(cursor.y).getWayPoint()); 
+ 				else if (ev.key == IKeys.RIGHT) {
+ 					CacheHolder ch;
+-					ch = (CacheHolder)cacheDB.get(tbp.getSelectedCache());
++					ch = cacheDB.get(tbp.getSelectedCache());
+ 					Global.mainTab.gotoPoint(ch.pos);
+ 				}
+ 				else if (ev.key == 6 ) MainMenu.search(); // (char)6 == ctrl + f 
+@@ -147,7 +147,7 @@
+ 			int shouldDeleteCount=0;
+ 			boolean deleteFiltered=true;  // Bisheriges Verhalten
+ 			for(int i = cacheDB.size()-1; i &gt;=0; i--){
+-				CacheHolder currCache = (CacheHolder)cacheDB.get(i);
++				CacheHolder currCache = cacheDB.get(i);
+ 				if ( currCache.is_Checked) {
+ 					allCount++;
+ 					if (currCache.is_filtered()) {
+@@ -184,13 +184,13 @@
+ 					int nDeleted=0;
+ 					int size=cacheDB.size();
+ 					for(int i = size-1; i &gt;=0; i--){// Start Counting down, as the size decreases with each deleted cache
+-						ch = (CacheHolder)cacheDB.get(i);
++						ch = cacheDB.get(i);
+ 						if(ch.is_Checked &amp;&amp; (!ch.is_filtered() || deleteFiltered)) {
+ 							nDeleted++;
+ 							h.progress = ((float)nDeleted)/(float)allCount;
+ 							h.changed();
+ 							dm.deleteCacheFiles(ch.getWayPoint(),profile.dataDir);
+-							cacheDB.remove(ch);
++							cacheDB.removeElementAt(i);
+ 							ch.releaseCacheDetails();
+ 							ch=null;
+ 							if (pbf.isClosed) break;
+@@ -214,7 +214,7 @@
+ 				Global.getPref().log(&quot;popupMenuEvent: getSelectedCache() &lt; 0&quot;);
+ 				return;
+ 			}
+-			CacheHolder thisCache = (CacheHolder)cacheDB.get(tbp.getSelectedCache());
++			CacheHolder thisCache = cacheDB.get(tbp.getSelectedCache());
+ 			CWPoint cp=new CWPoint(thisCache.LatLon);
+ 			if (!cp.isValid()){
+ 				MessageBox tmpMB = new MessageBox(MyLocale.getMsg(321,&quot;Error&quot;), MyLocale.getMsg(4111,&quot;Coordinates must be entered in the format N DD MM.MMM E DDD MM.MMM&quot;), FormBase.OKB);
+@@ -227,12 +227,12 @@
+ 		}
+ 
+ 		if (selectedItem == miGoto){
+-			ch = (CacheHolder)cacheDB.get(tbp.getSelectedCache());
++			ch = cacheDB.get(tbp.getSelectedCache());
+ 			Global.mainTab.gotoPoint(ch.pos);
+ 		}
+ 		if (selectedItem == miOpenOnline){
+ 			if(browserPathIsValid()){
+-				ch = (CacheHolder)cacheDB.get(tbp.getSelectedCache());
++				ch = cacheDB.get(tbp.getSelectedCache());
+ 				CacheHolderDetail chD=ch.getCacheDetails(false, true);
+ 				try {
+ 					if (chD != null) {
+@@ -250,7 +250,7 @@
+ 		if (selectedItem == miOpenOffline) {
+ 			if(browserPathIsValid()){
+ 				ShowCacheInBrowser sc=new ShowCacheInBrowser();
+-				sc.showCache(((CacheHolder)cacheDB.get(tbp.getSelectedCache())).getCacheDetails(false, true));
++				sc.showCache(cacheDB.get(tbp.getSelectedCache()).getCacheDetails(false, true));
+ 			}
+ 		}
+ 		if (selectedItem == miOpen){
+@@ -288,7 +288,7 @@
+ 	int row;
+ 	
+ 	public void startDragging(DragContext dc) {
+-		Vector cacheDB=Global.getProfile().cacheDB;
++		CacheDB cacheDB=Global.getProfile().cacheDB;
+ 		 Point p=cellAtPoint(dc.start.x,dc.start.y,null);
+ 		 wayPoint=null;
+ 		 if (p.y&gt;=0) { 
+@@ -297,7 +297,7 @@
+ 				return;
+ 			}
+ 			 row=p.y;
+-			 CacheHolder ch=(CacheHolder)cacheDB.get(p.y);
++			 CacheHolder ch=cacheDB.get(p.y);
+ 			 wayPoint=ch.getWayPoint();
+ 			 //Vm.debug(&quot;Waypoint : &quot;+ch.wayPoint);
+ 			 imgDrag=new IconAndText();
+
+Modified: trunk/src/CacheWolf/myTableModel.java
+===================================================================
+--- trunk/src/CacheWolf/myTableModel.java	2009-04-05 22:21:10 UTC (rev 1739)
++++ trunk/src/CacheWolf/myTableModel.java	2009-04-07 17:51:40 UTC (rev 1740)
+@@ -24,7 +24,7 @@
+ 	private static final Color COLOR_SELECTED	= new Color(198,198,198);
+ 	private static final Color COLOR_ARCHFND_FG	= new Color(255,0,0); // Archived &amp;&amp; Found
+ 	private static final Color COLOR_ARCHFND_BG	= new Color(152,251,152);	
+-	private Vector cacheDB;
++	private CacheDB cacheDB;
+ 	/** How the columns are mapped onto the list view. If colMap[i]=j, it means that
+ 	 * the element j (as per the list below) is visible in column i. 
+ 	 * [0]TickBox, [1]Type, [2]Distance, [3]Terrain, [4]waypoint, [5]name, [6]coordinates, 
+@@ -128,7 +128,7 @@
+ 		// - filtered caches are moved to the end
+ 		int size=cacheDB.size();
+ 		for (int i=0; i&lt;size; i++){
+-			ch = (CacheHolder) cacheDB.get(i);
++			ch = cacheDB.get(i);
+ 			if (ch.is_filtered()) {
+ 				filteredDB.add(ch);
+ 			} else { // point is not filtered
+@@ -169,7 +169,7 @@
+ 		ta.anchor = CellConstants.LEFT;
+ 		if(row &gt;= 0){ 
+ 			try {
+-			   CacheHolder ch = (CacheHolder)cacheDB.get(row);
++			   CacheHolder ch = cacheDB.get(row);
+ 				if(isSelected == true) ta.fillColor = COLOR_SELECTED;
+ 				else if(ch.is_available() == false &amp;&amp; ch.is_found() == true){
+ 					ta.fillColor = COLOR_ARCHFND_BG;   // Green BG
+@@ -210,7 +210,7 @@
+ 	public Object getCellData(int row, int col){
+ 		if(row == -1) return colName[colMap[col]];
+ 		try { // Access to row can fail if many caches are deleted
+-			CacheHolder ch = (CacheHolder)cacheDB.get(row);
++			CacheHolder ch = cacheDB.get(row);
+ 			if(ch.is_filtered() == false){
+ 				switch(colMap[col]) { // Faster than using column names
+ 					case 0: // Checkbox
+@@ -316,7 +316,7 @@
+ 				}
+ 				Vm.showWait(true);
+ 				Point a = tcControl.getSelectedCell(null);
+-				if((a != null) &amp;&amp; (a.y &gt;= 0) &amp;&amp; (a.y &lt; cacheDB.size())) ch = (CacheHolder)cacheDB.get(a.y);
++				if((a != null) &amp;&amp; (a.y &gt;= 0) &amp;&amp; (a.y &lt; cacheDB.size())) ch = cacheDB.get(a.y);
+ 				if (mappedCol == sortedBy) sortAsc=!sortAsc;
+ 				else sortAsc = false;
+ 				sortedBy = mappedCol;
+@@ -355,7 +355,7 @@
+ 		CacheHolder ch;
+ 		boolean singleRow= from == to;
+ 		for (int j=from; j&lt;=to; j++) {
+-			ch=(CacheHolder) cacheDB.get(j);
++			ch=cacheDB.get(j);
+ 			ch.is_Checked= !ch.is_Checked; 
+ 			tcControl.repaintCell(j, x);
+ 			// set the ceckbox also for addi wpts
+@@ -366,7 +366,7 @@
+ 					addiWpt = (CacheHolder)ch.addiWpts.get(i);
+ 					addiWpt.is_Checked = ch.is_Checked;
+ 					if (!addiWpt.is_filtered()){
+-						tcControl.repaintCell(cacheDB.find(addiWpt), x);
++						tcControl.repaintCell(cacheDB.getIndex(addiWpt), x);
+ 					}
+ 				}
+ 				
+
+Modified: trunk/src/CacheWolf/navi/GotoPanel.java
+===================================================================
+--- trunk/src/CacheWolf/navi/GotoPanel.java	2009-04-05 22:21:10 UTC (rev 1739)
++++ trunk/src/CacheWolf/navi/GotoPanel.java	2009-04-07 17:51:40 UTC (rev 1740)
+@@ -1,6 +1,7 @@
+ package CacheWolf.navi;
+ 
+ import CacheWolf.CWPoint;
++import CacheWolf.CacheDB;
+ import CacheWolf.CacheHolder;
+ import CacheWolf.CoordsScreen;
+ import CacheWolf.DetailsPanel;
+@@ -39,7 +40,7 @@
+ 	Color gpsStatus;
+ 
+ 	MainTab mainT;
+-	Vector cacheDB;
++	CacheDB cacheDB;
+ 	DetailsPanel detP;
+ 
+ 	Preferences pref;
+
+Modified: trunk/src/CacheWolf/navi/MapLoaderGui.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MapLoaderGui.java	2009-04-05 22:21:10 UTC (rev 1739)
++++ trunk/src/CacheWolf/navi/MapLoaderGui.java	2009-04-07 17:51:40 UTC (rev 1740)
+@@ -1,6 +1,7 @@
+ package CacheWolf.navi;
+ 
+ import CacheWolf.CWPoint;
++import CacheWolf.CacheDB;
+ import CacheWolf.CacheHolder;
+ import CacheWolf.CoordsScreen;
+ import CacheWolf.Global;
+@@ -53,7 +54,7 @@
+ 	int[] sortingMapServices;
+ 	boolean[] inbound;
+ 	CWPoint center;
+-	Vector cacheDB;
++	CacheDB cacheDB;
+ 	boolean perCache;
+ 	boolean onlySelected;
+ 	float radius;
+@@ -62,7 +63,7 @@
+ 	boolean overviewmap;
+ 	int numCaches;
+ 
+-	public MapLoaderGui(Vector cacheDBi) {
++	public MapLoaderGui(CacheDB cacheDBi) {
+ 		super();
+ 		this.title = MyLocale.getMsg(1800, &quot;Download georeferenced maps&quot;); 
+ 		pref = Global.getPref(); // myPreferences sollte sp&#228;ter auch diese Einstellungen speichern
+@@ -240,7 +241,7 @@
+ 			Global.getProfile().getSourroundingArea(onlySelected); // calculate numCachesInArea
+ 			int numCaches = Global.getProfile().numCachesInArea;
+ 			for (int i=cacheDB.size()-1; i &gt;= 0; i--) {
+-				ch = (CacheHolder) cacheDB.get(i);
++				ch = cacheDB.get(i);
+ 				if (!this.onlySelected || ch.is_Checked) {
+ 					if (ch.pos == null) { // this can not happen
+ 						tmpca.set(ch.LatLon);
+
+Modified: trunk/src/CacheWolf/navi/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MovingMap.java	2009-04-05 22:21:10 UTC (rev 1739)
++++ trunk/src/CacheWolf/navi/MovingMap.java	2009-04-07 17:51:40 UTC (rev 1740)
+@@ -1,6 +1,7 @@
+ package CacheWolf.navi;
+ 
+ import CacheWolf.CWPoint;
++import CacheWolf.CacheDB;
+ import CacheWolf.CacheHolder;
+ import CacheWolf.CacheType;
+ import CacheWolf.Global;
+@@ -34,7 +35,7 @@
+ 	MovingMapPanel mmp;
+ 	MapsList maps;
+ 	Vector symbols;
+-	Vector cacheDB;
++	CacheDB cacheDB;
+ 	TrackOverlay[] TrackOverlays;
+ 	CWPoint TrackOverlaySetCenterTopLeft;
+ 	Vector tracks;
+@@ -80,7 +81,7 @@
+ 	
+ 	float lastHighestResolutionGPSDestScale = -1;
+ 
+-	public MovingMap(Navigate nav, Vector cacheDB){
++	public MovingMap(Navigate nav, CacheDB cacheDB){
+ 		this.cacheDB = cacheDB;
+ 		this.myNavigation = nav;
+ 		this.pref = Global.getPref();
+@@ -377,7 +378,7 @@
+ 			removeAllMapSymbolsButGoto();
+ 			CacheHolder ch;
+ 			for (int i=cacheDB.size()-1; i&gt;=0; i--) {
+-				ch = (CacheHolder) cacheDB.get(i);
++				ch = cacheDB.get(i);
+ 				if (ch.is_Checked &amp;&amp; !ch.is_filtered() &amp;&amp; ch != mainT.ch) {
+ 					if (ch.pos.isValid()) addSymbol(ch.getCacheName(), ch, CacheType.cache2Img(ch.getType()), ch.pos);
+ 				}
+
+Modified: trunk/src/exp/ExploristExporter.java
+===================================================================
+--- trunk/src/exp/ExploristExporter.java	2009-04-05 22:21:10 UTC (rev 1739)
++++ trunk/src/exp/ExploristExporter.java	2009-04-07 17:51:40 UTC (rev 1740)
+@@ -34,7 +34,7 @@
+ 	final static int LAT_LON = 1;
+ 	final static int COUNT = 2;
+ 
+-	Vector cacheDB;
++	CacheDB cacheDB;
+ 	Preferences pref;
+ 	Profile profile;
+ 	// mask in file chooser
+@@ -128,7 +128,7 @@
+ 		int counter = 0;
+ 		int expCount = 0;
+ 		for (int i = 0; i &lt; cacheDB.size(); i++) {
+-			ch = (CacheHolder) cacheDB.get(i);
++			ch = cacheDB.get(i);
+ 			if (ch.is_black() == false &amp;&amp; ch.is_filtered() == false)
+ 				counter++;
+ 		}
+@@ -136,7 +136,7 @@
+ 		try {
+ 			PrintWriter outp = null;
+ 			for (int i = 0; i &lt; cacheDB.size(); i++) {
+-				ch = (CacheHolder) cacheDB.get(i);
++				ch = cacheDB.get(i);
+ 				if (ch.is_black() == false &amp;&amp; ch.is_filtered() == false) {
+ 					// all 200 caches we need a new file
+ 					if (expCount % 200 == 0) {
+@@ -311,4 +311,4 @@
+ 		}
+ 	}
+ 	
+-}
+\ No newline at end of file
++}
+
+Modified: trunk/src/exp/Exporter.java
+===================================================================
+--- trunk/src/exp/Exporter.java	2009-04-05 22:21:10 UTC (rev 1739)
++++ trunk/src/exp/Exporter.java	2009-04-07 17:51:40 UTC (rev 1740)
+@@ -33,7 +33,7 @@
+ 	final static int LAT_LON 	= 1;
+ 	final static int COUNT 		= 2;
+ 	
+-	Vector cacheDB;
++	CacheDB cacheDB;
+ 	Preferences pref;
+ 	Profile profile;
+ 	// mask in file chooser
+@@ -93,7 +93,7 @@
+ 		int counter = 0;
+ 		int expCount = 0;
+ 		for(int i = 0; i&lt;cacheDB.size();i++){
+-			ch = (CacheHolder)cacheDB.get(i);
++			ch = cacheDB.get(i);
+ 			if(ch.is_black() == false &amp;&amp; ch.is_filtered() == false) counter++;
+ 		}
+ 
+@@ -103,7 +103,7 @@
+ 			if (str != null) outp.print(str);
+ 			holder=new CacheHolderDetail();
+ 			for(int i = 0; i&lt;cacheDB.size(); i++){
+-				ch=(CacheHolder)cacheDB.get(i);
++				ch=cacheDB.get(i);
+ 				if(ch.is_black() == false &amp;&amp; ch.is_filtered() == false){
+ 					expCount++;
+ 					h.progress = (float)expCount/(float)counter;
+
+Modified: trunk/src/exp/HTMLExporter.java
+===================================================================
+--- trunk/src/exp/HTMLExporter.java	2009-04-05 22:21:10 UTC (rev 1739)
++++ trunk/src/exp/HTMLExporter.java	2009-04-07 17:51:40 UTC (rev 1740)
+@@ -17,7 +17,7 @@
+ */
+ public class HTMLExporter{
+ //	TODO Exportanzahl anpassen: Bug: 7351
+-	Vector cacheDB;
++	CacheDB cacheDB;
+ 	Preferences pref;
+ 	Profile profile;
+ 	String [] template_init_index = {
+@@ -69,7 +69,7 @@
+ 			//Generate index page
+ 			int counter = 0;
+ 			for(int i = 0; i&lt;cacheDB.size();i++){
+-				ch = (CacheHolder)cacheDB.get(i);
++				ch = cacheDB.get(i);
+ 				if(ch.is_black() == false &amp;&amp; ch.is_filtered() == false) counter++;
+ 			}
+ 			
+@@ -81,7 +81,7 @@
+ 				h.progress = (float)(i+1)/(float)counter;
+ 				h.changed();
+ 
+-				ch = (CacheHolder)cacheDB.get(i);
++				ch = cacheDB.get(i);
+ 				if(	ch.is_black() == false &amp;&amp; ch.is_filtered() == false){
+ 					holder=ch.getCacheDetails(false,true);
+ 					varParams = new Hashtable();
+
+Modified: trunk/src/exp/KMLExporter.java
+===================================================================
+--- trunk/src/exp/KMLExporter.java	2009-04-05 22:21:10 UTC (rev 1739)
++++ trunk/src/exp/KMLExporter.java	2009-04-07 17:51:40 UTC (rev 1740)
+@@ -76,7 +76,7 @@
+ 		int counter = 0;
+ 		int expCount = 0;
+ 		for(int i = 0; i&lt;cacheDB.size();i++){
+-			ch = (CacheHolder)cacheDB.get(i);
++			ch = cacheDB.get(i);
+ 			if(ch.is_black() == false &amp;&amp; ch.is_filtered() == false) counter++;
+ 		}
+ 		copyIcons(outFile.getParent());
+@@ -176,7 +176,7 @@
+ 
+ 		// fill structure with data from cacheDB
+ 		for(int i = 0; i&lt;cacheDB.size(); i++){
+-			ch=(CacheHolder)cacheDB.get(i);
++			ch=cacheDB.get(i);
+ 			// TODO Das Argument nach STring zu casten gef&#228;llt mir nicht ganz...
+ 			if(ch.is_black() == false &amp;&amp; ch.is_filtered() == false &amp;&amp; !ch.isAddiWpt()){
+ 				if (ch.is_found()) { tmp = (Vector) outCacheDB[FOUND].get(String.valueOf(ch.getType()));}
+
+Modified: trunk/src/exp/TPLExporter.java
+===================================================================
+--- trunk/src/exp/TPLExporter.java	2009-04-05 22:21:10 UTC (rev 1739)
++++ trunk/src/exp/TPLExporter.java	2009-04-07 17:51:40 UTC (rev 1740)
+@@ -26,6 +26,7 @@
+ package exp;
+ 
+ import CacheWolf.CWPoint;
++import CacheWolf.CacheDB;
+ import CacheWolf.CacheHolder;
+ import CacheWolf.CacheHolderDetail;
+ import CacheWolf.CacheType;
+@@ -127,7 +128,7 @@
+  
+ 
+ public class TPLExporter {
+-	Vector cacheDB;
++	CacheDB cacheDB;
+ 	Preferences pref;
+ 	Profile profile;
+ 	String tplFile;
+@@ -157,7 +158,7 @@
+ 		pref.setExportPath(expName, saveTo.getPath());
+ 		int counter = 0;
+ 		for(int i = 0; i&lt;cacheDB.size();i++){
+-			ch = (CacheHolder)cacheDB.get(i);
++			ch = cacheDB.get(i);
+ 			if(ch.is_black() == false &amp;&amp; ch.is_filtered() == false) counter++;
+ 		}
+ 		pbf.showMainTask = false;
+@@ -182,7 +183,7 @@
+ 			Template tpl = new Template(args);
+ 
+ 			for(int i = 0; i&lt;counter;i++){
+-				ch = (CacheHolder)cacheDB.get(i);
++				ch = cacheDB.get(i);
+ 				h.progress = (float)i/(float)counter;
+ 				h.changed();
+ 				if(ch.is_black() == false &amp;&amp; ch.is_filtered() == false){
+
+Modified: trunk/src/exp/TomTomExporter.java
+===================================================================
+--- trunk/src/exp/TomTomExporter.java	2009-04-05 22:21:10 UTC (rev 1739)
++++ trunk/src/exp/TomTomExporter.java	2009-04-07 17:51:40 UTC (rev 1740)
+@@ -17,7 +17,7 @@
+ 	public final static int TT_WPT_NUM = 1;
+ 	public final static String expName = &quot;TomTom&quot;;
+ 
+-	Vector cacheDB;
++	CacheDB cacheDB;
+ 	Preferences pref;
+ 	Profile profile;
+ 
+@@ -79,7 +79,7 @@
+ 		currExp = 0;
+ 		counter = 0;
+ 		for(int i = 0; i&lt;cacheDB.size();i++){
+-			holder = (CacheHolder)cacheDB.get(i);
++			holder = cacheDB.get(i);
+ 			if(holder.is_black() == false &amp;&amp; holder.is_filtered() == false) counter++;
+ 		}
+ 		
+@@ -92,7 +92,7 @@
+ 				dfile.delete();
+ 				out =  new RandomAccessFile(fileName,&quot;rw&quot;);
+ 				for(int i = 0; i&lt;cacheDB.size(); i++){
+-					holder=(CacheHolder)cacheDB.get(i);
++					holder=cacheDB.get(i);
+ 					if(holder.getType() == new Integer(CacheType.wayType[j][TT_WPT_NUM]).intValue() &amp;&amp; holder.is_black() == false &amp;&amp; holder.is_filtered() == false){
+ 						currExp++;
+ 						h.progress = (float)currExp/(float)counter;
+@@ -137,7 +137,7 @@
+ 		int counter = 0;
+ 		int expCount = 0;
+ 		for(int i = 0; i&lt;cacheDB.size();i++){
+-			holder = (CacheHolder)cacheDB.get(i);
++			holder = cacheDB.get(i);
+ 			if(holder.is_black() == false &amp;&amp; holder.is_filtered() == false) counter++;
+ 		}
+ 
+@@ -146,7 +146,7 @@
+ 			dfile.delete();
+ 			out =  new RandomAccessFile(fileName,&quot;rw&quot;);
+ 			for(int i = 0; i&lt;cacheDB.size(); i++){
+-				holder=(CacheHolder)cacheDB.get(i);
++				holder=cacheDB.get(i);
+ 				if(holder.is_black() == false &amp;&amp; holder.is_filtered() == false){
+ 					expCount++;
+ 					h.progress = (float)expCount/(float)counter;
+
+Added: trunk/src/utils/MutableInteger.java
+===================================================================
+--- trunk/src/utils/MutableInteger.java	2009-04-05 22:21:10 UTC (rev 1739)
++++ trunk/src/utils/MutableInteger.java	2009-04-07 17:51:40 UTC (rev 1740)
+@@ -0,0 +1,31 @@
++/**
++ * 
++ */
++package utils;
++
++import ewe.util.Intable;
++
++/**
++ * Mutable Integer class, in case we need several integer Values
++ * which could be reused in order to decrease object creation. 
++ */
++public class MutableInteger implements Intable {
++
++	int value;
++	public MutableInteger() {
++		value = -1;
++	}
++	
++	public MutableInteger(int initialValue) {
++		value = initialValue;
++	}
++
++	public int getInt(){
++		return value;
++	}
++	
++	public void setInt(int value) {
++		this.value = value;
++	}
++
++}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001657.html">[Cachewolf-svn] r1739 - trunk/res_noewe
+</A></li>
+	<LI>Next message: <A HREF="001659.html">[Cachewolf-svn] r1741 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1658">[ date ]</a>
+              <a href="thread.html#1658">[ thread ]</a>
+              <a href="subject.html#1658">[ subject ]</a>
+              <a href="author.html#1658">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,266 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1105 - in trunk: resources src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-November/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1105%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200711252221.lAPMLQWA004716%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000997.html">
+   <LINK REL="Next"  HREF="000999.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1105 - in trunk: resources src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1105%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200711252221.lAPMLQWA004716%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1105 - in trunk: resources src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sun Nov 25 23:21:26 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000997.html">[Cachewolf-svn] r1104 - in trunk/src/CacheWolf: . navi
+</A></li>
+        <LI>Next message: <A HREF="000999.html">[Cachewolf-svn] r1106 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#998">[ date ]</a>
+              <a href="thread.html#998">[ thread ]</a>
+              <a href="subject.html#998">[ subject ]</a>
+              <a href="author.html#998">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-11-25 23:21:12 +0100 (Sun, 25 Nov 2007)
+New Revision: 1105
+
+Modified:
+   trunk/resources/cachewolf.Languages.cfg
+   trunk/src/CacheWolf/CacheHolder.java
+   trunk/src/CacheWolf/MyComparer.java
+   trunk/src/CacheWolf/Preferences.java
+   trunk/src/CacheWolf/PreferencesScreen.java
+   trunk/src/CacheWolf/TableColumnChooser.java
+   trunk/src/CacheWolf/myTableModel.java
+Log:
+Added two columns to the list view for OC Recommendations: number of recommendations and OC Cache index, a calculated value indicating how often the cache was recommended in relation to the number of logs.
+Modified the index in CacheHolder from Float to int - this is not really a restriction but we don't really want decimals in the calculated OC cache index.
+
+
+Modified: trunk/resources/cachewolf.Languages.cfg
+===================================================================
+--- trunk/resources/cachewolf.Languages.cfg	2007-11-25 21:26:30 UTC (rev 1104)
++++ trunk/resources/cachewolf.Languages.cfg	2007-11-25 22:21:12 UTC (rev 1105)
+@@ -189,6 +189,8 @@
+ 		633=Max. logs spidern
+ 		634=Proxy verwenden
+ 		635=Gr%f6%dfe
++		636=OC Empfehlungen
++		637=OC Index		
+ 		700=Filter setzen
+ 		701=Entfernung
+ 		702=Schwierigkeit
+@@ -273,6 +275,8 @@
+ 		1023=Diese Funktion steht gegenw%e4rtig nur f%fcr Geocaching.com zur Verf%fcgung
+ 		1024=Entfernungen in der Listenansicht~vom aktuellen Standpunkt aus~neu berechnet
+ 		1025=Kann Zentrum nicht setzen (GPS-Position unzul%e4ssig)
++		1026=#Rec
++		1027=OC-Idx
+ 		1100=Profile
+ 		1105=Suchen
+ 		1106=Profil w%e4hlen oder Neu
+@@ -748,6 +752,8 @@
+ 		633=Max. logs to spider
+ 		634=use Proxy
+ 		635=Size
++		636=OC Recs
++		637=OC Index		
+ 		700=Set filter
+ 		701=Distance
+ 		702=Difficulty
+@@ -832,6 +838,8 @@
+ 		1023=This function is currently only available for geocaching.com
+ 		1024=Distances in list view recalculated~from current position
+ 		1025=Cannot set centre (Invalid GPS position)
++		1026=#Rec
++		1027=OC-Idx
+ 		1100=Profiles
+ 		1105=Browse
+ 		1106=Choose profile or New
+
+Modified: trunk/src/CacheWolf/CacheHolder.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolder.java	2007-11-25 21:26:30 UTC (rev 1104)
++++ trunk/src/CacheWolf/CacheHolder.java	2007-11-25 22:21:12 UTC (rev 1105)
+@@ -80,8 +80,8 @@
+ public int numRecommended = 0;
+ /** Number of logs since start of recommendations system */
+ public int numLogsSinceRecommendation = 0;
+-/** Recommendation score: calculated as rations  numRecommended / numLogsSinceRecommendation  */
+-public float recommendationScore = 0;
++/** Recommendation score: calculated as ratio  numRecommended / numLogsSinceRecommendation * 100 */
++public int recommendationScore = 0;
+ /** True if this cache has travelbugs */
+ public boolean has_bug = false;
+ /** True if the cache description is stored in HTML format */
+
+Modified: trunk/src/CacheWolf/MyComparer.java
+===================================================================
+--- trunk/src/CacheWolf/MyComparer.java	2007-11-25 21:26:30 UTC (rev 1104)
++++ trunk/src/CacheWolf/MyComparer.java	2007-11-25 22:21:12 UTC (rev 1105)
+@@ -92,7 +92,22 @@
+ 					default: ch.sort=&quot;?&quot;;
+ 				}
+ 			}
+-			
++		} else if (colToCompare==13) {
++			for (int i=0; i&lt;visibleSize; i++) {
++				CacheHolder ch=(CacheHolder) cacheDB.get(i);
++				if (ch.wayPoint.startsWith(&quot;OC&quot;))
++					ch.sort=MyLocale.formatLong((long)ch.numRecommended,&quot;00000&quot;);
++				else
++					ch.sort=&quot;\uFFFF&quot;;
++			}			
++		} else if (colToCompare==14) {
++			for (int i=0; i&lt;visibleSize; i++) {
++				CacheHolder ch=(CacheHolder) cacheDB.get(i);
++				if (ch.wayPoint.startsWith(&quot;OC&quot;))
++					ch.sort=MyLocale.formatLong((long)ch.recommendationScore,&quot;00000&quot;);
++				else
++					ch.sort=&quot;\uFFFF&quot;;
++			}			
+ 		}
+ 	}
+ 	
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2007-11-25 21:26:30 UTC (rev 1104)
++++ trunk/src/CacheWolf/Preferences.java	2007-11-25 22:21:12 UTC (rev 1105)
+@@ -105,7 +105,7 @@
+ 	/** The list of visible columns in the list view */
+ 	public String listColMap=&quot;0,1,2,3,4,5,6,7,8,9,10,11,12&quot;;
+ 	/** The widths for each column in list view */
+-	public String listColWidth=&quot;15,20,20,25,92,177,144,83,60,105,50,104,22&quot;;
++	public String listColWidth=&quot;15,20,20,25,92,177,144,83,60,105,50,104,22,30,30&quot;;
+ 	/** The columns which are to be displayed in TravelbugsJourneyScreen. See also TravelbugJourney */
+ 	public String travelbugColMap=&quot;1,4,5,6,8,9,10,7&quot;;
+ 	/** The column widths for the travelbug journeys. */
+
+Modified: trunk/src/CacheWolf/PreferencesScreen.java
+===================================================================
+--- trunk/src/CacheWolf/PreferencesScreen.java	2007-11-25 21:26:30 UTC (rev 1104)
++++ trunk/src/CacheWolf/PreferencesScreen.java	2007-11-25 22:21:12 UTC (rev 1105)
+@@ -188,7 +188,9 @@
+ 				MyLocale.getMsg(611,&quot;Status&quot;),
+ 				MyLocale.getMsg(612,&quot;Distance&quot;),
+ 				MyLocale.getMsg(613,&quot;Bearing&quot;),
+-				MyLocale.getMsg(635,&quot;Size&quot;)},pref.listColMap),MyLocale.getMsg(595,&quot;List&quot;),null);
++				MyLocale.getMsg(635,&quot;Size&quot;),
++				MyLocale.getMsg(636,&quot;OC Empfehlungen&quot;),
++				MyLocale.getMsg(637,&quot;OC Index&quot;)},pref.listColMap),MyLocale.getMsg(595,&quot;List&quot;),null);
+ 
+ 		Card c=mTab.addCard(tccBugs=new TableColumnChooser(new String[] {
+ 				MyLocale.getMsg(6000,&quot;Guid&quot;),
+
+Modified: trunk/src/CacheWolf/TableColumnChooser.java
+===================================================================
+--- trunk/src/CacheWolf/TableColumnChooser.java	2007-11-25 21:26:30 UTC (rev 1104)
++++ trunk/src/CacheWolf/TableColumnChooser.java	2007-11-25 22:21:12 UTC (rev 1105)
+@@ -190,7 +190,7 @@
+ 	 * @param minSize TODO
+ 	 */ 
+ 	public static int[] str2Array(String configString, int min, int max, int def, int minSize) {
+-		Vector strConfigVector=new Vector(14);
++		Vector strConfigVector=new Vector(18);
+ 		SubString.split(configString,',',strConfigVector);
+ 		int i;
+ 		int nElem=strConfigVector.size();
+
+Modified: trunk/src/CacheWolf/myTableModel.java
+===================================================================
+--- trunk/src/CacheWolf/myTableModel.java	2007-11-25 21:26:30 UTC (rev 1104)
++++ trunk/src/CacheWolf/myTableModel.java	2007-11-25 22:21:12 UTC (rev 1105)
+@@ -16,7 +16,7 @@
+ */
+ public class myTableModel extends TableModel{
+ 	
+-	public static final int MAXCOLUMNS=12;
++	public static final int MAXCOLUMNS=14;
+ 	// Colors for Cache status (BG unless otherwise stated)
+ 	private static final Color COLOR_FLAGED		= new Color(255,255,0);
+ 	private static final Color COLOR_FOUND		= new Color(152,251,152);
+@@ -30,12 +30,17 @@
+ 	/** How the columns are mapped onto the list view. If colMap[i]=j, it means that
+ 	 * the element j (as per the list below) is visible in column i. 
+ 	 * [0]TickBox, [1]Type, [2]Distance, [3]Terrain, [4]waypoint, [5]name, [6]coordinates, 
+-	 * [7]owner, [8]datehidden, [9]status, [10]distance, [11]bearing, [12] Size
++	 * [7]owner, [8]datehidden, [9]status, [10]distance, [11]bearing, [12] Size, [13] # of OC recommend.
++	 * [14] OC index
+ 	 */
+ 	private int[] colMap;
+ 	/** The column widths corresponding to the list of columns above */
+ 	private int[] colWidth;
+-	private String [] colName = {&quot; &quot;,&quot;?&quot;,MyLocale.getMsg(1000,&quot;D&quot;),MyLocale.getMsg(1001,&quot;T&quot;),MyLocale.getMsg(1002,&quot;Waypoint&quot;),&quot;Name&quot;,MyLocale.getMsg(1004,&quot;Location&quot;),MyLocale.getMsg(1005,&quot;Owner&quot;),MyLocale.getMsg(1006,&quot;Hidden&quot;),MyLocale.getMsg(1007,&quot;Status&quot;),MyLocale.getMsg(1008,&quot;Dist&quot;),MyLocale.getMsg(1009,&quot;Bear&quot;),MyLocale.getMsg(1017,&quot;S&quot;)};//TODO
++	private String [] colName = {&quot; &quot;,&quot;?&quot;,MyLocale.getMsg(1000,&quot;D&quot;),MyLocale.getMsg(1001,&quot;T&quot;),
++			MyLocale.getMsg(1002,&quot;Waypoint&quot;),&quot;Name&quot;,MyLocale.getMsg(1004,&quot;Location&quot;),
++			MyLocale.getMsg(1005,&quot;Owner&quot;),MyLocale.getMsg(1006,&quot;Hidden&quot;),MyLocale.getMsg(1007,&quot;Status&quot;),
++			MyLocale.getMsg(1008,&quot;Dist&quot;),MyLocale.getMsg(1009,&quot;Bear&quot;),MyLocale.getMsg(1017,&quot;S&quot;),
++			MyLocale.getMsg(1026,&quot;#Rec&quot;),MyLocale.getMsg(1027,&quot;OC-IDX&quot;)};
+ 	
+ 	public static Image cacheImages[] = new Image[454]; // Images are used by TableControl
+ 	private static Image noFindLogs[] = new Image[4];
+@@ -114,7 +119,7 @@
+ 	 *
+ 	 */
+ 	public void setColumnNamesAndWidths() {
+-		colMap=TableColumnChooser.str2Array(Global.getPref().listColMap,0,12,0, -1);
++		colMap=TableColumnChooser.str2Array(Global.getPref().listColMap,0,14,0, -1);
+ 		colWidth=TableColumnChooser.str2Array(Global.getPref().listColWidth,10,1024,50, colMap.length);
+ 		numCols=colMap.length;
+ 		clearCellAdjustments();
+@@ -294,6 +299,14 @@
+ 							case 'V': return picSizeVLarge;
+ 							default: return &quot;?&quot;;
+ 						}
++					case 13: // OC number of recommendations
++						if (ch.wayPoint.startsWith(&quot;OC&quot;))
++							return (new Integer(ch.numRecommended)).toString();
++						return null;
++					case 14: // OC rating	
++						if (ch.wayPoint.startsWith(&quot;OC&quot;))
++							return (new Integer(ch.recommendationScore)).toString();
++						return null;
+ 				} // Switch
+ 			} // if
+ 		} catch (Exception e) { return null; }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000997.html">[Cachewolf-svn] r1104 - in trunk/src/CacheWolf: . navi
+</A></li>
+	<LI>Next message: <A HREF="000999.html">[Cachewolf-svn] r1106 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#998">[ date ]</a>
+              <a href="thread.html#998">[ thread ]</a>
+              <a href="subject.html#998">[ subject ]</a>
+              <a href="author.html#998">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

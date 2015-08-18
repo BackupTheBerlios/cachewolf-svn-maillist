@@ -1,0 +1,582 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1997 - in trunk/src/CacheWolf: . imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-July/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1997%20-%20in%20trunk/src/CacheWolf%3A%20.%20imp&In-Reply-To=%3C200907071710.n67HAFmS018861%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001915.html">
+   <LINK REL="Next"  HREF="001917.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1997 - in trunk/src/CacheWolf: . imp</H1>
+    <B>engywuck at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1997%20-%20in%20trunk/src/CacheWolf%3A%20.%20imp&In-Reply-To=%3C200907071710.n67HAFmS018861%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1997 - in trunk/src/CacheWolf: . imp">engywuck at mail.berlios.de
+       </A><BR>
+    <I>Tue Jul  7 19:10:15 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001915.html">[Cachewolf-svn] r1996 - trunk/res_noewe
+</A></li>
+        <LI>Next message: <A HREF="001917.html">[Cachewolf-svn] r1998 - trunk/src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1916">[ date ]</a>
+              <a href="thread.html#1916">[ thread ]</a>
+              <a href="subject.html#1916">[ subject ]</a>
+              <a href="author.html#1916">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: engywuck
+Date: 2009-07-07 19:10:05 +0200 (Tue, 07 Jul 2009)
+New Revision: 1997
+
+Modified:
+   trunk/src/CacheWolf/CacheImages.java
+   trunk/src/CacheWolf/DescriptionPanel.java
+   trunk/src/CacheWolf/ImagePanel.java
+   trunk/src/CacheWolf/imp/GPXImporter.java
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+After some enhancements and bug fixes: Now images are reused if a cache is updated and the same image (from geocaching) is already known to the cache.
+Also fixed a bug where image spidering didn't work corretly (GCQYV9), due to excessive use of same image links in multiple places in the cache description. Because of this bugfix image files for GC are now named continously, without gaps. 
+Also new: When an image is no longer needed after a cache update, it is deleted. 
+(<A HREF="http://www.geoclub.de/viewtopic.php?f=40&amp;t=33353">http://www.geoclub.de/viewtopic.php?f=40&amp;t=33353</A>)
+
+Modified: trunk/src/CacheWolf/CacheImages.java
+===================================================================
+--- trunk/src/CacheWolf/CacheImages.java	2009-07-06 21:22:36 UTC (rev 1996)
++++ trunk/src/CacheWolf/CacheImages.java	2009-07-07 17:10:05 UTC (rev 1997)
+@@ -4,6 +4,7 @@
+ package CacheWolf;
+ 
+ import utils.FileBugfix;
++import ewe.io.File;
+ import ewe.util.Vector;
+ 
+ /**
+@@ -80,8 +81,9 @@
+ 	/**
+ 	 * Fills the &lt;code&gt;display&lt;/code&gt; collection with the images that really should display
+ 	 * in the image panel.
++	 * @param prefix The prefix which is used to name default image titles
+ 	 */
+-	private void checkForDisplayImages() {
++	private void checkForDisplayImages(String prefix) {
+ 		if (this.size()&gt;1) {
+ 			display = new CacheImages(this.size());
+ 			// Loop over every image
+@@ -95,8 +97,8 @@
+ 					// Are the filenames the same?
+ 					if (currImg.getFilename().equals(testImg.getFilename())) {
+ 						// Check if other title is better than current one
+-						if (currImg.getFilename().startsWith(currImg.getTitle()) &amp;&amp;
+-							!testImg.getFilename().startsWith(testImg.getTitle())) {
++						if (currImg.getTitle().startsWith(prefix) &amp;&amp;
++							!testImg.getTitle().startsWith(prefix)) {
+ 							// If yes: Don't show the image
+ 							shouldDisplay = false;
+ 						}
+@@ -110,16 +112,17 @@
+ 	/**
+ 	 * Returns a CacheImage collection of the images that should be displayed in the 
+ 	 * image panel. An image should &lt;b&gt;not&lt;/b&gt; be present in this collection if its title is 
+-	 * equivalent to its filename and if there is another image referring to the same file but
++	 * starting with the indicated prefix and if there is another image referring to the same file but
+ 	 * with a different title.&lt;br&gt;
+ 	 * Normally, the results are cached and don't need to be evaluated again. If they should
+ 	 * be reevaluated for whatever reason, then pass &lt;code&gt;true&lt;/code&gt; as parameter.  
++	 * @param prefix The prefix which is used to name default image titles
+ 	 * @param forceEvaluation When &lt;code&gt;true&lt;/code&gt; the images that should display are
+ 	 * reexamined.
+ 	 * @return The CacheImage collection of images. 
+ 	 */
+-	public CacheImages getDisplayImages(boolean forceEvaluation) {
+-		if (display == null || forceEvaluation) this.checkForDisplayImages();
++	public CacheImages getDisplayImages(String prefix, boolean forceEvaluation) {
++		if (display == null || forceEvaluation) this.checkForDisplayImages(prefix);
+ 		if (display == null) {
+ 			return this;
+ 		} else {
+@@ -132,10 +135,11 @@
+ 	 * image panel. An image should &lt;b&gt;not&lt;/b&gt; be present in this collection if its title is 
+ 	 * equivalent to its filename and if there is another image referring to the same file but
+ 	 * with a different title.
++	 * @param prefix The prefix which is used to name default image titles
+ 	 * @return The CacheImage collection of images. 
+ 	 */
+-	public CacheImages getDisplayImages() {
+-		return this.getDisplayImages(false);
++	public CacheImages getDisplayImages(String prefix) {
++		return this.getDisplayImages(prefix, false);
+ 	}
+ 	
+ 	/**
+@@ -145,21 +149,21 @@
+ 	 * &lt;code&gt;<A HREF="http://img.groundspeak.com/cache/&lt;/code">http://img.groundspeak.com/cache/&lt;/code</A>&gt;. (Reason: Images at these places don't change - 
+ 	 * if images change, they get a new url.)&lt;/li&gt;
+ 	 * &lt;li&gt;An image with the given URL is among the images of the caches image object.&lt;/li&gt;
++	 * &lt;li&gt;The intended file name is the same.&lt;/li&gt;
+ 	 * &lt;li&gt;The image is present in the file system.&lt;/li&gt;
+ 	 * &lt;/ul&gt; If no spidering is needed, then the &lt;code&gt;ImageInfo&lt;/code&gt; object of the equivalent image is
+ 	 * returned, otherwise (when spidering is needed) &lt;code&gt;null&lt;/code&gt; is returned.
+-	 * @param pUrl URL to check
++	 * @param pNewUrl URL to check
+ 	 * @return ImageInfo object
+ 	 */
+-	public ImageInfo needsSpidering(String pUrl, String pFilename) {
+-		String url = pUrl.toLowerCase();
++	public ImageInfo needsSpidering(String pNewUrl, String pFilename) {
++		String newUrl = CacheImages.optimizeLink(pNewUrl);
+ 		ImageInfo result = null;
+ 		if (this.size() &gt; 0 &amp;&amp; 
+-				(url.startsWith(&quot;<A HREF="http://img.geocaching.com/cache/">http://img.geocaching.com/cache/</A>&quot;)
+-				 || url.startsWith(&quot;<A HREF="http://img.groundspeak.com/cache/">http://img.groundspeak.com/cache/</A>&quot;))) {
++				(newUrl.startsWith(&quot;<A HREF="http://img.geocaching.com/cache/">http://img.geocaching.com/cache/</A>&quot;))) {
+ 			for (int i=0; i&lt;this.size(); i++) {
+ 				ImageInfo img = this.get(i);
+-				if (img.getURL().toLowerCase().equals(url) 
++				if (CacheImages.optimizeLink(img.getURL()).equals(newUrl) 
+ 						&amp;&amp; img.getFilename().equals(pFilename)) {
+ 					String location = Global.getProfile().dataDir + pFilename;
+ 					if ((new FileBugfix(location)).exists()) {
+@@ -172,4 +176,63 @@
+ 		return result;
+ 	}
+ 	
+-}
+\ No newline at end of file
++	/**
++	 * Checks if an image with a certain filename is present in the collection of the caches 
++	 * images.
++	 * @param filename Filename to check
++	 * @return &lt;code&gt;true&lt;/code&gt; if there is such a file, &lt;code&gt;false&lt;/code&gt; if not.
++	 */
++	private boolean hasFile(String filename) {
++		boolean result = false;
++		for (int i=0; i&lt;this.size(); i++) {
++			if (this.get(i).getFilename().toUpperCase().equals(filename.toUpperCase())) {
++				result = true;
++				break;
++			}
++		}
++		return result;
++	}
++	
++	/**
++	 * Deletes images that are no longer needed. It takes two CacheImage objects as arguments, one
++	 * as a collection of images before an update, the other after. Then every file in the old 
++	 * collection is checked if it is also present in the new collection. If not, the file is deleted.
++	 * Note that the &lt;i&gt;content&lt;/i&gt; of the files is irrelevant. It is only important to remove files
++	 * - regardles of their contents - if they are no longer referenced after a cache update. 
++	 * @param oldImages Set of images before update
++	 * @param newImages Set of images after update
++	 */
++	public static void cleanupOldImages(CacheImages oldImages, CacheImages newImages) {
++		// Loop over every image in the old collection
++		for (int i=0; i&lt;oldImages.size(); i++) {
++			// Check if image file is present in new collection
++			String obsoleteFilename = oldImages.get(i).getFilename();
++			if (!newImages.hasFile(obsoleteFilename)) {
++				String location = Global.getProfile().dataDir + obsoleteFilename;
++				File tmpFile = new File(location);
++				if (tmpFile.exists() &amp;&amp; tmpFile.canWrite()) {
++					Global.getPref().log(&quot;Image not longer needed. Deleting: &quot;+obsoleteFilename);
++					tmpFile.delete();
++				}
++			}
++		}
++	}
++	
++	/**
++	 * Takes an image url and does some optimization: As img.groundspeak.com is the same as
++	 * img.geocaching.com and the former is sometimes used by owners in the cache listing html, 
++	 * this method replaces img.groundspeak.com by img.geocaching.com, in order to be able to 
++	 * identify identical pictures as such.
++	 * @param pUrl URL to modify
++	 * @return Same URL, eventually modified
++	 */
++	public static String optimizeLink(String pUrl) {
++		String url = pUrl;
++		// img.groundspeak.com is same as img.geocaching.com, so replace it
++		if (url.toLowerCase().startsWith(&quot;<A HREF="http://img.groundspeak.com/">http://img.groundspeak.com/</A>&quot;)) {
++			url = &quot;<A HREF="http://img.geocaching.com/">http://img.geocaching.com/</A>&quot; + url.substring(27);
++		}
++		return url;
++	}
++	
++}
+
+Modified: trunk/src/CacheWolf/DescriptionPanel.java
+===================================================================
+--- trunk/src/CacheWolf/DescriptionPanel.java	2009-07-06 21:22:36 UTC (rev 1996)
++++ trunk/src/CacheWolf/DescriptionPanel.java	2009-07-07 17:10:05 UTC (rev 1997)
+@@ -9,16 +9,16 @@
+ /**
+ *	This class shows the long description on a cache.
+ *  Test with GC1CC5T - Final
+-*            GC19DDX -
++*            GC19DDX - 
+ */
+ public class DescriptionPanel extends CellPanel{
+ 	HtmlDisplay disp = new HtmlDisplay();
+ 	mButton btnPlus, btnMinus;
+ 	CacheHolder currCache;
+-
++	
+ 	CellPanel buttonP = new CellPanel();
+ 	CellPanel descP = new CellPanel();
+-
++	
+ 	private String desc;
+ 
+ 	public DescriptionPanel(){
+@@ -31,7 +31,7 @@
+ 		this.addLast(buttonP,CellConstants.HSTRETCH,CellConstants.HFILL);
+ 		clear();
+ 	}
+-
++	
+ 	/**
+          * Set the text to display. Text should be HTML formated.
+          */
+@@ -128,7 +128,7 @@
+         //}
+         currCache = cache;
+     }
+-
++	
+ 	/**
+ 	 * Get the descriptions for the pictures (if they exist)
+ 	 * @param imagesShown images already shown as part of long description (don't show again)
+@@ -148,17 +148,17 @@
+ 		}
+ 		return sb.toString();
+ 	}
+-
++	
+ 	public void clear() {
+ 		disp.setPlainText(&quot;loading ...&quot;);
+ 		currCache = null;
+ 	}
+-
++	
+ 	/**
+ 	 * Eventhandler
+ 	 */
+ 	public void onEvent(Event ev){
+-
++		
+ 		if(ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.PRESSED){
+ 			if (ev.target == btnPlus){
+ 				Font currFont = disp.getFont();
+
+Modified: trunk/src/CacheWolf/ImagePanel.java
+===================================================================
+--- trunk/src/CacheWolf/ImagePanel.java	2009-07-06 21:22:36 UTC (rev 1996)
++++ trunk/src/CacheWolf/ImagePanel.java	2009-07-07 17:10:05 UTC (rev 1997)
+@@ -50,7 +50,7 @@
+ 			clearImages();
+ 			thumb_size = ((pref.myAppWidth-2*padding) / 3);
+ 			thumb_size = thumb_size - padding;
+-			int rowCounter = cache.images.getDisplayImages().size() + cache.userImages.size();
++			int rowCounter = cache.images.getDisplayImages(cache.getParent().getWayPoint()).size() + cache.userImages.size();
+ 			rowCounter = (rowCounter/3)+1;
+ 			Rect r = new Rect(0, 0, pref.myAppWidth, rowCounter*thumb_size+rowCounter*padding+padding);
+ 			this.virtualSize = r;
+@@ -61,7 +61,7 @@
+ 			addTitle(MyLocale.getMsg(340,&quot;Cache Images:&quot;));
+ 			locY = 20;
+ 			locX = padding;
+-			addImages(cache.images.getDisplayImages());
++			addImages(cache.images.getDisplayImages(cache.getParent().getWayPoint()));
+ 			// load user images
+ 			if(locCounter==1 || locCounter ==2) locY = locY + thumb_size;
+ 			//Vm.debug(&quot;thumb_size: &quot; + Convert.toString(thumb_size));
+
+Modified: trunk/src/CacheWolf/imp/GPXImporter.java
+===================================================================
+--- trunk/src/CacheWolf/imp/GPXImporter.java	2009-07-06 21:22:36 UTC (rev 1996)
++++ trunk/src/CacheWolf/imp/GPXImporter.java	2009-07-07 17:10:05 UTC (rev 1997)
+@@ -2,6 +2,7 @@
+ 
+ import CacheWolf.CacheDB;
+ import CacheWolf.CacheHolder;
++import CacheWolf.CacheImages;
+ import CacheWolf.CacheSize;
+ import CacheWolf.CacheTerrDiff;
+ import CacheWolf.CacheType;
+@@ -312,28 +313,27 @@
+ 								//mpl.loadTo(profile.dataDir + &quot;/&quot; + holder.wayPoint + &quot;_map_2.gif&quot;, &quot;10&quot;);
+ 							}
+ 						}
+-					if(holder.getWayPoint().startsWith(&quot;GC&quot;)|| fromTC) {
+-						//spiderImages();
+-						spiderImagesUsingSpider();
+-						//Rename image sources
+-						String text;
+-						String orig;
+-						String imgName;
+-						orig = holder.getFreshDetails().LongDescription;
+-						Extractor ex = new Extractor(orig, &quot;&lt;img src=\&quot;&quot;, &quot;&gt;&quot;, 0, false);
+-						text = ex.findNext();
+-						int num = 0;
+-						while(ex.endOfSearch() == false &amp;&amp; spiderOK == true){
+-							//Vm.debug(&quot;Replacing: &quot; + text);
+-							if (num &gt;= holder.getFreshDetails().images.size())break;
+-							imgName = holder.getFreshDetails().images.get(num).getTitle();
+-							holder.getFreshDetails().LongDescription = replace(holder.getFreshDetails().LongDescription, text, &quot;[[Image: &quot; + imgName + &quot;]]&quot;);
+-							num++;
++						if(holder.getWayPoint().startsWith(&quot;GC&quot;)|| fromTC) {
++							//spiderImages();
++							spiderImagesUsingSpider();
++							//Rename image sources
++							String text;
++							String orig;
++							String imgName;
++							orig = holder.getFreshDetails().LongDescription;
++							Extractor ex = new Extractor(orig, &quot;&lt;img src=\&quot;&quot;, &quot;&gt;&quot;, 0, false);
+ 							text = ex.findNext();
++							int num = 0;
++							while(ex.endOfSearch() == false &amp;&amp; spiderOK == true){
++								//Vm.debug(&quot;Replacing: &quot; + text);
++								if (num &gt;= holder.getFreshDetails().images.size())break;
++								imgName = holder.getFreshDetails().images.get(num).getTitle();
++								holder.getFreshDetails().LongDescription = replace(holder.getFreshDetails().LongDescription, text, &quot;[[Image: &quot; + imgName + &quot;]]&quot;);
++								num++;
++								text = ex.findNext();
++							}
+ 						}
+ 					}
+-						
+-					}
+ 				}
+ 				holder.save();
+ 				//crw.saveIndex(cacheDB,saveDir);
+@@ -341,6 +341,9 @@
+ 			//Update cache data
+ 			else {
+ 				CacheHolder oldCh= cacheDB.get(index);
++				// Preserve images: Copy images from old cache version because here we didn't add
++				// any image information to the holder object.
++				holder.getFreshDetails().images = oldCh.getExistingDetails().images;
+ 				oldCh.update(holder);
+ 				oldCh.save();
+ 			}
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2009-07-06 21:22:36 UTC (rev 1996)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2009-07-07 17:10:05 UTC (rev 1997)
+@@ -33,6 +33,7 @@
+ import CacheWolf.CacheDB;
+ import CacheWolf.CacheHolder;
+ import CacheWolf.CacheHolderDetail;
++import CacheWolf.CacheImages;
+ import CacheWolf.CacheSize;
+ import CacheWolf.CacheTerrDiff;
+ import CacheWolf.CacheType;
+@@ -269,6 +270,13 @@
+ 				}
+ 				// preserve rating information
+ 				ch.setNumRecommended(cacheInDB.getNumRecommended());
++				if (pref.downloadPics) {
++					// delete obsolete images when we have current set
++					CacheImages.cleanupOldImages(cacheInDB.getExistingDetails().images, ch.getFreshDetails().images);
++				} else {
++					// preserve images if not downloaded
++					ch.getFreshDetails().images = cacheInDB.getExistingDetails().images;
++				}
+ 				cacheInDB.update(ch);
+ 				cacheInDB.save();
+ 			}
+@@ -1168,11 +1176,20 @@
+ 	 */
+ 	public void getImages(String doc, CacheHolderDetail chD){
+ 		int imgCounter = 0;
+-		String imgName, oldImgName, imgType, imgUrl, imgComment;
++		int spiderCounter = 0;
++		String fileName, imgName, imgType, imgUrl, imgComment;
+ 		Vector spideredUrls=new Vector(15);
+-		ImageInfo imageInfo;
++		ImageInfo imageInfo=null;
+ 		Extractor exImgBlock,exImgComment;
+ 		int idxUrl; // Index of already spidered Url in list of spideredUrls
++		CacheImages lastImages=null;
++		
++		// First: Get current image object of waypoint before spidering images.
++		CacheHolder oldCh = Global.getProfile().cacheDB.get(chD.getParent().getWayPoint());
++		if (oldCh != null) {
++			lastImages = oldCh.getFreshDetails().images;
++		}
++		
+ 		//========
+ 		//In the long description
+ 		//========
+@@ -1197,7 +1214,8 @@
+ 			imgUrl = exImgSrc.findNext();
+ 			//Vm.debug(&quot;Img Url: &quot; +imgUrl);
+ 			if(imgUrl.length()&gt;0){
+-				imgUrl = &quot;<A HREF="http://">http://</A>&quot; + imgUrl;
++				// Optimize: img.groundspeak.com -&gt; img.geocaching.com (for better caching purposes)
++				imgUrl = CacheImages.optimizeLink(&quot;<A HREF="http://">http://</A>&quot; + imgUrl);
+ 				try{
+ 					imgType = (imgUrl.substring(imgUrl.lastIndexOf(&quot;.&quot;)).toLowerCase()+&quot;    &quot;).substring(0,4).trim();
+ 					// imgType is now max 4 chars, starting with .
+@@ -1205,16 +1223,29 @@
+ 						// Check whether image was already spidered for this cache
+ 						idxUrl=spideredUrls.find(imgUrl);
+ 						imgName = chD.getParent().getWayPoint() + &quot;_&quot; + Convert.toString(imgCounter);
+-						imageInfo = new ImageInfo();
++						imageInfo = null;
+ 						if (idxUrl&lt;0) { // New image
+-							pref.log(&quot;Loading image: &quot; + imgUrl+&quot; as &quot;+imgName);
+-							spiderImage(imgUrl, imgName+imgType);
+-							imageInfo.setFilename(imgName+imgType);
++							fileName = chD.getParent().getWayPoint() + &quot;_&quot; + Convert.toString(spiderCounter);
++							if (lastImages != null) {
++								imageInfo = lastImages.needsSpidering(imgUrl, fileName+imgType);
++							}
++							if (imageInfo == null) {
++								imageInfo = new ImageInfo();
++								pref.log(&quot;Loading image: &quot; + imgUrl+&quot; as &quot;+fileName+imgType);
++								spiderImage(imgUrl, fileName+imgType);
++								imageInfo.setFilename(fileName+imgType);
++								imageInfo.setURL(imgUrl);
++							} else {
++								pref.log(&quot;Already exising image: &quot; + imgUrl+&quot; as &quot;+imageInfo.getFilename());
++							}
+ 							spideredUrls.add(imgUrl);
++							spiderCounter++;
+ 						} else { // Image already spidered as wayPoint_'idxUrl'
+-							pref.log(&quot;Already loaded image: &quot; + imgUrl);
+-							oldImgName = chD.getParent().getWayPoint() + &quot;_&quot; + Convert.toString(idxUrl);
+-							imageInfo.setFilename(oldImgName+imgType);
++							fileName = chD.getParent().getWayPoint() + &quot;_&quot; + Convert.toString(idxUrl);
++							pref.log(&quot;Already loaded image: &quot; + imgUrl+&quot; as &quot;+fileName+imgType);
++							imageInfo = new ImageInfo();
++							imageInfo.setFilename(fileName+imgType);
++							imageInfo.setURL(imgUrl);
+ 						}
+ 						imageInfo.setTitle(imgName);
+ 						imageInfo.setComment(null);
+@@ -1254,23 +1285,35 @@
+ 						// Check whether image was already spidered for this cache
+ 						idxUrl=spideredUrls.find(imgUrl);
+ 						imgName = chD.getParent().getWayPoint() + &quot;_&quot; + Convert.toString(imgCounter);
+-						imageInfo = new ImageInfo();
++						imageInfo = null;
+ 						if (idxUrl&lt;0) { // New image
+-							pref.log(&quot;Loading image: &quot; + imgUrl+&quot; as &quot;+imgName);
+-							spiderImage(imgUrl, imgName+imgType);
+-							imageInfo.setFilename(imgName+imgType);
++							fileName = chD.getParent().getWayPoint() + &quot;_&quot; + Convert.toString(spiderCounter);
++							if (lastImages != null) {
++								imageInfo = lastImages.needsSpidering(imgUrl, fileName+imgType);
++							}
++							if (imageInfo == null) {
++								imageInfo = new ImageInfo();
++								pref.log(&quot;Loading image: &quot; + imgUrl+&quot; as &quot;+fileName+imgType);
++								spiderImage(imgUrl, fileName+imgType);
++								imageInfo.setFilename(fileName+imgType);
++								imageInfo.setURL(imgUrl);
++							} else {
++								pref.log(&quot;Already exising image: &quot; + imgUrl+&quot; as &quot;+imageInfo.getFilename());
++							}
+ 							spideredUrls.add(imgUrl);
++							spiderCounter++;
+ 						} else { // Image already spidered as wayPoint_'idxUrl'
+-							pref.log(&quot;Already loaded image: &quot; + imgUrl);
+-							oldImgName = chD.getParent().getWayPoint() + &quot;_&quot; + Convert.toString(idxUrl);
+-							imageInfo.setFilename(oldImgName+imgType);
++							fileName = chD.getParent().getWayPoint() + &quot;_&quot; + Convert.toString(idxUrl);
++							pref.log(&quot;Already loaded image: &quot; + imgUrl+&quot; as &quot;+fileName+imgType);
++							imageInfo = new ImageInfo();
++							imageInfo.setFilename(fileName+imgType);
++							imageInfo.setURL(imgUrl);
+ 						}
+ 						imageInfo.setTitle(exImgName.findNext());
+ 						while (imgComment.startsWith(&quot;&lt;br /&gt;&quot;)) imgComment=imgComment.substring(6);
+ 						while (imgComment.endsWith(&quot;&lt;br /&gt;&quot;)) imgComment=imgComment.substring(0,imgComment.length()-6);
+ 						imageInfo.setComment(imgComment);
+ 						chD.images.add(imageInfo);
+-						imgCounter++;
+ 					}
+ 				} catch (IndexOutOfBoundsException e) {
+ 					pref.log(&quot;IndexOutOfBoundsException in image span. imgURL:&quot;+imgUrl,e);
+@@ -1284,7 +1327,8 @@
+ 		while(exFinal.endOfSearch() == false){
+ 			imgUrl = exFinal.findNext();
+ 			if(imgUrl.length()&gt;0){
+-				imgUrl = &quot;<A HREF="http://">http://</A>&quot; + imgUrl;
++				// Optimize: img.groundspeak.com -&gt; img.geocaching.com (for better caching purposes)
++				imgUrl = CacheImages.optimizeLink(&quot;<A HREF="http://">http://</A>&quot; + imgUrl);
+ 				try{
+ 					imgType = (imgUrl.substring(imgUrl.lastIndexOf(&quot;.&quot;)).toLowerCase()+&quot;    &quot;).substring(0,4).trim();
+ 					// imgType is now max 4 chars, starting with . Delete characters in URL after the image extension
+@@ -1293,12 +1337,22 @@
+ 						// Check whether image was already spidered for this cache
+ 						idxUrl=spideredUrls.find(imgUrl);
+ 						if (idxUrl&lt;0) { // New image
+-							imageInfo = new ImageInfo();
+ 							imgName = chD.getParent().getWayPoint() + &quot;_&quot; + Convert.toString(imgCounter);
+-							pref.log(&quot;Loading image: &quot; + imgUrl+&quot; as &quot;+imgName);
+-							spiderImage(imgUrl, imgName+imgType);
+-							imageInfo.setFilename(imgName+imgType);
++							fileName = chD.getParent().getWayPoint() + &quot;_&quot; + Convert.toString(spiderCounter);
++							if (lastImages != null) {
++								imageInfo = lastImages.needsSpidering(imgUrl, fileName+imgType);
++							}
++							if (imageInfo == null) {
++								imageInfo = new ImageInfo();
++								pref.log(&quot;Loading image: &quot; + imgUrl+&quot; as &quot;+fileName+imgType);
++								spiderImage(imgUrl, fileName+imgType);
++								imageInfo.setFilename(fileName+imgType);
++								imageInfo.setURL(imgUrl);
++							} else {
++								pref.log(&quot;Already exising image: &quot; + imgUrl+&quot; as &quot;+imageInfo.getFilename());
++							}
+ 							spideredUrls.add(imgUrl);
++							spiderCounter++;
+ 							imageInfo.setTitle(imgName);
+ 							imgCounter++;
+ 							chD.images.add(imageInfo);
+
+
+Property changes on: trunk/src/CacheWolf/imp/SpiderGC.java
+___________________________________________________________________
+Name: svn:mergeinfo
+   + 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001915.html">[Cachewolf-svn] r1996 - trunk/res_noewe
+</A></li>
+	<LI>Next message: <A HREF="001917.html">[Cachewolf-svn] r1998 - trunk/src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1916">[ date ]</a>
+              <a href="thread.html#1916">[ thread ]</a>
+              <a href="subject.html#1916">[ subject ]</a>
+              <a href="author.html#1916">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

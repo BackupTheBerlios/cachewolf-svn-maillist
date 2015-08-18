@@ -1,0 +1,145 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1418 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-April/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1418%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200804260021.m3Q0LDPm006293%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001311.html">
+   <LINK REL="Next"  HREF="001313.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1418 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1418%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200804260021.m3Q0LDPm006293%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1418 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Sat Apr 26 02:21:13 CEST 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001311.html">[Cachewolf-svn] r1417 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001313.html">[Cachewolf-svn] r1419 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1312">[ date ]</a>
+              <a href="thread.html#1312">[ thread ]</a>
+              <a href="subject.html#1312">[ subject ]</a>
+              <a href="author.html#1312">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2008-04-26 02:21:11 +0200 (Sat, 26 Apr 2008)
+New Revision: 1418
+
+Modified:
+   trunk/src/CacheWolf/GPSPortOptions.java
+Log:
+GPS options: set first focus not in the text field in order to avoid popping up of the SIP
+
+Modified: trunk/src/CacheWolf/GPSPortOptions.java
+===================================================================
+--- trunk/src/CacheWolf/GPSPortOptions.java	2008-04-25 23:46:13 UTC (rev 1417)
++++ trunk/src/CacheWolf/GPSPortOptions.java	2008-04-26 00:21:11 UTC (rev 1418)
+@@ -78,7 +78,7 @@
+ 
+ public class GPSPortOptions extends SerialPortOptions {
+ 	TextDisplay txtOutput;
+-	mButton btnTest;
++	mButton btnTest, btnUpdatePortList;
+ 	public mInput inputBoxForwardHost;
+ 	mLabel  labelForwardHost;
+ 	public mCheckBox forwardGpsChkB;
+@@ -87,10 +87,10 @@
+ 	public mCheckBox logGpsChkB;
+ 	mySerialThread serThread;
+ 	boolean gpsRunning = false;
++	MyEditor ed = new MyEditor();
+ 
+ 	
+ 	public Editor getEditor(){
+-		MyEditor ed = new MyEditor();
+ 		// The following lines are mainly copied from SerialPortOptions.
+ 		// Reason: We want to use MyEditor instead of the default Editor,
+ 		//         because the latter places the ok/cancel buttons centered.
+@@ -104,7 +104,8 @@
+ 		ed.addLast(is).setCell(CellConstants.HSTRETCH);
+ 		CellPanel cp = new CellPanel();
+ 		ed.addField(cp.addNext(new mComboBox()).setCell(CellConstants.HSTRETCH),&quot;portName&quot;);
+-		ed.addField(cp.addLast(new mButton(MyLocale.getMsg(7101,&quot;Update Ports$u&quot;))).setCell(CellConstants.DONTSTRETCH),&quot;update&quot;);
++		btnUpdatePortList = new mButton(MyLocale.getMsg(7101,&quot;Update Ports$u&quot;));
++		ed.addField(cp.addLast(btnUpdatePortList).setCell(CellConstants.DONTSTRETCH),&quot;update&quot;);
+ 		is.add(cp,&quot;Port:$p&quot;);
+ 		mComboBox cb = new mComboBox();
+ 		is.add(ed.addField(cb,&quot;baudRate&quot;),MyLocale.getMsg(7102,&quot;Baud:$b&quot;));
+@@ -128,16 +129,14 @@
+ 		inputBoxForwardHost.setPromptControl(labelForwardHost);
+ 		inputBoxForwardHost.setToolTip(MyLocale.getMsg(7106, &quot;All data from GPS will be sent to TCP-port 23\n and can be redirected there to a serial port\n by HW Virtual Serial Port&quot;));
+ 		ed.addField(ed.addLast(inputBoxForwardHost,0 , (CellConstants.WEST | CellConstants.HFILL)), &quot;tcpForwardHost&quot;);
+-		inputBoxForwardHost.setText(&quot;192.168.178.23&quot;);
+ 		logGpsChkB = new mCheckBox(&quot;&quot;);
+ 		ed.addField(ed.addNext(logGpsChkB, CellConstants.DONTSTRETCH, (CellConstants.EAST | CellConstants.DONTFILL)), &quot;logGpsChkB&quot;);
+ 		labelLogTimer = new mLabel(MyLocale.getMsg(7107, &quot;Interval in sec for logging&quot;));
+ 		ed.addField(ed.addNext(labelLogTimer, CellConstants.DONTSTRETCH, (CellConstants.WEST | CellConstants.DONTFILL)), &quot;labelLogTimer&quot;);
+ 		inputBoxLogTimer = new mInput(&quot;GPSLogTimer&quot;);
+ 		inputBoxLogTimer.setPromptControl(labelLogTimer);
+-		inputBoxLogTimer.setText(&quot;10&quot;);
+ 		ed.addField(ed.addLast(inputBoxLogTimer,0 , (CellConstants.WEST | CellConstants.HFILL)), &quot;GPSLogTimer&quot;);
+-
++		this.ed.firstFocus = btnUpdatePortList;
+ 		gpsRunning = false;
+ 		return ed;
+ 	}
+@@ -178,13 +177,15 @@
+ 	}
+ 	
+ 	public void fieldEvent(FieldTransfer xfer, Editor editor, Object event){
+-		try {
++		if ( event != null &amp;&amp; event instanceof EditorEvent) {
+ 			EditorEvent ev = (EditorEvent) event;
+-			if (xfer.fieldName.equals(&quot;_editor_&quot;) &amp;&amp; (ev.type == EditorEvent.CLOSED)) {
+-				if (serThread != null) serThread.stop();
++			if (xfer.fieldName.equals(&quot;_editor_&quot;)) {
++				if (ev.type == EditorEvent.CLOSED) {
++					if (serThread != null) serThread.stop();
++				}
+ 			}
+-		} catch (ClassCastException e) { } // happens if event is not an EditorEvent
+-		super.fieldEvent(xfer,editor,event);
++			super.fieldEvent(xfer,editor,event);
++		}
+ 	}
+ 	
+ 	private boolean testPort(String port, int baud){
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001311.html">[Cachewolf-svn] r1417 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001313.html">[Cachewolf-svn] r1419 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1312">[ date ]</a>
+              <a href="thread.html#1312">[ thread ]</a>
+              <a href="subject.html#1312">[ subject ]</a>
+              <a href="author.html#1312">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

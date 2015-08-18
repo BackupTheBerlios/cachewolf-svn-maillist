@@ -1,0 +1,158 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r3004 - in trunk/src/CacheWolf: exp imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2011-May/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r3004%20-%20in%20trunk/src/CacheWolf%3A%20exp%20imp&In-Reply-To=%3C20110514205749.483994813F7%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002994.html">
+   <LINK REL="Next"  HREF="002993.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r3004 - in trunk/src/CacheWolf: exp imp</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r3004%20-%20in%20trunk/src/CacheWolf%3A%20exp%20imp&In-Reply-To=%3C20110514205749.483994813F7%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r3004 - in trunk/src/CacheWolf: exp imp">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Sat May 14 10:57:49 CEST 2011</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002994.html">[Cachewolf-svn] r3003 - in trunk/src/CacheWolf: . exp imp
+</A></li>
+        <LI>Next message: <A HREF="002993.html">[Cachewolf-svn] r3002 - in trunk: res_noewe/languages src/CacheWolf	src/CacheWolf/exp src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2995">[ date ]</a>
+              <a href="thread.html#2995">[ thread ]</a>
+              <a href="subject.html#2995">[ subject ]</a>
+              <a href="author.html#2995">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2011-05-14 22:57:48 +0200 (Sat, 14 May 2011)
+New Revision: 3004
+
+Modified:
+   trunk/src/CacheWolf/exp/OCLogExport.java
+   trunk/src/CacheWolf/imp/OCLinkImporter.java
+Log:
+1. NPE in OCLogExport fixed
+2. subcheck in OCLinkImport for cachename fixed
+
+Modified: trunk/src/CacheWolf/exp/OCLogExport.java
+===================================================================
+--- trunk/src/CacheWolf/exp/OCLogExport.java	2011-05-14 16:21:34 UTC (rev 3003)
++++ trunk/src/CacheWolf/exp/OCLogExport.java	2011-05-14 20:57:48 UTC (rev 3004)
+@@ -50,6 +50,8 @@
+ 	}
+ 
+ 	public static void doOneLog(CacheHolder ch) {
++		if (!ch.is_found())
++			return;
+ 		// take GC log direct to OC, needs valid ch
+ 		Vm.showWait(true);
+ 		String wpName = ch.getOcCacheID();
+@@ -64,26 +66,28 @@
+ 					String page = &quot;&quot;;
+ 					try {
+ 						CacheHolderDetail chD = ch.getCacheDetails(false);
+-						page = UrlFetcher.fetch(url);
+-						loggedIn = page.indexOf(&quot;Eingeloggt als&quot;) &gt; -1; // next time perhaps
+-						String ocCacheId = new Extractor(page, &quot;viewcache.php?cacheid=&quot;, &quot;\&quot;&gt;&quot;, 0, true).findNext();
+-						String postData = &quot;cacheid=&quot; + ocCacheId + &quot;&amp;version3=1&amp;descMode=3&quot;;
+-						if (ch.getType() == CacheType.CW_TYPE_EVENT || ch.getType() == CacheType.CW_TYPE_EVENT)
+-							postData = postData + &quot;&amp;logtype=7&quot;;
+-						else
+-							postData = postData + &quot;&amp;logtype=1&quot;;
+-						Time logDate = DateFormat.toDate(chD.OwnLog.getDate());
+-						postData += &quot;&amp;logday=&quot; + logDate.day;
+-						postData += &quot;&amp;logmonth=&quot; + logDate.month;
+-						postData += &quot;&amp;logyear=&quot; + logDate.year;
+-						postData += &quot;&amp;logtext=&quot; + UrlFetcher.toUtf8Url(chD.OwnLog.getMessage());
+-						postData += &quot;&amp;submitform=Log+eintragen&quot;; // todo for other opencaching sites
+-						UrlFetcher.setpostData(postData);
+-						page = UrlFetcher.fetch(url);
+-						OCLinkImporter.updateOCLink(ch);
+-						if (ch.getOcCacheID().startsWith(&quot;-&quot;)) {
+-							ch.setOcCacheID(&quot;!&quot; + ch.getOcCacheID().substring(1));
+-							ch.save();
++						if (chD.OwnLog != null) {
++							page = UrlFetcher.fetch(url);
++							loggedIn = page.indexOf(&quot;Eingeloggt als&quot;) &gt; -1; // next time perhaps
++							String ocCacheId = new Extractor(page, &quot;viewcache.php?cacheid=&quot;, &quot;\&quot;&gt;&quot;, 0, true).findNext();
++							String postData = &quot;cacheid=&quot; + ocCacheId + &quot;&amp;version3=1&amp;descMode=3&quot;;
++							if (ch.getType() == CacheType.CW_TYPE_EVENT || ch.getType() == CacheType.CW_TYPE_EVENT)
++								postData = postData + &quot;&amp;logtype=7&quot;;
++							else
++								postData = postData + &quot;&amp;logtype=1&quot;;
++							Time logDate = DateFormat.toDate(chD.OwnLog.getDate());
++							postData += &quot;&amp;logday=&quot; + logDate.day;
++							postData += &quot;&amp;logmonth=&quot; + logDate.month;
++							postData += &quot;&amp;logyear=&quot; + logDate.year;
++							postData += &quot;&amp;logtext=&quot; + UrlFetcher.toUtf8Url(chD.OwnLog.getMessage());
++							postData += &quot;&amp;submitform=Log+eintragen&quot;; // todo for other opencaching sites
++							UrlFetcher.setpostData(postData);
++							page = UrlFetcher.fetch(url);
++							OCLinkImporter.updateOCLink(ch);
++							if (ch.getOcCacheID().startsWith(&quot;-&quot;)) {
++								ch.setOcCacheID(&quot;!&quot; + ch.getOcCacheID().substring(1));
++								ch.save();
++							}
+ 						}
+ 					} catch (IOException e) {
+ 						// dann nicht
+
+Modified: trunk/src/CacheWolf/imp/OCLinkImporter.java
+===================================================================
+--- trunk/src/CacheWolf/imp/OCLinkImporter.java	2011-05-14 16:21:34 UTC (rev 3003)
++++ trunk/src/CacheWolf/imp/OCLinkImporter.java	2011-05-14 20:57:48 UTC (rev 3004)
+@@ -29,6 +29,7 @@
+ import CacheWolf.CacheDB;
+ import CacheWolf.CacheHolder;
+ import CacheWolf.Common;
++import CacheWolf.Extractor;
+ import CacheWolf.Global;
+ import CacheWolf.OC;
+ import CacheWolf.SafeXML;
+@@ -103,7 +104,8 @@
+ 					String nLon = ch.pos.getLonDeg(CWPoint.DD);
+ 					url = baseurl + &quot;mode=locate&amp;lat=&quot; + nLat + &quot;&amp;lon=&quot; + nLon;
+ 					result = SafeXML.cleanback(UrlFetcher.fetch(url));
+-					if (result.indexOf(ch.cacheName) &gt; -1) {
++					String ocCacheName = new Extractor(result, &quot;name=\&quot;&quot;, &quot;\&quot;&quot;, 0, true).findNext();
++					if (ch.cacheName.equals(ocCacheName)) {
+ 						hasOC = true;
+ 					} else {
+ 						int start = result.indexOf(&quot;coords=\&quot;&quot;) + 8;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002994.html">[Cachewolf-svn] r3003 - in trunk/src/CacheWolf: . exp imp
+</A></li>
+	<LI>Next message: <A HREF="002993.html">[Cachewolf-svn] r3002 - in trunk: res_noewe/languages src/CacheWolf	src/CacheWolf/exp src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2995">[ date ]</a>
+              <a href="thread.html#2995">[ thread ]</a>
+              <a href="subject.html#2995">[ subject ]</a>
+              <a href="author.html#2995">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

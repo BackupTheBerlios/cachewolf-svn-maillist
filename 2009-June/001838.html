@@ -1,0 +1,390 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1920 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-June/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1920%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200906171731.n5HHVnKe026769%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001837.html">
+   <LINK REL="Next"  HREF="001839.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1920 - trunk/src/CacheWolf</H1>
+    <B>apreisser at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1920%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200906171731.n5HHVnKe026769%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1920 - trunk/src/CacheWolf">apreisser at mail.berlios.de
+       </A><BR>
+    <I>Wed Jun 17 19:31:49 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001837.html">[Cachewolf-svn] r1919 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001839.html">[Cachewolf-svn] r1921 - trunk/res_noewe/languages
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1838">[ date ]</a>
+              <a href="thread.html#1838">[ thread ]</a>
+              <a href="subject.html#1838">[ subject ]</a>
+              <a href="author.html#1838">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: apreisser
+Date: 2009-06-17 19:31:38 +0200 (Wed, 17 Jun 2009)
+New Revision: 1920
+
+Modified:
+   trunk/src/CacheWolf/CacheHolder.java
+   trunk/src/CacheWolf/DataMover.java
+   trunk/src/CacheWolf/Preferences.java
+Log:
+A dialog is presented to decide whether visible or marked waypoints are to be moved or copied to another profile.
+
+Modified: trunk/src/CacheWolf/CacheHolder.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolder.java	2009-06-17 17:28:43 UTC (rev 1919)
++++ trunk/src/CacheWolf/CacheHolder.java	2009-06-17 17:31:38 UTC (rev 1920)
+@@ -18,7 +18,7 @@
+  *	classes and methods to get more information.
+  *	
+  */
+-public class CacheHolder {
++public class CacheHolder implements Cloneable{
+ 	protected static final String NOBEARING = &quot;?&quot;;
+ 	protected static final String EMPTY = &quot;&quot;;
+ 
+@@ -1403,5 +1403,13 @@
+ 		this.hasNote = hasNote;
+ 	}
+ 
++	/**
++	 * Create a swallow-copy(!) no deep copy
++	 */
++	protected Object clone() throws CloneNotSupportedException {
++		return super.clone();
++	}
++
++	
+ }
+ 
+
+Modified: trunk/src/CacheWolf/DataMover.java
+===================================================================
+--- trunk/src/CacheWolf/DataMover.java	2009-06-17 17:28:43 UTC (rev 1919)
++++ trunk/src/CacheWolf/DataMover.java	2009-06-17 17:31:38 UTC (rev 1920)
+@@ -1,10 +1,13 @@
+ package CacheWolf;
+ 
++import java.util.BitSet;
++
+ import utils.FileBugfix;
+ import ewe.filechooser.FileChooser;
+ import ewe.filechooser.FileChooserBase;
+ import ewe.io.*;
+ import ewe.ui.*;
++import ewe.util.Iterator;
+ import ewe.sys.*;
+ 
+ 
+@@ -25,11 +28,12 @@
+ 	}
+ 	public void deleteCaches(){
+ 		
+-		MessageBox mBox = new MessageBox (MyLocale.getMsg(144,&quot;Warning&quot;),MyLocale.getMsg(145,&quot;Cachedata of ALL VISIBLE caches will be deleted! Continue?&quot;), FormBase.IDYES |FormBase.IDNO);
+-		if (mBox.execute() != FormBase.IDOK){
++		int mode = showMessageBox(251,&quot;All waypoints will be deleted&quot;);
++		if (mode == -1){
+ 			return;
+ 		}
+-		processCaches(new Deleter(MyLocale.getMsg(143, &quot;Delete&quot;)));
++		
++		processCaches(new Deleter(MyLocale.getMsg(143, &quot;Delete&quot;)), mode);
+ 		// write indexfiles
+ 		profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
+ 	}
+@@ -40,21 +44,110 @@
+ 		dstProfile.dataDir=selectTargetDir();
+ 		if (dstProfile.dataDir.equals(profile.dataDir) ||
+ 			dstProfile.dataDir.equals(&quot;&quot;)) return;
+-		MessageBox mBox = new MessageBox (MyLocale.getMsg(144,&quot;Warning&quot;),MyLocale.getMsg(146,&quot;Cachedata of ALL VISIBLE caches will be copied! Continue?&quot;), FormBase.IDYES |FormBase.IDNO);
+-		if (mBox.execute() != FormBase.IDOK){
++		
++		//Von Andi P
++		int mode = showMessageBox(253,&quot;All waypoints will be copied&quot;);
++		if (mode == -1){
+ 			return;
+ 		}
++		//Ende
+ 		
+ 		// Read indexfile of destination, if one exists
+ 		File ftest = new File(dstProfile.dataDir + &quot;index.xml&quot;);
+ 		if(ftest.exists()){
+ 			dstProfile.readIndex();
+ 		}
+-		processCaches(new Copier(MyLocale.getMsg(141, &quot;Copy&quot;),dstProfile));
++		processCaches(new Copier(MyLocale.getMsg(141, &quot;Copy&quot;),dstProfile), mode);
+ 		// write indexfiles and keep the filter status
+ 		dstProfile.saveIndex(pref, Profile.NO_SHOW_PROGRESS_BAR);
++		//Now repair the cache-Vector:
++		for(int i =0; i &lt; srcDB.size();i++){
++			CacheHolder holder = srcDB.get(i);
++			for(Iterator j=holder.addiWpts.iterator(); j.hasNext();){
++				CacheHolder element = (CacheHolder) j.next();
++				element.mainCache = holder;
++			}
++		}
+ 	}
+ 	
++	/**
++	 * Shows the messagebox before copying/moving/deleting waypoints.
++	 * It returns the mode selected by the user.
++	 * 0 means all visible
++	 * 1 means all ticked
++	 * 2 means all visible and ticked cache
++	 * -1 means the user has pressed `Cancel' and no action has to be taken.
++	 * @return mode selected by the user
++	 */
++	private int showMessageBox(int actionTextNr, String defaultValue) {
++		DataMoverForm cpf = new DataMoverForm ();
++		cpf.setTickedText(makeTickedText ());
++		cpf.setVisibleText(makeVisibleText ());
++		cpf.setTickedVisibleText(makeVisibleTickedText ());
++		cpf.setFirstLineText(MyLocale.getMsg(actionTextNr, defaultValue));
++		int dialogResult = cpf.execute(null, Gui.CENTER_FRAME);
++		if (dialogResult != FormBase.IDOK){
++			return -1;
++		}
++		int mode = cpf.getMode();
++		return mode;
++	}
++
++	private String makeTickedText() {
++		int size=srcDB.size();
++		int countMainWP=0;
++		int countAddiWP=0;
++		// Count the number of caches to move/delete/copy
++		for(int i = 0; i&lt;size; i++) {
++			if(srcDB.get(i).is_Checked &amp;&amp; !srcDB.get(i).isAddiWpt()){
++				countMainWP++;
++			}
++			else if (srcDB.get(i).is_Checked &amp;&amp; srcDB.get(i).isAddiWpt()){
++				countAddiWP++;
++			}
++		}
++		return MyLocale.getMsg(255, &quot;All ticked&quot;) + &quot; (&quot;+countMainWP+
++			' ' + MyLocale.getMsg(257, &quot;Main&quot;) + &quot;, &quot;+countAddiWP +
++			MyLocale.getMsg(258, &quot; Addi&quot;) +')';
++	}
++	
++	private String makeVisibleText() {
++		int size=srcDB.size();
++		int countMainWP=0;
++		int countAddiWP=0;
++		// Count the number of caches to move/delete/copy
++		for(int i = 0; i&lt;size; i++) {
++			if(srcDB.get(i).isVisible() &amp;&amp; !srcDB.get(i).isAddiWpt()){
++				countMainWP++;
++			}
++			else if (srcDB.get(i).isVisible() &amp;&amp; srcDB.get(i).isAddiWpt()){
++				countAddiWP++;
++			}
++		}
++		return MyLocale.getMsg(254, &quot;All visible&quot;) + &quot; (&quot;+countMainWP+
++			' ' + MyLocale.getMsg(257, &quot;Main&quot;) + &quot;, &quot;+countAddiWP +
++			MyLocale.getMsg(258, &quot; Addi&quot;) +')';
++	}
++
++	private String makeVisibleTickedText() {
++		int size=srcDB.size();
++		int countMainWP=0;
++		int countAddiWP=0;
++		// Count the number of caches to move/delete/copy
++		for(int i = 0; i&lt;size; i++) {
++			if(srcDB.get(i).isVisible() &amp;&amp; srcDB.get(i).is_Checked &amp;&amp; !srcDB.get(i).isAddiWpt()){
++				countMainWP++;
++			}
++			else if (srcDB.get(i).isVisible() &amp;&amp; srcDB.get(i).is_Checked &amp;&amp; srcDB.get(i).isAddiWpt()){
++				countAddiWP++;
++			}
++		}
++		return MyLocale.getMsg(256, &quot;All visible and ticked&quot;) + &quot; (&quot;+countMainWP+
++		' ' + MyLocale.getMsg(257, &quot;Main&quot;) + &quot;, &quot;+countAddiWP +
++		MyLocale.getMsg(258, &quot; Addi&quot;) +')';
++	}
++
++	
+ 	public void moveCaches() {
+ 		Profile dstProfile=new Profile();
+ 		// Select destination directory
+@@ -62,17 +155,17 @@
+ 		if (dstProfile.dataDir.equals(profile.dataDir) ||
+ 			dstProfile.dataDir.equals(&quot;&quot;)) return;
+ 		
+-		MessageBox mBox = new MessageBox (MyLocale.getMsg(144,&quot;Warning&quot;),MyLocale.getMsg(147,&quot;Cachedata of ALL VISIBLE caches will be moved! Continue?&quot;), FormBase.IDYES |FormBase.IDNO);
+-		if (mBox.execute() != FormBase.IDOK){
++		int mode = showMessageBox(252, &quot;All waypoints will be moved&quot;);
++		if (mode == -1){
+ 			return;
+ 		}
+-		
++				
+ 		// Read indexfile of destination, if one exists
+ 		File ftest = new File(dstProfile.dataDir + &quot;index.xml&quot;);
+ 		if(ftest.exists()){
+ 			dstProfile.readIndex();		
+ 		}
+-		processCaches(new Mover(MyLocale.getMsg(142, &quot;Move&quot;),dstProfile));
++		processCaches(new Mover(MyLocale.getMsg(142, &quot;Move&quot;),dstProfile), mode);
+ 		// write indexfiles
+ 		dstProfile.saveIndex(pref, Profile.NO_SHOW_PROGRESS_BAR); 
+ 		profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
+@@ -81,14 +174,43 @@
+ 	 /**
+ 	  * This function carries out the copy/delete/move with a progress bar. 
+ 	  * The Executor class defines what operation is to be carried out.
++	  * mode defines if visible/marked or visible and markes caches are be processed.
++	  * 0 means all visible
++	  * 1 means all marked
++	  * 2 means all visible and marked
+ 	  * @param exec
++	 * @param tickeOnly if set to &lt;code&gt;true&lt;/true&gt; only caches with the checked-flag will be handled.
+ 	  */
+-	 private void processCaches(Executor exec) {
++	 private void processCaches(Executor exec, int mode) {
+ 		// First empty the cache so that the correct cache details are on disk
+ 		CacheHolder.saveAllModifiedDetails(); 
+ 		int size=srcDB.size();
++		int count=0;
+ 		// Count the number of caches to move/delete/copy
+-		int count=srcDB.countVisible();
++		// and remember the index of the files process, makes it a little bit easier
++		BitSet processSet = new BitSet();
++		for(int i = 0; i&lt;size; i++) {
++			switch (mode){
++			case 0:
++				if (srcDB.get(i).isVisible()){
++					count++;
++					processSet.set(i);
++				}
++				break;
++			case 1:
++				if (srcDB.get(i).is_Checked){
++					count++;
++					processSet.set(i);
++				}
++				break;
++			case 2:
++				if (srcDB.get(i).isVisible() &amp;&amp; srcDB.get(i).is_Checked){
++					count++;
++					processSet.set(i);
++				}
++				break;
++			}
++		}
+ 		myProgressBarForm pbf = new myProgressBarForm();
+ 		Handle h = new Handle();
+ 		pbf.setTask(h,exec.title);
+@@ -98,7 +220,7 @@
+ 		// Now do the actual work
+ 		for(int i = size-1; i&gt;=0; i--){
+ 			CacheHolder srcHolder=srcDB.get(i);
+-			if(srcHolder.isVisible()){
++			if(processSet.get(i)){
+ 				h.progress = ((float)nProcessed++)/(float)count;
+ 				h.changed();
+ 				//Now do the copy/delete/move of the cache
+@@ -206,6 +328,17 @@
+ 				copyCacheFiles(srcHolder.getWayPoint(),profile.dataDir, dstProfile.dataDir);
+ 				// does cache exists in destDB ?
+ 				// Update database
++				//*wall* when copying addis without their maincache, the maincache in the srcDB will be set to null on saving the dstProfile later.
++				//Therefore it will be shown twice in the cachelist.
++				//To prevent this, addis will be cloned and to save memory only addis will be clones.
++				//TODO clone addis only when the maincache will not be copied.
++//				if (srcHolder.isAddiWpt()){
++//					try {
++//						srcHolder = (CacheHolder) srcHolder.clone();
++//					} catch (CloneNotSupportedException e) {
++//						//ignore, CacheHolder implements Cloneable ensures this methods
++//					}
++//				}
+ 				int dstPos = dstProfile.getCacheIndex(srcHolder.getWayPoint());
+ 				if (dstPos &gt;= 0){
+ 					dstProfile.cacheDB.set(dstPos,srcHolder);
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2009-06-17 17:28:43 UTC (rev 1919)
++++ trunk/src/CacheWolf/Preferences.java	2009-06-17 17:31:38 UTC (rev 1920)
+@@ -220,6 +220,9 @@
+ 	public boolean downloadPics = true;
+ 	/** Download TB information when loading cache data */
+ 	public boolean downloadTBs = true;
++	/** Last mode select in the DataMover for processing cache*/
++	public int processorMode = 0;
++	
+ 	/** external Cacherating software */
+ 	public String rater;
+ 	
+@@ -448,6 +451,13 @@
+ 			// Filter object is remembered under the given ID
+ 			this.addFilter(id, data);
+ 		}
++		else if (name.equals (&quot;datamover&quot;)){
++			tmp = atts.getValue(&quot;processorMode&quot;);
++			if (tmp != null){
++				processorMode=Convert.parseInt(tmp);
++			}
++			
++		}
+ 
+ 	}
+ 
+@@ -510,6 +520,7 @@
+ 			outp.print(&quot;    &lt;details cacheSize=\&quot;&quot; + SafeXML.strxmlencode(maxDetails) + &quot;\&quot; delete=\&quot;&quot; + SafeXML.strxmlencode(deleteDetails) + &quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;metric type=\&quot;&quot; + SafeXML.strxmlencode(metricSystem) + &quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;export numberOfLogsToExport=\&quot;&quot; + SafeXML.strxmlencode(numberOfLogsToExport) + &quot;\&quot; exportTravelbugs=\&quot;&quot; + SafeXML.strxmlencode(exportTravelbugs) + &quot;\&quot; exportGpxAsMyFinds=\&quot;&quot; + SafeXML.strxmlencode(exportGpxAsMyFinds) + &quot;\&quot;/&gt;\n&quot;);
++			outp.print(&quot;    &lt;datamover processorMode=\&quot;&quot; + SafeXML.strxmlencode(processorMode) + &quot;\&quot; /&gt;\n&quot;);
+ 			if (customMapsPath!=null) outp.print(&quot;    &lt;mapspath dir = \&quot;&quot; + SafeXML.strxmlencode(customMapsPath.replace('\\','/')) + &quot;\&quot;/&gt;\n&quot;);
+ 			// Saving filters
+ 			String[] filterIDs = this.getFilterIDs();
+@@ -529,7 +540,7 @@
+ 				entry = (MapEntry) itPath.next();
+ 				outp.print(&quot;    &lt;impPath key = \&quot;&quot; + SafeXML.strxmlencode(entry.getKey().toString()) + &quot;\&quot; value = \&quot;&quot; + SafeXML.strxmlencode(entry.getValue().toString().replace('\\', '/')) + &quot;\&quot;/&gt;\n&quot;);
+ 			}
+-			if (null != rater) outp.print(&quot;    &lt;rater tool=\&quot;&quot;.concat(rater).concat(&quot;\&quot;/&gt;\n&quot;));
++			outp.print(&quot;    &lt;rater tool=\&quot;&quot;.concat(rater).concat(&quot;\&quot;/&gt;\n&quot;));
+ 			outp.print(&quot;&lt;/preferences&gt;&quot;);
+ 			outp.close();
+ 		} catch (Exception e) {
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001837.html">[Cachewolf-svn] r1919 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001839.html">[Cachewolf-svn] r1921 - trunk/res_noewe/languages
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1838">[ date ]</a>
+              <a href="thread.html#1838">[ thread ]</a>
+              <a href="subject.html#1838">[ subject ]</a>
+              <a href="author.html#1838">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

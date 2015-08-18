@@ -1,0 +1,435 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1515 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-June/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1515%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200806112208.m5BM8cJe018924%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001408.html">
+   <LINK REL="Next"  HREF="001410.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1515 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1515%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200806112208.m5BM8cJe018924%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1515 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Thu Jun 12 00:08:38 CEST 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001408.html">[Cachewolf-svn] r1514 - trunk
+</A></li>
+        <LI>Next message: <A HREF="001410.html">[Cachewolf-svn] r1516 - in trunk/src: CacheWolf utils
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1409">[ date ]</a>
+              <a href="thread.html#1409">[ thread ]</a>
+              <a href="subject.html#1409">[ subject ]</a>
+              <a href="author.html#1409">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2008-06-12 00:08:36 +0200 (Thu, 12 Jun 2008)
+New Revision: 1515
+
+Added:
+   trunk/src/CacheWolf/MessageBoxFixed.java
+Modified:
+   trunk/src/CacheWolf/CacheWolf.java
+   trunk/src/CacheWolf/MainForm.java
+   trunk/src/CacheWolf/MyLocale.java
+Log:
+Localisation: Bugs Fixed: French works now even in ewe-vm, better error messages, avoid some Exception if languages are not available
+Changes in comments
+
+Modified: trunk/src/CacheWolf/CacheWolf.java
+===================================================================
+--- trunk/src/CacheWolf/CacheWolf.java	2008-06-10 09:05:49 UTC (rev 1514)
++++ trunk/src/CacheWolf/CacheWolf.java	2008-06-11 22:08:36 UTC (rev 1515)
+@@ -29,7 +29,7 @@
+ 		}
+ 		
+ 		// get program command line parameters and switches
+-		String[] args = vmargs; // Vm.getProgramArguments(); &lt;-- only works in eclipse, but mixes the letters in the ewe-vm (tested in ewe-1.40 on win xp)
++		String[] args = vmargs; // Vm.getProgramArguments(); &lt;-- only works in eclipse, but mixes the letters in the ewe-vm (tested in ewe-1.49 on win xp)
+ 		String configfile = null;
+ 		boolean debug = false;
+ 		if(args.length &gt; 0){
+@@ -54,7 +54,7 @@
+ 						}
+ 					}
+ 					if (c.equalsIgnoreCase(&quot;debug&quot;)) {
+-						Vm.debug(&quot;d&quot;);
++						//Vm.debug(&quot;d&quot;);
+ 						debug = true;
+ 					}
+ 
+
+Modified: trunk/src/CacheWolf/MainForm.java
+===================================================================
+--- trunk/src/CacheWolf/MainForm.java	2008-06-10 09:05:49 UTC (rev 1514)
++++ trunk/src/CacheWolf/MainForm.java	2008-06-11 22:08:36 UTC (rev 1515)
+@@ -65,6 +65,9 @@
+ 		InfoBox infB = null;  
+ 		try{
+ 			pref.readPrefFile();
++			if (MyLocale.initErrors.length() != 0) {
++				new MessageBox(&quot;Error&quot;, MyLocale.initErrors, FormBase.OKB).execute();
++			}
+ 			addGuiFont();
+ 			if (!pref.selectProfile(profile,Preferences.PROFILE_SELECTOR_ONOROFF, true)) 
+ 				ewe.sys.Vm.exit(0); // User MUST select or create a profile
+
+Added: trunk/src/CacheWolf/MessageBoxFixed.java
+===================================================================
+--- trunk/src/CacheWolf/MessageBoxFixed.java	2008-06-10 09:05:49 UTC (rev 1514)
++++ trunk/src/CacheWolf/MessageBoxFixed.java	2008-06-11 22:08:36 UTC (rev 1515)
+@@ -0,0 +1,65 @@
++package CacheWolf;
++
++import ewe.sys.Vm;
++import ewe.sys.mThread;
++import ewe.ui.MessageBox;
++/**
++ * this class can be needed, because ewe v1.49 cannot display messageBoxes
++ * in some special threds &lt;br&gt;
++ * &lt;br&gt; but as of CacheWolf v1.0 this class is not used &lt;br&gt;
++ * &lt;br&gt; It is included in order to have it available and to include the 
++ * knowledge about ewe-threading problems, described in comments here &lt;br&gt;
++ * This class is not mature -&gt; make it mature or use it only when
++ * you get in the ewe-vm the exception: ewe.sys Event Direction Exception: This Task cannot be done within a timer tick &lt;br&gt;
++ * when you use the normal MessageBox
++ * @author pfeffer
++ *
++ */
++public class MessageBoxFixed {
++	String title, text;
++	int type;
++	int ret;
++	boolean done;
++	static int debug = 0;
++	public MessageBoxFixed(String title_, String text_, int type_) {
++		set(title_, text_, type_);
++	}
++	public void set(String title_, String text_, int type_) {
++		title = title_;
++		text = text_;
++		type = type_;
++	}
++
++	public int execute() {
++		//Vm.debug(&quot;aufruf: &quot; + debug);
++		//debug++;
++/*	// this code is a beginning of code to determine, if a new mThread is needed 	
++ 		Vm.debug(&quot;t .&quot; + mThread.inThread());
++		MessageBox mb = new MessageBox(title,  text, type);
++		ret = mb.execute();
++*/
++		MBThread t = new MBThread();  // start a new thread is necessary because the simple ewe v1.49 threading model doesn't allow displaying of a messageBox in this kind of thread
++		t.start();
++		done = false;
++		while (!done) {
++			//Vm.debug(&quot;A&quot;);
++			//mThread.yield(100); // this seem to be without effect in ewe-vm v1.49
++			try { mThread.sleep(100); } catch (InterruptedException e) {
++		//		Vm.debug(&quot;interrupted&quot;); // never reached, even if interrupted is explicitly called
++			} 
++		}
++		return ret;
++	}
++
++	class MBThread extends mThread {
++		public MessageBox mb;
++		public void run() {
++			mb = new MessageBox(title,  text, type);
++			mb.show();
++			done = false;
++			mb.waitUntilClosed();
++			done = true;
++			// interrupt(); this doesn't work at all, neither in sun-vm nor in ewe-vm v1.49
++		}
++	}
++}
+\ No newline at end of file
+
+Modified: trunk/src/CacheWolf/MyLocale.java
+===================================================================
+--- trunk/src/CacheWolf/MyLocale.java	2008-06-10 09:05:49 UTC (rev 1514)
++++ trunk/src/CacheWolf/MyLocale.java	2008-06-11 22:08:36 UTC (rev 1515)
+@@ -3,18 +3,15 @@
+  *  CacheWolf - Local settings class
+  * 
+  */
++
++import utils.FileBugfix;
+ import ewe.fx.Rect;
+-import ewe.io.BufferedReader;
+-import ewe.io.BufferedWriter;
+-import ewe.io.FileBase;
+-import ewe.io.FileReader;
+-import ewe.io.FileWriter;
++import ewe.io.File;
+ import ewe.sys.*;
+ import ewe.sys.Double;
+ import ewe.sys.Long;
+ import ewe.ui.FormBase;
+ import ewe.ui.Gui;
+-import ewe.ui.MessageBox;
+ import ewe.ui.Window;
+ import ewe.ui.WindowConstants;
+ /**
+@@ -29,6 +26,9 @@
+  *    20061124 Added formatDouble
+  */
+ public class MyLocale {
++	/** This language used if the system language is not supported by CacheWolf */
++	final static String standardLanguage = &quot;EN&quot;;
++
+ 	private static Locale l=null;
+ 	private static LocalResource lr=null;
+ 	private static Rect s = (Rect)Window.getGuiInfo(WindowConstants.INFO_SCREEN_RECT,null,new Rect(),0);
+@@ -38,50 +38,103 @@
+ 	 */
+ 	public static String language=getLanguage();
+ 	
+-	private static void init() {
+-		 if ( ( language.length()==0 ) || ( language.equalsIgnoreCase(&quot;auto&quot;) ) ) // Was a non-standard language specified
+-			 l = Vm.getLocale();
+-		 else {
+-			 int tmp = Locale.createID(language,&quot;&quot;,0);
+-			 if (tmp &gt; -1) l=new Locale(tmp);
+-			 else { // language not found
+-				 (new mThread() { // start a new thread is necessary because the simple ewe v1.49 threading model doesn't allow displaying of a messageBox in this kind of thread
+-					 public void run() {
+-						 (new MessageBox(&quot;Error&quot;, &quot;Language &quot; + language + &quot; not found - using standard language&quot;, FormBase.OKB)).execute(); // don't copy this messagebox into a language file, because it is only used if no languages file can be accessed
++	public static String initErrors;
++
++	private static String getLocaleFileName(String languageshort) {
++		return File.makePath(File.getProgramDirectory(), &quot;languages/&quot; + languageshort.toUpperCase() + &quot;.cfg&quot;);
++	}
++
++	/**
++	 * This is needed because of 2 Bugs (not supporting French and inconsistant LocaleID in the ewe-VM v1.49
++	 * For details see comments in method body
++	 * [maybe one is inherited from windows: not supporting french]
++	 * @param language_ 2 digits of language code as specified in ISO
++	 */
++	private static void setLocale(String language_) {
++		int tmp = Locale.createID(language_, &quot;&quot;, 0); // in ewe-vm v1.49 this call is enough to set the locale correctly and this works even with not supported languages like FR (french), e.g. it works even if tmp == -1, call new Locale() instead of new Locale(tmp) then.
++		tmp = (tmp &gt;= 1024 ? tmp-1024 : tmp); // ewe-vm v1.49 some times returns the correct value + 1024
++		// Vm.debug(&quot;spec-lang: &quot; + tmp);
++		if (tmp &gt; -1)	l = new Locale(tmp);
++		else 			l = Locale.createFor(&quot;EN&quot;, &quot;&quot;, 0 /*Locale.FORCE_CREATION*/); // forcing the requiered language doesn't work, because Locale.numberformat and so on cannot determine the requested format then. BTW: if French is system language new Locale() works even in ewe-vm v1.49
++		resourcelanguage = language_;
++	}
++
++	/** 
++	 * This is used to determine the language file name - it is necessary because
++	 * ewe-vm v1.49 doesn't support French  
++	 */
++	static String resourcelanguage;
++	static boolean inInit = false;
++
++	private static void init() throws IllegalThreadStateException {
++		if (inInit) {
++			throw new IllegalThreadStateException(&quot;init may not be run twice&quot;); // this can happen, if ewe is loading another class in background, which causes a call to e.g. MyLocale.getDigSeperator (most likely in a static statement). Ewe-Vm v1.49 seems to be loading static classes ahead, causing the danger of this problem.
++		}
++		inInit = true;
++		initErrors = &quot;&quot;;
++		// the following logic priority: 1. try to use specified language (if specified), 2. try to use system language, 3. try to use english, 4. use hard coded messages
++		l = null;
++		if ( ( language.length()!=0 ) &amp;&amp; ( !language.equalsIgnoreCase(&quot;auto&quot;) ) ) { // Was a language explicitly specified?
++			setLocale(language);
++			if (! (new FileBugfix(getLocaleFileName(resourcelanguage)).exists()) ) {
++				l = null; // language file not found
++				initErrors += &quot;Language &quot; + language + &quot; not found - using system language\n&quot;;// don't copy this messagebox into a language file, because it is only used if no languages file can be accessed
++			}
++		}
++		if ( l == null ) { // no language specified OR specified language not available -&gt; use system default
++			setLocale(Vm.getLocale().getString(Locale.LANGUAGE_SHORT, 0, 0)); 
++			// test if a localisation file for the system language exists
++			if (!(new FileBugfix(getLocaleFileName(resourcelanguage)).exists())) {
++				setLocale(standardLanguage);
++				initErrors += &quot;Your system language is not supported by cachewolf - using English\n You can choose a different language in the preferences\n&quot;;
++				/*       //uncomment this code to print a list of all supported languge (Locales), remark: this differs from vm to vm _and_ from OS to OS
++  					 Vm.debug(&quot;gew&#228;hlte Sprache: &quot; + resourcelanguage, 0, 0);
++					 int [] all = Locale.getAllIDs(0);
++					 Locale ltmp = new Locale(); 
++					 for (int i = 0; i&lt;all.length; i++){
++						 ltmp.set(all[i]);
++						 String lg = ltmp.getString(Locale.LANGUAGE_SHORT,0,0);
++						 Vm.debug(i + &quot;sprache: &quot; + lg + &quot; (&quot; + ltmp.getString(Locale.LANGUAGE, 0, 0) + &quot;, &quot; + ltmp.getString(Locale.LANGUAGE_ENGLISH, 0, 0) + &quot;) land: &quot; + ltmp.getString(Locale.COUNTRY, 0, 0));
+ 					 }
+-				 }).start();
+-				 l = Vm.getLocale(); 
+-			 }
+-		 }
+-		 ewe.io.TreeConfigFile tcf = ewe.io.TreeConfigFile.getConfigFile(&quot;languages/&quot; + getLocaleLanguage().toUpperCase() + &quot;.cfg&quot;);
+-		 if (tcf != null){			 
+-			 lr = tcf.getLocalResourceObject(l,&quot;cachewolf.Languages&quot;);
+-		 }
+-		 else {
+-			 lr = new LocalResource(){
+-				 public Object get(int id,Object data){return data;}
+-				 public Object get(String id,Object data){return data;}
+-			 };
+-			 (new mThread() { // start a new thread is necessary because the simple ewe v1.49 threading model doesn't allow displaying of a messageBox in this kind of thread
+-				 public void run() {
+-					 (new MessageBox(&quot;Error&quot;, &quot;Language file languages/&quot; + getLocaleLanguage().toUpperCase() + &quot;.cfg couldn't be loaded - using hard coded messages&quot;, FormBase.OKB)).execute();
+-				 }
+-			 }).start();
+-		 }
++				 */
++			}
++		}
++		lr = null;
++		if (new FileBugfix(getLocaleFileName(resourcelanguage)).exists() ) {
++			ewe.io.TreeConfigFile tcf = ewe.io.TreeConfigFile.getConfigFile(getLocaleFileName(resourcelanguage));
++			if (tcf != null) {			 
++				lr = tcf.getLocalResourceObject(new Locale() {
++					public String getString(int what,int forValue,int options) {
++						if (what == LANGUAGE_SHORT) return resourcelanguage; // this is necessary because French cannot be set in ewe-vm v1.49
++						else return super.getString(what, forValue, options);
++					}
++				}, &quot;cachewolf.Languages&quot;);
++			}
++		}
++		if (lr == null) {
++		//	Vm.debug(&quot;lr==null 1&quot;);
++			initErrors += &quot;Language file &quot; + getLocaleFileName(resourcelanguage) + &quot; couldn't be loaded - using hard coded messages&quot;;
++		//	Vm.debug(&quot;lr==null 2&quot;);
++			lr = new LocalResource(){
++				public Object get(int id,Object data){return data;}
++				public Object get(String id,Object data){return data;}
++			};
+ 
+-		 double testA = Convert.toDouble(&quot;1,50&quot;) + Convert.toDouble(&quot;3,00&quot;);
+-		 if(testA == 4.5) digSeparator = &quot;,&quot;; else digSeparator = &quot;.&quot;;
++		}
++		double testA = Convert.toDouble(&quot;1,50&quot;) + Convert.toDouble(&quot;3,00&quot;);
++		if(testA == 4.5) digSeparator = &quot;,&quot;; else digSeparator = &quot;.&quot;;
++		inInit = false;
+ 	}
+ 
+ 	/**
+ 	 * Return a localised string
+ 	 * 
+-     * The localised strings are stored in the configuration file (relative to
+-     *  executable:&lt;br&gt;
+-     *  	_config/cachewolf.Languages.cfg
+-     * If the configuration file does not exist or a string cannot be found in
+-     * the file, the defaultValue is resurned.
+-     *   
++	 * The localised strings are stored in the configuration file (relative to
++	 *  executable:&lt;br&gt;
++	 *  	_config/cachewolf.Languages.cfg
++	 * If the configuration file does not exist or a string cannot be found in
++	 * the file, the defaultValue is resurned.
++	 *   
+ 	 * @param resourceID   The unique number of the resource
+ 	 * @param defaultValue The default value of the string (if not found in the config file)
+ 	 * @return The localised string 
+@@ -93,7 +146,7 @@
+ 			String res;
+ 			res=(String) lr.get(resourceID,defaultValue);
+ 			if (res!=null) 
+-			   return res;
++				return res;
+ 			//Fallthrough to default value if string does not exist in file
+ 		}
+ 		return defaultValue;
+@@ -126,7 +179,7 @@
+ 	public static int getScreenWidth() {
+ 		return s.width;
+ 	}
+-	
++
+ 	/**
+ 	 * Get the screen height
+ 	 * @return Height of screen in pixels
+@@ -180,7 +233,7 @@
+ 		if (l==null) init();
+ 		return l.format(Locale.FORMAT_PARSE_NUMBER,number,fmt);
+ 	}
+-	
++
+ 	/**
+ 	 * Formats a Double to a given format specifier
+ 	 * @param number A double containing the number to be formatted
+@@ -192,7 +245,7 @@
+ 		d.set(number);
+ 		return formatDouble(d,fmt);
+ 	}
+-	
++
+ 	/**
+ 	 * This function checks whether the device supports a
+ 	 * supplementary input panel (SIP) and if yes, shows it.
+@@ -203,7 +256,7 @@
+ 			Vm.setSIP(Vm.SIP_ON);
+ 		}
+ 	}
+-	
++
+ 	/**
+ 	 * This function checks whether the device supports a
+ 	 * supplementary input panel (SIP) and if yes, hides it and
+@@ -215,7 +268,7 @@
+ 			Vm.setSIP(0);
+ 		}
+ 	}
+-	
++
+ 	/**
+ 	 * This function checks whether the device supports a
+ 	 * supplementary input panel (SIP) and if yes, hides it and just
+@@ -227,7 +280,7 @@
+ 			Vm.setSIP(Vm.SIP_LEAVE_BUTTON);
+ 		}
+ 	}
+-	
++
+ 	/**
+ 	 * Read the language from the prefs and return the specified language (or empty
+ 	 * string if none specified).
+@@ -243,7 +296,7 @@
+ 		if (language==null) language=&quot;&quot;;
+ 		return language;
+ 	}
+-	
++
+ 	/**
+ 	 * Write the override language 
+ 	 * @param language The language to write
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001408.html">[Cachewolf-svn] r1514 - trunk
+</A></li>
+	<LI>Next message: <A HREF="001410.html">[Cachewolf-svn] r1516 - in trunk/src: CacheWolf utils
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1409">[ date ]</a>
+              <a href="thread.html#1409">[ thread ]</a>
+              <a href="subject.html#1409">[ subject ]</a>
+              <a href="author.html#1409">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

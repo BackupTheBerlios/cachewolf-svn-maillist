@@ -1,0 +1,286 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r463 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r463%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701271537.l0RFbf7O028295%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000241.html">
+   <LINK REL="Next"  HREF="000243.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r463 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r463%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701271537.l0RFbf7O028295%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r463 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sat Jan 27 16:37:41 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000241.html">[Cachewolf-svn] r462 - trunk/resources
+</A></li>
+        <LI>Next message: <A HREF="000243.html">[Cachewolf-svn] r464 - in trunk/src: CacheWolf exp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#242">[ date ]</a>
+              <a href="thread.html#242">[ thread ]</a>
+              <a href="subject.html#242">[ subject ]</a>
+              <a href="author.html#242">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-01-27 16:37:27 +0100 (Sat, 27 Jan 2007)
+New Revision: 463
+
+Modified:
+   trunk/src/CacheWolf/MainForm.java
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/Parser.java
+   trunk/src/CacheWolf/Profile.java
+   trunk/src/CacheWolf/ProfileDataForm.java
+   trunk/src/CacheWolf/RadarPanel.java
+   trunk/src/CacheWolf/TablePanel.java
+   trunk/src/CacheWolf/myTableControl.java
+Log:
+updateBearingDistance in Klasse Profile verschoben
+Bugfix:Aufruf von updBD nach jeder Aenderung des derzeitigen Zentrums
+
+Modified: trunk/src/CacheWolf/MainForm.java
+===================================================================
+--- trunk/src/CacheWolf/MainForm.java	2007-01-27 14:31:00 UTC (rev 462)
++++ trunk/src/CacheWolf/MainForm.java	2007-01-27 15:37:27 UTC (rev 463)
+@@ -61,7 +61,7 @@
+ 			Vm.showWait(true);
+ 			profile.readIndex();
+ 			pref.curCentrePt.set(profile.centre);
+-			TablePanel.updateBearingDistance(profile.cacheDB,pref);
++			profile.updateBearingDistance();
+ 		} catch (Exception e){
+ 			if(pref.debug == true) Vm.debug(&quot;MainForm:: Exception:: &quot; + e.toString());
+ 		}
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2007-01-27 14:31:00 UTC (rev 462)
++++ trunk/src/CacheWolf/MainTab.java	2007-01-27 15:37:27 UTC (rev 463)
+@@ -82,7 +82,7 @@
+ 	
+ 	public void updateBearDist(){
+ 		tbP.pref = pref;
+-		TablePanel.updateBearingDistance(cDB,pref);
++		profile.updateBearingDistance();
+ 		tbP.refreshTable();
+ 	}
+ 	
+
+Modified: trunk/src/CacheWolf/Parser.java
+===================================================================
+--- trunk/src/CacheWolf/Parser.java	2007-01-27 14:31:00 UTC (rev 462)
++++ trunk/src/CacheWolf/Parser.java	2007-01-27 15:37:27 UTC (rev 463)
+@@ -333,6 +333,7 @@
+ 	    	String coordA=popCalcStackAsString();
+ 			if (!isValidCoord(coordA)) err(MyLocale.getMsg(1712,&quot;Invalid coordinate: &quot;)+coordA);
+ 			Global.getPref().curCentrePt.set(coordA);
++			Global.getProfile().updateBearingDistance();
+ 		}
+ 	}
+ 	
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2007-01-27 14:31:00 UTC (rev 462)
++++ trunk/src/CacheWolf/Profile.java	2007-01-27 15:37:27 UTC (rev 463)
+@@ -261,4 +261,37 @@
+ 		else return null;
+ 	}
+ 
++	/**
++		*	Method to calculate bearing and distance of a cache in the index
++		*	list.
++		*	@see	CacheHolder
++		*	@see	Extractor
++		*	@see	Navi
++		*/
++		public void updateBearingDistance(){
++			CWPoint fromPoint = new CWPoint(Global.getPref().curCentrePt); // Clone current centre to be sure
++			int anz = cacheDB.getCount();
++			CacheHolder ch;
++			CWPoint toPoint = new CWPoint();
++			// Jetzt durch die CacheDaten schleifen
++			while(--anz &gt;= 0){
++				ch = (CacheHolder)cacheDB.get(anz); // This returns a pointer to the CacheHolder object
++				if(ch.LatLon.length()&gt;4){
++					if (ch.pos == null) { // only calculate once
++						toPoint.set(ch.LatLon, CWPoint.CW); // Fast parse with traditional parse algorithm
++						ch.pos = new CWPoint(toPoint);
++					} else toPoint = ch.pos;
++					ch.kilom = fromPoint.getDistance(toPoint);
++					ch.degrees = fromPoint.getBearing(toPoint);
++					ch.bearing = CWPoint.getDirection(ch.degrees);
++					ch.distance = MyLocale.formatDouble(ch.kilom,&quot;0.00&quot;);
++					ch.distance = ch.distance + &quot; km&quot;;
++				}
++			}
++			// The following call is not very clean as it mixes UI with base classes
++			// However, calling it from here allows us to recenter the
++			// radar panel with only one call
++			Global.mainTab.radarP.recenterRadar();
++		} //updateBearingDistance
++
+ }
+
+Modified: trunk/src/CacheWolf/ProfileDataForm.java
+===================================================================
+--- trunk/src/CacheWolf/ProfileDataForm.java	2007-01-27 14:31:00 UTC (rev 462)
++++ trunk/src/CacheWolf/ProfileDataForm.java	2007-01-27 15:37:27 UTC (rev 463)
+@@ -66,6 +66,7 @@
+ 				if (cs.execute()== CoordsScreen.IDOK){
+ 					pref.curCentrePt.set(cs.getCoords());
+ 					btnCurrentCentre.setText(pref.curCentrePt.toString());
++					Global.getProfile().updateBearingDistance();
+ 				}
+ 			}
+ 			if (ev.target == btnProfileCentre){
+@@ -83,6 +84,7 @@
+ 			if (ev.target == btnProf2Cur){
+ 				pref.curCentrePt.set(profile.centre);
+ 				btnCurrentCentre.setText(pref.curCentrePt.toString());
++				Global.getProfile().updateBearingDistance();
+ 			}
+ 			if (ev.target == btnOldProfiles){
+ 				ProfilesScreen pfs = new ProfilesScreen(pref);
+
+Modified: trunk/src/CacheWolf/RadarPanel.java
+===================================================================
+--- trunk/src/CacheWolf/RadarPanel.java	2007-01-27 14:31:00 UTC (rev 462)
++++ trunk/src/CacheWolf/RadarPanel.java	2007-01-27 15:37:27 UTC (rev 463)
+@@ -82,7 +82,7 @@
+ 		//height = (int)height * 2;
+ 		////Vm.debug(&quot;Height: &quot; + Convert.toString(height));
+ 		////Vm.debug(&quot;App Height: &quot; + Convert.toString(pref.myAppHeight));
+-		width = (int)(pref.myAppWidth);
++		width = (int)(pref.myAppWidth)*6/5;
+ 		//width = (int)width * 2;
+ 	}
+ 	
+@@ -106,8 +106,11 @@
+ 		drawCaches();
+ 		iActP.repaintNow();
+ 		if (reCenterImage) {
++			// Hack to scroll to left origin for a defined position for subsequent
++			// scroll which centers the image
++			iActP.scroll(-1000,-1000); 
+ 			Dimension dispSize=getDisplayedSize(null);
+-			iActP.scroll(pref.myAppWidth/10,(height-dispSize.height)/2);
++			iActP.scroll((width-dispSize.width)/2,(height-dispSize.height+btMinus.getSize(null).height)/2);
+ 			reCenterImage=false;
+ 		}
+ 	}
+
+Modified: trunk/src/CacheWolf/TablePanel.java
+===================================================================
+--- trunk/src/CacheWolf/TablePanel.java	2007-01-27 14:31:00 UTC (rev 462)
++++ trunk/src/CacheWolf/TablePanel.java	2007-01-27 15:37:27 UTC (rev 463)
+@@ -106,11 +106,8 @@
+ 	}
+ 	
+ 	public void resetModel() {
+-		//RB  myMod.setVector(cacheDB);
+ 		myMod.numRows = cacheDB.size();
+-		updateBearingDistance(cacheDB, pref);
+-		////Vm.debug(&quot;IS mypref loaded? &quot; + myPreferences.mylgDeg);
+-		// tc.setTableModel(myMod); Not needed ?
++		Global.getProfile().updateBearingDistance();
+ 		myMod.updateRows();
+ 		tc.update(true);
+ 		if (statBar!=null) statBar.updateDisplay();
+@@ -134,43 +131,6 @@
+ 		if (statBar!=null) statBar.updateDisplay();
+ 	}
+ 	
+-	/**
+-	*	Method to calculate bearing and distance of a cache in the index
+-	*	list.
+-	*	@see	CacheHolder
+-	*	@see	Extractor
+-	*	@see	Navi
+-	*/
+-	public static void updateBearingDistance(Vector cacheDB, Preferences p){
+-		//myPreferences = p;
+-
+-		CWPoint fromPoint = new CWPoint(p.curCentrePt); // Clone current centre to be sure
+-		
+-		//Vm.debug(&quot; New location: &quot; + fromPoint);
+-		
+-		int anz = cacheDB.getCount();
+-		CacheHolder ch;
+-		CWPoint toPoint = new CWPoint();
+-		// Jetzt durch die CacheDaten schleifen
+-		while(--anz &gt;= 0){
+-			ch = (CacheHolder)cacheDB.get(anz); // This returns a pointer to the CacheHolder object
+-			if(ch.LatLon.length()&gt;4){
+-				if (ch.pos == null) { // only calculate once
+-					toPoint.set(ch.LatLon, CWPoint.CW); // Fast parse with traditional parse algorithm
+-					ch.pos = new CWPoint(toPoint);
+-				} else toPoint = ch.pos;
+-				ch.kilom = fromPoint.getDistance(toPoint);
+-				ch.degrees = fromPoint.getBearing(toPoint);
+-				ch.bearing = CWPoint.getDirection(ch.degrees);
+-				ch.distance = MyLocale.formatDouble(ch.kilom,&quot;0.00&quot;);
+-				ch.distance = ch.distance + &quot; km&quot;;
+-// skg20061223: These two lines are superfluous as we have already updated the correct CacheHolder object
+-//				cacheDB.del(anz);
+-//				cacheDB.add(anz, ch);
+-			}
+-		}
+-	} //updateBearingDistance
+-	
+ 	public void onEvent(Event ev)
+ 	{
+ 		////Vm.debug(ev.toString());
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2007-01-27 14:31:00 UTC (rev 462)
++++ trunk/src/CacheWolf/myTableControl.java	2007-01-27 15:37:27 UTC (rev 463)
+@@ -114,7 +114,7 @@
+ 				tmpMB.exec();
+ 			} else {				
+ 				pref.curCentrePt.set(cp);
+-				TablePanel.updateBearingDistance(db, pref);
++				profile.updateBearingDistance();
+ 				tbp.refreshTable();
+ 				(new MessageBox(&quot;Info&quot;, &quot;Entfernungen in der Listenansicht \nvom aktuellen Standpunkt aus \nneu berechnet&quot;, MessageBox.OKB)).execute();
+ 			}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000241.html">[Cachewolf-svn] r462 - trunk/resources
+</A></li>
+	<LI>Next message: <A HREF="000243.html">[Cachewolf-svn] r464 - in trunk/src: CacheWolf exp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#242">[ date ]</a>
+              <a href="thread.html#242">[ thread ]</a>
+              <a href="subject.html#242">[ subject ]</a>
+              <a href="author.html#242">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

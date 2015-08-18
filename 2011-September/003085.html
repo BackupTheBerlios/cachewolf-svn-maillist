@@ -1,0 +1,243 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r3094 - trunk/src/CacheWolf/imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2011-September/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r3094%20-%20trunk/src/CacheWolf/imp&In-Reply-To=%3C20110916164651.3DCDD481299%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="003084.html">
+   <LINK REL="Next"  HREF="003087.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r3094 - trunk/src/CacheWolf/imp</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r3094%20-%20trunk/src/CacheWolf/imp&In-Reply-To=%3C20110916164651.3DCDD481299%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r3094 - trunk/src/CacheWolf/imp">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Fri Sep 16 06:46:51 CEST 2011</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="003084.html">[Cachewolf-svn] r3093 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="003087.html">[Cachewolf-svn] r3096 - in trunk: lib/net/ax86 lib/org/json	res_noewe src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3085">[ date ]</a>
+              <a href="thread.html#3085">[ thread ]</a>
+              <a href="subject.html#3085">[ subject ]</a>
+              <a href="author.html#3085">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2011-09-16 18:46:50 +0200 (Fri, 16 Sep 2011)
+New Revision: 3094
+
+Modified:
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+modification of login code
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2011-09-16 16:45:31 UTC (rev 3093)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2011-09-16 16:46:50 UTC (rev 3094)
+@@ -1177,11 +1177,11 @@
+ 		try {
+ 			loginPage = UrlFetcher.fetch(loginPageUrl); // <A HREF="https://www.geocaching.com/login/default.aspx">https://www.geocaching.com/login/default.aspx</A>
+ 			if (loginPage.equals(&quot;&quot;)) {
+-				pref.log(&quot;[login]:Could not fetch: gc.com login page &quot; + loginPageUrl, null);
++				pref.log(&quot;[login]:empty gc.com login page &quot; + loginPageUrl, null);
+ 				return 4;
+ 			}
+ 		} catch (final Exception ex) {
+-			pref.log(&quot;[login]:Could not fetch: gc.com login page&quot;, ex);
++			pref.log(&quot;[login]:Exception gc.com login page&quot;, ex, true);
+ 			return 4;
+ 		}
+ 
+@@ -1196,7 +1196,7 @@
+ 				try {
+ 					loginPage = UrlFetcher.fetch(&quot;<A HREF="https://www.geocaching.com/login/default.aspx?RESET=Y">https://www.geocaching.com/login/default.aspx?RESET=Y</A>&quot;);
+ 				} catch (final Exception ex) {
+-					pref.log(&quot;[login]:Could not fetch: gc.com login page&quot;, ex);
++					pref.log(&quot;[login]:Exception logout user from gc&quot;, ex);
+ 					return 4;
+ 				}
+ 
+@@ -1229,30 +1229,53 @@
+ 
+ 				loginPage = UrlFetcher.fetch(loginPageUrl);
+ 			} catch (final Exception ex) {
+-				pref.log(&quot;[login]:Login failed with exception.&quot;, ex);
++				pref.log(&quot;[login]:Exception login with post Data.&quot;, ex);
+ 				return 3;
+ 			}
+ 		}
+ 
++		// formerly this part was not executed if already logged in
++		// but as https login post sometimes/often gives faulty EOF (https implementation program error),
++		// though the call was successful, the second call (repeating login()) of loginpage get
++		// gives us the following data used as cookie : sessionId and userid
++		// hopefully pfeffer or someone else fixes this EOF some time
+ 		if (loginPage.indexOf(loginSuccess) &gt; 0) {
+ 			pref.log(&quot;Login successful: &quot; + pref.myAlias);
+-			// **3 now we are logged in and get the Cookie (there are two)
+-			final PropertyList pl = UrlFetcher.getDocumentProperties();
+-			String docprops = &quot;&quot;;
+-			for (int i = 0; i &lt; pl.size(); i++) {
+-				final Property p = (Property) pl.get(i);
+-				if (p.name.equalsIgnoreCase(&quot;Set-Cookie&quot;)) {
+-					docprops += p.value;
+-				}
++			// **3 now we are logged in and get the userId and sessionId
++			getSessionIdAndSetCookie(&quot;&quot;);
++		} else {
++			pref.log(&quot;[login]: Wrong Account or Password? &quot; + pref.myAlias, null);
++			return 2;
++		}
++
++		if (!this.switchToEnglish())
++			return 0;
++
++		loggedIn = true;
++		return 1;
++	}
++
++	private boolean getSessionIdAndSetCookie(String userId) {
++
++		PropertyList pl = UrlFetcher.getDocumentProperties();
++		String docprops = &quot;&quot;;
++		for (int i = 0; i &lt; pl.size(); i++) {
++			final Property p = (Property) pl.get(i);
++			if (p.name.equalsIgnoreCase(&quot;Set-Cookie&quot;)) {
++				docprops += p.value;
+ 			}
+-			final Regex rexCookieSession = new Regex(&quot;(?i)ASP.NET_SessionId=(.*?);.*&quot;);
+-			rexCookieSession.search(docprops);
+-			if (rexCookieSession.didMatch()) {
+-				cookie = &quot;ASP.NET_SessionId=&quot; + rexCookieSession.stringMatched(1);
+-			} else {
+-				pref.log(&quot;[login]:SessionID not found.&quot;, null);
+-				return 0;
+-			}
++		}
++
++		final Regex rexCookieSession = new Regex(&quot;(?i)ASP.NET_SessionId=(.*?);.*&quot;);
++		rexCookieSession.search(docprops);
++		if (rexCookieSession.didMatch()) {
++			cookie = &quot;ASP.NET_SessionId=&quot; + rexCookieSession.stringMatched(1);
++		} else {
++			pref.log(&quot;[login]:SessionID not found.&quot;, null);
++			return false;
++		}
++
++		if (userId.length() == 0) {
+ 			final Regex rexCookieID = new Regex(&quot;(?i)userid=(.*?);.*&quot;);
+ 			rexCookieID.search(docprops);
+ 			if (rexCookieID.didMatch()) {
+@@ -1262,51 +1285,36 @@
+ 				pref.savePreferences();
+ 			} else {
+ 				pref.log(&quot;[login]:userID not found.&quot;, null);
+-				return 0;
++				return false;
+ 			}
+-			UrlFetcher.setPermanentRequestorProperty(&quot;Cookie&quot;, cookie);
+-		} else {
+-			pref.log(&quot;Login failed. Wrong Account or Password? &quot; + pref.myAlias, null);
+-			return 2;
+ 		}
++		else {
++			cookie += &quot;; userid=&quot; + userId;
++		}
+ 
+-		if (!this.switchToEnglish())
+-			return 0;
++		UrlFetcher.setPermanentRequestorProperty(&quot;Cookie&quot;, cookie);
++		return true;
+ 
+-		loggedIn = true;
+-		return 1;
+ 	}
+ 
+ 	private boolean switchToEnglish() {
+ 		// change language to EN , further operations relay on English
+ 		String url = &quot;<A HREF="http://www.geocaching.com/account/ManagePreferences.aspx">http://www.geocaching.com/account/ManagePreferences.aspx</A>&quot;;
+ 		String page = &quot;&quot;;
+-		String userID = &quot;userid=&quot; + pref.userID;
+ 		try {
+-			UrlFetcher.setPermanentRequestorProperty(&quot;Cookie&quot;, userID);
++			UrlFetcher.setPermanentRequestorProperty(&quot;Cookie&quot;, &quot;userid=&quot; + pref.userID);
+ 			page = UrlFetcher.fetch(url); // getting the sessionid
+-			if (page.length() == 0)
++			if (page.length() == 0) {
++				pref.log(&quot;[switchToEnglish]:empty page getting SessionID.&quot;, null);
+ 				return false;
++			}
+ 		} catch (final Exception ex) {
++			pref.log(&quot;[switchToEnglish]:Exception getting SessionID.&quot;, ex);
+ 			return false;
+ 		}
+-		PropertyList pl = UrlFetcher.getDocumentProperties();
+-		String docprops = &quot;&quot;;
+-		for (int i = 0; i &lt; pl.size(); i++) {
+-			final Property p = (Property) pl.get(i);
+-			if (p.name.equalsIgnoreCase(&quot;Set-Cookie&quot;)) {
+-				docprops += p.value;
+-			}
+-		}
+-		final Regex rexCookieSession = new Regex(&quot;(?i)ASP.NET_SessionId=(.*?);.*&quot;);
+-		rexCookieSession.search(docprops);
+-		if (rexCookieSession.didMatch()) {
+-			cookie = &quot;ASP.NET_SessionId=&quot; + rexCookieSession.stringMatched(1) + &quot;; &quot; + userID;
+-			UrlFetcher.setPermanentRequestorProperty(&quot;Cookie&quot;, cookie);
+-		} else {
+-			pref.log(&quot;[switchToEnglish]:SessionID not found.&quot;, null);
+-			return false;
+-		}
++
++		getSessionIdAndSetCookie(pref.userID);
++
+ 		try {
+ 			page = UrlFetcher.fetch(url);
+ 			if (page.length() == 0)
+@@ -1314,6 +1322,7 @@
+ 		} catch (IOException e) {
+ 			return false;
+ 		}
++
+ 		Extractor ext = new Extractor(page, &quot;ctl00$ContentBody$uxLanguagePreference&quot;, &quot;&lt;/select&gt;&quot;, 0, true);
+ 		String languageBlock = ext.findNext();
+ 		ext.set(ext.findNext(&quot;ctl00$ContentBody$uxDateTimeFormat&quot;), &quot;selected\&quot; value=\&quot;&quot;, &quot;\&quot;&gt;&quot;, 0, true);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="003084.html">[Cachewolf-svn] r3093 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="003087.html">[Cachewolf-svn] r3096 - in trunk: lib/net/ax86 lib/org/json	res_noewe src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#3085">[ date ]</a>
+              <a href="thread.html#3085">[ thread ]</a>
+              <a href="subject.html#3085">[ subject ]</a>
+              <a href="author.html#3085">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

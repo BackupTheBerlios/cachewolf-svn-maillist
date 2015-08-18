@@ -1,0 +1,215 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r934 - in trunk: resources src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-September/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r934%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200709221558.l8MFwtSM007680%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000826.html">
+   <LINK REL="Next"  HREF="000828.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r934 - in trunk: resources src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r934%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200709221558.l8MFwtSM007680%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r934 - in trunk: resources src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sat Sep 22 17:58:55 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000826.html">[Cachewolf-svn] r933 - trunk/src/exp
+</A></li>
+        <LI>Next message: <A HREF="000828.html">[Cachewolf-svn] r935 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#827">[ date ]</a>
+              <a href="thread.html#827">[ thread ]</a>
+              <a href="subject.html#827">[ subject ]</a>
+              <a href="author.html#827">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-09-22 17:58:47 +0200 (Sat, 22 Sep 2007)
+New Revision: 934
+
+Modified:
+   trunk/resources/cachewolf.Languages.cfg
+   trunk/src/CacheWolf/Preferences.java
+   trunk/src/CacheWolf/PreferencesScreen.java
+   trunk/src/CacheWolf/SpiderGC.java
+Log:
+Feature: Proxyeinstellungen koennen ueber Checkbox ein-/ausgeschaltet werden
+
+Modified: trunk/resources/cachewolf.Languages.cfg
+===================================================================
+--- trunk/resources/cachewolf.Languages.cfg	2007-09-22 12:29:37 UTC (rev 933)
++++ trunk/resources/cachewolf.Languages.cfg	2007-09-22 15:58:47 UTC (rev 934)
+@@ -181,6 +181,7 @@
+ 		631=PDA hat Schliessen Button 
+ 		632=Mehr
+ 		633=Max. logs spidern
++		634=Proxy verwenden
+ 		700=Filter setzen
+ 		701=Entfernung
+ 		702=Schwierigkeit
+@@ -730,6 +731,7 @@
+ 		631=PDA has close Button
+ 		632=More
+ 		633=Max. logs to spider
++		634=use Proxy
+ 		700=Set filter
+ 		701=Distance
+ 		702=Difficulty
+@@ -1269,6 +1271,7 @@
+ 		631=PDA heeft stopknop.
+ 		632=Meer
+ 		633=Maximale logs naar werkgeheugen
++		634=use Proxy
+ 		700=Selecteer filter
+ 		701=Afstand
+ 		702=Moeilijkheidsgraad
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2007-09-22 12:29:37 UTC (rev 933)
++++ trunk/src/CacheWolf/Preferences.java	2007-09-22 15:58:47 UTC (rev 934)
+@@ -75,6 +75,8 @@
+ 	public String myproxy = &quot;&quot;;    
+ 	/** Proxyport when spidering */
+ 	public String myproxyport = &quot;&quot;;
++	/** Flag whether proxy is to be used */
++	public boolean proxyActive=false;
+ 	/** Serial port name and baudrate */
+ 	public SerialPortOptions mySPO = new SerialPortOptions();
+ 	/** True if the GPS data should be forwarded to an IP address */
+@@ -233,6 +235,8 @@
+ 		if(name.equals(&quot;proxy&quot;)) {
+ 			myproxy = atts.getValue(&quot;prx&quot;);
+ 			myproxyport = atts.getValue(&quot;prt&quot;);
++			tmp = atts.getValue(&quot;active&quot;);
++			if (tmp != null) proxyActive=Boolean.valueOf(tmp).booleanValue();
+ 		}
+ 		if (name.equals(&quot;garmin&quot;)) {
+ 			garminConn=atts.getValue(&quot;connection&quot;);
+@@ -316,7 +320,7 @@
+ 			outp.print(&quot;	&lt;alias name =\&quot;&quot;+ SafeXML.clean(myAlias) +&quot;\&quot; password=\&quot;&quot;+SafeXML.clean(password)+&quot;\&quot; /&gt;\n&quot;);
+ 			outp.print(&quot;	&lt;alias2 name =\&quot;&quot;+ SafeXML.clean(myAlias2) +&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;	&lt;browser name = \&quot;&quot;+browser+&quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;	&lt;proxy prx = \&quot;&quot;+ myproxy+&quot;\&quot; prt = \&quot;&quot;+ myproxyport + &quot;\&quot;/&gt;\n&quot;);
++			outp.print(&quot;	&lt;proxy prx = \&quot;&quot;+ myproxy+&quot;\&quot; prt = \&quot;&quot;+ myproxyport + &quot;\&quot; active = \&quot;&quot;+ proxyActive +&quot;\&quot; /&gt;\n&quot;);
+ 			outp.print(&quot;	&lt;port portname = \&quot;&quot;+ mySPO.portName +&quot;\&quot; baud = \&quot;&quot;+ mySPO.baudRate+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;	&lt;portforward active= \&quot;&quot;+ Convert.toString(forwardGPS)+&quot;\&quot; destinationHost = \&quot;&quot;+ forwardGpsHost+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;font size =\&quot;&quot;+fontSize+&quot;\&quot;/&gt;\n&quot;);
+
+Modified: trunk/src/CacheWolf/PreferencesScreen.java
+===================================================================
+--- trunk/src/CacheWolf/PreferencesScreen.java	2007-09-22 12:29:37 UTC (rev 933)
++++ trunk/src/CacheWolf/PreferencesScreen.java	2007-09-22 15:58:47 UTC (rev 934)
+@@ -18,7 +18,7 @@
+ 	mInput NSDeg, NSm, EWDeg, EWm, DataDir, Proxy, ProxyPort, Alias, nLogs, Browser, fontSize, inpGPS, 
+ 	       inpLogsPerPage,inpMaxLogsToSpider,inpPassword,inpLanguage;
+ 	mCheckBox dif, ter, loc, own, hid, stat, dist, bear, chkAutoLoad, chkShowDeletedImg, chkMenuAtTop, 
+-	          chkTabsAtTop, chkShowStatus,chkHasCloseButton,chkSynthShort;
++	          chkTabsAtTop, chkShowStatus,chkHasCloseButton,chkSynthShort,chkProxyActive;
+ 	mTabbedPanel mTab;
+ 	mChoice chcGarminPort;
+ 	mLabel lblGarmin;
+@@ -154,12 +154,14 @@
+ 		/////////////////////////////////////////////////////////
+ 		CellPanel pnlProxy=new CellPanel();
+ 		pnlProxy.addNext(new mLabel(&quot;Proxy&quot;),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		pnlProxy.addLast(Proxy = new mInput(),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
++		pnlProxy.addLast(Proxy = new mInput(),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST)).setTag(SPAN,new Dimension(2,1));
+ 		Proxy.setText(pref.myproxy);
+ 		pnlProxy.addNext(new mLabel(&quot;Port&quot;),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		pnlProxy.addNext(ProxyPort = new mInput(),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		pnlProxy.addLast(ProxyPort = new mInput(),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		ProxyPort.setText(pref.myproxyport);
+-		pnlProxy.addLast(new mLabel(&quot;&quot;)).setTag(SPAN,new Dimension(2,1));
++		pnlProxy.addNext(new mLabel(&quot;&quot;),HSTRETCH,HFILL);
++		pnlProxy.addLast(chkProxyActive=new mCheckBox(MyLocale.getMsg(634,&quot;use Proxy&quot;)));
++		chkProxyActive.setState(pref.proxyActive);
+ 		pnlMore.addLast(pnlProxy,HSTRETCH,HFILL);
+ 		pnlMore.addNext(new mLabel(MyLocale.getMsg(592,&quot;Language (needs restart)&quot;)),DONTSTRETCH,DONTFILL|WEST);
+ 		pnlMore.addLast(inpLanguage=new mInput(MyLocale.language),DONTSTRETCH,DONTFILL|WEST);
+@@ -239,6 +241,7 @@
+ 				//Vm.debug(myPreferences.browser);
+ 				pref.myproxy = Proxy.getText();
+ 				pref.myproxyport = ProxyPort.getText();
++				pref.proxyActive=chkProxyActive.getState();
+ 				//myPreferences.nLogs = Convert.parseInt(nLogs.getText());
+ 				pref.autoReloadLastProfile=chkAutoLoad.getState();
+ 				pref.showDeletedImages=chkShowDeletedImg.getState();
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2007-09-22 12:29:37 UTC (rev 933)
++++ trunk/src/CacheWolf/SpiderGC.java	2007-09-22 15:58:47 UTC (rev 934)
+@@ -383,7 +383,7 @@
+ 				if (!getCacheByWaypointName(chD,false,getImages,doNotgetFound,true)) break;
+ 				if (!chD.is_found || !doNotgetFound ) {
+ 					chD.saveCacheDetails(profile.dataDir);
+-					cacheDB.add(new CacheHolder(chD)); // TODO Could copy into existing object
++					cacheDB.add(new CacheHolder(chD)); 
+ 				}
+ 			}
+ 		}
+@@ -939,7 +939,7 @@
+ 		ByteArray daten;
+ 		String datei = &quot;&quot;;
+ 		datei = profile.dataDir + target;
+-		if(pref.myproxy.length()&gt;0){
++		if(pref.myproxy.length()&gt;0 &amp;&amp; pref.proxyActive){
+ 			connImg = new HttpConnection(pref.myproxy, Convert.parseInt(pref.myproxyport), imgUrl);
+ 		}else{
+ 			connImg = new HttpConnection(imgUrl);
+@@ -1042,7 +1042,7 @@
+ 			try{
+ 				//Vm.debug(address);
+ 				HttpConnection conn;
+-				if(pref.myproxy.length() &gt; 0){
++				if(pref.myproxy.length() &gt; 0 &amp;&amp; pref.proxyActive){
+ 					pref.log(&quot;Using proxy: &quot; + pref.myproxy + &quot; / &quot; +pref.myproxyport);
+ 					conn = new HttpConnection(pref.myproxy, Convert.parseInt(pref.myproxyport), address);
+ 					//Vm.debug(address);
+@@ -1108,7 +1108,7 @@
+ 
+ 			//String line = &quot;&quot;;
+ 			String totline = &quot;&quot;;
+-			if(pref.myproxy.length()==0){
++			if(!pref.proxyActive){
+ 				try {
+ 					/*
+ 					// Create a socket to the host
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000826.html">[Cachewolf-svn] r933 - trunk/src/exp
+</A></li>
+	<LI>Next message: <A HREF="000828.html">[Cachewolf-svn] r935 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#827">[ date ]</a>
+              <a href="thread.html#827">[ thread ]</a>
+              <a href="subject.html#827">[ subject ]</a>
+              <a href="author.html#827">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

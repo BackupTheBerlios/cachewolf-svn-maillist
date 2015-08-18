@@ -1,0 +1,273 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2946 - in trunk/src/CacheWolf: . imp navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2011-March/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2946%20-%20in%20trunk/src/CacheWolf%3A%20.%20imp%20navi&In-Reply-To=%3C20110305113651.B3A514812CC%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002936.html">
+   <LINK REL="Next"  HREF="002940.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2946 - in trunk/src/CacheWolf: . imp navi</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2946%20-%20in%20trunk/src/CacheWolf%3A%20.%20imp%20navi&In-Reply-To=%3C20110305113651.B3A514812CC%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2946 - in trunk/src/CacheWolf: . imp navi">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Sat Mar  5 12:36:51 CET 2011</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002936.html">[Cachewolf-svn] r2945 - trunk/src/CacheWolf/imp
+</A></li>
+        <LI>Next message: <A HREF="002940.html">[Cachewolf-svn] r2949 - in trunk: res_noewe src/CacheWolf	src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2937">[ date ]</a>
+              <a href="thread.html#2937">[ thread ]</a>
+              <a href="subject.html#2937">[ subject ]</a>
+              <a href="author.html#2937">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2011-03-05 12:36:51 +0100 (Sat, 05 Mar 2011)
+New Revision: 2946
+
+Modified:
+   trunk/src/CacheWolf/UrlFetcher.java
+   trunk/src/CacheWolf/imp/GCVoteImporter.java
+   trunk/src/CacheWolf/imp/OCGPXfetch.java
+   trunk/src/CacheWolf/imp/SpiderGC.java
+   trunk/src/CacheWolf/navi/MapLoader.java
+Log:
+finished replacing with UrlFetcher
+
+Modified: trunk/src/CacheWolf/UrlFetcher.java
+===================================================================
+--- trunk/src/CacheWolf/UrlFetcher.java	2011-03-05 09:31:15 UTC (rev 2945)
++++ trunk/src/CacheWolf/UrlFetcher.java	2011-03-05 11:36:51 UTC (rev 2946)
+@@ -45,6 +45,7 @@
+ 	static PropertyList permanentRequestorProperties = null;
+ 	static String postData=null;
+ 	static String urltmp=null;
++	static boolean forceRedirect=false;
+ 	
+ 	public static PropertyList getDocumentProperties() {
+ 		if (conn != null) 
+@@ -53,6 +54,7 @@
+ 	}
+ 	public static String getRealUrl() { return urltmp; };
+ 	public static void setMaxRedirections(int value) { maxRedirections=value; };
++	public static void setForceRedirect() { forceRedirect=true; };
+ 	public static void setRequestorProperties(PropertyList value) { requestorProperties=value; };
+ 	public static void setRequestorProperty(String name, String property) {
+ 		if (requestorProperties == null) requestorProperties = new PropertyList();
+@@ -135,7 +137,7 @@
+ 				}
+ 				urltmp = STRreplace.replace(urltmp, eweUrl.getHost() + &quot;/\\.\\./&quot;, eweUrl.getHost() + &quot;/&quot;);
+ 			}
+-		} while (urltmp != null &amp;&amp; i &lt;= maxRedirections ); 
++		} while (((urltmp != null) || (urltmp == null) &amp;&amp; forceRedirect) &amp;&amp; i &lt;= maxRedirections ); 
+ 		if (i &gt; maxRedirections) throw new IOException(&quot;too many http redirections while trying to fetch: &quot;+url + &quot; only &quot;+maxRedirections+&quot; are allowed&quot;);
+ 		hndl[0] = conn.readInData();
+ 		ByteArray daten;
+@@ -147,6 +149,7 @@
+ 		maxRedirections = 5;
+ 		requestorProperties = null;
+ 		postData=null;
++		forceRedirect=false;
+ 		daten = (ByteArray)hndl[0].returnValue; // ByteArray daten = conn.readData(sock);
+ 		return daten;
+ 	}
+
+Modified: trunk/src/CacheWolf/imp/GCVoteImporter.java
+===================================================================
+--- trunk/src/CacheWolf/imp/GCVoteImporter.java	2011-03-05 09:31:15 UTC (rev 2945)
++++ trunk/src/CacheWolf/imp/GCVoteImporter.java	2011-03-05 11:36:51 UTC (rev 2946)
+@@ -105,9 +105,6 @@
+ 
+ 			try {
+ 				pref.log(&quot;[GCVote]:Requesting ratings&quot;);
+-
+-				// request web page <A HREF="http://gcvote.de/getVotes.php">http://gcvote.de/getVotes.php</A>
+-				// UrlFetcher.setRequestorProperty(&quot;User-Agent&quot;, &quot;Mozilla/5.0 (compatible; Cachewolf; GCVoteImporter)&quot;);
+ 				GCVResults = UrlFetcher.fetch(GCVURL);
+ 				if (GCVResults.equals(&quot;&quot;)) {
+ 					(new MessageBox(MyLocale.getMsg(0,&quot;Error&quot;), MyLocale.getMsg(0,&quot;Error loading GCVote page.%0aPlease check your internet connection.&quot;), FormBase.OKB)).execute();
+
+Modified: trunk/src/CacheWolf/imp/OCGPXfetch.java
+===================================================================
+--- trunk/src/CacheWolf/imp/OCGPXfetch.java	2011-03-05 09:31:15 UTC (rev 2945)
++++ trunk/src/CacheWolf/imp/OCGPXfetch.java	2011-03-05 11:36:51 UTC (rev 2946)
+@@ -53,11 +53,9 @@
+ 			File ftmp = new FileBugfix(tmpFile);
+ 			if (ftmp.exists() &amp;&amp; ftmp.length()&gt;0) {
+ 				GPXImporter gpx = new GPXImporter(pref, prof, tmpFile);
+-				int withPics = GPXImporter.DOIT_NOSPOILER;
+-				if (pref.downloadPics) {
+-					withPics=GPXImporter.DOIT_WITHSPOILER;
+-				}			
+-				gpx.doIt(withPics);
++				if (pref.downloadPics) 
++					gpx.doIt(GPXImporter.DOIT_WITHSPOILER);				
++				else gpx.doIt(GPXImporter.DOIT_NOSPOILER);
+ 			}
+ 			ftmp.delete();
+ 		} catch (IOException e) {
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2011-03-05 09:31:15 UTC (rev 2945)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2011-03-05 11:36:51 UTC (rev 2946)
+@@ -2958,40 +2958,9 @@
+ 	 * @param target
+ 	 *            The bytes of the image
+ 	 */
+-	private void spiderImage(String imgUrl, String target) {
+-		// TODO implement a fetch(URL, filename) in HttpConnection and use that one
+-		HttpConnection connImg;
+-		Socket sockImg;
+-		// InputStream is;
+-		FileOutputStream fos;
+-		// int bytes_read;
+-		// byte[] buffer = new byte[9000];
+-		ByteArray daten;
+-		String datei = &quot;&quot;;
+-		datei = profile.dataDir + target;
+-		connImg = new HttpConnection(imgUrl);
+-		if (imgUrl.indexOf('%') &gt;= 0)
+-			connImg.documentIsEncoded = true;
+-		connImg.setRequestorProperty(&quot;Connection&quot;, &quot;close&quot;);
+-		// connImg.setRequestorProperty(&quot;User-Agent&quot;,&quot;Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1.12) Gecko/20080201 Firefox/2.0.0.12&quot;);
+-		// connImg.setRequestorProperty(&quot;Accept&quot;,&quot;text/xml,application/xml,application/xhtml+xml,text/html;q=0.9,text/plain;q=0.8,image/png,*/*;q=0.5&quot;);
++	private void spiderImage(String address, String fn) {
+ 		try {
+-			pref.log(&quot;[spiderImage] Trying to fetch image from: &quot; + imgUrl);
+-			String redirect = null;
+-			do {
+-				sockImg = connImg.connect();
+-				redirect = connImg.getRedirectTo();
+-				if (redirect != null) {
+-					connImg = connImg.getRedirectedConnection(redirect);
+-					pref.log(&quot;[spiderImage] Redirect to &quot; + redirect);
+-				}
+-			} while (redirect != null); 
+-			// TODO this can end up in an endless loop if trying to load from a malicous site
+-			daten = connImg.readData(sockImg);
+-			fos = new FileOutputStream(new File(datei));
+-			fos.write(daten.toBytes());
+-			fos.close();
+-			sockImg.close();
++			UrlFetcher.fetchDataFile(address, profile.dataDir + fn);
+ 		} catch (UnknownHostException e) {
+ 			pref.log(&quot;[spiderImage] Host not there...&quot;, e);
+ 		} catch (IOException ioex) {
+
+Modified: trunk/src/CacheWolf/navi/MapLoader.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MapLoader.java	2011-03-05 09:31:15 UTC (rev 2945)
++++ trunk/src/CacheWolf/navi/MapLoader.java	2011-03-05 11:36:51 UTC (rev 2946)
+@@ -32,6 +32,7 @@
+ import CacheWolf.InfoBox;
+ import CacheWolf.MyLocale;
+ import CacheWolf.STRreplace;
++import CacheWolf.UrlFetcher;
+ import CacheWolf.utils.FileBugfix;
+ import ewe.fx.Point;
+ import ewe.io.BufferedWriter;
+@@ -479,10 +480,6 @@
+ 	 * @param datei path and name of file to save to
+ 	 */
+ 	public void downloadImage(String url, String datei) throws IOException {
+-		HttpConnection connImg; // TODO implement this in UrlFetcher class
+-		Socket sockImg;
+-		FileOutputStream fos;
+-		ByteArray daten;
+ 		String realurl;
+ 		boolean forceredirect;
+ 		if (url.startsWith(&quot;R&quot;)) {
+@@ -492,44 +489,16 @@
+ 			forceredirect = false;
+ 			realurl = url;
+ 		}
+-		connImg = new HttpConnection(realurl);
+-		connImg.setRequestorProperty(&quot;USER_AGENT&quot;, &quot;Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.7.5) Gecko/20041107 Firefox/1.0&quot;);
+-		connImg.setRequestorProperty(&quot;Connection&quot;, &quot;close&quot;);
+-	//	this prevents gdz1.leipzig.ifag.de (dtk100) from answering and ist not necessary for expedia connImg.setRequestorProperty(&quot;Cookie&quot;, &quot;jscript=1; path=/;&quot;);
+-		connImg.documentIsEncoded = true;
+-		try{
+-			File dateiF = new FileBugfix(datei);
+-			if(!dateiF.exists()){
+-				int i=0;
+-				sockImg = connImg.connect();
+-				String quelle = connImg.getRedirectTo();
+-				boolean redirrected = false;
+-				while (i &lt; 5 &amp;&amp; (quelle != null || (forceredirect &amp;&amp; !redirrected))) { // this is necessary because expedia sometimes doesn't directly anser with the redirect to the map-image, but give a page in between. Solved the problem by retrying see also: <A HREF="http://www.geoclub.de/viewtopic.php?p=305071#305071">http://www.geoclub.de/viewtopic.php?p=305071#305071</A>
+-					if (quelle != null) {
+-						redirrected = true;
+-						sockImg.close();
+-						connImg = connImg.getRedirectedConnection(quelle);
+-						sockImg = connImg.connect();
+-						quelle = connImg.getRedirectTo();
+-					}
+-					i++;
+-				}
+-				if (i &gt; 4) throw new IOException(MyLocale.getMsg(4807, &quot;loadTo: failed to download map: didn't get http-redirect&quot;));
+-				String ct = (String)connImg.documentProperties.getValue(&quot;content-type&quot;, &quot;&quot;);
+-				if (!ct.substring(0, 5).equalsIgnoreCase(&quot;image&quot;) )  {
+-					String tmp = connImg.readText(sockImg, null).toString(); // TODO if the content is binary will will get an Exception in InfoBox, trying to display the content
+-					tmp = tmp.substring(0, (tmp.length() &lt; 1000 ? tmp.length() : 1000));
+-					sockImg.close();
+-					throw new IOException(MyLocale.getMsg(4808, &quot;downloadImage: content-type:&quot;)+&quot; &quot; + ct + MyLocale.getMsg(4809, &quot; is not an image, begin of content:&quot;)+&quot; &quot; + tmp);
+-				}
+-				daten = connImg.readData(sockImg);
+-				fos = new FileOutputStream(datei); // note: using the constructor (File) instead of (String) will cause not to use the fake file system
+-				fos.write(daten.toBytes());
+-				fos.close();
+-				sockImg.close();
++		File dateiF = new FileBugfix(datei);
++		if(!dateiF.exists()){
++			if (forceredirect) UrlFetcher.setForceRedirect();
++			UrlFetcher.fetchDataFile(realurl, datei);
++			String ct = (String) UrlFetcher.getDocumentProperties().getValue(&quot;content-type&quot;,&quot;&quot;);
++			if (!ct.substring(0, 5).equalsIgnoreCase(&quot;image&quot;) )  {
++				dateiF = new FileBugfix(datei); //??? muss das nochmal ???
++				dateiF.delete();
++				throw new IOException(MyLocale.getMsg(4808, &quot;downloadImage: content-type:&quot;)+&quot; &quot; + ct + MyLocale.getMsg(4809, &quot; is not an image, begin of content:&quot;)+&quot; (deleted)&quot;);
+ 			}
+-		}catch(IOException e){
+-			throw new IOException(MyLocale.getMsg(4810, &quot;Error while downloading or saving map:\n&quot;) + e.getMessage());
+ 		}
+ 	}
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002936.html">[Cachewolf-svn] r2945 - trunk/src/CacheWolf/imp
+</A></li>
+	<LI>Next message: <A HREF="002940.html">[Cachewolf-svn] r2949 - in trunk: res_noewe src/CacheWolf	src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2937">[ date ]</a>
+              <a href="thread.html#2937">[ thread ]</a>
+              <a href="subject.html#2937">[ subject ]</a>
+              <a href="author.html#2937">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,283 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r502 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r502%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702040915.l149FQQU009920%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000293.html">
+   <LINK REL="Next"  HREF="000295.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r502 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r502%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702040915.l149FQQU009920%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r502 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sun Feb  4 10:15:26 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000293.html">[Cachewolf-svn] r501 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000295.html">[Cachewolf-svn] r503 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#294">[ date ]</a>
+              <a href="thread.html#294">[ thread ]</a>
+              <a href="subject.html#294">[ subject ]</a>
+              <a href="author.html#294">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-02-04 10:15:20 +0100 (Sun, 04 Feb 2007)
+New Revision: 502
+
+Modified:
+   trunk/src/CacheWolf/CacheHolder.java
+   trunk/src/CacheWolf/CalcPanel.java
+   trunk/src/CacheWolf/GPXImporter.java
+   trunk/src/CacheWolf/LOCXMLImporter.java
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/OCXMLImporter.java
+   trunk/src/CacheWolf/Parser.java
+   trunk/src/CacheWolf/Profile.java
+   trunk/src/CacheWolf/SpiderGC.java
+Log:
+Bugfix: &quot;pos&quot; und &quot;LatLon&quot; gleichzeitig aktualisieren
+
+Modified: trunk/src/CacheWolf/CacheHolder.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolder.java	2007-02-04 08:34:03 UTC (rev 501)
++++ trunk/src/CacheWolf/CacheHolder.java	2007-02-04 09:15:20 UTC (rev 502)
+@@ -106,6 +106,7 @@
+ 	  
+ 	  //coords
+ 	  this.LatLon = newCh.LatLon;
++	  this.pos.set(newCh.pos);
+ 
+ 	  // check only length of the description to see, if there was an update
+ 	  if (this.LongDescription.length() != newCh.LongDescription.length()){
+
+Modified: trunk/src/CacheWolf/CalcPanel.java
+===================================================================
+--- trunk/src/CacheWolf/CalcPanel.java	2007-02-04 08:34:03 UTC (rev 501)
++++ trunk/src/CacheWolf/CalcPanel.java	2007-02-04 09:15:20 UTC (rev 502)
+@@ -160,6 +160,7 @@
+ 				readFields(coordInp, bd, currFormat);
+ 				coordOut = coordInp.project(bd.degrees, bd.distance);
+ 				ch.LatLon = coordOut.toString();
++				ch.pos.set(coordOut);
+ 				detP.newWaypoint(ch, mainT);
+ 			}
+ 			
+
+Modified: trunk/src/CacheWolf/GPXImporter.java
+===================================================================
+--- trunk/src/CacheWolf/GPXImporter.java	2007-02-04 08:34:03 UTC (rev 501)
++++ trunk/src/CacheWolf/GPXImporter.java	2007-02-04 09:15:20 UTC (rev 502)
+@@ -154,6 +154,7 @@
+ 		if (name.equals(&quot;wpt&quot;)) {
+ 			holder = new CacheHolder();
+ 			holder.LatLon = latdeg2min(atts.getValue(&quot;lat&quot;)) + &quot; &quot; +londeg2min(atts.getValue(&quot;lon&quot;));
++			holder.pos.set(Common.parseDouble(atts.getValue(&quot;lat&quot;)),Common.parseDouble(atts.getValue(&quot;lon&quot;)));
+ 			inWpt = true;
+ 			inLogs = false;
+ 			inBug = false;
+
+Modified: trunk/src/CacheWolf/LOCXMLImporter.java
+===================================================================
+--- trunk/src/CacheWolf/LOCXMLImporter.java	2007-02-04 08:34:03 UTC (rev 501)
++++ trunk/src/CacheWolf/LOCXMLImporter.java	2007-02-04 09:15:20 UTC (rev 502)
+@@ -91,6 +91,7 @@
+ 		}
+ 		if (name.equals(&quot;coord&quot;)){
+ 			holder.LatLon = GPXImporter.latdeg2min(atts.getValue(&quot;lat&quot;)) + &quot; &quot; + GPXImporter.londeg2min(atts.getValue(&quot;lon&quot;));
++			holder.pos.set(Common.parseDouble(atts.getValue(&quot;lat&quot;)),Common.parseDouble(atts.getValue(&quot;lon&quot;)));
+ 			return;
+ 		}
+ 
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2007-02-04 08:34:03 UTC (rev 501)
++++ trunk/src/CacheWolf/MainTab.java	2007-02-04 09:15:20 UTC (rev 502)
+@@ -118,7 +118,8 @@
+ 					  ch.is_black = detP.blackStatus;
+ 					  ch.wayPoint = detP.wayPoint.getText();
+ 					  ch.CacheName = detP.wayName.getText();
+-					  ch.LatLon = new CWPoint(detP.btnWayLoc.getText(),CWPoint.CW).toString();
++					  ch.pos.set(detP.btnWayLoc.getText(),CWPoint.CW);
++					  ch.LatLon = ch.pos.toString();
+ 					  ch.DateHidden = detP.wayHidden.getText();
+ 					  ch.CacheOwner = detP.wayOwner.getText();
+ 					  if(pref.myAlias.equals(ch.CacheOwner)) ch.is_owned = true;
+
+Modified: trunk/src/CacheWolf/OCXMLImporter.java
+===================================================================
+--- trunk/src/CacheWolf/OCXMLImporter.java	2007-02-04 08:34:03 UTC (rev 501)
++++ trunk/src/CacheWolf/OCXMLImporter.java	2007-02-04 09:15:20 UTC (rev 502)
+@@ -386,6 +386,7 @@
+ 		}
+ 		if(name.equals(&quot;latitude&quot;)) {
+ 			holder.LatLon = GPXImporter.latdeg2min(strData) + &quot; &quot; + holder.LatLon;
++			holder.pos.set(holder.LatLon);
+ 			return;
+ 		}
+ 		if(name.equals(&quot;difficulty&quot;)) {
+
+Modified: trunk/src/CacheWolf/Parser.java
+===================================================================
+--- trunk/src/CacheWolf/Parser.java	2007-02-04 08:34:03 UTC (rev 501)
++++ trunk/src/CacheWolf/Parser.java	2007-02-04 09:15:20 UTC (rev 502)
+@@ -208,9 +208,9 @@
+ 			if (idx!=-1) { // Found it!
+ 				CacheHolder ch=(CacheHolder)Global.getProfile().cacheDB.get(idx);
+ 				// Check whether coordinates are valid
+-				cwPt.set(ch.LatLon);
++				cwPt.set(ch.pos);
+ 				if (cwPt.isValid() ) 
+-					return ch.LatLon;
++					return cwPt.toString();
+ 				else
+ 					return &quot;&quot;; // Convert invalid coordinates (N 0 0.0 E 0 0.0) into empty string
+ 			}
+@@ -463,7 +463,9 @@
+     		int i=Global.getProfile().getCacheIndex(waypointName);
+     		if (i&lt;0) err(MyLocale.getMsg(1714,&quot;Goto: Waypoint does not exist: &quot;)+waypointName);
+     		cwPt.set(coord);
+-    		((CacheHolder)Global.getProfile().cacheDB.get(i)).LatLon=cwPt.toString(CWPoint.CW);
++    		CacheHolder ch=((CacheHolder)Global.getProfile().cacheDB.get(i));
++    		ch.LatLon=cwPt.toString(CWPoint.CW);
++    		ch.pos.set(cwPt);
+     	}
+     }
+     
+@@ -682,6 +684,7 @@
+ 				cwPt.set(coord);
+ 				if (cwPt.isValid() || coord.equals(&quot;&quot;)) { // Can clear coord with empty string
+ 					ch.LatLon=cwPt.toString(CWPoint.CW);
++					ch.pos.set(cwPt);
+ 				    return;
+ 				} else
+ 					err(MyLocale.getMsg(1712,&quot;Invalid coordinate: &quot;)+coord);
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2007-02-04 08:34:03 UTC (rev 501)
++++ trunk/src/CacheWolf/Profile.java	2007-02-04 09:15:20 UTC (rev 502)
+@@ -35,7 +35,7 @@
+ 	/** Distance for opencaching caches */
+ 	public String distOC = new String();
+ 	
+-	public final static String FILTERTYPE=&quot;11111111110&quot;;
++	public final static String FILTERTYPE=&quot;11111111111000000&quot;;
+ 	public final static String FILTERROSE=&quot;1111111111111111&quot;;
+ 	public final static String FILTERVAR=&quot;11111111&quot;;
+ 	public String filterType = new String(FILTERTYPE);
+@@ -107,12 +107,13 @@
+ 				ch = (CacheHolder)cacheDB.get(i);
+ 				////Vm.debug(&quot;Saving: &quot; + ch.CacheName);
+ 				if(ch.wayPoint.length()&gt;0 &amp;&amp; ch.LongDescription.equals(&quot;An Error Has Occured&quot;) == false){
+-					if (ch.pos==null) {
++/* pos must always be set, so this is no longer needed
++ 					if (ch.pos==null) {
+ 						ParseLatLon pl=new ParseLatLon(ch.LatLon);
+ 						pl.parse();
+ 						ch.pos=new CWPoint(pl.lat2,pl.lon2);
+ 					}
+-					detfile.print(&quot;    &lt;CACHE name = \&quot;&quot;+SafeXML.clean(ch.CacheName)+&quot;\&quot; owner = \&quot;&quot;+SafeXML.clean(ch.CacheOwner)+
++*/					detfile.print(&quot;    &lt;CACHE name = \&quot;&quot;+SafeXML.clean(ch.CacheName)+&quot;\&quot; owner = \&quot;&quot;+SafeXML.clean(ch.CacheOwner)+
+ 							//&quot;\&quot; lat = \&quot;&quot;+ SafeXML.clean(ch.LatLon) +
+ 							&quot;\&quot; lat = \&quot;&quot;+ ch.pos.latDec + &quot;\&quot; lon = \&quot;&quot;+ch.pos.lonDec+
+ 							&quot;\&quot; hidden = \&quot;&quot;+ch.DateHidden+&quot;\&quot; wayp = \&quot;&quot;+SafeXML.clean(ch.wayPoint)+&quot;\&quot; status = \&quot;&quot;+ch.CacheStatus+&quot;\&quot; type = \&quot;&quot;+ch.type+&quot;\&quot; dif = \&quot;&quot;+ch.hard+&quot;\&quot; terrain = \&quot;&quot; + ch.terrain + &quot;\&quot; dirty = \&quot;&quot; + ch.dirty + &quot;\&quot; size = \&quot;&quot;+ch.CacheSize+&quot;\&quot; online = \&quot;&quot; + Convert.toString(ch.is_available) + &quot;\&quot; archived = \&quot;&quot; + Convert.toString(ch.is_archived) + &quot;\&quot; has_bug = \&quot;&quot; + Convert.toString(ch.has_bug) + &quot;\&quot; black = \&quot;&quot; + Convert.toString(ch.is_black) + &quot;\&quot; owned = \&quot;&quot; + Convert.toString(ch.is_owned) + &quot;\&quot; found = \&quot;&quot; + Convert.toString(ch.is_found) + &quot;\&quot; is_new = \&quot;&quot; + Convert.toString(ch.is_new) +&quot;\&quot; is_log_update = \&quot;&quot; + Convert.toString(ch.is_log_update) + &quot;\&quot; is_update = \&quot;&quot; + Convert.toString(ch.is_update) + &quot;\&quot; is_HTML = \&quot;&quot; + Convert.toString(ch.is_HTML) + &quot;\&quot; DNFLOGS = \&quot;&quot; + ch.noFindLogs + &quot;\&quot; ocCacheID = \&quot;&quot; + ch.ocCacheID + &quot;\&quot; /&gt;\n&quot;);
+@@ -155,8 +156,10 @@
+ 						double lon=Convert.parseDouble(ex.findNext().replace(notDecSep,decSep));
+ 						ch.pos=new CWPoint(lat,lon);
+ 						ch.LatLon=ch.pos.toString();
+-					} else
++					} else {
+ 						ch.LatLon = SafeXML.cleanback(ex.findNext());
++						ch.pos.set(ch.LatLon,CWPoint.CW);
++					}
+ 					ch.DateHidden = ex.findNext();
+ 					ch.wayPoint = SafeXML.cleanback(ex.findNext());
+ 					ch.CacheStatus = ex.findNext();
+@@ -283,15 +286,12 @@
+ 			CWPoint fromPoint = new CWPoint(Global.getPref().curCentrePt); // Clone current centre to be sure
+ 			int anz = cacheDB.getCount();
+ 			CacheHolder ch;
+-			CWPoint toPoint = new CWPoint();
++			CWPoint toPoint;
+ 			// Jetzt durch die CacheDaten schleifen
+ 			while(--anz &gt;= 0){
+ 				ch = (CacheHolder)cacheDB.get(anz); // This returns a pointer to the CacheHolder object
+ 				if(ch.LatLon.length()&gt;4){
+-					if (ch.pos == null) { // only calculate once
+-						toPoint.set(ch.LatLon, CWPoint.CW); // Fast parse with traditional parse algorithm
+-						ch.pos = new CWPoint(toPoint);
+-					} else toPoint = ch.pos;
++					toPoint = ch.pos;
+ 					ch.kilom = fromPoint.getDistance(toPoint);
+ 					ch.degrees = fromPoint.getBearing(toPoint);
+ 					ch.bearing = CWPoint.getDirection(ch.degrees);
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2007-02-04 08:34:03 UTC (rev 501)
++++ trunk/src/CacheWolf/SpiderGC.java	2007-02-04 09:15:20 UTC (rev 502)
+@@ -142,6 +142,7 @@
+ 		ch.CacheLogs = getLogs(start, ch);
+ 		pref.log(&quot;Found logs&quot;);
+ 		ch.LatLon = getLatLon(start);
++		ch.pos.set(ch.LatLon);
+ 		//Vm.debug(&quot;LatLon: &quot; + ch.LatLon);
+ 		pref.log(&quot;Trying description&quot;);
+ 		ch.LongDescription = getLongDesc(start);
+@@ -317,6 +318,7 @@
+ 					ch.CacheLogs = getLogs(start, ch);
+ 					pref.log(&quot;Found logs&quot;);
+ 					ch.LatLon = getLatLon(start);
++					ch.pos.set(ch.LatLon); // Slow parse no problem
+ 					//Vm.debug(&quot;LatLon: &quot; + ch.LatLon);
+ 					pref.log(&quot;Trying description&quot;);
+ 					ch.LongDescription = getLongDesc(start);
+@@ -436,6 +438,7 @@
+ 				cx.CacheName = nameRex.stringMatched(1);
+ 				if(koordRex.didMatch()) cx.LatLon = koordRex.stringMatched(1); 
+ 				else cx.LatLon = &quot;N 00&#176; 00.000 E 000&#176; 00.000&quot;; 
++				cx.pos.set(cx.LatLon);
+ 				if(typeRex.didMatch()) cx.type = CacheType.typeText2Number(&quot;Waypoint|&quot;+typeRex.stringMatched(1));
+ 				
+ 				//Vm.debug(&quot;Name: &quot; + nameRex.stringMatched(1));
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000293.html">[Cachewolf-svn] r501 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000295.html">[Cachewolf-svn] r503 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#294">[ date ]</a>
+              <a href="thread.html#294">[ thread ]</a>
+              <a href="subject.html#294">[ subject ]</a>
+              <a href="author.html#294">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

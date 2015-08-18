@@ -1,0 +1,121 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1235 - trunk/src/CacheWolf/navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-March/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1235%20-%20trunk/src/CacheWolf/navi&In-Reply-To=%3C200803091114.m29BEImb029335%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001128.html">
+   <LINK REL="Next"  HREF="001130.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1235 - trunk/src/CacheWolf/navi</H1>
+    <B>mik77 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1235%20-%20trunk/src/CacheWolf/navi&In-Reply-To=%3C200803091114.m29BEImb029335%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1235 - trunk/src/CacheWolf/navi">mik77 at mail.berlios.de
+       </A><BR>
+    <I>Sun Mar  9 12:14:18 CET 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001128.html">[Cachewolf-svn] r1234 - trunk/docs/CacheWolf Doku
+</A></li>
+        <LI>Next message: <A HREF="001130.html">[Cachewolf-svn] r1236 - in trunk/src/CacheWolf: . navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1129">[ date ]</a>
+              <a href="thread.html#1129">[ thread ]</a>
+              <a href="subject.html#1129">[ subject ]</a>
+              <a href="author.html#1129">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mik77
+Date: 2008-03-09 12:14:16 +0100 (Sun, 09 Mar 2008)
+New Revision: 1235
+
+Modified:
+   trunk/src/CacheWolf/navi/MovingMap.java
+Log:
+Reverted some changes because they selected not the best map on automatic map change. They are now only used when manually changing scale.
+
+Modified: trunk/src/CacheWolf/navi/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MovingMap.java	2008-03-09 10:34:22 UTC (rev 1234)
++++ trunk/src/CacheWolf/navi/MovingMap.java	2008-03-09 11:14:16 UTC (rev 1235)
+@@ -974,15 +974,15 @@
+ 		int h = (height != 0 ? height : pref.myAppHeight);
+ 		int x, y;
+ 		CWPoint cll;
+-		
+-		if (currentMap != null) {
++		if (posCircleX &gt;= 0 &amp;&amp; posCircleX &lt;= w &amp;&amp; posCircleY &gt;= 0 &amp;&amp; posCircleY &lt;= h &amp;&amp; ll.isValid()) {
++			x = posCircleX; // posCircle is inside the screen
++			y = posCircleY; // TODO eigentlich interessiert, ob nach dem evtl. Kartenwechsel PosCircle on Screen ist. So wie es jetzt ist, kann 2mal der gleiche Aufruf zum laden unterschiedlicher Karten f&#252;hren, wenn vorher PosCircle nicht auf dem SChirm war, nach dem ersten Laden aber schon.
++			cll = new CWPoint(ll);
++		} else { // when posCircle out of screen - use centre of screen as point which as to be included in the map
+ 			cll = ScreenXY2LatLon(w/2, h/2);
+-		} else {
+-			cll = new CWPoint(ll);
+-		}
+-		x = w/2;
+-		y = h/2;
+-
++			x = w/2;
++			y = h/2;
++		} 
+ 		Object[] ret = new Object[2];
+ 		ret[0] = cll;
+ 		ret[1] = new Rect(x, y, w, h);
+@@ -995,10 +995,17 @@
+ 	 * @return
+ 	 */
+ 	public void loadMoreDetailedMap(boolean betterOverview){
+-		Object [] s = getRectForMapChange(posCircle.where);
+-		CWPoint cll = (CWPoint) s[0]; 
+-		Rect screen = (Rect) s[1]; 
+-		//Rect screen = new Rect(posCircleX, posCircleY, (width != 0 ? width : pref.myAppWidth), (height != 0 ? height : pref.myAppHeight));
++		int w = (width != 0 ? width : pref.myAppWidth); // width == 0 happens if this routine is run before the windows is on the screen
++		int h = (height != 0 ? height : pref.myAppHeight);
++		Rect screen = new Rect(w/2, h/2, w, h);
++
++		CWPoint cll;
++		if (currentMap != null) {
++			cll = ScreenXY2LatLon(w/2, h/2);
++		} else {
++			cll = new CWPoint(posCircle.where);
++		}
++		
+ 		MapInfoObject m = maps.getMapChangeResolution(cll, screen, currentMap.scale / currentMap.zoomFactor, !betterOverview);
+ 		if (m != null) {
+ 			boolean saveGpsIgnStatus = dontUpdatePos;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001128.html">[Cachewolf-svn] r1234 - trunk/docs/CacheWolf Doku
+</A></li>
+	<LI>Next message: <A HREF="001130.html">[Cachewolf-svn] r1236 - in trunk/src/CacheWolf: . navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1129">[ date ]</a>
+              <a href="thread.html#1129">[ thread ]</a>
+              <a href="subject.html#1129">[ subject ]</a>
+              <a href="author.html#1129">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

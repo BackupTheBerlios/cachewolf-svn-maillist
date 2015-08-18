@@ -1,0 +1,142 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2226 - in trunk/src/CacheWolf: . navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-September/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2226%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C200909302004.n8UK44M4014239%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002149.html">
+   
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2226 - in trunk/src/CacheWolf: . navi</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2226%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C200909302004.n8UK44M4014239%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2226 - in trunk/src/CacheWolf: . navi">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Wed Sep 30 22:04:05 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002149.html">[Cachewolf-svn] r2225 - trunk/src/CacheWolf/navi
+</A></li>
+        
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2150">[ date ]</a>
+              <a href="thread.html#2150">[ thread ]</a>
+              <a href="subject.html#2150">[ subject ]</a>
+              <a href="author.html#2150">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2009-09-30 22:04:02 +0200 (Wed, 30 Sep 2009)
+New Revision: 2226
+
+Modified:
+   trunk/src/CacheWolf/Preferences.java
+   trunk/src/CacheWolf/Profile.java
+   trunk/src/CacheWolf/navi/MovingMap.java
+Log:
+path with special characters should work now; 
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2009-09-30 13:53:42 UTC (rev 2225)
++++ trunk/src/CacheWolf/Preferences.java	2009-09-30 20:04:02 UTC (rev 2226)
+@@ -666,12 +666,11 @@
+ 	 * @return custom Maps Path, null if not set
+ 	 */
+ 	public String getCustomMapsPath() {
+-	   String s = Global.getProfile().getRelativeCustomMapsPath();
+-	   if (s.equals(&quot;&quot;)) {
++	   String rCMP = Global.getProfile().getRelativeCustomMapsPath();
++	   if (rCMP.equals(&quot;&quot;)) {
+ 		   return customMapsPath;
+ 		} else {
+-			String t = absoluteBaseDir+&quot;maps&quot;;
+-			return t+s;
++			return absoluteBaseDir+&quot;maps&quot;+rCMP;
+ 		}
+ 	}
+ 	
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2009-09-30 13:53:42 UTC (rev 2225)
++++ trunk/src/CacheWolf/Profile.java	2009-09-30 20:04:02 UTC (rev 2226)
+@@ -299,7 +299,7 @@
+ 					setDistOC(text.substring(start,text.indexOf(&quot;\&quot;&quot;,start)));
+ 				} else if (text.indexOf(&quot;mapspath&quot;)&gt;=0) {
+ 					int start=text.indexOf(&quot;relativeDir = \&quot;&quot;)+15;
+-					setRelativeCustomMapsPath(text.substring(start,text.indexOf(&quot;\&quot;&quot;,start)));
++					setRelativeCustomMapsPath(SafeXML.cleanback(text.substring(start,text.indexOf(&quot;\&quot;&quot;,start))).replace('\\','/'));
+ 				} else if (text.indexOf(&quot;&lt;SPIDERGC&quot;)&gt;=0) {
+ 					int start=text.indexOf(&quot;dist = \&quot;&quot;)+8;
+ 					setDistGC(text.substring(start,text.indexOf(&quot;\&quot;&quot;,start)));
+@@ -790,10 +790,9 @@
+ 		return relativeCustomMapsPath;
+ 	}
+ 	
+-	public void setRelativeCustomMapsPath(String relativeCustomMapsPath) {
+-		relativeCustomMapsPath=SafeXML.clean(relativeCustomMapsPath.replace('\\','/'));
+-		this.notifyUnsavedChanges(!relativeCustomMapsPath.equals(this.relativeCustomMapsPath));
+-		this.relativeCustomMapsPath = relativeCustomMapsPath;
++	public void setRelativeCustomMapsPath(String rCMPath) {
++		this.notifyUnsavedChanges(!rCMPath.equals(this.relativeCustomMapsPath));
++		this.relativeCustomMapsPath = rCMPath;
+ 	}
+ 	/**
+ 	 * Returns the currently active FilterData object for the profile.
+
+Modified: trunk/src/CacheWolf/navi/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MovingMap.java	2009-09-30 13:53:42 UTC (rev 2225)
++++ trunk/src/CacheWolf/navi/MovingMap.java	2009-09-30 20:04:02 UTC (rev 2226)
+@@ -983,7 +983,7 @@
+ 		if (dontUpdatePos || loadingMapList) return; // avoid multi-threading problems
+ 		//Vm.debug(&quot;updatepos, lat: &quot;+where.latDec+&quot; lon: &quot;+where.lonDec);
+ 		if (!mapsloaded || !this.maps.getMapsPath().equals(Global.getPref().getCustomMapsPath())) {
+-			loadMaps(Global.getPref().getMapLoadPath(), where.latDec);
++			loadMaps(Global.getPref().getCustomMapsPath(), where.latDec);
+ 			lastCompareX = Integer.MAX_VALUE;
+ 			lastCompareY = Integer.MAX_VALUE;
+ 			autoSelectMap = true;
+@@ -2169,7 +2169,7 @@
+ 							fc.setTitle(MyLocale.getMsg(4200,&quot;Select map directory:&quot;));
+ 							if(fc.execute() != FormBase.IDCANCEL){
+ 								Global.getPref().saveCustomMapsPath(fc.getChosen().toString());
+-								mm.loadMaps(Global.getPref().getMapLoadPath(), mm.posCircle.where.latDec);
++								mm.loadMaps(Global.getPref().getCustomMapsPath(), mm.posCircle.where.latDec);
+ 								mm.forceMapLoad();
+ 							}
+ 						}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002149.html">[Cachewolf-svn] r2225 - trunk/src/CacheWolf/navi
+</A></li>
+	
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2150">[ date ]</a>
+              <a href="thread.html#2150">[ thread ]</a>
+              <a href="subject.html#2150">[ subject ]</a>
+              <a href="author.html#2150">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

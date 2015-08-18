@@ -1,0 +1,230 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r837 - in trunk: resources src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-August/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r837%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200708261902.l7QJ21SX010184%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000726.html">
+   <LINK REL="Next"  HREF="000728.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r837 - in trunk: resources src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r837%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200708261902.l7QJ21SX010184%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r837 - in trunk: resources src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sun Aug 26 21:02:01 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000726.html">[Cachewolf-svn] r836 - in trunk: resources src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000728.html">[Cachewolf-svn] r838 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#727">[ date ]</a>
+              <a href="thread.html#727">[ thread ]</a>
+              <a href="subject.html#727">[ subject ]</a>
+              <a href="author.html#727">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-08-26 21:01:54 +0200 (Sun, 26 Aug 2007)
+New Revision: 837
+
+Modified:
+   trunk/resources/cachewolf.Languages.cfg
+   trunk/src/CacheWolf/MyLocale.java
+   trunk/src/CacheWolf/Preferences.java
+   trunk/src/CacheWolf/PreferencesScreen.java
+Log:
+Feature: Sprache aendern
+<A HREF="http://www.geoclub.de/ftopic18248.html">http://www.geoclub.de/ftopic18248.html</A>
+
+Die Umsetzung ist derzeit nicht besonders elegant, besser waere Verwendung von Kommandozeilen Parametern.
+Wie geht das am PDA?
+
+Modified: trunk/resources/cachewolf.Languages.cfg
+===================================================================
+--- trunk/resources/cachewolf.Languages.cfg	2007-08-26 15:41:15 UTC (rev 836)
++++ trunk/resources/cachewolf.Languages.cfg	2007-08-26 19:01:54 UTC (rev 837)
+@@ -137,6 +137,8 @@
+ 		351=Notizen hinzuf%fcgen/%e4ndern
+ 		400=Dekodieren
+ 		500=Umschalten
++		591=Leer f%fcr Sprache des Betriebssystems%0aoder 2 Zeichen f%fcr andere Sprache , z.B. DE, EN
++		592=Sprache (braucht Neustart)
+ 		593=Password ist hier optional.%0aNur eingeben wenn es in pref.xml%0agespeichert werden soll.
+ 		594=Passwt
+ 		595=Liste
+@@ -666,6 +668,8 @@
+ 		351=Add/Edit notes
+ 		400=Dekode
+ 		500=Switch
++		591=Leave empty for default language or%0aadd 2 character language, e.g. DE, EN
++		592=Language (needs restart)
+ 		593=Password is optional here.%0aEnter only if you want to store it in pref.xml
+ 		594=Passwd
+ 		595=List
+
+Modified: trunk/src/CacheWolf/MyLocale.java
+===================================================================
+--- trunk/src/CacheWolf/MyLocale.java	2007-08-26 15:41:15 UTC (rev 836)
++++ trunk/src/CacheWolf/MyLocale.java	2007-08-26 19:01:54 UTC (rev 837)
+@@ -4,6 +4,11 @@
+  * 
+  */
+ import ewe.fx.Rect;
++import ewe.io.BufferedReader;
++import ewe.io.BufferedWriter;
++import ewe.io.File;
++import ewe.io.FileReader;
++import ewe.io.FileWriter;
+ import ewe.sys.*;
+ import ewe.sys.Double;
+ import ewe.sys.Long;
+@@ -25,9 +30,17 @@
+ 	private static LocalResource lr=null;
+ 	private static Rect s = (Rect)Window.getGuiInfo(Window.INFO_SCREEN_RECT,null,new Rect(),0);
+ 	private static String digSeparator=null;
++	/** Read a non-standard language from the file language. If it is empty,
++	 * the default language is used.
++	 */
++	public static String language=getLanguage();
+ 	
+ 	private static void init() {
+-		 l = Vm.getLocale();
++		 if ( language.length()==0) // Was a non-standard language specified
++			 l = Vm.getLocale();
++		 else {
++			 l=new Locale(Locale.createID(language,&quot;&quot;,0));
++		 }
+ 		 lr = l.getLocalResource(&quot;cachewolf.Languages&quot;,true);
+ 
+ 		 double testA = Convert.toDouble(&quot;1,50&quot;) + Convert.toDouble(&quot;3,00&quot;);
+@@ -188,5 +201,43 @@
+ 			Vm.setSIP(Vm.SIP_LEAVE_BUTTON);
+ 		}
+ 	}
++	
++	/*=================================================================
++	 * During initialisation the file &quot;language&quot; in the program directory
++	 * is read to check whether the user wishes to ovverride the default
++	 * language. This language cannot be stored in the pref.xml file, due
++	 * to an initialisation conflict (pref.xml needs MyLocale). A better
++	 * solution may be to read the override language from the command line,
++	 * but I do not know how to specify command line parameters on a PDA
++	 ==================================================================*/
++	/**
++	 * Read the language file and return the specified language (or empty
++	 * string if none specified).
++	 * @return Language (e.g. DE, EN etc.) or &quot;&quot;
++	 */
++	private static String getLanguage() {
++		try {
++			BufferedReader bufread=new BufferedReader(new FileReader(File.getProgramDirectory() + &quot;/&quot; + &quot;language&quot;));
++			language=bufread.readLine();
++			bufread.close();
++		} catch (Exception ex) {
++			language=&quot;&quot;;
++		}
++		if (language==null) language=&quot;&quot;;
++		return language;
++	}
++	
++	/**
++	 * Write the override language 
++	 * @param language The language to write
++	 */
++	public static void saveLanguage(String language) {
++		try{
++			BufferedWriter out = new BufferedWriter(new FileWriter(File.getProgramDirectory() + &quot;/&quot; + &quot;language&quot;));
++			out.write(language);
++			out.close();
++		}catch (Exception e){ Vm.debug(&quot;Exception &quot;+e);}
++	}
++	
+ }
+ 
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2007-08-26 15:41:15 UTC (rev 836)
++++ trunk/src/CacheWolf/Preferences.java	2007-08-26 19:01:54 UTC (rev 837)
+@@ -45,6 +45,11 @@
+ 	public boolean showDeletedImages=true; /* Used in ImagePanel */
+ 	public boolean solverIgnoreCase=false;
+ 
++	/**
++	 * Forced language. If specified it overrides the default language.
++	 * Example: To run CW in English language on a German PC specify &quot;EN&quot; here.
++	 */
++	public String language=&quot;&quot;;
+ 	public int myAppHeight = 0;
+ 	public int myAppWidth = 0;
+ 	public final int DEFAULT_MAX_LOGS_TO_SPIDER=250;
+
+Modified: trunk/src/CacheWolf/PreferencesScreen.java
+===================================================================
+--- trunk/src/CacheWolf/PreferencesScreen.java	2007-08-26 15:41:15 UTC (rev 836)
++++ trunk/src/CacheWolf/PreferencesScreen.java	2007-08-26 19:01:54 UTC (rev 837)
+@@ -16,7 +16,7 @@
+ 	mButton cancelB, applyB, brwBt, gpsB,btnCentre;
+ 	mChoice NS, EW;
+ 	mInput NSDeg, NSm, EWDeg, EWm, DataDir, Proxy, ProxyPort, Alias, nLogs, Browser, fontSize, inpGPS, 
+-	       inpLogsPerPage,inpMaxLogsToSpider,inpPassword;
++	       inpLogsPerPage,inpMaxLogsToSpider,inpPassword,inpLanguage;
+ 	mCheckBox dif, ter, loc, own, hid, stat, dist, bear, chkAutoLoad, chkShowDeletedImg, chkMenuAtTop, 
+ 	          chkTabsAtTop, chkShowStatus,chkHasCloseButton,chkSynthShort;
+ 	mTabbedPanel mTab;
+@@ -160,6 +160,10 @@
+ 		ProxyPort.setText(pref.myproxyport);
+ 		pnlProxy.addLast(new mLabel(&quot;&quot;)).setTag(SPAN,new Dimension(2,1));
+ 		pnlMore.addLast(pnlProxy,HSTRETCH,HFILL);
++		pnlMore.addNext(new mLabel(MyLocale.getMsg(592,&quot;Language (needs restart)&quot;)),DONTSTRETCH,DONTFILL|WEST);
++		pnlMore.addLast(inpLanguage=new mInput(MyLocale.language),DONTSTRETCH,DONTFILL|WEST);
++		inpLanguage.setPreferredSize(20,-1);
++		inpLanguage.setToolTip(MyLocale.getMsg(591,&quot;&quot;));
+ 		
+ 		/////////////////////////////////////////////////////////
+ 		// Fourth/Fifth panel - Listview and Travelbugs
+@@ -229,6 +233,7 @@
+ 				
+ 				pref.myAlias = Alias.getText().trim();
+ 				SpiderGC.passwort=pref.password= inpPassword.getText().trim();
++				MyLocale.saveLanguage(MyLocale.language=inpLanguage.getText().toUpperCase().trim());
+ 				pref.browser = Browser.getText();
+ 				//Vm.debug(myPreferences.browser);
+ 				pref.myproxy = Proxy.getText();
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000726.html">[Cachewolf-svn] r836 - in trunk: resources src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000728.html">[Cachewolf-svn] r838 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#727">[ date ]</a>
+              <a href="thread.html#727">[ thread ]</a>
+              <a href="subject.html#727">[ subject ]</a>
+              <a href="author.html#727">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

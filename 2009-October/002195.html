@@ -1,0 +1,179 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2271 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-October/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2271%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200910120020.n9C0K3mp017558%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002194.html">
+   <LINK REL="Next"  HREF="002196.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2271 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2271%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200910120020.n9C0K3mp017558%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2271 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Mon Oct 12 02:20:03 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002194.html">[Cachewolf-svn] r2270 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="002196.html">[Cachewolf-svn] r2272 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2195">[ date ]</a>
+              <a href="thread.html#2195">[ thread ]</a>
+              <a href="subject.html#2195">[ subject ]</a>
+              <a href="author.html#2195">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2009-10-12 02:19:59 +0200 (Mon, 12 Oct 2009)
+New Revision: 2271
+
+Modified:
+   trunk/src/CacheWolf/CacheHolder.java
+   trunk/src/CacheWolf/CacheType.java
+   trunk/src/CacheWolf/DetailsPanel.java
+   trunk/src/CacheWolf/Profile.java
+Log:
+DetailsPanel: fixed NullPointerException, which happened if there is an Addi to a custom waypoint
+setIncomplete: avoid marking custom waypoints without name as incomplete
+DetailsPanel: avoid unnecessary object creation
+
+
+Modified: trunk/src/CacheWolf/CacheHolder.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolder.java	2009-10-11 19:53:01 UTC (rev 2270)
++++ trunk/src/CacheWolf/CacheHolder.java	2009-10-12 00:19:59 UTC (rev 2271)
+@@ -1381,7 +1381,7 @@
+ 					|| getWayPoint().length() &lt; 3
+ //					|| getCacheOwner().length() &gt; 0
+ //					|| getDateHidden().length() &gt; 0 
+-					|| getCacheName().length() == 0
++//					|| getCacheName().length() == 0
+ 					)
+ 				ret = true;
+ 			else
+
+Modified: trunk/src/CacheWolf/CacheType.java
+===================================================================
+--- trunk/src/CacheWolf/CacheType.java	2009-10-11 19:53:01 UTC (rev 2270)
++++ trunk/src/CacheWolf/CacheType.java	2009-10-12 00:19:59 UTC (rev 2271)
+@@ -314,29 +314,19 @@
+ 		case CW_TYPE_REFERENCE: return true;
+ 		default: return false;
+ 		}
+-		
+ 	}
+-	
++	/**
++	 * this is the same as !isAddiWpt except that CW_TYPE_CUSTUM and CW_TYPE_ERROR return false
++	 * I (pfeffer) don't know if this behaviour is intended, I guess it is.
++	 * @param type
++	 * @return
++	 */
+ 	public static boolean isCacheWpt(final byte type) {
+ 		switch (type) {
+-		case CW_TYPE_TRADITIONAL: // fall through
+-		case CW_TYPE_MULTI: // fall through
+-		case CW_TYPE_VIRTUAL: // fall through
+-		case CW_TYPE_LETTERBOX: // fall through
+-		case CW_TYPE_EVENT: // fall through
+-		case CW_TYPE_QUIZ: // fall through
+-		case CW_TYPE_UNKNOWN: // fall through
+-		case CW_TYPE_MOVING: // fall through
+-		case CW_TYPE_DRIVE_IN: // fall through
+-		case CW_TYPE_WEBCAM: // fall through
+-		case CW_TYPE_LOCATIONLESS: // fall through
+-		case CW_TYPE_CITO: // fall through
+-		case CW_TYPE_MEGA_EVENT: // fall through
+-		case CW_TYPE_WHEREIGO: // fall through
+-		case CW_TYPE_EARTH: // fall through
+-		case CW_TYPE_APE: // fall through
+-		case CW_TYPE_MAZE: return true;
+-		default: return false;
++		case CW_TYPE_CUSTOM:
++		case CW_TYPE_ERROR:
++			return false;
++		default: return !isAddiWpt(type);
+ 		}
+ 	}
+ 	
+
+Modified: trunk/src/CacheWolf/DetailsPanel.java
+===================================================================
+--- trunk/src/CacheWolf/DetailsPanel.java	2009-10-11 19:53:01 UTC (rev 2270)
++++ trunk/src/CacheWolf/DetailsPanel.java	2009-10-12 00:19:59 UTC (rev 2271)
+@@ -790,8 +790,6 @@
+ 	 * @return 0 for additional or custum waypoints, -1 for caches if td is not valid, parsed byte otherwise
+ 	 */
+ 	private byte decodeTerrDiff(mButton button, String td, boolean isCache) {
+-		final StringBuffer tdv = new StringBuffer(2);
+-		
+ 		// terrain and difficulty are always unset for non cache waypoints
+ 		if (! isCache) return CacheTerrDiff.CW_DT_UNSET;
+ 		
+@@ -800,6 +798,7 @@
+ 		// we now should have a string of length 3
+ 		if (buttonText.length() != 3) return -1;
+ 
++		final StringBuffer tdv = new StringBuffer(2);
+ 		buttonText=tdv.append(buttonText.charAt(0)).append(buttonText.charAt(2)).toString();
+ 
+ 		// unset value is invalid
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2009-10-11 19:53:01 UTC (rev 2270)
++++ trunk/src/CacheWolf/Profile.java	2009-10-12 00:19:59 UTC (rev 2271)
+@@ -470,13 +470,13 @@
+ 			mainindex = getCacheIndex(OCXMLImporter.OPENCACHING_CZ_PATTERN + mainwpt);
+ 		if (mainindex &lt; 0 || !cacheDB.get(mainindex).isCacheWpt())
+ 			mainindex = getCacheIndex(OCXMLImporter.OPENCACHING_DE_PATTERN + mainwpt);
+-//		if (mainindex &lt; 0 || !cacheDB.get(mainindex).isCacheWpt())
+-//			mainindex = getCacheIndex(OCXMLImporter.OPENCACHING_PL_PATTERN + mainwpt);
+ 		if (mainindex &lt; 0 || !cacheDB.get(mainindex).isCacheWpt())
++			mainindex = getCacheIndex(OCXMLImporter.OPENCACHING_PL_PATTERN + mainwpt);
++		if (mainindex &lt; 0 || !cacheDB.get(mainindex).isCacheWpt())
+ 			mainindex = getCacheIndex(OCXMLImporter.OPENCACHING_UK_PATTERN + mainwpt);
+ 		if (mainindex &lt; 0 || !cacheDB.get(mainindex).isCacheWpt())
+ 			mainindex = getCacheIndex(&quot;CW&quot; + mainwpt);
+-		if (mainindex &lt; 0 || !cacheDB.get(mainindex).isCacheWpt()) {
++		if (mainindex &lt; 0 /* || !cacheDB.get(mainindex)..isCacheWpt() */ )  {
+ 			ch.setIncomplete(true);
+ 		} else {
+ 			CacheHolder mainch = cacheDB.get(mainindex);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002194.html">[Cachewolf-svn] r2270 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="002196.html">[Cachewolf-svn] r2272 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2195">[ date ]</a>
+              <a href="thread.html#2195">[ thread ]</a>
+              <a href="subject.html#2195">[ subject ]</a>
+              <a href="author.html#2195">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,390 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2566 - trunk/src/CacheWolf/navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-May/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2566%20-%20trunk/src/CacheWolf/navi&In-Reply-To=%3C201005060738.o467cg3B002157%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002492.html">
+   <LINK REL="Next"  HREF="002494.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2566 - trunk/src/CacheWolf/navi</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2566%20-%20trunk/src/CacheWolf/navi&In-Reply-To=%3C201005060738.o467cg3B002157%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2566 - trunk/src/CacheWolf/navi">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Thu May  6 09:38:42 CEST 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002492.html">[Cachewolf-svn] r2565 - trunk/res_noewe/mmc240x320
+</A></li>
+        <LI>Next message: <A HREF="002494.html">[Cachewolf-svn] r2567 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2493">[ date ]</a>
+              <a href="thread.html#2493">[ thread ]</a>
+              <a href="subject.html#2493">[ subject ]</a>
+              <a href="author.html#2493">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2010-05-06 09:38:39 +0200 (Thu, 06 May 2010)
+New Revision: 2566
+
+Modified:
+   trunk/src/CacheWolf/navi/MovingMap.java
+Log:
+some minor enhancements if image could not be loaded
+
+Modified: trunk/src/CacheWolf/navi/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MovingMap.java	2010-05-05 15:16:52 UTC (rev 2565)
++++ trunk/src/CacheWolf/navi/MovingMap.java	2010-05-06 07:38:39 UTC (rev 2566)
+@@ -948,11 +948,8 @@
+ 	 * @param
+ 	 */
+ 	public void updateOnlyPosition(CWPoint where, boolean updateOverlay){
+-		//Point oldMapPos = getMapPositionOnScreen();
+ 		posCircle.where.set(where);
+ 		Point mapPos = getMapPositionOnScreen();
+-		//Vm.debug(&quot;mapx = &quot; + mapx);
+-		//Vm.debug(&quot;mapy = &quot; + mapy);
+ 		if (forceMapLoad || (java.lang.Math.abs(lastRepaintMapPos.x - mapPos.x) &gt; 1 || java.lang.Math.abs(lastRepaintMapPos.y - mapPos.y) &gt; 1))
+ 		{
+ 			lastRepaintMapPos = mapPos;
+@@ -966,7 +963,6 @@
+ 		{
+ 			updateDistance(true);
+ 		}
+-		//Vm.debug(&quot;update only position&quot;);
+ 	}
+ 	private void loadBestMap(CWPoint where) {
+ 		if (!mapsloaded || !this.maps.getMapsPath().equals(pref.getCustomMapsPath())) {
+@@ -976,7 +972,6 @@
+ 			autoSelectMap = true;
+ 			setBestMap(where, true);
+ 			forceMapLoad = false;
+-			return;
+ 		}
+ 	}
+ 	/**
+@@ -984,11 +979,9 @@
+ 	 */
+ 	public void updatePosition(CWPoint where){
+ 		if (dontUpdatePos || loadingMapList) return; // avoid multi-threading problems
+-		//Vm.debug(&quot;updatepos, lat: &quot;+where.latDec+&quot; lon: &quot;+where.lonDec);
+ 		loadBestMap(where);
+ 		if (width==0 || height==0) { Vm.debug(&quot;no window shown&quot;); return; } // why is this called with these values
+ 		updateOnlyPosition(where, true);
+-
+ 		Point mapPos = getMapPositionOnScreen();
+ 		boolean screenNotCompletlyCovered = (mmp.mapImage == null)
+ 				|| (mmp.mapImage != null &amp;&amp; (
+@@ -997,7 +990,6 @@
+ 		//if screendimensions changed also force reload of map
+ 		forceMapLoad |= lastWidth != width || lastHeight != height;
+ 		if (forceMapLoad || wantMapTest || screenNotCompletlyCovered) { // if force || want || map doesn't cover the screen completly
+-			// Vm.debug(&quot;Screen not completly covered by map&quot;);
+ 			if (forceMapLoad ||
+ 				(java.lang.Math.abs(lastCompareX - mapPos.x) &gt; this.width / 10 ||
+ 				 java.lang.Math.abs(lastCompareY - mapPos.y) &gt; this.height / 10)) {
+@@ -1096,11 +1088,14 @@
+ 	}
+ 	boolean reflectResourceException=true;
+ 	private void fillWhiteArea(boolean screenNotCompletlyCovered) {
++		if (mmp.mapImage == null) return; // if error at map load
+ 		// Clean up any additional images, tiles will removed and any
+ 		// other item be added again later
++		Vector icons = new Vector(mmp.images.size());
++		try {			
+ 		Vm.showWait(true);
+-		dontUpdatePos=true; // no new Position while filling 
+-		Vector icons = new Vector(mmp.images.size());
++		dontUpdatePos=true; // no new Position while filling
++		
+ 		int s = mmp.images.size(); // avoid calling size() in each iteration
+ 		for (int i = 0; i &lt; s ;  i++) {
+ 			AniImage im = (AniImage) mmp.images.get(i);
+@@ -1137,7 +1132,8 @@
+ 			count++;
+ 			try {
+ 				updateTileForWhiteArea(rectangles);
+-			} catch (ewe.sys.SystemResourceException sre) {
++			}
++			catch (ewe.sys.SystemResourceException sre) {
+ 				// next time there may be no problem, and ask only once
+ 				if (reflectResourceException) {
+ 					if (new MessageBox(
+@@ -1153,13 +1149,16 @@
+ 				}
+ 			}
+ 		}
+-		// Remove all tiles not needed from the cache to reduce memory
+-		MovingMapCache.getCache().cleanCache();
+-		// At Last redraw all icons on the map
+-		mmp.images.addAll(icons);
+-		Vm.showWait(false);		
+-		dontUpdatePos=false; // do next Position 
+-		repaint();
++		} 
++		finally {
++			// Remove all tiles not needed from the cache to reduce memory
++			MovingMapCache.getCache().cleanCache();
++			// At Last redraw all icons on the map
++			mmp.images.addAll(icons);
++			Vm.showWait(false);		
++			dontUpdatePos=false; // do next Position 
++			repaint();
++		} 
+ 	}
+ 	private void updateTileForWhiteArea(Vector rectangles) {
+ 		Rect blackArea;
+@@ -1419,7 +1418,6 @@
+ 		Rect screen = (Rect) s[1];
+ 		boolean posCircleOnScreen = ((Boolean) s[2]).booleanValue();
+ 		MapInfoObject newmap = null;
+-		//if (mapChangeModus == 0) mapChangeModus = HIGHEST_RESOLUTION_GPS_DEST;
+ 		wantMapTest = true;
+ 		switch (mapChangeModus) {
+ 		case NORMAL_KEEP_RESOLUTION:
+@@ -1459,7 +1457,7 @@
+ 		}
+ 		if ( newmap != null &amp;&amp; (currentMap == null || !currentMap.mapName.equals(newmap.mapName)) ) {
+ 			if (loadIfSameScale || !MapsList.scaleEquals(currentMap.scale / currentMap.zoomFactor, newmap) ) {
+-				//Vm.debug(&quot;better map found&quot;);
++				// better map found
+ 				setMap(newmap, where);
+ 				moveScreenXYtoLatLon(new Point(screen.x, screen.y), cll, true);
+ 			}
+@@ -1467,7 +1465,7 @@
+ 			return;
+ 		}
+ 		if (currentMap == null &amp;&amp; newmap == null) {
+-			// (new MessageBox(&quot;Information&quot;, &quot;F?r die aktuelle Position steht keine Karte zur Verf?ng, bitte w?hlen Sie eine manuell&quot;, MessageBox.OKB)).execute();
++			// F?r die aktuelle Position steht keine Karte zur Verf?ng
+ 			posCircle.where.set(cll); // choosemap calls setmap with posCircle-coos
+ 			try {
+ 				setMap( ((MapListEntry)maps.elementAt(maps.getCount() - 4)).getMap(), where); // beware: &quot;-4&quot; only works if the empty maps were added last see MapsList.addEmptyMaps
+@@ -1627,94 +1625,103 @@
+ 			updateOnlyPosition(where, true);
+ 			return;
+ 		}
+-		Vm.showWait(true);
+-		boolean saveIgnoreStatus;
+-		saveIgnoreStatus = dontUpdatePos;
+-		dontUpdatePos = true;  // make updatePosition ignore calls during loading new map
+-		InfoBox inf;
+-		inf = new InfoBox(MyLocale.getMsg(4201, &quot;Information&quot;), MyLocale.getMsg(4216, &quot;Loading map...&quot;));
+-		inf.show();
+-		inf.waitUntilPainted(100);
+-		pref.log(MyLocale.getMsg(4216, &quot;Loading map...&quot;)+newmap.mapName);
+-		try {
+-			this.currentMap = newmap;
+-			this.title = currentMap.mapName;
+-			lastCompareX = Integer.MAX_VALUE; // neccessary to make updateposition to test if the current map is the best one for the GPS-Position
+-			lastCompareY = Integer.MAX_VALUE;
+-			if (mmp.mapImage != null ) {
+-				//Vm.debug(&quot;free: &quot;+Vm.getUsedMemory(false)+&quot;classMemory: &quot;+Vm.getClassMemory()+ &quot;after garbage collection: &quot;+Vm.getUsedMemory(false));
+-				mmp.removeImage(mmp.mapImage); mmp.mapImage.free(); mmp.mapImage = null; mapImage1to1 = mmp.mapImage;
+-
+-				//Vm.debug(&quot;free: &quot;+Vm.getUsedMemory(false)+&quot;classMemory: &quot;+Vm.getClassMemory()+ &quot;after garbage collection: &quot;+Vm.getUsedMemory(false));
+-				Vm.getUsedMemory(true); // calls the garbage collection
+-			} // give memory free before loading the new map to avoid out of memory error
+-			String ImageFilename = currentMap.getImageFilename();
+-			if (ImageFilename == null ) {
+-				mmp.mapImage = new MapImage();
+-				maps.remove(currentMap);
+-				(new MessageBox(MyLocale.getMsg(4207, &quot;Error&quot;), MyLocale.getMsg(4217, &quot;Could not find image associated with: \n&quot;)+currentMap.fileNameWFL, FormBase.OKB)).execute();
++		try {			
++			Vm.showWait(true);
++			boolean saveIgnoreStatus;
++			saveIgnoreStatus = dontUpdatePos;
++			dontUpdatePos = true;  // make updatePosition ignore calls during loading new map
++			pref.log(MyLocale.getMsg(4216, &quot;Loading map...&quot;)+newmap.mapName);
++			try {
++				this.currentMap = newmap;
++				this.title = currentMap.mapName;
++				// neccessary to make updateposition to test if the current map is the best one for the GPS-Position
++				lastCompareX = Integer.MAX_VALUE; 
++				lastCompareY = Integer.MAX_VALUE;
++				if (mmp.mapImage != null ) {
++					mmp.removeImage(mmp.mapImage); 
++					mmp.mapImage.free(); 
++					mmp.mapImage = null; 
++					mapImage1to1 = mmp.mapImage;
++					// calls the garbage collection
++					Vm.getUsedMemory(true); 
++				} 
++				// give memory free before loading the new map to avoid out of memory error
++				String ImageFilename = currentMap.getImageFilename();
++				if (ImageFilename == null ) {
++					mmp.mapImage = new MapImage();
++					maps.remove(currentMap);
++					(new MessageBox(MyLocale.getMsg(4207, &quot;Error&quot;), MyLocale.getMsg(4217, &quot;Could not find image associated with: \n&quot;)+currentMap.fileNameWFL, FormBase.OKB)).execute();
++				}
++				else {
++					if (ImageFilename.length() &gt; 0) {
++						// attention: when running in native java-vm,
++						// no exception will be thrown, not even OutOfMemeoryError
++						mmp.mapImage = new MapImage(ImageFilename); 
++					}
++					else mmp.mapImage = new MapImage(); // no image associated with the calibration info (&quot;empty map&quot;)
++				}
++				mapImage1to1 = mmp.mapImage;
++				mmp.mapImage.properties = mmp.mapImage.properties | mImage.IsMoveable;
++				if (mapHidden) mmp.mapImage.hide();
++				mmp.mapImage.move(0,0);
++				mmp.addImage(mmp.mapImage);
++				mmp.images.moveToBack(mmp.mapImage);
++				rebuildOverlaySet();
++				forceMapLoad = true; // forces updateOnlyPosition to redraw
++				updateAfterMapChange(where);
++				forceMapLoad = false;
++				directionArrows.setMap(currentMap);
++				updateScale();
++				// this doesn't work in a ticked-thread in the ewe-vm. 
++				// That's why i made a new mThread in gotoPanel for ticked
++				dontUpdatePos = saveIgnoreStatus;
++			} catch (IllegalArgumentException e) { 
++				// thrown by new AniImage() in ewe-vm if file not found;
++				pref.log(&quot;IllegalArgumentException&quot;);
++				if (mmp.mapImage != null) {
++					mmp.removeImage(mmp.mapImage);
++					mmp.mapImage.free();
++					mmp.mapImage = null; 
++					mapImage1to1 = mmp.mapImage;
++				}
++				rebuildOverlaySet();
++				updateOnlyPosition(where, false);
++				(new MessageBox(MyLocale.getMsg(4207, &quot;Error&quot;), MyLocale.getMsg(4218, &quot;Could not load map: \n&quot;)+ newmap.getImageFilename(), FormBase.OKB)).execute();
++				dontUpdatePos = saveIgnoreStatus;
++			} catch (OutOfMemoryError e) {
++				pref.log(&quot;OutOfMemoryError&quot;);
++				if (mmp.mapImage != null) {
++					mmp.removeImage(mmp.mapImage);
++					mmp.mapImage.free();
++					mmp.mapImage = null; 
++					mapImage1to1 = mmp.mapImage;
++				}
++				rebuildOverlaySet();
++				updateOnlyPosition(where, false);
++				(new MessageBox(MyLocale.getMsg(4207, &quot;Error&quot;), MyLocale.getMsg(4219, &quot;Not enough memory to load map: \n&quot;)
++						+ newmap.getImageFilename()
++						+ MyLocale.getMsg(4220, &quot;\nYou can try to close\n all prgrams and \nrestart CacheWolf&quot;),
++						FormBase.OKB)).execute();
++				dontUpdatePos = saveIgnoreStatus;
++			}catch (SystemResourceException e) {
++				pref.log(&quot;SystemResourceException&quot;);
++				if (mmp.mapImage != null) {
++					mmp.removeImage(mmp.mapImage);
++					mmp.mapImage.free();
++					mmp.mapImage = null; 
++					mapImage1to1 = mmp.mapImage;
++				}
++				rebuildOverlaySet();
++				updateOnlyPosition(where, false); // TODO this doesn't work correctly if the resolution changed, I guess because the pixels of PosCircle will be interpreted from the new resolution, but should be interpreted using the old resolution to test: select a map with a much greater value of m per pixel manually
++				(new MessageBox(MyLocale.getMsg(4207, &quot;Error&quot;), MyLocale.getMsg(4221, &quot;Not enough ressources to load map: &quot;)
++						+ newmap.getImageFilename()
++						+ MyLocale.getMsg(4220, &quot;\nYou can try to close\n all prgrams and \nrestart CacheWolf&quot;),
++						FormBase.OKB)).execute();
++				dontUpdatePos = saveIgnoreStatus;
+ 			}
+-			else {
+-				if (ImageFilename.length() &gt; 0) mmp.mapImage = new MapImage(ImageFilename); // attention: when running in native java-vm, no exception will be thrown, not even OutOfMemeoryError
+-				else mmp.mapImage = new MapImage(); // no image associated with the calibration info (&quot;empty map&quot;)
+-			}
+-			mapImage1to1 = mmp.mapImage;
+-			mmp.mapImage.properties = mmp.mapImage.properties | mImage.IsMoveable;
+-			if (mapHidden) mmp.mapImage.hide();
+-			mmp.mapImage.move(0,0);
+-			mmp.addImage(mmp.mapImage);
+-			mmp.images.moveToBack(mmp.mapImage);
+-			rebuildOverlaySet();
+-			forceMapLoad = true; // forces updateOnlyPosition to redraw
+-			updateAfterMapChange(where);
+-			forceMapLoad = false;
+-			directionArrows.setMap(currentMap);
+-			updateScale();
+-			inf.close(0);  // this doesn't work in a ticked-thread in the ewe-vm. That's why i made a new mThread in gotoPanel for ticked
++		}
++		finally{
+ 			Vm.showWait(false);
+-			dontUpdatePos = saveIgnoreStatus;
+-		} catch (IllegalArgumentException e) { // thrown by new AniImage() in ewe-vm if file not found;
+-			if (mmp.mapImage != null) {
+-				mmp.removeImage(mmp.mapImage);
+-				mmp.mapImage.free();
+-				mmp.mapImage = null; mapImage1to1 = mmp.mapImage;
+-			}
+-			rebuildOverlaySet();
+-			updateOnlyPosition(where, false);
+-			inf.close(0);
+-			Vm.showWait(false);
+-			(new MessageBox(MyLocale.getMsg(4207, &quot;Error&quot;), MyLocale.getMsg(4218, &quot;Could not load map: \n&quot;)+ newmap.getImageFilename(), FormBase.OKB)).execute();
+-			dontUpdatePos = saveIgnoreStatus;
+-		} catch (OutOfMemoryError e) {
+-			if (mmp.mapImage != null) {
+-				mmp.removeImage(mmp.mapImage);
+-				mmp.mapImage.free();
+-				mmp.mapImage = null; mapImage1to1 = mmp.mapImage;
+-			}
+-			rebuildOverlaySet();
+-			updateOnlyPosition(where, false);
+-			inf.close(0);
+-			Vm.showWait(false);
+-			(new MessageBox(MyLocale.getMsg(4207, &quot;Error&quot;), MyLocale.getMsg(4219, &quot;Not enough memory to load map: \n&quot;)
+-					+ newmap.getImageFilename()
+-					+ MyLocale.getMsg(4220, &quot;\nYou can try to close\n all prgrams and \nrestart CacheWolf&quot;),
+-					FormBase.OKB)).execute();
+-			dontUpdatePos = saveIgnoreStatus;
+-		}catch (SystemResourceException e) {
+-			if (mmp.mapImage != null) {
+-				mmp.removeImage(mmp.mapImage);
+-				mmp.mapImage.free();
+-				mmp.mapImage = null; mapImage1to1 = mmp.mapImage;
+-			}
+-			rebuildOverlaySet();
+-			updateOnlyPosition(where, false); // TODO this doesn't work correctly if the resolution changed, I guess because the pixels of PosCircle will be interpreted from the new resolution, but should be interpreted using the old resolution to test: select a map with a much greater value of m per pixel manually
+-			inf.close(0);
+-			Vm.showWait(false);
+-			(new MessageBox(MyLocale.getMsg(4207, &quot;Error&quot;), MyLocale.getMsg(4221, &quot;Not enough ressources to load map: &quot;)
+-					+ newmap.getImageFilename()
+-					+ MyLocale.getMsg(4220, &quot;\nYou can try to close\n all prgrams and \nrestart CacheWolf&quot;),
+-					FormBase.OKB)).execute();
+-			dontUpdatePos = saveIgnoreStatus;
+ 		}
+ 	}
+ 
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002492.html">[Cachewolf-svn] r2565 - trunk/res_noewe/mmc240x320
+</A></li>
+	<LI>Next message: <A HREF="002494.html">[Cachewolf-svn] r2567 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2493">[ date ]</a>
+              <a href="thread.html#2493">[ thread ]</a>
+              <a href="subject.html#2493">[ subject ]</a>
+              <a href="author.html#2493">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,146 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1055 - in trunk: resources src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-November/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1055%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200711111304.lABD4kfZ022046%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000947.html">
+   <LINK REL="Next"  HREF="000949.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1055 - in trunk: resources src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1055%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200711111304.lABD4kfZ022046%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1055 - in trunk: resources src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sun Nov 11 14:04:46 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000947.html">[Cachewolf-svn] r1054 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000949.html">[Cachewolf-svn] r1056 - trunk/res_noewe
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#948">[ date ]</a>
+              <a href="thread.html#948">[ thread ]</a>
+              <a href="subject.html#948">[ subject ]</a>
+              <a href="author.html#948">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-11-11 14:04:31 +0100 (Sun, 11 Nov 2007)
+New Revision: 1055
+
+Modified:
+   trunk/resources/cachewolf.Languages.cfg
+   trunk/src/CacheWolf/MainMenu.java
+Log:
+New feature: Rebuild index.xml.  
+Rebuilds the index from the cache.xml files. Each cache.xml file contains a copy of the &lt;CACHE ... /&gt; line from the index.xml. For each cache.xml, the rebuilder checks whether the cache is already contained in the index.xml. If not it is added. Caches which have no &lt;CACHE ... /&gt; entry in their details file can optionally be deleted, as they are of no use and just waste disk space.
+
+Modified: trunk/resources/cachewolf.Languages.cfg
+===================================================================
+--- trunk/resources/cachewolf.Languages.cfg	2007-11-11 10:49:40 UTC (rev 1054)
++++ trunk/resources/cachewolf.Languages.cfg	2007-11-11 13:04:31 UTC (rev 1055)
+@@ -94,6 +94,12 @@
+ 		205=Radar
+ 		206=Liste
+ 		207=Immer neu einloggen
++		208=Index neu erstellen
++		209=Wiederaufbau Index
++		210=Caches nicht in index.xml:+
++		211=%0aDavon hinzugef%fcgt:+  
++		212=Alle .xml Dateien (und Bilder) l%f6schen, die nicht in index.xml sind
++		213=Verwaiste .xml Dateien l%f6schen
+ 		300=Type:
+ 		301=Gr%f6%dfe:
+ 		302=Wegpunkt:
+@@ -646,6 +652,12 @@
+ 		205=Radar
+ 		206=List
+ 		207=Always login to GC
++		208=Rebuild index
++		209=Rebuilding index
++		210=Caches not in index.xml:+
++		211=%0aThereof added:+  
++		212=Delete all .xml files not in index.xml and associated pictures
++		213=Deleting orphans
+ 		300=Type:
+ 		301=Size:
+ 		302=Waypoint:
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2007-11-11 10:49:40 UTC (rev 1054)
++++ trunk/src/CacheWolf/MainMenu.java	2007-11-11 13:04:31 UTC (rev 1055)
+@@ -31,7 +31,7 @@
+ 	private MenuItem exportOZI, exportKML, exportTPL;
+ 	private MenuItem filtCreate, filtClear, filtInvert, filtSelected, filtBlack, filtApply;
+ 	private MenuItem exportGPS, exportCacheMate,mnuSeparator;
+-	private MenuItem orgCopy, orgMove, orgDelete;
++	private MenuItem orgCopy, orgMove, orgDelete,orgRebuild;
+ 	public MenuItem filtCacheTour,orgTravelbugs, mnuForceLogin;
+ 	private MenuItem mnuNewProfile, mnuOpenProfile, mnuEditCenter;
+ 	private Form father;
+@@ -161,12 +161,13 @@
+ 		///////////////////////////////////////////////////////////////////////
+ 		// Create the &quot;Organise&quot; pulldown menu
+ 		///////////////////////////////////////////////////////////////////////
+-		MenuItem[] organiseMenuItems=new MenuItem[5];
++		MenuItem[] organiseMenuItems=new MenuItem[6];
+ 		organiseMenuItems[0] = orgCopy  = new MenuItem(MyLocale.getMsg(141,&quot;Copy&quot;)); 
+ 		organiseMenuItems[1] = orgMove  = new MenuItem(MyLocale.getMsg(142,&quot;Move&quot;)); 
+ 		organiseMenuItems[2] = orgDelete   = new MenuItem(MyLocale.getMsg(143,&quot;Delete&quot;));
+-		organiseMenuItems[3] = mnuSeparator;
+-		organiseMenuItems[4] = orgTravelbugs = new MenuItem(MyLocale.getMsg(139,&quot;Manage travelbugs&quot;));
++		organiseMenuItems[3] = orgRebuild   = new MenuItem(MyLocale.getMsg(208,&quot;Rebuild Index&quot;));
++		organiseMenuItems[4] = mnuSeparator;
++		organiseMenuItems[5] = orgTravelbugs = new MenuItem(MyLocale.getMsg(139,&quot;Manage travelbugs&quot;));
+ 		this.addMenu(new PullDownMenu(MyLocale.getMsg(140,&quot;Organise&quot;),new Menu(organiseMenuItems,null)));
+ 
+ 		///////////////////////////////////////////////////////////////////////
+@@ -535,6 +536,11 @@
+ 				dm.deleteCaches();
+ 				tbp.refreshTable();
+ 			}
++			if(mev.selectedItem == orgRebuild){
++				Rebuild rb=new Rebuild();
++				rb.rebuild();
++				tbp.refreshTable();
++			}
+ 			if(mev.selectedItem == orgTravelbugs){
+ 				TravelbugJourneyScreen tbs=new TravelbugJourneyScreen();
+ 				tbs.setPreferredSize(800,600);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000947.html">[Cachewolf-svn] r1054 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000949.html">[Cachewolf-svn] r1056 - trunk/res_noewe
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#948">[ date ]</a>
+              <a href="thread.html#948">[ thread ]</a>
+              <a href="subject.html#948">[ subject ]</a>
+              <a href="author.html#948">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

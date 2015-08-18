@@ -1,0 +1,107 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1187 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1187%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200801201532.m0KFWfL7005238%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001080.html">
+   <LINK REL="Next"  HREF="001082.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1187 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1187%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200801201532.m0KFWfL7005238%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1187 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sun Jan 20 16:32:41 CET 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001080.html">[Cachewolf-svn] r1186 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001082.html">[Cachewolf-svn] r1188 - trunk/resources
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1081">[ date ]</a>
+              <a href="thread.html#1081">[ thread ]</a>
+              <a href="subject.html#1081">[ subject ]</a>
+              <a href="author.html#1081">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2008-01-20 16:32:37 +0100 (Sun, 20 Jan 2008)
+New Revision: 1187
+
+Modified:
+   trunk/src/CacheWolf/SpiderGC.java
+Log:
+SpiderGC: The &quot;cache_available&quot; status is updated from the main list of caches (without fetching the cache details).
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2008-01-19 21:15:01 UTC (rev 1186)
++++ trunk/src/CacheWolf/SpiderGC.java	2008-01-20 15:32:37 UTC (rev 1187)
+@@ -370,9 +370,28 @@
+ 					//Vm.debug(getDist(lineRex.stringMatched(1)) + &quot; / &quot; +getWP(lineRex.stringMatched(1)));
+ 					found_on_page++;
+ 					if(getDist(lineRex.stringMatched(1)) &lt;= distance){
+-						if(indexDB.get((String)getWP(lineRex.stringMatched(1))) == null){
+-							cachesToLoad.add(getWP(lineRex.stringMatched(1)));
+-						} else pref.log(getWP(lineRex.stringMatched(1))+&quot; already in DB&quot;);
++						String waypoint=getWP(lineRex.stringMatched(1));
++						Integer nr;
++						if((nr=(Integer)indexDB.get(waypoint)) == null){
++							cachesToLoad.add(waypoint);
++						} else {
++							pref.log(waypoint+&quot; already in DB&quot;);
++							ch=(CacheHolder) cacheDB.get(nr.intValue());
++							// If the &lt;strike&gt; tag is used, the cache is marked as unavailable or archived
++							boolean is_archived_GC=lineRex.stringMatched(1).indexOf(&quot;&lt;strike&gt;&lt;font color=\&quot;red\&quot;&gt;&quot;)!=-1;
++							boolean is_available_GC=lineRex.stringMatched(1).indexOf(&quot;&lt;strike&gt;&quot;)==-1;
++							if (ch.is_archived!=is_archived_GC) { // Update the database with the cache status
++								pref.log(&quot;Updating status of &quot;+waypoint+&quot; to &quot;+(is_archived_GC?&quot;archived&quot;:&quot;not archived&quot;));
++								ch.is_archived=is_archived_GC;
++								chD=ch.getCacheDetails(true,false);
++								ch.detailsAdded();
++							} else if (ch.is_available!=is_available_GC) { // Update the database with the cache status
++								pref.log(&quot;Updating status of &quot;+waypoint+&quot; to &quot;+(is_available_GC?&quot;available&quot;:&quot;not available&quot;));
++								ch.is_available=is_available_GC;
++								chD=ch.getCacheDetails(true,false);
++								ch.detailsAdded();
++							}
++						}
+ 					} else distance = 0;
+ 					lineRex.searchFrom(dummy, lineRex.matchedTo());
+ 				}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001080.html">[Cachewolf-svn] r1186 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001082.html">[Cachewolf-svn] r1188 - trunk/resources
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1081">[ date ]</a>
+              <a href="thread.html#1081">[ thread ]</a>
+              <a href="subject.html#1081">[ subject ]</a>
+              <a href="author.html#1081">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

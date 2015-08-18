@@ -1,0 +1,157 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2394 - trunk/src/CacheWolf/imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2394%20-%20trunk/src/CacheWolf/imp&In-Reply-To=%3C201001061302.o06D2iXN029406%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002317.html">
+   <LINK REL="Next"  HREF="002319.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2394 - trunk/src/CacheWolf/imp</H1>
+    <B>mik77 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2394%20-%20trunk/src/CacheWolf/imp&In-Reply-To=%3C201001061302.o06D2iXN029406%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2394 - trunk/src/CacheWolf/imp">mik77 at mail.berlios.de
+       </A><BR>
+    <I>Wed Jan  6 14:02:44 CET 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002317.html">[Cachewolf-svn] r2393 - trunk/src/CacheWolf/imp
+</A></li>
+        <LI>Next message: <A HREF="002319.html">[Cachewolf-svn] r2395 - in trunk/docs/CacheWolf Doku: . pics
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2318">[ date ]</a>
+              <a href="thread.html#2318">[ thread ]</a>
+              <a href="subject.html#2318">[ subject ]</a>
+              <a href="author.html#2318">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: mik77
+Date: 2010-01-06 14:02:36 +0100 (Wed, 06 Jan 2010)
+New Revision: 2394
+
+Modified:
+   trunk/src/CacheWolf/imp/SpiderGC.java
+Log:
+Better cooperation of new spider criteria and automatic update functionality.
+
+Modified: trunk/src/CacheWolf/imp/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/imp/SpiderGC.java	2010-01-05 23:55:52 UTC (rev 2393)
++++ trunk/src/CacheWolf/imp/SpiderGC.java	2010-01-06 13:02:36 UTC (rev 2394)
+@@ -453,7 +453,7 @@
+ 					}
+ 				} else {
+ 					if ( (!ch.is_archived())
+-						 &amp;&amp; (ch.kilom &lt;= distanceInKm) &amp;&amp; (ch.kilom &gt;= minDistanceInKm)
++						 &amp;&amp; (ch.kilom &lt;= distanceInKm) /*&amp;&amp; (ch.kilom &gt;= minDistanceInKm)*/
+ 						 &amp;&amp; !(doNotgetFound &amp;&amp; (ch.is_found() || ch.is_owned()))
+ 						 &amp;&amp; (ch.getWayPoint().substring(0,2).equalsIgnoreCase(&quot;GC&quot;))
+ 						 &amp;&amp; ( (restrictedCacheType == CacheType.CW_TYPE_ERROR) || (ch.getType() == restrictedCacheType) )
+@@ -546,11 +546,10 @@
+ 					oneCacheDesc=lineRex.stringMatched(1);
+ 					double gotDistance=getDist(oneCacheDesc);
+ 					if(gotDistance &lt;= maxDistance){
+-						if ( gotDistance &gt;= minDistance &amp;&amp;
+-							 directionOK(directions,getDirection(oneCacheDesc)) ){
+-							String chWaypoint=getWP(oneCacheDesc);
+-							ch=cacheDB.get(chWaypoint);
+-							if(ch == null){
++					  String chWaypoint=getWP(oneCacheDesc);
++						ch=cacheDB.get(chWaypoint);
++						if(ch == null){
++						  if ( gotDistance &gt;= minDistance &amp;&amp; directionOK(directions,getDirection(oneCacheDesc)) ){
+ 								pref.log(chWaypoint+&quot; added to load!&quot;);
+ 								cachesToLoad.add(chWaypoint);
+ 								if ((maxNumber &gt; 0) &amp;&amp; (cachesToLoad.size() &gt;= maxNumber)) {
+@@ -558,32 +557,32 @@
+ 									maxDistance = 0; //add no more caches
+ 									cachesToUpdate.clear(); //don't update existing caches, because list is not correct when aborting
+ 								}
++							}
++						} else {
++							// if (pref.spiderUpdates != Preferences.NO) {
++							pref.log(chWaypoint+&quot; already in DB&quot;);
++						  // If the &lt;strike&gt; tag is used, the cache is marked as unavailable or archived
++							boolean is_archived_GC=oneCacheDesc.indexOf(&quot;&lt;strike&gt;&lt;font color=\&quot;red\&quot;&gt;&quot;)!=-1;
++							boolean is_available_GC=oneCacheDesc.indexOf(&quot;&lt;strike&gt;&quot;)==-1;
++							// CacheHolderDetail det = ch.getCacheDetails(true);
++							if (ch.is_archived()!=is_archived_GC) { // Update the database with the cache status
++								pref.log(&quot;Updating status of &quot;+chWaypoint+&quot; to &quot;+(is_archived_GC?&quot;archived&quot;:&quot;not archived&quot;));
++								if ( ch.is_archived() ) {
++									// is not yet in updateList
++									cachesToUpdate.put(chWaypoint, ch);
++								}
++								ch.setArchived(is_archived_GC);
++							} else if (ch.is_available()!=is_available_GC) { // Update the database with the cache status
++								pref.log(&quot;Updating status of &quot;+chWaypoint+&quot; to &quot;+(is_available_GC?&quot;available&quot;:&quot;not available&quot;));
++								ch.setAvailable(is_available_GC);
++							} else if (spiderAllFinds &amp;&amp; !ch.is_found()) { // Update the database with the cache status
++								pref.log(&quot;Updating status of &quot;+chWaypoint+&quot; to found&quot;);
++								ch.setFound(true);
+ 							} else {
+-								// if (pref.spiderUpdates != Preferences.NO) {
+-									pref.log(chWaypoint+&quot; already in DB&quot;);
+-									// If the &lt;strike&gt; tag is used, the cache is marked as unavailable or archived
+-									boolean is_archived_GC=oneCacheDesc.indexOf(&quot;&lt;strike&gt;&lt;font color=\&quot;red\&quot;&gt;&quot;)!=-1;
+-									boolean is_available_GC=oneCacheDesc.indexOf(&quot;&lt;strike&gt;&quot;)==-1;
+-									// CacheHolderDetail det = ch.getCacheDetails(true);
+-									if (ch.is_archived()!=is_archived_GC) { // Update the database with the cache status
+-										pref.log(&quot;Updating status of &quot;+chWaypoint+&quot; to &quot;+(is_archived_GC?&quot;archived&quot;:&quot;not archived&quot;));
+-										if ( ch.is_archived() ) {
+-											// is not yet in updateList
+-											cachesToUpdate.put(chWaypoint, ch);
+-										}
+-										ch.setArchived(is_archived_GC);
+-									} else if (ch.is_available()!=is_available_GC) { // Update the database with the cache status
+-										pref.log(&quot;Updating status of &quot;+chWaypoint+&quot; to &quot;+(is_available_GC?&quot;available&quot;:&quot;not available&quot;));
+-										ch.setAvailable(is_available_GC);
+-									} else if (spiderAllFinds &amp;&amp; !ch.is_found()) { // Update the database with the cache status
+-										pref.log(&quot;Updating status of &quot;+chWaypoint+&quot; to found&quot;);
+-										ch.setFound(true);
+-									} else {
+-										cachesToUpdate.remove( chWaypoint );
+-									}
+-								// }
++								cachesToUpdate.remove( chWaypoint );
+ 							}
+-						}
++						// }
++  					}
+ 					} else maxDistance = 0;
+ 					// next Cache Description of this page
+ 					lineRex.searchFrom(dummy, lineRex.matchedTo());
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002317.html">[Cachewolf-svn] r2393 - trunk/src/CacheWolf/imp
+</A></li>
+	<LI>Next message: <A HREF="002319.html">[Cachewolf-svn] r2395 - in trunk/docs/CacheWolf Doku: . pics
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2318">[ date ]</a>
+              <a href="thread.html#2318">[ thread ]</a>
+              <a href="subject.html#2318">[ subject ]</a>
+              <a href="author.html#2318">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

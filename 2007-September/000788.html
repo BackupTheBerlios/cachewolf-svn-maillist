@@ -1,0 +1,336 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r895 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-September/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r895%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200709061927.l86JR0fv023061%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000787.html">
+   <LINK REL="Next"  HREF="000789.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r895 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r895%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200709061927.l86JR0fv023061%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r895 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Thu Sep  6 21:27:00 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000787.html">[Cachewolf-svn] r894 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000789.html">[Cachewolf-svn] r896 - trunk/resources
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#788">[ date ]</a>
+              <a href="thread.html#788">[ thread ]</a>
+              <a href="subject.html#788">[ subject ]</a>
+              <a href="author.html#788">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-09-06 21:26:54 +0200 (Thu, 06 Sep 2007)
+New Revision: 895
+
+Modified:
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/Preferences.java
+   trunk/src/CacheWolf/SpiderGC.java
+   trunk/src/CacheWolf/myTableControl.java
+Log:
+SpiderGC: Feature: Im Importmenue kann festgelegt werden ob man sich bei GC jedes mal neu einloggen muss, 
+oder ob der letzte Login weiter verwendet werden soll.
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2007-09-05 22:28:47 UTC (rev 894)
++++ trunk/src/CacheWolf/MainMenu.java	2007-09-06 19:26:54 UTC (rev 895)
+@@ -32,7 +32,7 @@
+ 	private MenuItem filtCreate, filtClear, filtInvert, filtSelected, filtBlack, filtApply;
+ 	private MenuItem exportGPS, exportCacheMate,mnuSeparator;
+ 	private MenuItem orgCopy, orgMove, orgDelete;
+-	public MenuItem filtCacheTour,orgTravelbugs;
++	public MenuItem filtCacheTour,orgTravelbugs, mnuForceLogin;
+ 	private MenuItem mnuNewProfile, mnuOpenProfile, mnuEditCenter;
+ 	private Form father;
+ 	private TablePanel tbp;
+@@ -53,11 +53,14 @@
+ 		///////////////////////////////////////////////////////////////////////
+ 		// subMenu for import, part of &quot;Application&quot; menu below
+ 		///////////////////////////////////////////////////////////////////////
+-		MenuItem[] mnuImport = new MenuItem[3];
++		MenuItem[] mnuImport = new MenuItem[5];
+ 		mnuImport[0] = loadcaches  = new MenuItem(MyLocale.getMsg(129,&quot;Import GPX&quot;)); //TODO internationalization
+ 		mnuImport[1] = loadOC      = new MenuItem(MyLocale.getMsg(130,&quot;Download von opencaching.de&quot;)); 
+ 		mnuImport[2] = spider      = new MenuItem(MyLocale.getMsg(131,&quot;Spider von geocaching.com&quot;)); 
++		mnuImport[3] = mnuSeparator = new MenuItem(&quot;-&quot;); 
++		mnuImport[4] = mnuForceLogin      = new MenuItem(&quot;Always login to GC&quot;); 
+ 		Menu importMenu = new Menu(mnuImport, MyLocale.getMsg(175,&quot;Import&quot;));
++		if (Global.getPref().forceLogin) mnuForceLogin.modifiers^=MenuItem.Checked;
+ 		
+ 		///////////////////////////////////////////////////////////////////////
+ 		// subMenu for export, part of &quot;Application&quot; menu below
+@@ -97,7 +100,7 @@
+ 		appMenuItems[0] = profiles 	 = new MenuItem(MyLocale.getMsg(121,&quot;Profile&quot;), 0, profileMenu); 
+ 		appMenuItems[1] = preferences = new MenuItem(MyLocale.getMsg(108,&quot;Preferences&quot;)); 
+ 		appMenuItems[2] = mnuEditCenter = new MenuItem(MyLocale.getMsg(1110,&quot;Center&quot;));
+-		appMenuItems[3] = mnuSeparator = new MenuItem(&quot;-&quot;);
++		appMenuItems[3] = mnuSeparator;
+ 		appMenuItems[4] = new MenuItem(MyLocale.getMsg(175,&quot;Import&quot;),0,importMenu);
+ 		appMenuItems[5] = new MenuItem(MyLocale.getMsg(107,&quot;Export&quot;),0,exportMenu);
+ 		appMenuItems[6] = new MenuItem(MyLocale.getMsg(149,&quot;Maps&quot;),0,mapsMenu);
+@@ -191,6 +194,10 @@
+ 			mnuOpenProfile.modifiers|=MenuItem.Disabled;
+ 		}
+ 	}
++	
++	public void setForceLogin() {
++		mnuForceLogin.modifiers=Global.getPref().forceLogin ? Global.mainTab.mnuMain.modifiers|MenuItem.Checked : Global.mainTab.mnuMain.modifiers&amp;~MenuItem.Checked;
++	}
+ 
+ 	public static void search() {
+ 		String srch = new InputBox(MyLocale.getMsg(119,&quot;Search for:&quot;)).input(&quot;&quot;,10);
+@@ -253,6 +260,62 @@
+ 				f.close(0);
+ 			}
+ 			///////////////////////////////////////////////////////////////////////
++			// subMenu for import, part of &quot;Application&quot; menu 
++			///////////////////////////////////////////////////////////////////////
++			if(mev.selectedItem == spider){
++				SpiderGC spGC = new SpiderGC(pref, profile, true);
++				spGC.doIt();
++				cacheDB.clear();
++				profile.readIndex();
++				profile.restoreFilter();
++				profile.updateBearingDistance();
++				tbp.resetModel();
++			}
++			if(mev.selectedItem == loadcaches){
++				FileChooser fc = new FileChooser(FileChooser.OPEN|FileChooser.MULTI_SELECT, pref.baseDir);
++				fc.addMask(&quot;*.gpx,*.zip,*.loc&quot;);
++				fc.setTitle(MyLocale.getMsg(909,&quot;Select file(s)&quot;));
++				if(fc.execute() != FileChooser.IDCANCEL){
++					String dir = fc.getChosenDirectory().toString();
++					String files[] = fc.getAllChosen();
++					/*
++					int how = GPXImporter.DOIT_ASK;
++					if (files.length &gt; 0){
++							InfoBox iB = new InfoBox(&quot;Spider?&quot;, &quot;Spider Images?&quot;, InfoBox.CHECKBOX);
++							iB.execute();
++							boolean doSpider = iB.mCB_state;
++							if (doSpider) how = GPXImporter.DOIT_WITHSPOILER;
++							else how = GPXImporter.DOIT_NOSPOILER;
++					}
++					*/
++					for (int i = 0; i &lt; files.length; i++){ 
++						String file = dir + &quot;/&quot; + files[i];
++						if (file.endsWith(&quot;loc&quot;)){
++							LOCXMLImporter loc = new LOCXMLImporter(pref, profile, file);
++							loc.doIt();
++						}
++						else {
++							GPXImporter gpx = new GPXImporter(pref, profile, file);
++							gpx.doIt(0);
++						}
++					}
++				}
++				Filter.showBlacklisted=false;
++				filtBlack.modifiers&amp;=~MenuItem.Checked;
++				tbp.resetModel();
++			}
++			if(mev.selectedItem == loadOC){
++				OCXMLImporter oc = new OCXMLImporter(pref,profile);
++				oc.doIt();
++				Filter.showBlacklisted=false;
++				filtBlack.modifiers&amp;=~MenuItem.Checked;
++				tbp.resetModel();
++			}
++			if(mev.selectedItem == mnuForceLogin) {
++				mnuForceLogin.modifiers^=MenuItem.Checked;
++				Global.getPref().forceLogin=(mnuForceLogin.modifiers&amp;MenuItem.Checked)!=0;
++			}
++			///////////////////////////////////////////////////////////////////////
+ 			// subMenu for export, part of &quot;Application&quot; menu 
+ 			///////////////////////////////////////////////////////////////////////
+ 			if(mev.selectedItem == exporthtml){
+@@ -372,55 +435,6 @@
+ 				pfs.execute(father.getFrame(), Gui.CENTER_FRAME);
+ 				pref.readPrefFile();
+ 			}
+-			if(mev.selectedItem == loadcaches){
+-				FileChooser fc = new FileChooser(FileChooser.OPEN|FileChooser.MULTI_SELECT, pref.baseDir);
+-				fc.addMask(&quot;*.gpx,*.zip,*.loc&quot;);
+-				fc.setTitle(MyLocale.getMsg(909,&quot;Select file(s)&quot;));
+-				if(fc.execute() != FileChooser.IDCANCEL){
+-					String dir = fc.getChosenDirectory().toString();
+-					String files[] = fc.getAllChosen();
+-					/*
+-					int how = GPXImporter.DOIT_ASK;
+-					if (files.length &gt; 0){
+-							InfoBox iB = new InfoBox(&quot;Spider?&quot;, &quot;Spider Images?&quot;, InfoBox.CHECKBOX);
+-							iB.execute();
+-							boolean doSpider = iB.mCB_state;
+-							if (doSpider) how = GPXImporter.DOIT_WITHSPOILER;
+-							else how = GPXImporter.DOIT_NOSPOILER;
+-					}
+-					*/
+-					for (int i = 0; i &lt; files.length; i++){ 
+-						String file = dir + &quot;/&quot; + files[i];
+-						if (file.endsWith(&quot;loc&quot;)){
+-							LOCXMLImporter loc = new LOCXMLImporter(pref, profile, file);
+-							loc.doIt();
+-						}
+-						else {
+-							GPXImporter gpx = new GPXImporter(pref, profile, file);
+-							gpx.doIt(0);
+-						}
+-					}
+-				}
+-				Filter.showBlacklisted=false;
+-				filtBlack.modifiers&amp;=~MenuItem.Checked;
+-				tbp.resetModel();
+-			}
+-			if(mev.selectedItem == loadOC){
+-				OCXMLImporter oc = new OCXMLImporter(pref,profile);
+-				oc.doIt();
+-				Filter.showBlacklisted=false;
+-				filtBlack.modifiers&amp;=~MenuItem.Checked;
+-				tbp.resetModel();
+-			}
+-			if(mev.selectedItem == spider){
+-				SpiderGC spGC = new SpiderGC(pref, profile, true);
+-				spGC.doIt();
+-				cacheDB.clear();
+-				profile.readIndex();
+-				profile.restoreFilter();
+-				profile.updateBearingDistance();
+-				tbp.resetModel();
+-			}
+ 			if(mev.selectedItem == savenoxit){
+ 				profile.saveIndex(pref,Profile.SHOW_PROGRESS_BAR);
+ 				tbp.saveColWidth(pref);
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2007-09-05 22:28:47 UTC (rev 894)
++++ trunk/src/CacheWolf/Preferences.java	2007-09-06 19:26:54 UTC (rev 895)
+@@ -81,6 +81,7 @@
+ 	public String forwardGpsHost = &quot;&quot;;
+ 	public int fontSize = 12;
+ 	
++	public boolean forceLogin=true;
+ 	public String listColMap=&quot;0,1,2,3,4,5,6,7,8,9,10,11&quot;;
+ 	public String listColWidth=&quot;15,20,20,25,92,177,144,83,60,105,50,104&quot;;
+ 	/** The columns which are to be displayed in TravelbugsJourneyScreen. See also TravelbugJourney */
+@@ -404,6 +405,9 @@
+ 		if (name.equals(&quot;gotopanel&quot;)) {
+ 			northCenteredGoto = Boolean.valueOf(atts.getValue(&quot;northcentered&quot;)).booleanValue();
+ 		}
++		if (name.equals(&quot;spider&quot;)) {
++			forceLogin = Boolean.valueOf(atts.getValue(&quot;forcelogin&quot;)).booleanValue();
++		}
+ 	}
+ 
+ 	public void characters( char ch[], int start, int length ) {
+@@ -453,6 +457,7 @@
+ 			outp.print(&quot;    &lt;garmin connection = \&quot;&quot;+garminConn+&quot;\&quot; GPSBabelOptions = \&quot;&quot;+garminGPSBabelOptions+&quot;\&quot; /&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;opencaching downloadPicsOC=\&quot;&quot;+downloadPicsOC+&quot;\&quot; downloadMaps=\&quot;&quot;+downloadMapsOC+&quot;\&quot; downloadMissing=\&quot;&quot;+downloadmissingOC+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;	&lt;location lat = \&quot;&quot;+curCentrePt.getLatDeg(CWPoint.DD)+&quot;\&quot; long = \&quot;&quot;+curCentrePt.getLonDeg(CWPoint.DD)+&quot;\&quot;/&gt;\n&quot;);
++			outp.print(&quot;    &lt;spider forcelogin=\&quot;&quot;+forceLogin+&quot;\&quot;/&gt;/n&quot;);
+ 			outp.print(&quot;    &lt;gotopanel northcentered=\&quot;&quot;+northCenteredGoto+&quot;\&quot; /&gt;\n&quot;);
+ 			if (customMapsPath!=null) outp.print(&quot;	&lt;mapspath dir = \&quot;&quot;+ customMapsPath +&quot;\&quot;/&gt;\n&quot;);
+ 			if (debug) outp.print(&quot;    &lt;debug value=\&quot;true\&quot; /&gt;\n&quot;); // Keep the debug switch if it is set
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2007-09-05 22:28:47 UTC (rev 894)
++++ trunk/src/CacheWolf/SpiderGC.java	2007-09-06 19:26:54 UTC (rev 895)
+@@ -43,6 +43,7 @@
+ 	 */
+ 	public static int MAXLOGS=250; // Can be pre-set from preferences
+ 	public static String passwort = &quot;&quot;; // Can be pre-set from preferences
++	public static boolean loggedIn = false;
+ 
+ 	private static int ERR_LOGIN = -10;
+ 	private static Preferences pref;
+@@ -56,7 +57,6 @@
+ 	private Vector cachesToLoad = new Vector();
+ 	private Hashtable indexDB;
+ 	private InfoBox infB;
+-	private boolean loggedIn = false;
+ 	private static myProperties p=null;
+ 
+ 	public SpiderGC(Preferences prf, Profile profile, boolean bypass){
+@@ -218,8 +218,10 @@
+ 		String completeWebPage;
+ 		// Check whether spider definitions could be loaded, if not issue appropriate message and terminate
+ 		// Try to login. If login fails, issue appropriate message and terminate
+-		if (login()!=Form.IDOK) {
+-			return &quot;&quot;;
++		if (!loggedIn || Global.getPref().forceLogin) {
++			if (login()!=Form.IDOK) {
++				return &quot;&quot;;
++			}
+ 		}
+ 		InfoBox infB = new InfoBox(&quot;Info&quot;, &quot;Loading&quot;, InfoBox.PROGRESS_WITH_WARNINGS);
+ 		infB.exec();
+@@ -264,9 +266,11 @@
+ 		String start = &quot;&quot;;
+ 		Regex rex = new Regex(&quot;name=\&quot;__VIEWSTATE\&quot; value=\&quot;(.*)\&quot; /&gt;&quot;);
+ 		String doc = &quot;&quot;;
+-
+-		if(login() != Form.IDOK) return;
+-
++		
++		if (!loggedIn || Global.getPref().forceLogin) {
++			if(login() != Form.IDOK) return;
++		}
++		
+ 		OCXMLImporterScreen options = new OCXMLImporterScreen(MyLocale.getMsg(5510,&quot;Spider Options&quot;),	OCXMLImporterScreen.INCLUDEFOUND | OCXMLImporterScreen.DIST| OCXMLImporterScreen.IMAGES);
+ 		options.distanceInput.setText(&quot;&quot;);
+ 		if (options.execute() == OCXMLImporterScreen.IDCANCEL) {return; }
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2007-09-05 22:28:47 UTC (rev 894)
++++ trunk/src/CacheWolf/myTableControl.java	2007-09-06 19:26:54 UTC (rev 895)
+@@ -134,6 +134,7 @@
+ 			SpiderGC spider = new SpiderGC(pref, profile, false);
+ 			OCXMLImporter ocSync = new OCXMLImporter(pref, profile);
+ 			//Vm.debug(&quot;ByPass? &quot; + profile.byPassIndexActive);
++			if (!spider.loggedIn || Global.getPref().forceLogin) spider.login();
+ 			Vm.showWait(true);
+ 			boolean alreadySaid = false;
+ 			boolean alreadySaid2 = false;
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000787.html">[Cachewolf-svn] r894 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000789.html">[Cachewolf-svn] r896 - trunk/resources
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#788">[ date ]</a>
+              <a href="thread.html#788">[ thread ]</a>
+              <a href="subject.html#788">[ subject ]</a>
+              <a href="author.html#788">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

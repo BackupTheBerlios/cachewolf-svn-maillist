@@ -1,0 +1,184 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2172 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-September/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2172%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200909100011.n8A0BDgf010039%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002095.html">
+   <LINK REL="Next"  HREF="002097.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2172 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2172%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200909100011.n8A0BDgf010039%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2172 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Thu Sep 10 02:11:13 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002095.html">[Cachewolf-svn] r2171 - trunk/src/CacheWolf/imp
+</A></li>
+        <LI>Next message: <A HREF="002097.html">[Cachewolf-svn] r2173 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2096">[ date ]</a>
+              <a href="thread.html#2096">[ thread ]</a>
+              <a href="subject.html#2096">[ subject ]</a>
+              <a href="author.html#2096">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2009-09-10 02:11:11 +0200 (Thu, 10 Sep 2009)
+New Revision: 2172
+
+Modified:
+   trunk/src/CacheWolf/Preferences.java
+Log:
+preferences: try to set some usefull standards automatically
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2009-09-09 19:58:06 UTC (rev 2171)
++++ trunk/src/CacheWolf/Preferences.java	2009-09-10 00:11:11 UTC (rev 2172)
+@@ -108,8 +108,6 @@
+ 			}
+ 		} else
+ 			fontSize = 11;
+-		
+-
+ 	}
+ 
+     //////////////////////////////////////////////////////////////////////////////////////
+@@ -283,6 +281,7 @@
+ 			r.close();
+ 		}catch(IOException e){
+ 			log(&quot;IOException reading config file: &quot; + pathToConfigFile, e, true);
++			browser = getDefaultBrowser();
+ 			(new MessageBox(MyLocale.getMsg(327, &quot;Information&quot;), MyLocale.getMsg(176, &quot;First start - using default preferences \n For experts only: \n Could not read preferences file:\n&quot;) + pathToConfigFile, FormBase.OKB)).execute();
+ 		}catch(Exception e){
+ 			if (e instanceof NullPointerException)
+@@ -294,6 +293,42 @@
+ 		isBigScreen = (MyLocale.getScreenWidth() &gt;= 400) &amp;&amp; (MyLocale.getScreenHeight() &gt;= 600);
+ 	}
+ 
++/**
++ * Tries to find a executable browser
++ * return &quot;&quot; if no browser found
++ * @return
++ */
++	private String getDefaultBrowser() {
++		String pf = Vm.getPlatform();
++		String testlist[] = null;
++		if (pf.equals(&quot;Java&quot;) || pf.equals(&quot;Win32&quot;)) {
++			String progdir = Vm.getenv(&quot;ProgramFiles&quot;, null); // at least in java-Win XP this is set
++			if (progdir != null) {
++				String test[] = {
++						progdir+&quot;/Firefox/firefox.exe&quot;,
++						progdir+&quot;/Opera/opera.exe&quot;,
++						progdir+&quot;/Internet Explorer/iexplore.exe&quot;};
++				testlist = test;
++			} else {
++				String test[] = { // this part is not tested
++						&quot;/opt/firefox/firefox&quot;, // default path in ubuntu
++						&quot;/usr/bin/firefox&quot;};
++				testlist = test;
++			}
++		}
++		if (pf.equals(&quot;WinCE&quot;)) {
++			String test[] = {&quot;/windows/iexplore.exe&quot;};
++			testlist = test;
++		}
++		if (testlist != null) {
++			for (int i=0; i &lt; testlist.length; i++)
++				if ((new FileBugfix(testlist[i])).exists()) { 
++					return testlist[i]; 
++				}
++		}
++		return &quot;&quot;;
++	}
++
+ 	/** Helper variables for XML parser */
+ 	private StringBuffer collectElement=null;
+ 	private String lastName; // The string to the last XML that was processed
+@@ -301,11 +336,15 @@
+ 	/**
+ 	 * Method that gets called when a new element has been identified in pref.xml
+ 	 */
++	
+ 	public void startElement(String name, AttributeList atts){
+ 		//Vm.debug(&quot;name = &quot;+name);
+ 		lastName=name;
+ 		String tmp;
+-		if(name.equals(&quot;browser&quot;)) browser = atts.getValue(&quot;name&quot;);
++		if(name.equals(&quot;browser&quot;)) {
++			browser = atts.getValue(&quot;name&quot;);
++			if (browser == null || browser.length() == 0) browser = getDefaultBrowser();
++		}
+ 		else if(name.equals(&quot;fixedsip&quot;)) {
+ 			if(atts.getValue(&quot;state&quot;).equals(&quot;true&quot;)) {
+ 				fixSIP = true;
+@@ -724,6 +763,22 @@
+ 	static protected final int PROFILE_SELECTOR_ONOROFF=2;
+ 
+ 	/**
++	 * tries to get the home data dir of the user
++	 * e.g. &quot;c:\documents and...\&lt;user&gt;\my documents&quot; or &quot;/home/&lt;user&gt;&quot; in linux 
++	 * if none could be identified, &quot;/&quot; is returned.
++	 * @return
++	 */
++	public String getHomeDir() {
++		String test;
++		test = Vm.getenv(&quot;HOMEDRIVE&quot;, &quot;&quot;); // returns in java-vm on win xp: c:\&lt;dokumente und Einstellungen&gt;\&lt;username&gt;\&lt;application data&gt;
++		log(&quot;Vm.getenv(HOMEDRIVE: &quot; + test); // this works also in win32.exe (ewe-vm on win xp)
++		test += Vm.getenv(&quot;HOMEPATH&quot;, &quot;&quot;); // returns in java-vm on win xp: c:\&lt;dokumente und Einstellungen&gt;\&lt;username&gt;\&lt;application data&gt;
++		log(&quot;Vm.getenv(HOMEPATH: &quot; + test); // this works also in win32.exe (ewe-vm on win xp)
++		if (test.length() == 0)	test = Vm.getenv(&quot;HOME&quot;, &quot;&quot;); // This should return on *nix system the home dir
++		if (test.length() == 0)	test = &quot;/&quot;;
++		return test;
++	}
++	/**
+ 	 * Open Profile selector screen
+ 	 * @param prof
+ 	 * @param showProfileSelector
+@@ -733,7 +788,7 @@
+ 		// If datadir is empty, ask for one
+ 		if (baseDir.length()==0 || !(new FileBugfix(baseDir)).exists()) {
+ 			do {
+-				FileChooser fc = new FileChooser(FileChooserBase.DIRECTORY_SELECT,&quot;/&quot;);
++				FileChooser fc = new FileChooser(FileChooserBase.DIRECTORY_SELECT, getHomeDir());
+ 				fc.title = MyLocale.getMsg(170,&quot;Select base directory for cache data&quot;);
+ 				// If no base directory given, terminate
+ 				if (fc.execute() == FormBase.IDCANCEL) ewe.sys.Vm.exit(0);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002095.html">[Cachewolf-svn] r2171 - trunk/src/CacheWolf/imp
+</A></li>
+	<LI>Next message: <A HREF="002097.html">[Cachewolf-svn] r2173 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2096">[ date ]</a>
+              <a href="thread.html#2096">[ thread ]</a>
+              <a href="subject.html#2096">[ subject ]</a>
+              <a href="author.html#2096">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

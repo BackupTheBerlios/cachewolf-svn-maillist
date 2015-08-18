@@ -1,0 +1,149 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r582 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r582%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702140310.l1E3ACp7030741%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000392.html">
+   <LINK REL="Next"  HREF="000394.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r582 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r582%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702140310.l1E3ACp7030741%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r582 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Wed Feb 14 04:10:12 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000392.html">[Cachewolf-svn] r581 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000394.html">[Cachewolf-svn] r583 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#393">[ date ]</a>
+              <a href="thread.html#393">[ thread ]</a>
+              <a href="subject.html#393">[ subject ]</a>
+              <a href="author.html#393">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-02-14 04:10:06 +0100 (Wed, 14 Feb 2007)
+New Revision: 582
+
+Modified:
+   trunk/src/CacheWolf/DescriptionPanel.java
+   trunk/src/CacheWolf/HintLogPanel.java
+   trunk/src/CacheWolf/myTableControl.java
+Log:
+Logs: Scrolling mit Tasten (hoch-runter und Bild hoch/runter)
+
+Modified: trunk/src/CacheWolf/DescriptionPanel.java
+===================================================================
+--- trunk/src/CacheWolf/DescriptionPanel.java	2007-02-14 01:21:24 UTC (rev 581)
++++ trunk/src/CacheWolf/DescriptionPanel.java	2007-02-14 03:10:06 UTC (rev 582)
+@@ -8,7 +8,6 @@
+ *	This class shows the long description on a cache.
+ */
+ public class DescriptionPanel extends CellPanel{
+-	mTextPad myPad = new mTextPad();
+ 	HtmlDisplay disp = new HtmlDisplay();
+ 	mButton btnPlus, btnMinus;
+ 	CacheHolder currCache;
+
+Modified: trunk/src/CacheWolf/HintLogPanel.java
+===================================================================
+--- trunk/src/CacheWolf/HintLogPanel.java	2007-02-14 01:21:24 UTC (rev 581)
++++ trunk/src/CacheWolf/HintLogPanel.java	2007-02-14 03:10:06 UTC (rev 582)
+@@ -172,13 +172,12 @@
+ 	
+ 	// I copied it here because the original has a bug when scrolling
+ 	// added the support for scrolling / draggin only vertically
++	// rewrite to support for images bigger than the canvas
+ 	// the return value is never used
+ //	============================================================
+ 	public boolean imageDragged(ImageDragContext dc,Point where)
+ //	============================================================
+ 	{
+-		ReactiveImage ri = null;
+-		if (dc.image instanceof ReactiveImage) ri = (ReactiveImage)dc.image;
+ 		dc.curPoint = new Point(where.x,where.y);
+ 		AniImage moving = dc.image;
+ 		Rect r = getDim(null);
+@@ -217,4 +216,27 @@
+ 		else refresh(dc.image,null);//updateImage(dc.image);
+ 		return(true);
+ 	}
++	public void onKeyEvent(KeyEvent ev) {
++		if (ev.type == KeyEvent.KEY_PRESS) {
++			if (ev.key == IKeys.DOWN) {
++				 doScroll(IScroll.Vertical, IScroll.ScrollHigher, 1);
++				 refresh();
++			}
++			if (ev.key == IKeys.UP) {
++				 doScroll(IScroll.Vertical, IScroll.ScrollLower, 1);
++				 refresh();
++			}
++			if (ev.key == IKeys.PAGE_DOWN) {
++				 doScroll(IScroll.Vertical, IScroll.PageHigher, 1);
++				 refresh();
++			}
++			if (ev.key == IKeys.PAGE_UP) {
++				 doScroll(IScroll.Vertical, IScroll.PageLower, 1);
++				 refresh();
++			}
++		}
++	}
++
++	
++	
+ }
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2007-02-14 01:21:24 UTC (rev 581)
++++ trunk/src/CacheWolf/myTableControl.java	2007-02-14 03:10:06 UTC (rev 582)
+@@ -55,8 +55,8 @@
+ 			}
+ 			if (ev.key == IKeys.HOME) cursorTo(0,cursor.x+listMode,true);
+ 			if (ev.key == IKeys.END) cursorTo(model.numRows-1,cursor.x+listMode,true);
+-			if (ev.key == IKeys.PAGE_DOWN)cursorTo(java.lang.Math.min(cursor.y+ getOnScreen(null).height, model.numRows),cursor.x+listMode,true);
+-			if (ev.key == IKeys.PAGE_UP) cursorTo(java.lang.Math.max(cursor.y-getOnScreen(null).height, 0),cursor.x+listMode,true);
++			if (ev.key == IKeys.PAGE_DOWN) cursorTo(java.lang.Math.min(cursor.y+ getOnScreen(null).height-1, model.numRows-1),cursor.x+listMode,true); // I don't know why this doesn't work: tbp.doScroll(IScroll.Vertical, IScroll.PageHigher, 1);
++			if (ev.key == IKeys.PAGE_UP) cursorTo(java.lang.Math.max(cursor.y-getOnScreen(null).height+1, 0),cursor.x+listMode,true);
+ 		}
+ 		super.onKeyEvent(ev);
+ 	}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000392.html">[Cachewolf-svn] r581 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000394.html">[Cachewolf-svn] r583 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#393">[ date ]</a>
+              <a href="thread.html#393">[ thread ]</a>
+              <a href="subject.html#393">[ subject ]</a>
+              <a href="author.html#393">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

@@ -1,0 +1,656 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r617 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r617%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702222119.l1MLJ1Bs021787%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000434.html">
+   <LINK REL="Next"  HREF="000436.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r617 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r617%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702222119.l1MLJ1Bs021787%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r617 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Thu Feb 22 22:19:01 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000434.html">[Cachewolf-svn] r616 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000436.html">[Cachewolf-svn] r618 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#435">[ date ]</a>
+              <a href="thread.html#435">[ thread ]</a>
+              <a href="subject.html#435">[ subject ]</a>
+              <a href="author.html#435">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-02-22 22:18:55 +0100 (Thu, 22 Feb 2007)
+New Revision: 617
+
+Modified:
+   trunk/src/CacheWolf/InfoBox.java
+   trunk/src/CacheWolf/SpiderGC.java
+   trunk/src/CacheWolf/myTableControl.java
+Log:
+SpiderGC: Abbrechen des Spiders durch Schliessen der Infobox jetzt moeglich
+
+Modified: trunk/src/CacheWolf/InfoBox.java
+===================================================================
+--- trunk/src/CacheWolf/InfoBox.java	2007-02-22 21:07:38 UTC (rev 616)
++++ trunk/src/CacheWolf/InfoBox.java	2007-02-22 21:18:55 UTC (rev 617)
+@@ -15,6 +15,11 @@
+ 	public final static int DISPLAY_ONLY = 3;
+ 	public final static int PROGRESS_WITH_WARNINGS = 4;
+ 	private int type = 0;
++	/** This variable is set to true if the user closed the Info window by
++	 *  clicking the &quot;close&quot; button. It can be used to check if a lengthy task needs to be
++	 *  aborted (i.e. spidering)
++	 */
++	public boolean isClosed=false;
+ 
+ 	public InfoBox(String title, String info){
+ 		this(title, info, DISPLAY_ONLY);
+@@ -123,4 +128,10 @@
+ 		}
+ 		super.onEvent(ev);
+ 	}
++	
++	protected boolean canExit(int exitCode) {
++		isClosed=true;
++		return true;
++	}
++	
+ }
+\ No newline at end of file
+
+Modified: trunk/src/CacheWolf/SpiderGC.java
+===================================================================
+--- trunk/src/CacheWolf/SpiderGC.java	2007-02-22 21:07:38 UTC (rev 616)
++++ trunk/src/CacheWolf/SpiderGC.java	2007-02-22 21:18:55 UTC (rev 617)
+@@ -38,10 +38,10 @@
+ public class SpiderGC{
+ 	private static Preferences pref;
+ 	private Profile profile;
+-	static String viewstate = new String();
+-	static String passwort = new String();
+-	static String cookieID = new String();
+-	static String cookieSession = new String();
++	static String viewstate = &quot;&quot;;
++	static String passwort = &quot;&quot;;
++	static String cookieID = &quot;&quot;;
++	static String cookieSession = &quot;&quot;;
+ 	static double distance = 0;
+ 	Regex inRex = new Regex();
+ 	Vector cacheDB;
+@@ -56,70 +56,77 @@
+ 	public int login(){
+ 		pref.logInit();
+ 		//Access the page once to get a viewstate
+-		String start = new String();
+-		String doc = new String();
++		String start = &quot;&quot;;
++		String doc = &quot;&quot;;
+ 		//Get password
+ 		InfoBox infB = new InfoBox(&quot;Password&quot;, &quot;Enter password:&quot;, InfoBox.INPUT);
+ 		int code = infB.execute();
+-		if(code == Form.IDOK){
+-			passwort = infB.getInput();
+-		} else return code;
++		passwort = infB.getInput();
+ 		infB.close(0);
++		if(code != Form.IDOK)
++			return code;
+ 		infB = new InfoBox(&quot;Status&quot;, &quot;Logging in...&quot;);
+ 		infB.exec();
+ 		try{
+ 			pref.log(&quot;Fetching login page&quot;);
+ 			start = fetch(&quot;<A HREF="http://www.geocaching.com/login/Default.aspx">http://www.geocaching.com/login/Default.aspx</A>&quot;);
+ 		}catch(Exception ex){
+-			Vm.debug(&quot;Could not fetch: gc.com start page&quot;);
++			pref.log(&quot;Could not fetch: gc.com start page&quot;,ex);
+ 		}
+-		Regex rexCookieID = new Regex(&quot;Set-Cookie: userid=(.*?);.*&quot;);
+-		Regex rex = new Regex(&quot;name=\&quot;__VIEWSTATE\&quot; value=\&quot;(.*)\&quot; /&gt;&quot;);
+-		Regex rexCookieSession = new Regex(&quot;Set-Cookie: ASP.NET_SessionId=(.*?);.*&quot;);
+-		rex.search(start);
+-		if(rex.didMatch()){
++		if (!infB.isClosed) {
++			Regex rexCookieID = new Regex(&quot;Set-Cookie: userid=(.*?);.*&quot;);
++			Regex rex = new Regex(&quot;name=\&quot;__VIEWSTATE\&quot; value=\&quot;(.*)\&quot; /&gt;&quot;);
++			Regex rexCookieSession = new Regex(&quot;Set-Cookie: ASP.NET_SessionId=(.*?);.*&quot;);
++			rex.search(start);
++			if(rex.didMatch()){
++				viewstate = rex.stringMatched(1);
++				//Vm.debug(&quot;ViewState: &quot; + viewstate);
++			}
++			//Ok now login!
++			try{
++				pref.log(&quot;Logging in&quot;);
++				doc = URL.encodeURL(&quot;__VIEWSTATE&quot;,false) +&quot;=&quot;+ URL.encodeURL(viewstate,false);
++				doc += &quot;&amp;&quot; + URL.encodeURL(&quot;myUsername&quot;,false) +&quot;=&quot;+ URL.encodeURL(pref.myAlias,false);
++				doc += &quot;&amp;&quot; + URL.encodeURL(&quot;myPassword&quot;,false) +&quot;=&quot;+ URL.encodeURL(passwort,false);
++				doc += &quot;&amp;&quot; + URL.encodeURL(&quot;cookie&quot;,false) +&quot;=&quot;+ URL.encodeURL(&quot;on&quot;,false);
++				doc += &quot;&amp;&quot; + URL.encodeURL(&quot;Button1&quot;,false) +&quot;=&quot;+ URL.encodeURL(&quot;Login&quot;,false);
++				start = fetch_post(&quot;<A HREF="http://www.geocaching.com/login/Default.aspx">http://www.geocaching.com/login/Default.aspx</A>&quot;, doc, &quot;/login/default.aspx&quot;);
++				pref.log(&quot;Login successfull&quot;);
++			}catch(Exception ex){
++				Vm.debug(&quot;Could not login: gc.com start page&quot;);
++				pref.log(&quot;Login failed.&quot;);
++			}
++			
++			rex.search(start);
+ 			viewstate = rex.stringMatched(1);
+-			//Vm.debug(&quot;ViewState: &quot; + viewstate);
++			rexCookieID.search(start);
++			cookieID = rexCookieID.stringMatched(1);
++			//Vm.debug(cookieID);
++			rexCookieSession.search(start);
++			cookieSession = rexCookieSession.stringMatched(1);
++			//Vm.debug(cookieSession);
+ 		}
+-		//Ok now login!
+-		try{
+-			pref.log(&quot;Logging in&quot;);
+-			doc = URL.encodeURL(&quot;__VIEWSTATE&quot;,false) +&quot;=&quot;+ URL.encodeURL(viewstate,false);
+-			doc += &quot;&amp;&quot; + URL.encodeURL(&quot;myUsername&quot;,false) +&quot;=&quot;+ URL.encodeURL(pref.myAlias,false);
+-			doc += &quot;&amp;&quot; + URL.encodeURL(&quot;myPassword&quot;,false) +&quot;=&quot;+ URL.encodeURL(passwort,false);
+-			doc += &quot;&amp;&quot; + URL.encodeURL(&quot;cookie&quot;,false) +&quot;=&quot;+ URL.encodeURL(&quot;on&quot;,false);
+-			doc += &quot;&amp;&quot; + URL.encodeURL(&quot;Button1&quot;,false) +&quot;=&quot;+ URL.encodeURL(&quot;Login&quot;,false);
+-			start = fetch_post(&quot;<A HREF="http://www.geocaching.com/login/Default.aspx">http://www.geocaching.com/login/Default.aspx</A>&quot;, doc, &quot;/login/default.aspx&quot;);
+-			pref.log(&quot;Login successfull&quot;);
+-		}catch(Exception ex){
+-			Vm.debug(&quot;Could not login: gc.com start page&quot;);
+-			pref.log(&quot;Login failed.&quot;);
+-		}
+-		
+-		rex.search(start);
+-		viewstate = rex.stringMatched(1);
+-		rexCookieID.search(start);
+-		cookieID = rexCookieID.stringMatched(1);
+-		//Vm.debug(cookieID);
+-		rexCookieSession.search(start);
+-		cookieSession = rexCookieSession.stringMatched(1);
+-		//Vm.debug(cookieSession);
++		boolean loginAborted=infB.isClosed;
+ 		infB.close(0);
+-		return Form.IDOK;
++		if (loginAborted)
++			return Form.IDCANCEL;
++		else
++			return Form.IDOK;
+ 	}
+ 	
+ 	/**
+ 	 * Method to spider a single cache.
+ 	 * It assumes a login has already been performed!
++	 * @return True if spider was successful, false if spider was cancelled by closing the infobox
+ 	 */
+-	public void spiderSingle(int number){
++	public boolean spiderSingle(int number){
+ 
+ 		CacheHolder ch = (CacheHolder)cacheDB.get(number);
+-		if (ch.isAddiWpt()) return;  // No point spidering an addi waypoint, comes with parent
+-		Vm.showWait(true);
+-		String notes = new String();
+-		String start = new String();
+-		String origLong = new String();
++		if (ch.isAddiWpt()) return false;  // No point spidering an addi waypoint, comes with parent
++		//Vm.showWait(true); Already done in myTableControl
++		String notes = &quot;&quot;;
++		String start = &quot;&quot;;
++		String origLong = &quot;&quot;;
+ 		try{
+ 			ch.readCache(profile.dataDir);
+ 		}catch(IOException ioex){
+@@ -128,7 +135,7 @@
+ 		notes = ch.CacheNotes;
+ 		infB = new InfoBox(&quot;Info&quot;, &quot;Loading&quot;);
+ 		infB.setInfo(&quot;Loading: &quot; + ch.wayPoint);
+-		infB.show();
++		infB.exec();
+ 		String doc = &quot;<A HREF="http://www.geocaching.com/seek/cache_details.aspx?wp=">http://www.geocaching.com/seek/cache_details.aspx?wp=</A>&quot; + ch.wayPoint +&quot;&amp;log=y&quot;;
+ 		try{
+ 			pref.log(&quot;Fetching: &quot; + ch.wayPoint);
+@@ -137,92 +144,98 @@
+ 			pref.log(&quot;Could not fetch &quot; + ch.wayPoint);
+ 			//Vm.debug(&quot;Couldn't get cache detail page&quot;);
+ 		}
+-		ch.is_new = false;
+-		ch.is_update = false;
+-		ch.is_HTML = true;
+-		ch.is_available = true;
+-		ch.is_archived = false;
+-		//Vm.debug(ch.wayPoint);
+-		
+-		if(start.indexOf(&quot;This cache is temporarily unavailable&quot;) &gt;= 0) ch.is_available = false;
+-		if(start.indexOf(&quot;This cache has been archived&quot;) &gt;= 0) ch.is_archived = true;
+-		pref.log(&quot;Trying logs&quot;);
+-		int logsz = ch.CacheLogs.size();
+-		ch.CacheLogs = getLogs(start, ch);
+-		int z = 0;
+-		String loganal = new String();
+-		while(z &lt; ch.CacheLogs.size() &amp;&amp; z &lt; 5){
+-			loganal = (String)ch.CacheLogs.get(z);
+-			if(loganal.indexOf(&quot;icon_sad&quot;)&gt;0) {
+-				z++;
+-			}else break;
++		if (!infB.isClosed) { // Only analyse the cache data if user has not closed the progress window
++			ch.is_new = false;
++			ch.is_update = false;
++			ch.is_HTML = true;
++			ch.is_available = true;
++			ch.is_archived = false;
++			//Vm.debug(ch.wayPoint);
++			
++			if(start.indexOf(&quot;This cache is temporarily unavailable&quot;) &gt;= 0) ch.is_available = false;
++			if(start.indexOf(&quot;This cache has been archived&quot;) &gt;= 0) ch.is_archived = true;
++			pref.log(&quot;Trying logs&quot;);
++			int logsz = ch.CacheLogs.size();
++			ch.CacheLogs = getLogs(start, ch);
++			int z = 0;
++			String loganal = &quot;&quot;;
++			while(z &lt; ch.CacheLogs.size() &amp;&amp; z &lt; 5){
++				loganal = (String)ch.CacheLogs.get(z);
++				if(loganal.indexOf(&quot;icon_sad&quot;)&gt;0) {
++					z++;
++				}else break;
++			}
++			ch.noFindLogs = z;
++			ch.is_log_update = false;
++			if(ch.CacheLogs.size()&gt;logsz) ch.is_log_update = true;
++			pref.log(&quot;Found logs&quot;);
++			ch.LatLon = getLatLon(start);
++			ch.pos.set(ch.LatLon);
++			//Vm.debug(&quot;LatLon: &quot; + ch.LatLon);
++			pref.log(&quot;Trying description&quot;);
++			origLong = ch.LongDescription;
++			ch.LongDescription = getLongDesc(start);
++			if(!ch.LongDescription.equals(origLong)) ch.is_update = true;
++			pref.log(&quot;Got description&quot;);
++			pref.log(&quot;Getting cache name&quot;);
++			ch.CacheName = SafeXML.cleanback(getName(start));
++			pref.log(&quot;Got cache name&quot;);
++			//Vm.debug(&quot;Name: &quot; + ch.CacheName);
++			pref.log(&quot;Trying owner&quot;);
++			ch.CacheOwner = SafeXML.cleanback(getOwner(start)).trim();
++			if(ch.CacheOwner.equals(pref.myAlias) || (pref.myAlias2.length()&gt;0 &amp;&amp; ch.CacheOwner.equals(pref.myAlias2))) ch.is_owned = true;
++			pref.log(&quot;Got owner&quot;);
++			//Vm.debug(&quot;Owner: &quot; + ch.CacheOwner);
++			pref.log(&quot;Trying date hidden&quot;);
++			ch.DateHidden = getDateHidden(start);
++			pref.log(&quot;Got date hidden&quot;);
++			//Vm.debug(&quot;Hidden: &quot; + ch.DateHidden);
++			pref.log(&quot;Trying hints&quot;);
++			ch.Hints = getHints(start);
++			pref.log(&quot;Got hints&quot;);
++			//Vm.debug(&quot;Hints: &quot; + ch.Hints);
++			//Vm.debug(&quot;Got the hints&quot;);
++			pref.log(&quot;Trying size&quot;);
++			ch.CacheSize = getSize(start);
++			pref.log(&quot;Got size&quot;);
++			//Vm.debug(&quot;Size: &quot; + ch.CacheSize);
++			pref.log(&quot;Trying difficulty&quot;);
++			ch.hard = getDiff(start);
++			pref.log(&quot;Got difficulty&quot;);
++			//Vm.debug(&quot;Hard: &quot; + ch.hard);
++			pref.log(&quot;Trying terrain&quot;);
++			ch.terrain = getTerr(start);
++			pref.log(&quot;Got terrain&quot;);
++			if (!infB.isClosed) ch.Bugs = getBugs(start);
++			if(ch.Bugs.length()&gt;0) ch.has_bug = true; else ch.has_bug = false;
++			//Vm.debug(&quot;Terr: &quot; + ch.terrain);
++			pref.log(&quot;Trying cache type&quot;);
++			ch.type = getType(start);
++			pref.log(&quot;Got cache type&quot;);
++			//Vm.debug(&quot;Type: &quot; + ch.type);
++			pref.log(&quot;Trying images&quot;);
++			getImages(start, ch);
++			pref.log(&quot;Got images&quot;);
++			//pref.log(&quot;Trying maps&quot;);
++			//getMaps(ch);
++			//pref.log(&quot;Got maps&quot;);
++			pref.log(&quot;Getting additional waypoints&quot;);
++	
++			getAddWaypoints(start, ch);
++	
++			pref.log(&quot;Got additional waypoints&quot;);
++			ch.CacheNotes = notes;
++			if (!infB.isClosed) {
++				ch.saveCacheDetails(profile.dataDir);
++				
++				cacheDB.set(number, ch);
++			}
+ 		}
+-		ch.noFindLogs = z;
+-		ch.is_log_update = false;
+-		if(ch.CacheLogs.size()&gt;logsz) ch.is_log_update = true;
+-		pref.log(&quot;Found logs&quot;);
+-		ch.LatLon = getLatLon(start);
+-		ch.pos.set(ch.LatLon);
+-		//Vm.debug(&quot;LatLon: &quot; + ch.LatLon);
+-		pref.log(&quot;Trying description&quot;);
+-		origLong = ch.LongDescription;
+-		ch.LongDescription = getLongDesc(start);
+-		if(!ch.LongDescription.equals(origLong)) ch.is_update = true;
+-		pref.log(&quot;Got description&quot;);
+-		pref.log(&quot;Getting cache name&quot;);
+-		ch.CacheName = SafeXML.cleanback(getName(start));
+-		pref.log(&quot;Got cache name&quot;);
+-		//Vm.debug(&quot;Name: &quot; + ch.CacheName);
+-		pref.log(&quot;Trying owner&quot;);
+-		ch.CacheOwner = SafeXML.cleanback(getOwner(start)).trim();
+-		if(ch.CacheOwner.equals(pref.myAlias) || (pref.myAlias2.length()&gt;0 &amp;&amp; ch.CacheOwner.equals(pref.myAlias2))) ch.is_owned = true;
+-		pref.log(&quot;Got owner&quot;);
+-		//Vm.debug(&quot;Owner: &quot; + ch.CacheOwner);
+-		pref.log(&quot;Trying date hidden&quot;);
+-		ch.DateHidden = getDateHidden(start);
+-		pref.log(&quot;Got date hidden&quot;);
+-		//Vm.debug(&quot;Hidden: &quot; + ch.DateHidden);
+-		pref.log(&quot;Trying hints&quot;);
+-		ch.Hints = getHints(start);
+-		pref.log(&quot;Got hints&quot;);
+-		//Vm.debug(&quot;Hints: &quot; + ch.Hints);
+-		//Vm.debug(&quot;Got the hints&quot;);
+-		pref.log(&quot;Trying size&quot;);
+-		ch.CacheSize = getSize(start);
+-		pref.log(&quot;Got size&quot;);
+-		//Vm.debug(&quot;Size: &quot; + ch.CacheSize);
+-		pref.log(&quot;Trying difficulty&quot;);
+-		ch.hard = getDiff(start);
+-		pref.log(&quot;Got difficulty&quot;);
+-		//Vm.debug(&quot;Hard: &quot; + ch.hard);
+-		pref.log(&quot;Trying terrain&quot;);
+-		ch.terrain = getTerr(start);
+-		pref.log(&quot;Got terrain&quot;);
+-		ch.Bugs = getBugs(start);
+-		if(ch.Bugs.length()&gt;0) ch.has_bug = true; else ch.has_bug = false;
+-		//Vm.debug(&quot;Terr: &quot; + ch.terrain);
+-		pref.log(&quot;Trying cache type&quot;);
+-		ch.type = getType(start);
+-		pref.log(&quot;Got cache type&quot;);
+-		//Vm.debug(&quot;Type: &quot; + ch.type);
+-		pref.log(&quot;Trying images&quot;);
+-		getImages(start, ch);
+-		pref.log(&quot;Got images&quot;);
+-		//pref.log(&quot;Trying maps&quot;);
+-		//getMaps(ch);
+-		//pref.log(&quot;Got maps&quot;);
+-		pref.log(&quot;Getting additional waypoints&quot;);
+-
+-		getAddWaypoints(start, ch);
+-
+-		pref.log(&quot;Got additional waypoints&quot;);
+-		ch.CacheNotes = notes;
+-		ch.saveCacheDetails(profile.dataDir);
+-		
+-		cacheDB.set(number, ch);
+-		profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR);
++		profile.saveIndex(pref,Profile.NO_SHOW_PROGRESS_BAR); //TODO This could be done at the end in the context menu
++		boolean ret=!infB.isClosed; // If the infoBox was closed before getting here, we return false
+ 		infB.close(0);
+-		Vm.showWait(false);
++		//Vm.showWait(false); In myTableControl
++		return ret;
+ 	}
+ 	
+ 	/**
+@@ -235,9 +248,9 @@
+ 			return;
+ 		}
+ 		Vm.showWait(true);
+-		String start = new String();
++		String start = &quot;&quot;;
+ 		Regex rex = new Regex(&quot;name=\&quot;__VIEWSTATE\&quot; value=\&quot;(.*)\&quot; /&gt;&quot;);
+-		String doc = new String();
++		String doc = &quot;&quot;;
+ 		
+ 		int ok = login();
+ 		if(ok == Form.IDCANCEL) {
+@@ -270,13 +283,14 @@
+ 			pref.log(&quot;Error fetching first list page&quot;);
+ 			Vm.debug(&quot;Could not get list&quot;);
+ 		}
+-		String dummy = new String();
+-		//String lineBlck = new String();
++		String dummy = &quot;&quot;;
++		//String lineBlck = &quot;&quot;;
+ 		int page_number = 4;		
+ 		Regex rexLine = new Regex(&quot;&lt;tr bgcolor=((?s).*?)&lt;/tr&gt;&quot;);
+ 		int found_on_page = 0;
+ 		//Loop till maximum distance has been found or no more caches are in the list
+ 		while(distance &gt; 0){
++			if (infB.isClosed) break;
+ 			rex.search(start);
+ 			viewstate = rex.stringMatched(1);
+ 			//Vm.debug(&quot;In loop&quot;);
+@@ -323,11 +337,12 @@
+ 			found_on_page = 0;
+ 		}
+ 		pref.log(&quot;Found &quot; + cachesToLoad.size() + &quot; caches&quot;);
+-		infB.setInfo(&quot;Found &quot; + cachesToLoad.size() + &quot; caches&quot;);
++		if (!infB.isClosed) infB.setInfo(&quot;Found &quot; + cachesToLoad.size() + &quot; caches&quot;);
+ 		// Now ready to spider each cache
+-		String wpt = new String();
++		String wpt = &quot;&quot;;
+ 		CacheHolder ch;
+ 		for(int i = 0; i&lt;cachesToLoad.size(); i++){
++			if (infB.isClosed) break;
+ 			ch = new CacheHolder();
+ 			wpt = (String)cachesToLoad.get(i);
+ 			// Get only caches not already available in the DB
+@@ -353,7 +368,7 @@
+ 					pref.log(&quot;Trying logs&quot;);
+ 					ch.CacheLogs = getLogs(start, ch);
+ 					int z = 0;
+-					String loganal = new String();
++					String loganal = &quot;&quot;;
+ 					while(z &lt; ch.CacheLogs.size() &amp;&amp; z &lt; 5){
+ 						loganal = (String)ch.CacheLogs.get(z);
+ 						if(loganal.indexOf(&quot;icon_sad&quot;)&gt;0) {
+@@ -408,6 +423,7 @@
+ 						getImages(start, ch);
+ 						pref.log(&quot;Got images&quot;);
+ 					}
++					if (infB.isClosed) break;
+ 					ch.Bugs = getBugs(start);
+ 					if(ch.Bugs.length()&gt;0) ch.has_bug = true; else ch.has_bug = false;
+ 					pref.log(&quot;Getting additional waypoints&quot;);
+@@ -458,6 +474,7 @@
+ 		String result = &quot;&quot;;
+ 		String oldInfoBox=infB.getInfo();
+ 		while(exBug.endOfSearch() == false){
++			if (infB.isClosed) break; // Allow user to cancel by closing progress form
+ 			linkPlusBug= exBug.findNext();
+ 			int idx=linkPlusBug.indexOf(&quot;'&gt;&quot;);
+ 			if (idx&lt;0) break; // No link/bug pair found
+@@ -485,8 +502,8 @@
+ 	
+ 	public void getAddWaypoints(String doc, CacheHolder ch){
+ 		Extractor exWayBlock = new Extractor(doc, &quot;&lt;strong&gt;Additional Waypoints&lt;/strong&gt;&lt;br&gt;&quot;, &quot;&lt;/table&gt;&quot;, 0, false);
+-		String wayBlock = new String();
+-		String rowBlock = new String();
++		String wayBlock = &quot;&quot;;
++		String rowBlock = &quot;&quot;;
+ 		wayBlock = exWayBlock.findNext();
+ 		Regex nameRex = new Regex(&quot;&amp;RefDS=1\&quot;&gt;(.*)&lt;/a&gt;&quot;);
+ 		Regex koordRex = new Regex(&quot;align=\&quot;left\&quot;&gt;([NSns] [0-9]{1,2}..[0-9]{1,2}.[0-9]{1,3} [EWew] [0-9]{1,3}..[0-9]{1,2}.[0-9]{1,3})&lt;/td&gt;&quot;);
+@@ -534,7 +551,7 @@
+ 		String imgType;
+ 		String imgUrl;
+ 		//In the long description
+-		String longDesc = new String();
++		String longDesc = &quot;&quot;;
+ 		longDesc = getLongDesc(doc);
+ 		longDesc = STRreplace.replace(longDesc, &quot;img&quot;, &quot;IMG&quot;);
+ 		longDesc = STRreplace.replace(longDesc, &quot;src&quot;, &quot;SRC&quot;);
+@@ -566,7 +583,7 @@
+ 					}
+ 				} catch (IndexOutOfBoundsException e) { 
+ 					Vm.debug(&quot;IndexOutOfBoundsException not in image span&quot;+e.toString()+&quot;imgURL:&quot;+imgUrl);
+-					pref.log(&quot;Problem loading image&quot;);
++					pref.log(&quot;Problem loading image. imgURL:&quot;+imgUrl);
+ 				}
+ 				}
+ 			exImgSrc.setSource(exImgBlock.findNext());
+@@ -593,7 +610,7 @@
+ 						ch.ImagesText.add(exImgName.findNext());
+ 					}
+ 				} catch (IndexOutOfBoundsException e) { 
+-					Vm.debug(&quot;IndexOutOfBoundsException in image span&quot;+e.toString()+&quot;imgURL:&quot;+imgUrl); 
++					pref.log(&quot;IndexOutOfBoundsException in image span. imgURL:&quot;+imgUrl,e); 
+ 				}
+ 			}
+ 		}
+@@ -607,7 +624,7 @@
+ 		//int bytes_read;
+ 		//byte[] buffer = new byte[9000];
+ 		ByteArray daten;
+-		String datei = new String();
++		String datei = &quot;&quot;;
+ 		datei = profile.dataDir + target;
+ 		if(pref.myproxy.length()&gt;0){
+ 			connImg = new HttpConnection(pref.myproxy, Convert.parseInt(pref.myproxyport), quelle);
+@@ -699,7 +716,7 @@
+ 	}
+ 	
+ 	private String getLongDesc(String doc){
+-		String res = new String();
++		String res = &quot;&quot;;
+ 		inRex = new Regex(&quot;&lt;span id=\&quot;ShortDescription\&quot;&gt;((?s).*?)&lt;/span&gt;&quot;);
+ 		Regex rex2 = new Regex(&quot;&lt;span id=\&quot;LongDescription\&quot;&gt;((?s).*?)&lt;strong&gt;Additional Hints&quot;);
+ 		inRex.search(doc);
+@@ -729,8 +746,8 @@
+ 	}
+ 	
+ 	private Vector getLogs(String doc, CacheHolder ch){
+-		String icon = new String();
+-		String name = new String();
++		String icon = &quot;&quot;;
++		String name = &quot;&quot;;
+ 		Vector reslts = new Vector();
+ 		Regex block = new Regex(&quot;&lt;span id=\&quot;CacheLogs\&quot;&gt;((?s).*?)&lt;/span&gt;&quot;);
+ 		block.search(doc);
+@@ -749,12 +766,12 @@
+ 			inRex.searchFrom(doc, inRex.matchedTo());
+ 		}
+ 		*/
+-		String singleLog = new String();
++		String singleLog = &quot;&quot;;
+ 		Extractor exSingleLog = new Extractor(doc, &quot;&lt;STRONG&gt;&quot;, &quot;[&lt;A href=&quot;, 0, false); // maybe here is some change neccessary because findnext now gives the whole endstring back??? 
+ 		singleLog = exSingleLog.findNext();
+ 		Extractor exIcon = new Extractor(singleLog, &quot;<A HREF="http://www.geocaching.com/images/icons/">http://www.geocaching.com/images/icons/</A>&quot;, &quot;' align='abs&quot;, 0, true);
+ 		Extractor exNameTemp = new Extractor(singleLog, &quot;&lt;A HREF=\&quot;&quot;, &quot;/A&gt;&quot;, 0 , true);
+-		String nameTemp = new String();
++		String nameTemp = &quot;&quot;;
+ 		nameTemp = exNameTemp.findNext();
+ 		Extractor exName = new Extractor(nameTemp, &quot;&gt;&quot;, &quot;&lt;&quot;, 0 , true);
+ 		Extractor exDate = new Extractor(singleLog, &quot;align='absmiddle'&gt;&nbsp;&quot;, &quot; by &lt;&quot;, 0 , true);
+@@ -846,8 +863,8 @@
+ 	private static String fetch_post(String address, String document, String path) throws IOException 
+ 	   	{
+ 			
+-			//String line = new String();
+-			String totline = new String();
++			//String line = &quot;&quot;;
++			String totline = &quot;&quot;;
+ 			if(pref.myproxy.length()==0){
+ 				try {
+ 					/*
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2007-02-22 21:07:38 UTC (rev 616)
++++ trunk/src/CacheWolf/myTableControl.java	2007-02-22 21:18:55 UTC (rev 617)
+@@ -107,32 +107,33 @@
+ 		if (selectedItem.toString().equals(MyLocale.getMsg(1014,&quot;Update&quot;))){
+ 			SpiderGC spider = new SpiderGC(pref, profile);
+ 			Vm.showWait(true);
+-			spider.login();
+-			boolean alreadySaid = false;
+-			boolean alreadySaid2 = false;
+-			for(int i = 0; i &lt;	cacheDB.size(); i++){
+-				ch = (CacheHolder)cacheDB.get(i);
+-				if(ch.is_Checked == true) {
+-					if ( (ch.wayPoint.length() &gt; 1 &amp;&amp; ch.wayPoint.substring(0,2).equalsIgnoreCase(&quot;GC&quot;)))
+-//						Notiz: Wenn es ein addi Wpt ist, sollte eigentlich der Maincache gespidert werden
+-//						Alter code pr&#252;ft aber nur ob ein Maincache von GC existiert und versucht dann den addi direkt zu spidern, was nicht funktioniert
+-//						TODO: Diese Meldungen vor dem Einloggen darstellen						
+-					{
+-						spider.spiderSingle(i);
+-					} else if (ch.isAddiWpt() &amp;&amp; !ch.mainCache.is_Checked) { // Is the father ticked?
+-						if (!alreadySaid2) {
+-							alreadySaid2=true;
+-							(new MessageBox(&quot;Information&quot;,&quot;Hilfswegpunkte k&#246;nnnen nicht direkt gespidert werden\nBitte zus&#228;tzlich den Vater anhaken&quot;, MessageBox.OKB)).exec();
++			if (spider.login()==Form.IDOK) {
++				boolean alreadySaid = false;
++				boolean alreadySaid2 = false;
++				for(int i = 0; i &lt;	cacheDB.size(); i++){
++					ch = (CacheHolder)cacheDB.get(i);
++					if(ch.is_Checked == true) {
++						if ( (ch.wayPoint.length() &gt; 1 &amp;&amp; ch.wayPoint.substring(0,2).equalsIgnoreCase(&quot;GC&quot;)))
++	//						Notiz: Wenn es ein addi Wpt ist, sollte eigentlich der Maincache gespidert werden
++	//						Alter code pr&#252;ft aber nur ob ein Maincache von GC existiert und versucht dann den addi direkt zu spidern, was nicht funktioniert
++	//						TODO: Diese Meldungen vor dem Einloggen darstellen						
++						{
++							if (!spider.spiderSingle(i)) break;
++						} else if (ch.isAddiWpt() &amp;&amp; !ch.mainCache.is_Checked) { // Is the father ticked?
++							if (!alreadySaid2) {
++								alreadySaid2=true;
++								(new MessageBox(&quot;Information&quot;,&quot;Hilfswegpunkte k&#246;nnnen nicht direkt gespidert werden\nBitte zus&#228;tzlich den Vater anhaken&quot;, MessageBox.OKB)).exec();
++							}
++						} else if (ch.mainCache != null &amp;&amp;	ch.mainCache.wayPoint.length() &gt; 1 	&amp;&amp; !ch.mainCache.wayPoint.substring(0,2).equalsIgnoreCase(&quot;GC&quot;) &amp;&amp; 
++								!alreadySaid) {
++							alreadySaid = true;
++							(new MessageBox(&quot;Information&quot;,ch.wayPoint+&quot;&gt;&quot;+ch.mainCache.wayPoint+&quot;: Diese Funktion steht gegenw&#228;rtig nur f&#252;r Geocaching.com zur Verf&#252;gung&quot;, MessageBox.OKB)).exec();
+ 						}
+-					} else if (ch.mainCache != null &amp;&amp;	ch.mainCache.wayPoint.length() &gt; 1 	&amp;&amp; !ch.mainCache.wayPoint.substring(0,2).equalsIgnoreCase(&quot;GC&quot;) &amp;&amp; 
+-							!alreadySaid) {
+-						alreadySaid = true;
+-						(new MessageBox(&quot;Information&quot;,ch.wayPoint+&quot;&gt;&quot;+ch.mainCache.wayPoint+&quot;: Diese Funktion steht gegenw&#228;rtig nur f&#252;r Geocaching.com zur Verf&#252;gung&quot;, MessageBox.OKB)).exec();
+ 					}
+ 				}
++				profile.hasUnsavedChanges=true;	
++				tbp.refreshTable();
+ 			}
+-			profile.hasUnsavedChanges=true;	
+-			tbp.refreshTable();
+ 			Vm.showWait(false);
+ 		}
+ 		if (selectedItem.toString().equals(MyLocale.getMsg(1019,&quot;Center&quot;))){
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000434.html">[Cachewolf-svn] r616 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000436.html">[Cachewolf-svn] r618 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#435">[ date ]</a>
+              <a href="thread.html#435">[ thread ]</a>
+              <a href="subject.html#435">[ subject ]</a>
+              <a href="author.html#435">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

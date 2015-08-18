@@ -1,0 +1,629 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1555 - in experiments/EVE/src/cachewolf: . exp imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-October/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1555%20-%20in%20experiments/EVE/src/cachewolf%3A%20.%20exp%20imp&In-Reply-To=%3C200810251917.m9PJHvIH014228%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001448.html">
+   <LINK REL="Next"  HREF="001450.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1555 - in experiments/EVE/src/cachewolf: . exp imp</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1555%20-%20in%20experiments/EVE/src/cachewolf%3A%20.%20exp%20imp&In-Reply-To=%3C200810251917.m9PJHvIH014228%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1555 - in experiments/EVE/src/cachewolf: . exp imp">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sat Oct 25 21:17:57 CEST 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001448.html">[Cachewolf-svn] r1554 - in experiments/EVE: . eclipse-config
+</A></li>
+        <LI>Next message: <A HREF="001450.html">[Cachewolf-svn] r1556 - in experiments/EVE/src/cachewolf: . exp imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1449">[ date ]</a>
+              <a href="thread.html#1449">[ thread ]</a>
+              <a href="subject.html#1449">[ subject ]</a>
+              <a href="author.html#1449">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2008-10-25 21:17:53 +0200 (Sat, 25 Oct 2008)
+New Revision: 1555
+
+Modified:
+   experiments/EVE/src/cachewolf/CacheHolder.java
+   experiments/EVE/src/cachewolf/CacheList.java
+   experiments/EVE/src/cachewolf/Profile.java
+   experiments/EVE/src/cachewolf/exp/KMLExporter.java
+   experiments/EVE/src/cachewolf/imp/SpiderGC.java
+Log:
+Removed automatic allocation of addiWpts Vector in CacheHolder. This vector is now only created if the cache actually has addi Waypoints.
+
+Modified: experiments/EVE/src/cachewolf/CacheHolder.java
+===================================================================
+--- experiments/EVE/src/cachewolf/CacheHolder.java	2008-10-25 17:55:13 UTC (rev 1554)
++++ experiments/EVE/src/cachewolf/CacheHolder.java	2008-10-25 19:17:53 UTC (rev 1555)
+@@ -15,7 +15,7 @@
+  *	A class to hold information on a cache.&lt;br&gt;
+  *	Not all attributes are filled at once. You will have to look at other
+  *	classes and methods to get more information.
+- *	
++ *
+  */
+ public class CacheHolder {
+ 	protected static final String NODISTANCE = &quot;? km&quot;;
+@@ -46,12 +46,12 @@
+ 	public String bearing = NOBEARING;
+ 	/** The angle (0=North, 180=South) from the current centre to this point */
+ 	public double degrees = 0;
+-	/** The difficulty of the cache from 1 to 5 in .5 incements */ 
++	/** The difficulty of the cache from 1 to 5 in .5 incements */
+ 	public String hard = EMPTY;
+ 	/** The terrain rating of the cache from 1 to 5 in .5 incements */
+ 	public String terrain = EMPTY;
+ 	/** The cache type (@see CacheType for translation table)  */
+-	public int type = 0; 
++	public int type = 0;
+ 	/** True if the cache has been archived */
+ 	public boolean is_archived = false;
+ 	/** True if the cache is available for searching */
+@@ -93,7 +93,7 @@
+ 	/** True if the cache description is stored in HTML format */
+ 	public boolean is_HTML = true;
+ 	/** List of additional waypoints associated with this waypoint */
+-	public Vector addiWpts = new Vector();
++	public Vector addiWpts = null; // Don't allocate a vector unless the waypoint really has addis - this will save time and memory
+ 	/** in range is used by the route filter to identify caches in range of a segment*/
+ 	public boolean in_range = false;
+ 	/** If this is an additional waypoint, this links back to the main waypoint */
+@@ -102,7 +102,7 @@
+ 	public String lastSyncOC = EMPTY;
+ 	public CacheHolderDetail details = null;
+ 	/** When sorting the cacheDB this field is used. The relevant field is copied here and
+-	 *  the sort is always done on this field to speed up the sorting process 
++	 *  the sort is always done on this field to speed up the sorting process
+ 	 */
+ 	public String sort;
+ 	private static StringBuffer sb=new StringBuffer(530); // Used in toXML()
+@@ -129,7 +129,7 @@
+ 		try {
+ 			start=xmlString.indexOf('&quot;'); end=xmlString.indexOf('&quot;',start+1);
+ 			cacheName = SafeXML.cleanback(xmlString.substring(start+1,end));
+-			
++
+ 			start=xmlString.indexOf('&quot;',end+1); end=xmlString.indexOf('&quot;',start+1);
+             cacheOwner = SafeXML.cleanback(xmlString.substring(start+1,end));
+ 			// Assume coordinates are in decimal format
+@@ -142,7 +142,7 @@
+ 			latLon=pos.toString();
+ 
+ 			start=xmlString.indexOf('&quot;',end+1); end=xmlString.indexOf('&quot;',start+1);
+-			dateHidden = xmlString.substring(start+1,end); 
++			dateHidden = xmlString.substring(start+1,end);
+ 			// Convert the US format to YYYY-MM-DD if necessary
+ 			if (dateHidden.indexOf('/')&gt;-1) dateHidden=DateFormat.MDY2YMD(dateHidden);
+ 
+@@ -163,7 +163,7 @@
+ 
+ 			// The next item was 'dirty' but this is no longer used.
+ 			start=xmlString.indexOf('&quot;',end+1); end=xmlString.indexOf('&quot;',start+1);
+-			is_filtered = xmlString.substring(start+1,end).equals(&quot;true&quot;); 
++			is_filtered = xmlString.substring(start+1,end).equals(&quot;true&quot;);
+ 
+ 			start=xmlString.indexOf('&quot;',end+1); end=xmlString.indexOf('&quot;',start+1);
+ 			cacheSize = xmlString.substring(start+1,end);
+@@ -303,7 +303,7 @@
+ 
+ 	public String getStatusDate() {
+ 		String statusDate = &quot;&quot;;
+-		
++
+ 		if (is_found) {
+ 			Regex rexDate=new Regex(&quot;([0-9]{4}-[0-9]{2}-[0-9]{2})&quot;);
+ 			rexDate.search(cacheStatus);
+@@ -312,7 +312,7 @@
+ 			}
+ 		}
+ 
+-		return statusDate;		
++		return statusDate;
+ 	}
+ 
+ 	public String getStatusTime() {
+@@ -332,12 +332,12 @@
+ 				}
+ 			}
+ 		}
+-		return statusTime;		
++		return statusTime;
+ 	}
+-	
+-	
+-	
+-	
++
++
++
++
+ 	/**
+ 	 * Call it only when necessary, it takes time, because all logs must be parsed
+ 	 *
+@@ -368,39 +368,39 @@
+ 		details.numRecommended = numRecommended;
+ 		}
+ 	}
+-	
++
+ 	/** Return a XML string containing all the cache data for storing in index.xml */
+ 	public String toXML() {
+-		if (this instanceof CacheHolderDetail || (details != null &amp;&amp; details.hasUnsavedChanges)) calcRecommendationScore(); 
++		if (this instanceof CacheHolderDetail || (details != null &amp;&amp; details.hasUnsavedChanges)) calcRecommendationScore();
+ 		sb.delete(0,sb.length());
+ 		sb.append(&quot;    &lt;CACHE name = \&quot;&quot;);
+ 		sb.append(SafeXML.clean(cacheName));
+ 		sb.append(&quot;\&quot; owner = \&quot;&quot;);		sb.append(SafeXML.clean(cacheOwner));
+-		sb.append(&quot;\&quot; lat = \&quot;&quot;); 		sb.append(pos.latDec ); 
++		sb.append(&quot;\&quot; lat = \&quot;&quot;); 		sb.append(pos.latDec );
+ 		sb.append(&quot;\&quot; lon = \&quot;&quot;);		sb.append(pos.lonDec);
+ 		sb.append(&quot;\&quot; hidden = \&quot;&quot;);	sb.append(dateHidden);
+ 		sb.append(&quot;\&quot; wayp = \&quot;&quot;);		sb.append(SafeXML.clean(wayPoint));
+ 		sb.append(&quot;\&quot; status = \&quot;&quot;);	sb.append(cacheStatus);
+ 		sb.append(&quot;\&quot; type = \&quot;&quot;);		sb.append(type);
+ 		sb.append(&quot;\&quot; dif = \&quot;&quot;);		sb.append(hard);
+-		sb.append(&quot;\&quot; terrain = \&quot;&quot; );	sb.append(terrain ); 
++		sb.append(&quot;\&quot; terrain = \&quot;&quot; );	sb.append(terrain );
+ 		sb.append(&quot;\&quot; filtered = \&quot;&quot; ); sb.append(is_filtered); // This was 'dirty', but dirty is not used
+ 		sb.append(&quot;\&quot; size = \&quot;&quot;);		sb.append(cacheSize);
+-		sb.append(&quot;\&quot; online = \&quot;&quot; );	sb.append(is_available); 
+-		sb.append(&quot;\&quot; archived = \&quot;&quot; );	sb.append(is_archived); 
+-		sb.append(&quot;\&quot; has_bug = \&quot;&quot; ); 	sb.append(has_bug); 
+-		sb.append(&quot;\&quot; black = \&quot;&quot; ); 	sb.append(is_black); 
+-		sb.append(&quot;\&quot; owned = \&quot;&quot; ); 	sb.append(is_owned); 
+-		sb.append(&quot;\&quot; found = \&quot;&quot; ); 	sb.append(is_found); 
++		sb.append(&quot;\&quot; online = \&quot;&quot; );	sb.append(is_available);
++		sb.append(&quot;\&quot; archived = \&quot;&quot; );	sb.append(is_archived);
++		sb.append(&quot;\&quot; has_bug = \&quot;&quot; ); 	sb.append(has_bug);
++		sb.append(&quot;\&quot; black = \&quot;&quot; ); 	sb.append(is_black);
++		sb.append(&quot;\&quot; owned = \&quot;&quot; ); 	sb.append(is_owned);
++		sb.append(&quot;\&quot; found = \&quot;&quot; ); 	sb.append(is_found);
+ 		sb.append(&quot;\&quot; is_new = \&quot;&quot; );	sb.append(is_new);
+-		sb.append(&quot;\&quot; is_log_update = \&quot;&quot; );sb.append(is_log_update); 
+-		sb.append(&quot;\&quot; is_update = \&quot;&quot; );sb.append(is_update); 
+-		sb.append(&quot;\&quot; is_HTML = \&quot;&quot; ); 	sb.append(is_HTML); 
+-		sb.append(&quot;\&quot; DNFLOGS = \&quot;&quot; ); 	sb.append(noFindLogs ); 
+-		sb.append(&quot;\&quot; ocCacheID = \&quot;&quot; );sb.append(ocCacheID ); 
+-		sb.append(&quot;\&quot; is_INCOMPLETE = \&quot;&quot;);sb.append(is_incomplete); 
+-		sb.append(&quot;\&quot; lastSyncOC = \&quot;&quot; );sb.append(lastSyncOC ); 
+-		sb.append(&quot;\&quot; num_recommended = \&quot;&quot;);sb.append(Convert.formatInt(numRecommended)); 
++		sb.append(&quot;\&quot; is_log_update = \&quot;&quot; );sb.append(is_log_update);
++		sb.append(&quot;\&quot; is_update = \&quot;&quot; );sb.append(is_update);
++		sb.append(&quot;\&quot; is_HTML = \&quot;&quot; ); 	sb.append(is_HTML);
++		sb.append(&quot;\&quot; DNFLOGS = \&quot;&quot; ); 	sb.append(noFindLogs );
++		sb.append(&quot;\&quot; ocCacheID = \&quot;&quot; );sb.append(ocCacheID );
++		sb.append(&quot;\&quot; is_INCOMPLETE = \&quot;&quot;);sb.append(is_incomplete);
++		sb.append(&quot;\&quot; lastSyncOC = \&quot;&quot; );sb.append(lastSyncOC );
++		sb.append(&quot;\&quot; num_recommended = \&quot;&quot;);sb.append(Convert.formatInt(numRecommended));
+ 		sb.append(&quot;\&quot; num_found = \&quot;&quot; );sb.append(Convert.formatInt(numFoundsSinceRecommendation));
+ 		sb.append(&quot;\&quot; attributesYes = \&quot;&quot; ); sb.append(Convert.formatLong(attributesYes));
+ 		sb.append(&quot;\&quot; attributesNo = \&quot;&quot; ); sb.append(Convert.formatLong(attributesNo));
+@@ -420,13 +420,19 @@
+ 	}
+ 
+ 	public boolean hasAddiWpt() {
+-		if (this.addiWpts.size()&gt;0) 
++		if (addiWpts==null) return false;
++		if (this.addiWpts.size()&gt;0)
+ 			return true;
+ 		return false;
+ 	}
+ 
++	/** Allocate space for addi waypoints */
++	public void allocAddiMem() {
++		if (addiWpts==null) addiWpts=new Vector();
++	}
+ 
+-	public void calcDistance(CWPoint toPoint) {	
++
++	public void calcDistance(CWPoint toPoint) {
+ 		if(pos.isValid()){
+ 			kilom = pos.getDistance(toPoint);
+ 			degrees = toPoint.getBearing(pos);
+@@ -459,7 +465,7 @@
+ 	}
+ 
+ 	/**
+-	 * True if ch and this belong to the same main cache. 
++	 * True if ch and this belong to the same main cache.
+ 	 * @param ch
+ 	 * @return
+ 	 */
+@@ -470,40 +476,40 @@
+ 		CacheHolder main1, main2;
+ 		if (this.isAddiWpt()) main1 = this.mainCache;  else main1 = this;
+ 		if (ch instanceof CacheHolderDetail) {
+-			if (ch.isAddiWpt()) 
++			if (ch.isAddiWpt())
+ 				main2=ch.mainCache;
+-			else 
++			else
+ 				return main1.wayPoint.equals(ch.wayPoint);
+-			} else { // ch instanceof CacheHolder 
+-				if (ch.isAddiWpt()) main2 = ch.mainCache; else main2 = ch; 
++			} else { // ch instanceof CacheHolder
++				if (ch.isAddiWpt()) main2 = ch.mainCache; else main2 = ch;
+ 			}
+ 		return main1 == main2;
+ 	}
+ 
+-	/** 
++	/**
+ 	 * Call this method to get the long-description and so on.
+ 	 * If the according .xml-file is already read, it will return
+ 	 * that one, otherwise it will be loaded.
+ 	 * To avoid memory problems this routine loads not for more caches than maxDetails
+-	 * the details. If maxdetails is reached, it will remove from RAM the details 
++	 * the details. If maxdetails is reached, it will remove from RAM the details
+ 	 * of the 5 caches that were loaded most long ago.
+ 	 */
+ 	public CacheHolderDetail getCacheDetails(boolean maybenew) {
+ 		return getCacheDetails(maybenew, true);
+ 	}
+-	
+-	/** 
++
++	/**
+ 	 * Call this method to get the long-description and so on.
+ 	 * If the according .xml-file is already read, it will return
+ 	 * that one, otherwise it will be loaded.
+ 	 * To avoid memory problems this routine loads not for more caches than maxDetails
+-	 * the details. If maxdetails is reached, it will remove from RAM the details 
++	 * the details. If maxdetails is reached, it will remove from RAM the details
+ 	 * of the 5 caches that were loaded most long ago.
+-	 * 
++	 *
+ 	 * @param alarmuser if true an error message will be displayed to the user, if the details could not be read
+ 	 * @return the respective CacheHolderDetail, null if according xml-file could not be read
+ 	 */
+-		
++
+ 	public CacheHolderDetail getCacheDetails(boolean maybenew, boolean alarmuser) {
+ 		if (details != null) {
+ 			if (details.hasUnsavedChanges) this.update(details);
+@@ -518,14 +524,14 @@
+ 			else {
+ 				if (alarmuser) (new MessageBox(&quot;Error&quot;, &quot;Could not read cache details for cache: &quot;+this.wayPoint, MessageBox.OKB)).execute();
+ 				return null;
+-			} 
++			}
+ 		}
+ 		detailsAdded();
+ 		return details;
+ 	}
+ 
+ 	/**
+-	 * Call this after you added the cache with details to the 
++	 * Call this after you added the cache with details to the
+ 	 * cacheDB &lt;br&gt; It is assumed that that details is set
+ 	 * for an example see OCXMLImporter.endCache()
+ 	 *
+@@ -545,7 +551,7 @@
+ 		cachesWithLoadedDetails.remove(this);
+ 	}
+ 
+-	//final static int maxDetails = 50; 
++	//final static int maxDetails = 50;
+ 	static Vector cachesWithLoadedDetails = new Vector(Global.getPref().maxDetails);
+ 
+ 	public static void removeOldestDetails() {
+
+Modified: experiments/EVE/src/cachewolf/CacheList.java
+===================================================================
+--- experiments/EVE/src/cachewolf/CacheList.java	2008-10-25 17:55:13 UTC (rev 1554)
++++ experiments/EVE/src/cachewolf/CacheList.java	2008-10-25 19:17:53 UTC (rev 1555)
+@@ -327,6 +327,7 @@
+ 		// Add addis if user wants it
+ 		if (chkAddAddis.state &amp;&amp; ch.hasAddiWpt()) {
+ 			CacheHolder addiWpt;
++			ch.allocAddiMem();
+ 			for (int j=0; j&lt;ch.addiWpts.size();j++){
+ 				addiWpt = (CacheHolder)ch.addiWpts.get(j);
+ 				if (!addiWpt.is_filtered) cachesAdded|=addCache(addiWpt);
+
+Modified: experiments/EVE/src/cachewolf/Profile.java
+===================================================================
+--- experiments/EVE/src/cachewolf/Profile.java	2008-10-25 17:55:13 UTC (rev 1554)
++++ experiments/EVE/src/cachewolf/Profile.java	2008-10-25 19:17:53 UTC (rev 1555)
+@@ -472,6 +472,7 @@
+ 		if (mainindex &lt; 0) mainindex = getCacheIndex(&quot;CW&quot;+mainwpt);
+ 		if (mainindex &lt; 0) throw new IllegalArgumentException(&quot;no main cache found for: &quot; + ch.wayPoint);
+ 		CacheHolder mainch = (CacheHolder)cacheDB.get(mainindex);
++		mainch.allocAddiMem();
+ 		mainch.addiWpts.add(ch);
+ 		ch.mainCache = mainch;
+ 	}
+@@ -559,7 +560,7 @@
+ 		// Build index for faster search and clear all references
+ 		for(int i = cacheDB.size() -1; i &gt;= 0;i--){
+ 			ch = (CacheHolder)cacheDB.get(i);
+-			ch.addiWpts.clear();
++			if (ch.hasAddiWpt() )ch.addiWpts.clear();
+ 			ch.mainCache = null;
+ 			// if (ch.wayPoint.startsWith(&quot;GC&quot;)) // Only put potential master caches into the index
+ 				dbIndex.put(ch.wayPoint, new Integer(i));
+@@ -578,6 +579,7 @@
+ 
+ 				if (index != null) {
+ 					mainCh = (CacheHolder) cacheDB.get(index.intValue());
++					mainCh.allocAddiMem();
+ 					mainCh.addiWpts.add(ch);
+ 					ch.mainCache = mainCh;
+ 					ch.setAttributesFromMainCache(mainCh);
+
+Modified: experiments/EVE/src/cachewolf/exp/KMLExporter.java
+===================================================================
+--- experiments/EVE/src/cachewolf/exp/KMLExporter.java	2008-10-25 17:55:13 UTC (rev 1554)
++++ experiments/EVE/src/cachewolf/exp/KMLExporter.java	2008-10-25 19:17:53 UTC (rev 1555)
+@@ -22,12 +22,12 @@
+ 
+ /**
+ *	Class to export the cache database (index) to an KML-File
+-*	which can be read by Google Earth   
+-*   
++*	which can be read by Google Earth
++*
+ */
+ public class KMLExporter extends Exporter {
+-	private static final String COLOR_FOUND = &quot;ff98fb98&quot;; 
+-	private static final String COLOR_OWNED = &quot;ffffaa55&quot;; 
++	private static final String COLOR_FOUND = &quot;ff98fb98&quot;;
++	private static final String COLOR_OWNED = &quot;ffffaa55&quot;;
+ 	private static final String COLOR_AVAILABLE = &quot;ffffffff&quot;;
+ 	private static final String COLOR_NOT_AVAILABLE = &quot;ff0000ff&quot;;
+ 
+@@ -37,8 +37,8 @@
+ 	static final int OWNED = 2;
+ 	static final int NOT_AVAILABLE = 3;
+ 	static final int UNKNOWN = 4;
+-	
+-	
++
++
+ 	String []categoryNames = {&quot;Available&quot;,&quot;Found&quot;, &quot;Owned&quot;, &quot;Not Available&quot;, &quot;UNKNOWN&quot;};
+ 	Hashtable [] outCacheDB = new Hashtable[categoryNames.length];
+ 
+@@ -48,7 +48,7 @@
+ 		this.setHowManyParams(LAT_LON);
+ 	}
+ 
+-	
++
+ 	public KMLExporter(Preferences p, Profile prof){
+ 			super();
+ 			this.setMask(&quot;*.kml&quot;);
+@@ -62,7 +62,7 @@
+ 		CacheHolderDetail chD;
+ 		ProgressBarForm pbf = new ProgressBarForm();
+ 		Handle h = new Handle();
+-		
++
+ 		if (variant == ASK_FILE) {
+ 			outFile = getOutputFile();
+ 			if (outFile == null) return;
+@@ -82,7 +82,7 @@
+ 		}
+ 		copyIcons(new File(outFile).getParent());
+ 		buildOutDB();
+-		
++
+ 		try{
+ 			PrintWriter outp =  new PrintWriter(new BufferedWriter(new FileWriter(outFile)));
+ 			str = this.header();
+@@ -109,7 +109,7 @@
+ 						expCount++;
+ 						h.progress = (float)expCount/(float)counter;
+ 						h.changed();
+-						
++
+ 						chD=new CacheHolderDetail(ch);
+ 						try {
+ 							chD.readCache(profile.dataDir);
+@@ -122,7 +122,7 @@
+ 							if (str != null) outp.print(str);
+ 						}
+ 						if (ch.hasAddiWpt()){
+-						outp.print(startFolder(&quot;Additional Waypoints&quot;, false));
++							outp.print(startFolder(&quot;Additional Waypoints&quot;, false));
+ 							for(int j = 0; j&lt;ch.addiWpts.size(); j++){
+ 								addiWpt = (CacheHolder) ch.addiWpts.get(j);
+ 								chD=new CacheHolderDetail(addiWpt);
+@@ -132,7 +132,7 @@
+ 										     chD.pos.getLonDeg(CWPoint.DD).replace('.', this.decimalSeparator));
+ 									if (str != null) outp.print(str);
+ 								}
+-								
++
+ 							}
+ 						outp.print(endFolder());// addi wpts
+ 						}
+@@ -141,7 +141,7 @@
+ 				}
+ 				outp.print(endFolder());// category
+ 			}
+-			
++
+ 			str = trailer();
+ 			if (str != null) outp.print(str);
+ 			outp.close();
+@@ -152,14 +152,14 @@
+ 		//try
+ 
+ 	}
+-	
++
+ 	private void buildOutDB(){ // TODO untested since EVE
+ 		CacheHolder ch;
+ 		Vector tmp;
+ 		Enumeration categoryLoop;
+ 		String key;
+ 		boolean foundOne;
+-		
++
+ 		// create the roots for the different categories
+ 		for (int i = 0; i &lt; categoryNames.length; i++) {
+ 			outCacheDB[i] = new Hashtable();
+@@ -178,11 +178,11 @@
+ 				else if (ch.is_archived || !ch.is_available){ tmp = (Vector) outCacheDB[NOT_AVAILABLE].get(new Integer(ch.type));}
+ 				else if (ch.is_available){ tmp = (Vector) outCacheDB[AVAILABLE].get(new Integer(ch.type));}
+ 				else { tmp = (Vector) outCacheDB[UNKNOWN].get(new Integer(ch.type));}
+-			
++
+ 				tmp.add(ch);
+ 			}
+ 		}
+-		
++
+ 		//eleminate empty categories
+ 		for (int i = 0; i &lt; categoryNames.length; i++) {
+ 			categoryLoop = outCacheDB[i].keys();
+@@ -199,14 +199,14 @@
+ 			// set hashtable for that category to null
+ 			if (!foundOne)outCacheDB[i] = null;
+ 		}
+-		
+ 
++
+ 	}
+-	
++
+ 	private String startFolder(String name){
+ 		return startFolder(name, true);
+ 	}
+-	
++
+ 	private String startFolder(String name, boolean open){
+ 		StringBuffer strBuf = new StringBuffer(200);
+ 		strBuf.append(&quot;&lt;Folder&gt;\r\n&quot;);
+@@ -217,7 +217,7 @@
+ 	}
+ 
+ 	private String endFolder() {
+-		
++
+ 		return &quot;&lt;/Folder&gt;\r\n&quot;;
+ 	}
+ 
+@@ -226,7 +226,7 @@
+ 			ZipFile zif = new ZipFile (eve.io.File.getProgramDirectory() + &quot;/POIIcons.zip&quot;);
+ 			ZipEntry zipEnt;
+ 			int len;
+-			String entName, fileName; 
++			String entName, fileName;
+ 
+ 			for (int i = 0; i &lt; CacheType.wayType.length; i++) {
+ 				fileName = CacheType.type2pic(CacheType.wayTypeNo[i]);
+@@ -252,23 +252,23 @@
+ 			}
+ 	}
+ 
+-	
++
+ 	public String header () {
+ 		StringBuffer strBuf = new StringBuffer(200);
+-				
++
+ 		strBuf.append(&quot;&lt;?xml version=\&quot;1.0\&quot; encoding=\&quot;utf-8\&quot;?&gt;\r\n&quot;);
+ 		strBuf.append(&quot;&lt;kml xmlns=\&quot;<A HREF="http://earth.google.com/kml/2.0\">http://earth.google.com/kml/2.0\</A>&quot;&gt;\r\n&quot;);
+ 		strBuf.append(&quot;&lt;Folder&gt;\r\n&quot;);
+ 		strBuf.append(&quot;&lt;name&gt;CacheWolf&lt;/name&gt;\r\n&quot;);
+ 		strBuf.append(&quot;&lt;open&gt;1&lt;/open&gt;\r\n&quot;);
+-	
++
+ 		return strBuf.toString();
+ 	}
+ 
+ 
+ 	public String record(CacheHolderDetail ch, String lat, String lon){
+ 		StringBuffer strBuf = new StringBuffer(200);
+-		
++
+ 		strBuf.append(&quot;   &lt;Placemark&gt;\r\n&quot;);
+ 		if (ch.URL != null){
+ 			strBuf.append(&quot;      &lt;description&gt;&quot;+SafeXML.clean(ch.URL)+&quot;&lt;/description&gt;\r\n&quot;);
+@@ -294,10 +294,10 @@
+ 		strBuf.append(&quot;      &lt;/LabelStyle&gt;\r\n&quot;);
+ 		strBuf.append(&quot;      &lt;/Style&gt;\r\n&quot;);
+ 		strBuf.append(&quot;   &lt;/Placemark&gt;\r\n&quot;);
+-	
++
+ 		return strBuf.toString();
+ 	}
+-	
++
+ 	public String trailer(){
+ 		StringBuffer strBuf = new StringBuffer(50);
+ 
+@@ -306,13 +306,13 @@
+ 
+ 		return strBuf.toString();
+ 	}
+-	
++
+ 	private String getColor(CacheHolderDetail ch){
+ 		if (ch.is_found) return COLOR_FOUND;
+ 		if (ch.is_owned) return COLOR_OWNED;
+ 		if (ch.is_archived || !ch.is_available) return COLOR_NOT_AVAILABLE;
+-		
++
+ 		return COLOR_AVAILABLE;
+ 	}
+-	
++
+ }
+
+Modified: experiments/EVE/src/cachewolf/imp/SpiderGC.java
+===================================================================
+--- experiments/EVE/src/cachewolf/imp/SpiderGC.java	2008-10-25 17:55:13 UTC (rev 1554)
++++ experiments/EVE/src/cachewolf/imp/SpiderGC.java	2008-10-25 19:17:53 UTC (rev 1555)
+@@ -568,7 +568,7 @@
+ 						// Save size of logs to be able to check whether any new logs were added
+ 						//int logsz = chD.CacheLogs.size();
+ 						//chD.CacheLogs.clear();
+-						chD.addiWpts.clear();
++						if (chD.hasAddiWpt()) chD.addiWpts.clear();
+ 						chD.images.clear();
+ 						chD.imagesText.clear();
+ 						chD.imagesInfo.clear();
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001448.html">[Cachewolf-svn] r1554 - in experiments/EVE: . eclipse-config
+</A></li>
+	<LI>Next message: <A HREF="001450.html">[Cachewolf-svn] r1556 - in experiments/EVE/src/cachewolf: . exp imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1449">[ date ]</a>
+              <a href="thread.html#1449">[ thread ]</a>
+              <a href="subject.html#1449">[ subject ]</a>
+              <a href="author.html#1449">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

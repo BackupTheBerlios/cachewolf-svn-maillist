@@ -1,0 +1,1694 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1067 - in trunk/src/CacheWolf: . navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-November/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1067%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C200711161832.lAGIWYQ9011294%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000959.html">
+   <LINK REL="Next"  HREF="000961.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1067 - in trunk/src/CacheWolf: . navi</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1067%20-%20in%20trunk/src/CacheWolf%3A%20.%20navi&In-Reply-To=%3C200711161832.lAGIWYQ9011294%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1067 - in trunk/src/CacheWolf: . navi">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Fri Nov 16 19:32:34 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000959.html">[Cachewolf-svn] r1066 - trunk/res_noewe
+</A></li>
+        <LI>Next message: <A HREF="000961.html">[Cachewolf-svn] r1068 - trunk/res_noewe
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#960">[ date ]</a>
+              <a href="thread.html#960">[ thread ]</a>
+              <a href="subject.html#960">[ subject ]</a>
+              <a href="author.html#960">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-11-16 19:32:23 +0100 (Fri, 16 Nov 2007)
+New Revision: 1067
+
+Added:
+   trunk/src/CacheWolf/navi/Ellipsoid.java
+   trunk/src/CacheWolf/navi/TransformCoordinatesProperties.java
+Modified:
+   trunk/src/CacheWolf/CWPoint.java
+   trunk/src/CacheWolf/Common.java
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/navi/Area.java
+   trunk/src/CacheWolf/navi/GkPoint.java
+   trunk/src/CacheWolf/navi/MapImage.java
+   trunk/src/CacheWolf/navi/MapInfoObject.java
+   trunk/src/CacheWolf/navi/MapLoader.java
+   trunk/src/CacheWolf/navi/MapLoaderGui.java
+   trunk/src/CacheWolf/navi/MapSymbol.java
+   trunk/src/CacheWolf/navi/MapsList.java
+   trunk/src/CacheWolf/navi/MovingMap.java
+   trunk/src/CacheWolf/navi/TrackOverlay.java
+   trunk/src/CacheWolf/navi/TrackPoint.java
+   trunk/src/CacheWolf/navi/TransformCoordinates.java
+Log:
+MovingMap: some internal change without effect -&gt; a lot of changes were necessary
+WMS: download from BKG works now
+WMS: calibration is now really correct:
+ * WMS: added a line in .wfl file which can contain the EPSG code indication the projection used. If present the WGS coordinates will first transformed to the indicated epsg reference system and afterwords the affine transformation is applied
+ * WMS: download only exact quadratic areas (measured in the respective coordinate reference system) because a lot of services produce not correct calibrated images otherwise
+
+Modified: trunk/src/CacheWolf/CWPoint.java
+===================================================================
+--- trunk/src/CacheWolf/CWPoint.java	2007-11-15 19:22:56 UTC (rev 1066)
++++ trunk/src/CacheWolf/CWPoint.java	2007-11-16 18:32:23 UTC (rev 1067)
+@@ -272,13 +272,6 @@
+ 		this.utmValid = false;
+ 	}
+ 
+-	/*
+-	 * Returns true if the coordinates are valid
+-	 */
+-	public boolean isValid() {
+-		return 	latDec &lt;= 90.0 &amp;&amp; latDec &gt;= -90.0 &amp;&amp;
+-				lonDec &lt;= 360 &amp;&amp; lonDec &gt;= -360;
+-	}
+ 	
+ 	/**
+ 	 * shift the point
+@@ -485,7 +478,7 @@
+ 		c = (float)(distance/1.852);
+ 		c = (float)(java.lang.Math.PI/(180*60))*c;
+ 		az = (float)((degrees/180)*java.lang.Math.PI);
+-
++		// c = (float) (distance * 1000 / ((TransformCoordinates.WGS84.a + TransformCoordinates.WGS84.b) / 2)); 
+ 		LatLonPoint lldst = llsrc.getPoint(c,az);
+ 		
+ 		return new CWPoint(lldst);
+@@ -558,6 +551,10 @@
+ 		LatLonPoint src = new LatLonPoint(this.latDec, this.lonDec);
+ 		return src.distance(new LatLonPoint(latDecD, lonDecD));
+ 	}
++	
++	public double getDistanceRad (CWPoint ll) {
++		return getDistance(ll.latDec, ll.lonDec);
++	}
+ 
+ 	
+ 
+
+Modified: trunk/src/CacheWolf/Common.java
+===================================================================
+--- trunk/src/CacheWolf/Common.java	2007-11-15 19:22:56 UTC (rev 1066)
++++ trunk/src/CacheWolf/Common.java	2007-11-16 18:32:23 UTC (rev 1067)
+@@ -17,11 +17,20 @@
+ 	public static double parseDouble(String value){
+ 		// returns 0 for invalid arguments
+ 		try {
+-			return java.lang.Double.parseDouble(value.replace(notDigSep,digSep));
++			return parseDoubleException (value);
+ 		} catch (Exception e) {
+ 			return 0.0;
+ 		}
+ 	}
++
++	/**
++	 * throws some exception if the string could not be converted to double
++	 * @param value
++	 * @return
++	 */
++	public static double parseDoubleException (String value) {
++			return java.lang.Double.parseDouble(value.replace(notDigSep,digSep));
++	}
+ 	
+ 	public static int parseInt(String value){
+ 		try {
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2007-11-15 19:22:56 UTC (rev 1066)
++++ trunk/src/CacheWolf/MainTab.java	2007-11-16 18:32:23 UTC (rev 1067)
+@@ -326,7 +326,7 @@
+ 				nav.setMovingMap(mm);
+ 			} 
+ 			if (forceCenter) mm.setGpsStatus(MovingMap.noGPS); // disconnect movingMap from GPS TODO only if GPS-pos is not on the screen
+-			mm.updatePosition(centerTo.latDec, centerTo.lonDec);
++			mm.updatePosition(centerTo);
+ 			mm.myExec();
+ 			if (forceCenter) {
+ 				try {
+@@ -334,7 +334,7 @@
+ 					while (MapImage.screenDim.width == 0 &amp;&amp; i &lt; 10*60) { i++; ewe.sys.mThread.sleep(100);} // wait until the window size of the moving map is known note: ewe.sys.sleep() will pause the whole vm - no other thread will run
+ 					if (i &gt;= 10*60) {(new MessageBox(&quot;Error&quot;, &quot;MovingMap cannot be displayed - this is most likely a bug - plaese report it on www.geoclub.de&quot;, MessageBox.OKB)).execute(); return;}
+ 					mm.setCenterOfScreen(centerTo, false); // this can only be executed if mm knows its window size that's why myExec must be executed before
+-					mm.updatePosition(centerTo.latDec, centerTo.lonDec);
++					mm.updatePosition(centerTo);
+ 					/*			if(!mm.posCircle.isOnScreen()) { // TODO this doesn't work because lat lon is set to the wished pos and not to gps anymore
+ 				mm.setGpsStatus(MovingMap.noGPS); // disconnect movingMap from GPS if GPS-pos is not on the screen
+ 				mm.setResModus(MovingMap.HIGHEST_RESOLUTION);
+
+Modified: trunk/src/CacheWolf/navi/Area.java
+===================================================================
+--- trunk/src/CacheWolf/navi/Area.java	2007-11-15 19:22:56 UTC (rev 1066)
++++ trunk/src/CacheWolf/navi/Area.java	2007-11-16 18:32:23 UTC (rev 1067)
+@@ -24,7 +24,7 @@
+ 		 buttomright = new CWPoint(br);
+ 	 }
+ 
+-	 public boolean isInBound(CWPoint p) {
++	 public boolean isInBound(TrackPoint p) {
+ 		 if (topleft.latDec &gt;= p.latDec &amp;&amp; topleft.lonDec &lt;= p.lonDec 
+ 				 &amp;&amp; buttomright.latDec &lt;= p.latDec &amp;&amp; buttomright.lonDec &gt;= p.lonDec) return true;
+ 		 else return false;
+
+Added: trunk/src/CacheWolf/navi/Ellipsoid.java
+===================================================================
+--- trunk/src/CacheWolf/navi/Ellipsoid.java	2007-11-15 19:22:56 UTC (rev 1066)
++++ trunk/src/CacheWolf/navi/Ellipsoid.java	2007-11-16 18:32:23 UTC (rev 1067)
+@@ -0,0 +1,9 @@
++package CacheWolf.navi;
++
++public class Ellipsoid {
++	public double a, b;
++	public Ellipsoid(double ai, double bi) {
++		a = ai;
++		b = bi;
++	}
++}
+
+Modified: trunk/src/CacheWolf/navi/GkPoint.java
+===================================================================
+--- trunk/src/CacheWolf/navi/GkPoint.java	2007-11-15 19:22:56 UTC (rev 1066)
++++ trunk/src/CacheWolf/navi/GkPoint.java	2007-11-16 18:32:23 UTC (rev 1067)
+@@ -13,6 +13,10 @@
+ 
+ 	public GkPoint() { super(); }
+ 	
++	public GkPoint(GkPoint p) {
++		set(p.easting, p.northing, p.stripe, p.stripewidth);
++	}
++	
+ 	/**
+ 	 * e containing the number of the stripe
+ 	 * @param e
+
+Modified: trunk/src/CacheWolf/navi/MapImage.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MapImage.java	2007-11-15 19:22:56 UTC (rev 1066)
++++ trunk/src/CacheWolf/navi/MapImage.java	2007-11-16 18:32:23 UTC (rev 1067)
+@@ -28,6 +28,12 @@
+ 		if (screenDim == null) screenDim = new Dimension(0,0);
+ 	}
+ 
++	/**
++	 * Best you call this routine before you make any instance of MapImage
++	 * If the windows size changes after instantiation call  screenDimChanged()
++	 * for every symbol.
++	 * 
++	 */
+ 	public static void setScreenSize(int w, int h) {
+ 		screenDim = new Dimension(w, h);
+ 	}
+@@ -67,6 +73,13 @@
+ 		else return false;
+ 	}
+ 
++	public void screenDimChanged() {
++		move(locAlways.x, locAlways.y);
++		//if (!hidden &amp;&amp; isOnScreen()) properties &amp;= ~AniImage.IsInvisible;
++		//else properties |= AniImage.IsInvisible;
++	}
++
++
+ 	public void hide() {
+ 		hidden = true;
+ 		properties |= AniImage.IsInvisible;
+
+Modified: trunk/src/CacheWolf/navi/MapInfoObject.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MapInfoObject.java	2007-11-15 19:22:56 UTC (rev 1066)
++++ trunk/src/CacheWolf/navi/MapInfoObject.java	2007-11-16 18:32:23 UTC (rev 1067)
+@@ -4,15 +4,24 @@
+ import CacheWolf.Common;
+ import CacheWolf.Matrix;
+ import CacheWolf.MyLocale;
++import CacheWolf.Profile;
++import ewe.data.PropertyList;
++import ewe.fx.PixelBuffer;
+ import ewe.fx.Point;
++import ewe.io.Base64Encoder;
+ import ewe.io.BufferedWriter;
++import ewe.io.FileInputStream;
+ import ewe.io.FileReader;
+ import ewe.io.FileWriter;
+ import ewe.io.FilenameFilter;
+ import ewe.io.File;
+ import ewe.io.IOException;
++import ewe.io.InputStream;
++import ewe.io.InputStreamReader;
+ import ewe.io.PrintWriter;
+ import ewe.sys.*;
++import ewe.util.Properties;
++import java.lang.Math;
+ 
+ 
+ /**
+@@ -31,14 +40,15 @@
+ 	// lon of lower right corner of image
+ 	// lat of lower right corner of image
+ 
+-	public double[] affine = {0,0,0,0};
++	private double[] affine = {0,0,0,0};
++	private CWPoint affineTopleft = new CWPoint();;
+ 	public double transLatX, transLatY, transLonX, transLonY; // this are needed for the inervers calculation from lat/lon to x/y
+ 	public CWPoint center = new CWPoint();
+ 	public float sizeKm = 0; // diagonale
+ 	public float scale; // in meters per pixel, note: it is assumed that this scale identifying the scale of the map, automatically adjusted when zooming
+ 	public float zoomFactor = 1; // if the image is zoomed, direct after laoding always 1
+ 	public Point shift = new Point (0,0);
+-	public CWPoint OrigUpperLeft; // this is only valid after zooming 
++	public CWPoint origAffineUpperLeft; // this is only valid after zooming 
+ 	public float rotationRad; // contains the rotation of the map == north direction in rad
+ 	/** full path to the respective worldfile, including &quot;.wfl&quot;*/
+ 	public String fileNameWFL = new String();
+@@ -48,6 +58,7 @@
+ 	public String mapName = new String();
+ 	//private Character digSep = new Character(' ');
+ 	static private String digSep = MyLocale.getDigSeparator();
++	private int coordTrans = 0; 
+ 
+ 	public MapInfoObject() { // TODO remove this
+ 		//double testA = Convert.toDouble(&quot;1,50&quot;) + Convert.toDouble(&quot;3,00&quot;);
+@@ -61,9 +72,11 @@
+ 		affine[1] = map.affine[1];
+ 		affine[2] = map.affine[2];
+ 		affine[3] = map.affine[3];
+-		OrigUpperLeft = new CWPoint (map.OrigUpperLeft);
++		origAffineUpperLeft = new CWPoint (map.origAffineUpperLeft);
++		affineTopleft = new CWPoint(map.affineTopleft);
+ 		zoomFactor = map.zoomFactor;
+ 		shift.set(map.shift);
++		coordTrans = map.coordTrans;
+ 		//	fileName = new String(map.fileName);
+ 		fileNameWFL = new String(map.fileNameWFL);
+ 		mapName = new String(mapName);
+@@ -83,12 +96,13 @@
+ 		affine[1]=pixel2deg / java.lang.Math.cos(lat); //x2lon
+ 		affine[2]=-pixel2deg; //y2lat
+ 		affine[3]=0; //y2lon
+-		/*topleft.latDec=1; //top
++		topleft.latDec=1; //top
+ 		topleft.lonDec=0; //left
+ 		buttomright.latDec = 0; //buttom
+ 		buttomright.lonDec = 1; //right
+-		 */OrigUpperLeft = new CWPoint(topleft);
+-		 doCalculations();
++		affineTopleft.set(topleft);
++		doCalculations();
++		origAffineUpperLeft = new CWPoint(affineTopleft);
+ 	}
+ 
+ 	/**
+@@ -108,10 +122,11 @@
+ 		affine[3]=0; //y2lon
+ 		topleft.latDec=center.latDec + hight / 2 *pixel2deg; //top
+ 		topleft.lonDec=center.lonDec - width / 2 *pixel2deghorizontal; //left
++		affineTopleft.set(topleft);
+ 		buttomright.latDec = center.latDec - hight / 2 *pixel2deg; //buttom
+ 		buttomright.lonDec = center.lonDec + width / 2 *pixel2deghorizontal; //right
+ 		fileNameWFL = name;
+-		OrigUpperLeft = new CWPoint(topleft);
++		origAffineUpperLeft = new CWPoint(affineTopleft);
+ 		doCalculations();
+ 	}
+ 
+@@ -152,55 +167,55 @@
+ 	 * @throws ArithmeticException when affine data is not correct, e.g. it is not possible to inverse affine-transformation
+ 	 */
+ 	public void loadwfl(String mapsPath, String thisMap) throws IOException, ArithmeticException {
+-		FileReader in = new FileReader(mapsPath + thisMap + &quot;.wfl&quot;);
++		FileInputStream instream = new FileInputStream (mapsPath + thisMap + &quot;.wfl&quot;);
++		InputStreamReader in = new InputStreamReader(instream);
++		
+ 		String line = new String();
+ 		try {
+ 			for(int i = 0; i&lt;4;i++){
+ 				line = in.readLine();
+-				if (digSep.equals(&quot;,&quot;)) {line = line.replace('.',','); } // digSep == ',' musss genau so lauten. digsep.equals(',') wirft eine Exception auf PocketPC, digsep.equals(&quot;,&quot;) wirft keine Exception, funktioniert aber nicht! 
+-				else line = line.replace(',','.');
+-				affine[i] = Convert.toDouble(line);
++				affine[i] = Common.parseDoubleException(line);
+ 			}
+ 			line = in.readLine();
+-			if (digSep.equals(&quot;,&quot;)) {line = line.replace('.',','); }
+-			else line = line.replace(',','.');
+-			topleft.latDec = Convert.toDouble(line);
++			affineTopleft.latDec = Common.parseDoubleException(line);
+ 			line = in.readLine();
+-			if (digSep.equals(&quot;,&quot;)) {line = line.replace('.',','); }
+-			else line = line.replace(',','.');
+-			topleft.lonDec = Convert.toDouble(line);
++			affineTopleft.lonDec = Common.parseDoubleException(line);
+ 			line = in.readLine();
+-			if (digSep.equals(&quot;,&quot;)) {line = line.replace('.',','); }
+-			else line = line.replace(',','.');
+-			buttomright.latDec = Convert.toDouble(line);
++			buttomright.latDec = Common.parseDoubleException(line);
+ 			line = in.readLine();
+-			if (digSep.equals(&quot;,&quot;)) {line = line.replace('.',','); }
+-			else line = line.replace(',','.');
+-			buttomright.lonDec = Convert.toDouble(line);
+-
++			buttomright.lonDec = Common.parseDoubleException(line);
++//			if (in.ready()) {// if there is more data... TODO this doesn't give the answer if there is more data :-(
++				line = in.readLine();
++				coordTrans = Common.parseInt(line);
++				//coordTrans = new TransformCoordinatesProperties(instream);
++			//}
++		//	else coordTrans = 0;
+ 			fileNameWFL = mapsPath + thisMap + &quot;.wfl&quot;;
+ //			fileName = &quot;&quot;; //mapsPath + thisMap + &quot;.png&quot;;
+ 			mapName = thisMap;
+ 			in.close();
+-			if( !topleft.isValid() ) {
++			if( !buttomright.isValid() ) {
+ 				affine[0] = 0; affine[1] = 0; affine[2] = 0; affine[3] = 0; 
+-				buttomright.makeInvalid();
++				topleft.makeInvalid();
+ 				throw (new IOException(&quot;Lat/Lon out of range while reading &quot;+mapsPath + thisMap + &quot;.wfl&quot;));
+ 			}
+ 		} catch (NullPointerException e) { // in.readline liefert null zur&#252;ck, wenn keine Daten mehr vorhanden sind
+ 			throw (new IOException(&quot;not enough lines in file &quot;+mapsPath + thisMap + &quot;.wfl&quot;));
+ 		}
+-		OrigUpperLeft = new CWPoint(topleft);
+ 		doCalculations();
++		origAffineUpperLeft = new CWPoint(affineTopleft);
+ 	}
+ 
+-	/**
++	public void evalGCP(ewe.util.Vector GCPs, int imageWidth, int imageHeight) throws IllegalArgumentException {
++		evalGCP(GCPs, imageWidth, imageHeight, 0);
++	}
++		/**
+ 	 *	Method to evaluate ground control points (georeferenced points) and identify the parameters
+ 	 *	for the affine transformation
+ 	 *  @throws IllegalArgumentException when less than 3 georeferenced points were given in GCPs
+ 	 */
+ 
+-	public void evalGCP(ewe.util.Vector GCPs, int imageWidth, int imageHeight) throws IllegalArgumentException {
++	public void evalGCP(ewe.util.Vector GCPs, int imageWidth, int imageHeight, int epsg_code) throws IllegalArgumentException {
+ 		//N 48 16.000 E 11 32.000
+ 		//N 48 16.000 E 11 50.000
+ 		//N 48 9.000 E 11 32.000
+@@ -225,7 +240,7 @@
+ 		beta.Multiply(trg);
+ 		affine[0] = beta.matrix[1][0];
+ 		affine[2] = beta.matrix[2][0];
+-		topleft.latDec = beta.matrix[0][0];
++		affineTopleft.latDec = beta.matrix[0][0];
+ 
+ 		//Calculate parameters for longitude affine transformation (affine 1,3,5)
+ 		X = new Matrix(GCPs.size(),3);
+@@ -248,8 +263,8 @@
+ 		beta.Multiply(trg);
+ 		affine[1] = beta.matrix[1][0];
+ 		affine[3] = beta.matrix[2][0];
+-		topleft.lonDec = beta.matrix[0][0];
+-
++		affineTopleft.lonDec = beta.matrix[0][0];
++		coordTrans = epsg_code;
+ 		buttomright = calcLatLon(imageWidth, imageHeight);
+ 		doCalculations();
+ 		//Vm.debug(&quot;A B C&quot; + affine[0] + &quot; &quot; + affine[2] + &quot; &quot; + affine[4]);
+@@ -263,6 +278,7 @@
+ 
+ 	private void doCalculations() throws ArithmeticException {
+ 		try {
++			topleft.set(calcLatLon(0, 0));
+ 			center.set((buttomright.latDec + topleft.latDec)/2,(buttomright.lonDec + topleft.lonDec)/2);
+ 			sizeKm = java.lang.Math.abs((float)center.getDistance(buttomright.latDec, buttomright.lonDec)) *2;
+ 
+@@ -274,17 +290,32 @@
+ 			transLonY = affine[0]/nenner;
+ 
+ 			// calculate north direction
+-			float scaleXpixels = 1/(float)java.lang.Math.sqrt(java.lang.Math.pow(transLonX,2)+java.lang.Math.pow(transLonY,2));
++			// float scaleXpixels = 1/(float)java.lang.Math.sqrt(java.lang.Math.pow(transLonX,2)+java.lang.Math.pow(transLonY,2));
+ 			//	float scaleY = 1/(float)java.lang.Math.sqrt(java.lang.Math.pow(transLatX,2)+java.lang.Math.pow(transLatY,2));
+-			float rotationX2x=(float)transLonX*scaleXpixels;
+-			float rotationX2y=(float)transLonY*scaleXpixels;
++			// float rotationX2x=(float)transLonX*scaleXpixels;
++			// float rotationX2y=(float)transLonY*scaleXpixels;
+ 			//rotationY2y=-(float)transLatY*scaleY; // lat -&gt; y = -, y -&gt; y = +
+ 			//rotationY2x=-(float)transLatX*scaleY; // uncomment an make it a field of MapInfoObject if you need translation from x to x rotated
+-			rotationRad = (float)java.lang.Math.atan(rotationX2y);
+-			if (rotationX2x &lt; 0) rotationRad = (float)java.lang.Math.PI - rotationRad;
++			Point c = calcMapXY(center);
++			int heightpixel = c.y * 2;
++			c.y -= 1000;
++			rotationRad = (float) (center.getBearing(calcLatLon(c)) / 180 * Math.PI);  // note: the direction of nord can vary across the image. In Gau&#223;-Kr&#252;ger Projection it does change about 1 degree per 10km! //(float)java.lang.Math.atan(rotationX2y);
++			if (rotationRad &gt; Math.PI) rotationRad -= 2* Math.PI;
++			//if (rotationX2x &lt; 0) rotationRad = (float)java.lang.Math.PI - rotationRad;
+ 			// calculate scale in meters per pixel
+-			double metersPerLat = 1000*(new CWPoint(0,0)).getDistance(new CWPoint(1,0));
+-			scale = (float) java.lang.Math.abs((affine[2] * metersPerLat)); 
++			CWPoint bl = new CWPoint(buttomright.latDec, topleft.lonDec);
++			double diagonal = topleft.getDistance(buttomright);
++			double beta = java.lang.Math.atan(bl.getDistance(buttomright) / bl.getDistance(topleft));
++			double gamma = beta - rotationRad;
++			double heightkm = diagonal * Math.cos(gamma);
++			// double metersPerLat = 1000*(new CWPoint(0,0)).getDistance(new CWPoint(1,0));
++			CWPoint buttomleftimage = topleft.project(rotationRad * 180 / Math.PI + 180, heightkm);
++			CWPoint buttomleftimage2 = calcLatLon(0, heightpixel);
++			double kw = buttomleftimage.getDistance(buttomleftimage2);
++			double kw2 = buttomleftimage.getBearing(buttomleftimage2);
++			Vm.debug(&quot;project test: &quot; + buttomleftimage.getDistance(topleft));
++			// double heightpixel = calcMapXY(buttomleftimage).y / Math.cos(rotationRad); 
++			scale = (float) (heightkm * 1000 / heightpixel); 
+ 		} catch (ArithmeticException ex) { throw new ArithmeticException(&quot;Not allowed values in affine\n (matrix cannot be inverted)\n in file \n&quot; + fileNameWFL); }
+ 	}
+ 
+@@ -309,10 +340,11 @@
+ 		Convert.toString(affine[1])+&quot;\n&quot; +
+ 		Convert.toString(affine[2])+&quot;\n&quot; + 
+ 		Convert.toString(affine[3])+&quot;\n&quot; + 
+-		Convert.toString(topleft.latDec)+&quot;\n&quot; +
+-		Convert.toString(topleft.lonDec)+&quot;\n&quot; +
++		Convert.toString(affineTopleft.latDec)+&quot;\n&quot; +
++		Convert.toString(affineTopleft.lonDec)+&quot;\n&quot; +
+ 		Convert.toString(buttomright.latDec)+&quot;\n&quot; +
+-		Convert.toString(buttomright.lonDec)+&quot;\n&quot;;
++		Convert.toString(buttomright.lonDec)+&quot;\n&quot; + 
++		((coordTrans == 0 || coordTrans == TransformCoordinates.EPSG_WGS84) ? &quot;&quot; : Convert.toString(coordTrans)+&quot;\n&quot;);
+ 		if (digSep.equals(&quot;,&quot;)) towrite=towrite.replace(',', '.');
+ 		outp.print(towrite);
+ 		outp.close();
+@@ -321,20 +353,6 @@
+ 		this.mapName = mapFileName;
+ 	}
+ 
+-//	public boolean inBound(CWPoint pos){
+-	//	boolean isInBound = false;
+-	/*
+-		Vm.debug(mapName);
+-		Vm.debug(&quot;Top: &quot; + affine[4]);
+-		Vm.debug(&quot;Bottom: &quot; + lowlat);
+-		Vm.debug(&quot;Test: &quot; + pos.latDec);
+-		Vm.debug(&quot;Left: &quot; + affine[5]);
+-		Vm.debug(&quot;Right: &quot; + lowlon);
+-		Vm.debug(&quot;Test: &quot; + pos.lonDec);
+-	 */
+-//	if(topleft.latDec &gt;= pos.latDec &amp;&amp; pos.latDec &gt;= buttomright.latDec &amp;&amp; topleft.lonDec &lt;= pos.lonDec &amp;&amp; pos.lonDec &lt;= buttomright.lonDec) isInBound = true;
+-	//	return isInBound;
+-	//}
+ 
+ 	/**
+ 	 * zoom in / out
+@@ -344,15 +362,16 @@
+ 	 */
+ 	public void zoom(float zf, int diffX, int diffY) {
+ 		// restore original values to calculate corret shift (upperleft)
+-		topleft.latDec = OrigUpperLeft.latDec;
+-		topleft.lonDec = OrigUpperLeft.lonDec;
++		affineTopleft.latDec = origAffineUpperLeft.latDec;
++		affineTopleft.lonDec = origAffineUpperLeft.lonDec;
+ 		affine[0] = affine[0] * zoomFactor; 
+ 		affine[1] = affine[1] * zoomFactor; 
+ 		affine[2] = affine[2] * zoomFactor;
+ 		affine[3] = affine[3] * zoomFactor;
+-		CWPoint upperleft = calcLatLon(diffX, diffY);
+-		topleft.latDec = upperleft.latDec;
+-		topleft.lonDec = upperleft.lonDec;
++		TrackPoint upperleft = calcLatLon(diffX, diffY);
++		if (coordTrans != 0) upperleft = TransformCoordinatesProperties.fromWgs84(upperleft, coordTrans);
++		affineTopleft.latDec = upperleft.latDec; // TODO nachdenken affineTopleft
++		affineTopleft.lonDec = upperleft.lonDec;
+ 		affine[0] = affine[0] / zf ; 
+ 		affine[1] = affine[1] / zf ; 
+ 		affine[2] = affine[2] / zf ; 
+@@ -363,12 +382,6 @@
+ 		doCalculations(); // TODO lowlat neu berechnen?
+ 	}
+ 
+-	/*	public boolean inBound(double lati, double loni){
+-		boolean isInBound = false;
+-		if(topleft.latDec &gt;= lati &amp;&amp; lati &gt;= buttomright.latDec &amp;&amp; topleft.lonDec &lt;= loni &amp;&amp; loni &lt;= buttomright.lonDec) isInBound = true;
+-		return isInBound;
+-	}
+-	 */
+ 	/**
+ 	 * Method to calculate bitmap x,y of the current map using
+ 	 * lat and lon target coordinates. There ist no garanty that
+@@ -376,15 +389,18 @@
+ 	 * @param lat
+ 	 * @param lon
+ 	 */
+-	public Point calcMapXY(double lat, double lon){
++	public Point calcMapXY(TrackPoint ll){
++		TrackPoint t;
++		if (coordTrans != 0) t = TransformCoordinatesProperties.fromWgs84(ll, coordTrans);
++		else t = ll;
+ 		Point coords = new Point();
+ 		double b[] = new double[2];
+-		b[0] = lat - topleft.latDec;
+-		b[1] = lon - topleft.lonDec;
+-		double mapx=transLatX* b[0] + transLonX*b[1];
+-		double mapy=transLatY* b[0] + transLonY*b[1];
+-		coords.x = (int)mapx;
+-		coords.y = (int)mapy;
++		b[0] = t.latDec - affineTopleft.latDec;
++		b[1] = t.lonDec - affineTopleft.lonDec;
++		double mapx = transLatX* b[0] + transLonX*b[1];
++		double mapy = transLatY* b[0] + transLonY*b[1];
++		coords.x = (int)Math.round(mapx);
++		coords.y = (int)Math.round(mapy);
+ 		//Vm.debug(&quot;mapX=mapx2: &quot;+mapx+&quot;=&quot;+mapx2+&quot;; mapy=mapy2: &quot;+mapy+&quot;=&quot;+mapy2);
+ 		return coords;
+ 	}
+@@ -397,10 +413,13 @@
+ 	 */
+ 	public CWPoint calcLatLon(int x, int y) {
+ 		CWPoint ll = new CWPoint();
+-		ll.latDec = (double)x * affine[0] + (double)y * affine[2] + topleft.latDec;
+-		ll.lonDec = (double)x * affine[1] + (double)y * affine[3] + topleft.lonDec;
++		ll.latDec = (double)x * affine[0] + (double)y * affine[2] + affineTopleft.latDec;
++		ll.lonDec = (double)x * affine[1] + (double)y * affine[3] + affineTopleft.lonDec;
++		if (coordTrans != 0)
++			ll = TransformCoordinatesProperties.toWgs84(ll, coordTrans);
+ 		return ll;
+ 	}
++	
+ 	public CWPoint calcLatLon(Point p) {
+ 		return calcLatLon(p.x, p.y);
+ 	}
+@@ -431,6 +450,11 @@
+ 			super(p);
+ 		}
+ 
++		/**
++		 * If you are using Gau&#223;-Kr&#252;ger, put lat = northing, lon = easting 
++		 * @param lat
++		 * @param lon
++		 */
+ 		public GCPoint(double lat, double lon){
+ 			this.latDec = lat;
+ 			this.lonDec = lon;
+
+Modified: trunk/src/CacheWolf/navi/MapLoader.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MapLoader.java	2007-11-15 19:22:56 UTC (rev 1066)
++++ trunk/src/CacheWolf/navi/MapLoader.java	2007-11-16 18:32:23 UTC (rev 1067)
+@@ -259,7 +259,7 @@
+ 		connImg = new HttpConnection(realurl);
+ 		connImg.setRequestorProperty(&quot;USER_AGENT&quot;, &quot;Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.7.5) Gecko/20041107 Firefox/1.0&quot;);
+ 		connImg.setRequestorProperty(&quot;Connection&quot;, &quot;close&quot;);
+-		connImg.setRequestorProperty(&quot;Cookie&quot;, &quot;jscript=1; path=/;&quot;);
++	//	this prevents gdz1.leipzig.ifag.de (dtk100) from answering and ist not necessary for expedia connImg.setRequestorProperty(&quot;Cookie&quot;, &quot;jscript=1; path=/;&quot;);
+ 		connImg.documentIsEncoded = true;
+ 		try{
+ 			File dateiF = new File(datei);
+@@ -374,12 +374,9 @@
+ 
+ 	public Area CenterScaleToArea(CWPoint center, float scale, Point pixelsize) {
+ 		Area bbox = new Area();
+-		bbox.topleft = new CWPoint (center);
+-		bbox.topleft.shift(-pixelsize.x * scale / 2, 1);
+-		bbox.topleft.shift(pixelsize.y * scale /2, 0);
+-		bbox.buttomright = new CWPoint (center);
+-		bbox.buttomright.shift(pixelsize.x * scale / 2, 1);
+-		bbox.buttomright.shift(-pixelsize.y * scale /2, 0);
++		double halfdiagonal = Math.sqrt(pixelsize.x * pixelsize.x + pixelsize.y * pixelsize.y)/2 * scale / 1000;
++		bbox.topleft = center.project(-45, halfdiagonal);
++		bbox.buttomright = center.project(135, halfdiagonal);
+ 		return bbox;
+ 	}
+ 	public MapInfoObject getMapInfoObject(Area maparea, Point pixelsize) {
+@@ -481,10 +478,26 @@
+ 		ret[BUTTOMRIGHT_INDEX] = TransformCoordinates.wgs84ToGermanGk(maparea.buttomright, coordinateReferenceSystem[crs]);
+ 		ret[TOPRIGHT_INDEX] = new GkPoint(ret[BUTTOMRIGHT_INDEX].getGkEasting(), ret[TOPLEFT_INDEX].northing);
+ 		ret[BUTTOMLEFT_INDEX] = new GkPoint(ret[TOPLEFT_INDEX].getGkEasting(), ret[BUTTOMRIGHT_INDEX].northing);
++		Vm.debug(&quot;rot left direkt: &quot; + TransformCoordinates.germanGkToWgs84(ret[TOPLEFT_INDEX]).getBearing(TransformCoordinates.germanGkToWgs84(ret[BUTTOMLEFT_INDEX])));
++		Vm.debug(&quot;rot right direkt: &quot; + TransformCoordinates.germanGkToWgs84(ret[TOPRIGHT_INDEX]).getBearing(TransformCoordinates.germanGkToWgs84(ret[BUTTOMRIGHT_INDEX])));
+ 		//ret[2] = TransformCoordinates.wgs84ToGermanGk(topright, coordinateReferenceSystem[crs]);
+ 		//ret[3] = TransformCoordinates.wgs84ToGermanGk(buttomleft, coordinateReferenceSystem[crs]);
+ 		return ret;	
+ 	}
++	public Area CenterScaleToArea(CWPoint center, float scale, Point pixelsize) {
++		Area bbox = new Area(); // TODO if coordinatesystem == germenGK
++		GkPoint cgk = TransformCoordinates.wgs84ToGermanGk(center, coordinateReferenceSystem[getCrs(center)]);
++		GkPoint tlgk = new GkPoint(cgk);
++		tlgk.shift(- pixelsize.x * scale / 2, 1);
++		tlgk.shift(pixelsize.y * scale / 2, 0);
++		GkPoint brgk = new GkPoint(cgk);
++		brgk.shift(pixelsize.x * scale / 2, 1);
++		brgk.shift(-pixelsize.y * scale / 2, 0);
++		bbox.topleft = TransformCoordinates.germanGkToWgs84(tlgk);
++		bbox.buttomright = TransformCoordinates.germanGkToWgs84(brgk);
++		return bbox;
++	}
++
+ 	public String getUrlForBoundingBox(Area maparea, Point pixelsize) {
+ 		if (!boundingBox.isOverlapping(maparea)) throw new IllegalArgumentException(&quot;area: &quot; + maparea.toString() + &quot; not covered by service: &quot; + name + &quot;, service area: &quot; + boundingBox.toString());
+ 		// <A HREF="http://www.geoserver.nrw.de/GeoOgcWms1.3/servlet/TK25?SERVICE=WMS&amp;VERSION=1.1.0&amp;REQUEST=GetMap&amp;SRS=EPSG:31466&amp;BBOX=2577567.0149,5607721.7566,2578567.0077,5608721.7602&amp;WIDTH=500&amp;HEIGHT=500&amp;LAYERS=Raster:TK25_KMF:Farbkombination&amp;STYLES=&amp;FORMAT=image/png">http://www.geoserver.nrw.de/GeoOgcWms1.3/servlet/TK25?SERVICE=WMS&amp;VERSION=1.1.0&amp;REQUEST=GetMap&amp;SRS=EPSG:31466&amp;BBOX=2577567.0149,5607721.7566,2578567.0077,5608721.7602&amp;WIDTH=500&amp;HEIGHT=500&amp;LAYERS=Raster:TK25_KMF:Farbkombination&amp;STYLES=&amp;FORMAT=image/png</A>
+@@ -493,7 +506,7 @@
+ 		double scaleh = maparea.buttomright.getDistance(buttomleft) * 1000 / pixelsize.x; 
+ 		double scalev = maparea.topleft.getDistance(topright) * 1000 / pixelsize.y; 
+ 		double scale = Math.sqrt(scaleh * scaleh + scalev * scalev); // meters per pixel measured diagonal
+-		if ( scale &lt; minscaleWMS || scale &gt; maxscaleWMS) throw new IllegalArgumentException(&quot;scale &quot; + scale / Math.sqrt(2)+ &quot; not supported by online map service, supported scale range: &quot; + minscale + &quot; - &quot; + maxscale + &quot; (measured in meters per pixel vertically)&quot;);
++		if ( scale &lt; minscaleWMS || scale &gt; maxscaleWMS ) throw new IllegalArgumentException(&quot;scale &quot; + scale / Math.sqrt(2)+ &quot; not supported by online map service, supported scale range: &quot; + minscale + &quot; - &quot; + maxscale + &quot; (measured in meters per pixel vertically)&quot;);
+ 		int crs = 0;
+ 		String bbox = &quot;BBOX=&quot;;
+ 		if (TransformCoordinates.isGermanGk(coordinateReferenceSystem[0])) {
+@@ -501,8 +514,8 @@
+ 			GkPoint[] gk = getGkArea(maparea);
+ 			buttomleft = TransformCoordinates.germanGkToWgs84(gk[BUTTOMLEFT_INDEX]);
+ 			topright = TransformCoordinates.germanGkToWgs84(gk[TOPRIGHT_INDEX]);
+-			bbox += TransformCoordinates.wgs84ToGermanGk(buttomleft, coordinateReferenceSystem[crs]).toString(3, &quot;&quot;, &quot;,&quot;);
+-			bbox += &quot;,&quot; + TransformCoordinates.wgs84ToGermanGk(topright, coordinateReferenceSystem[crs]).toString(3, &quot;&quot;, &quot;,&quot;);
++			bbox += TransformCoordinates.wgs84ToGermanGk(buttomleft, coordinateReferenceSystem[crs]).toString(2, &quot;&quot;, &quot;,&quot;);
++			bbox += &quot;,&quot; + TransformCoordinates.wgs84ToGermanGk(topright, coordinateReferenceSystem[crs]).toString(2, &quot;&quot;, &quot;,&quot;);
+ 		} else if (coordinateReferenceSystem[0] == TransformCoordinates.EPSG_WGS84) 
+ 			bbox += buttomleft.toString(CWPoint.LON_LAT)  + &quot;,&quot; + topright.toString(CWPoint.LON_LAT);
+ 		else throw new IllegalArgumentException(&quot;Coordinate system not supported by cachewolf: &quot; + coordinateReferenceSystem.toString());
+@@ -545,43 +558,43 @@
+ 		double metersperpixalvertical = ( buttomright.getDistance(topright) + topleft.getDistance(buttomleft))/2 * 1000 / pixelsize.y;
+ 		if (TransformCoordinates.isGermanGk(coordinateReferenceSystem[0])) {
+ 			GkPoint[] gk = getGkArea(maparea);
+-			GkPoint topleftgk = gk[TOPLEFT_INDEX]; //TransformCoordinates.wgs84ToGermanGk(topleft, coordinateReferenceSystem[crs]);
+-			GkPoint buttomrightgk = gk[BUTTOMRIGHT_INDEX]; //TransformCoordinates.wgs84ToGermanGk(buttomright, coordinateReferenceSystem[crs]);
+-/*			// bounding box in WMS is defined around the pixels, not exactly on the pixels --&gt; the bounding box must be reduced on all edges by half a pixel
+-			topleftgk.shift(metersperpixalhorizontal / 2, 1);
+-			topleftgk.shift(-metersperpixalvertical / 2, 0);
+-			buttomrightgk.shift(-metersperpixalhorizontal / 2, 1);
+-			buttomrightgk.shift(metersperpixalvertical / 2, 0);
+-*/
+-			GkPoint buttomleftgk = gk[BUTTOMLEFT_INDEX]; // new GkPoint(topleftgk.getGkEasting(), buttomrightgk.northing);
+-			GkPoint toprightgk = gk[TOPRIGHT_INDEX]; //new GkPoint(buttomrightgk.getGkEasting(), topleftgk.northing);
++			// bounding box in WMS is defined around the pixels, not exactly on the pixels --&gt; the bounding box must be reduced on all edges by half a pixel
++			gk[TOPLEFT_INDEX].shift(metersperpixalhorizontal / 2, 1);
++			gk[TOPLEFT_INDEX].shift(-metersperpixalvertical / 2, 0);
++			gk[BUTTOMRIGHT_INDEX].shift(-metersperpixalhorizontal / 2, 1);
++			gk[BUTTOMRIGHT_INDEX].shift(metersperpixalvertical / 2, 0);
++			gk[TOPRIGHT_INDEX].shift(-metersperpixalhorizontal / 2, 1);
++			gk[TOPRIGHT_INDEX].shift(-metersperpixalvertical / 2, 0);
++			gk[BUTTOMLEFT_INDEX].shift(metersperpixalhorizontal / 2, 1);
++			gk[BUTTOMLEFT_INDEX].shift(metersperpixalvertical / 2, 0);
++
+ 			Vm.debug(&quot;\n&quot; + maparea.topleft.toString(CWPoint.LAT_LON));
+ 			//Vm.debug(TransformCoordinates.germanGkToWgs84(TransformCoordinates.wgs84ToGermanGk(maparea.topleft)).toString(CWPoint.LAT_LON));
+-			topleft = TransformCoordinates.germanGkToWgs84(topleftgk);
+-			buttomright = TransformCoordinates.germanGkToWgs84(buttomrightgk);
+-			buttomleft = TransformCoordinates.germanGkToWgs84(buttomleftgk);
+-			topright = TransformCoordinates.germanGkToWgs84(toprightgk);
+-			Vm.debug(topleft.toString(CWPoint.LAT_LON));
+-			Vm.debug(buttomright.toString(CWPoint.LAT_LON));
+-			Vm.debug(topright.toString(CWPoint.LAT_LON));
+-			Vm.debug(buttomleft.toString(CWPoint.LAT_LON));
++			topleft.set(gk[TOPLEFT_INDEX].northing, gk[TOPLEFT_INDEX].getGkEasting());
++			buttomright.set(gk[BUTTOMRIGHT_INDEX].northing, gk[BUTTOMRIGHT_INDEX].getGkEasting());
++			topright.set(gk[TOPRIGHT_INDEX].northing, gk[TOPRIGHT_INDEX].getGkEasting());
++			buttomleft.set(gk[BUTTOMLEFT_INDEX].northing, gk[BUTTOMLEFT_INDEX].getGkEasting());
+ 		} else if (coordinateReferenceSystem[0] == TransformCoordinates.EPSG_WGS84) {
+ 			// bounding box in WMS is defined around the pixels, not exactly on the pixels --&gt; the bounding box must be reduced on all edges by half a pixel
+ 			topleft.shift(metersperpixalhorizontal / 2, 1);
+ 			topleft.shift(-metersperpixalvertical / 2, 0);
+ 			buttomright.shift(-metersperpixalhorizontal, 1);
+ 			buttomright.shift(metersperpixalhorizontal, 0);
++			topright = new CWPoint (topleft.latDec, buttomright.lonDec);
+ 			buttomleft = new CWPoint (buttomright.latDec, topleft.lonDec);
+-			topright = new CWPoint (topleft.latDec, buttomright.lonDec);
+ 		} else throw new IllegalArgumentException(&quot;getMapInfoObject: Coordinate system not supported by cachewolf: &quot; + coordinateReferenceSystem);
+ 		georef.add(new GCPoint(topleft, new Point(0, 0)));
+ 		georef.add(new GCPoint(buttomright, new Point(pixelsize.x, pixelsize.y)));
++		georef.add(new GCPoint(topright, new Point(pixelsize.x, 0)));
+ 		georef.add(new GCPoint(buttomleft, new Point(0, pixelsize.y)));
+-		georef.add(new GCPoint(topright, new Point(pixelsize.x, 0)));
+ 
+ 		MapInfoObject ret = new MapInfoObject();
+-		ret.evalGCP(georef, pixelsize.x, pixelsize.y);
+-		Vm.debug(&quot;\n nach kal\n&quot; + ret.calcLatLon(0, 0).toString(CWPoint.LAT_LON));
++		ret.evalGCP(georef, pixelsize.x, pixelsize.y, coordinateReferenceSystem[getCrs(maparea.topleft)]);
++		Vm.debug(&quot;\n nach kal&quot;);
++		Vm.debug(&quot;fehler tl: &quot; + ret.calcLatLon(0, 0).getDistance(maparea.topleft)*1000);
++		Vm.debug(&quot;fehler tl: &quot; + ret.calcLatLon(0, 0).getBearing(maparea.topleft));
++		Vm.debug(&quot;fehler br: &quot; + ret.calcLatLon(pixelsize.x, pixelsize.y).getDistance(maparea.buttomright)*1000);
++		Vm.debug(&quot;fehler br: &quot; + ret.calcLatLon(pixelsize.x, pixelsize.y).getBearing(maparea.buttomright));
+ 		Vm.debug(ret.calcLatLon(pixelsize.x, pixelsize.y).toString(CWPoint.LAT_LON));
+ 		Vm.debug(ret.calcLatLon(pixelsize.x, 0).toString(CWPoint.LAT_LON));
+ 		Vm.debug(ret.calcLatLon(0, pixelsize.y).toString(CWPoint.LAT_LON));
+@@ -612,11 +625,15 @@
+ 	}
+ 
+ 	public float getMetersPerPixel(float scale) {
+-		return (float) Math.ceil(scale) * EXPEDIA_METERS_PER_PIXEL;
++		return (float)  EXPEDIA_METERS_PER_PIXEL * getZoomlevel(scale);
+ 	}
++	
++	private int getZoomlevel(float scale) {
++		return (int)(Math.ceil(scale / EXPEDIA_METERS_PER_PIXEL));
++	}
+ 
+ 	public String getUrlForCenterScale(CWPoint center, float scale, Point pixelsize) {
+-		int zoomlevel = (int)(Math.ceil(scale / EXPEDIA_METERS_PER_PIXEL));
++		int zoomlevel = getZoomlevel(scale);
+ 		String zone;
+ 		if (center.lonDec &lt;= -10) zone = &quot;USA0409&quot;;
+ 		else zone = &quot;EUR0809&quot;;
+
+Modified: trunk/src/CacheWolf/navi/MapLoaderGui.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MapLoaderGui.java	2007-11-15 19:22:56 UTC (rev 1066)
++++ trunk/src/CacheWolf/navi/MapLoaderGui.java	2007-11-16 18:32:23 UTC (rev 1067)
+@@ -303,11 +303,6 @@
+ 					(new MessageBox(&quot;Error&quot;, &quot;The selected online map service provides map in the scale from &quot; + mapLoader.currentOnlineMapService.minscale + &quot; to &quot;+ mapLoader.currentOnlineMapService.maxscale +&quot;\n please adjust 'Approx. meter pro pixel' accordingly&quot;, MessageBox.OKB)).execute();
+ 					return;
+ 				}
+-				if (!mapLoader.currentOnlineMapService.getName().equalsIgnoreCase(&quot;expedia&quot;) &amp;&amp;
+-						scale &gt; 0.5) {
+-					int a = (new MessageBox(&quot;Error&quot;, &quot;Momentanously the calibration of downloaded maps from a WMS has a maximam deviation of about 1 percent of the map size in meters. That's why I strongly recommend to use it only up to a scale of 0.5. In this case the deviation will be lower than 5m. Do you whish to continue anyway?&quot;, MessageBox.YESB | MessageBox.NOB)).execute();
+-					if (a == MessageBox.NOB) return;
+-				}
+ 				this.close(Form.IDOK); 
+ 				this.downloadTiles();
+ 			}
+
+Modified: trunk/src/CacheWolf/navi/MapSymbol.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MapSymbol.java	2007-11-15 19:22:56 UTC (rev 1066)
++++ trunk/src/CacheWolf/navi/MapSymbol.java	2007-11-16 18:32:23 UTC (rev 1067)
+@@ -1,23 +1,23 @@
+ package CacheWolf.navi;
+ 
++import CacheWolf.CWPoint;
+ import ewe.fx.*;
+ import ewe.graphics.*;
+ 
+-public class MapSymbol extends AniImage { // TODO make this implement MapImage, so that it will be invisible automatically if not on screen. When doing so, test if setgoto-pos -&gt; open map from gotopanel shows the map symbols (directly after starting CW)
++public class MapSymbol extends MapImage { // TODO make this implement MapImage, so that it will be invisible automatically if not on screen. When doing so, test if setgoto-pos -&gt; open map from gotopanel shows the map symbols (directly after starting CW)
+ 	Object mapObject;
+ 	String name;
+ 	String filename;
+-	double lat, lon;
+-	public MapSymbol(String namei, String filenamei, double lati, double loni) {
++	CWPoint where;
++	
++	public MapSymbol(String namei, String filenamei, CWPoint where_) {
+ 		name = namei;
+ 		filename = filenamei;
+-		lat = lati;
+-		lon = loni;
++		where = where_;
+ 	}
+-	public MapSymbol(String namei, Object mapObjecti, Image fromIm, double lati, double loni) {
++	public MapSymbol(String namei, Object mapObjecti, Image fromIm, CWPoint where_) {
+ 		name = namei;
+-		lat = lati;
+-		lon = loni;
++		where = where_;
+ 		mapObject = mapObjecti;
+ 		setImage(fromIm);
+ 	}
+
+Modified: trunk/src/CacheWolf/navi/MapsList.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MapsList.java	2007-11-15 19:22:56 UTC (rev 1066)
++++ trunk/src/CacheWolf/navi/MapsList.java	2007-11-16 18:32:23 UTC (rev 1067)
+@@ -99,12 +99,12 @@
+ 	 * it always returns a map (if the list is not empty) as long as it overlaps the screen
+ 	 * @param forceScale: when true, return null if no map with specified scale could be found
+ 	 */
+-	public MapInfoObject getBestMap(double lat, double lon, Rect screen, float scale, boolean forceScale) {
++	public MapInfoObject getBestMap(CWPoint ll, Rect screen, float scale, boolean forceScale) {
+ 		if (size() == 0) return null;
+ 		long start = new Time().getTime();
+ 		InfoBox progressBox = null;
+ 		boolean showprogress = false;
+-		String cmp = &quot;FF1&quot;+Area.getEasyFindString(new CWPoint(lat, lon), 30);
++		String cmp = &quot;FF1&quot;+Area.getEasyFindString(ll, 30);
+ 		MapListEntry ml;
+ 		MapInfoObject mi;
+ 		MapInfoObject bestMap = null; // = (MapInfoObject)get(0);
+@@ -131,28 +131,28 @@
+ 			better = false;
+ //			mi = (MapInfoObject)get(i);
+ 			if (screenArea == null || !scaleEquals(lastscale, mi) ) {
+-				screenArea = getAreaForScreen(screen, lat, lon, mi.scale, mi);
++				screenArea = getAreaForScreen(screen, ll, mi.scale, mi);
+ 				lastscale = mi.scale;
+ 			}
+ 			if (screenArea.isOverlapping(mi) ) { // is on screen
+ 				if (!forceScale || (forceScale &amp;&amp; !scaleEquals(scale, mi))) { // different scale?
+-					if (!forceScale &amp;&amp; (mi.isInBound(lat, lon) &amp;&amp; (bestMap == null || scaleNearer(mi.scale, bestMap.scale, scale) || !bestMap.isInBound(lat, lon)))) 
++					if (!forceScale &amp;&amp; (mi.isInBound(ll) &amp;&amp; (bestMap == null || scaleNearer(mi.scale, bestMap.scale, scale) || !bestMap.isInBound(ll)))) 
+ 						better = true; // inbound and resolution nearer at wanted resolution or old one is on screen but lat/long not inbound-&gt; better
+ 					else {
+ 						if ( bestMap == null || scaleNearerOrEuqal(mi.scale, bestMap.scale, scale)) {
+-							latNearer = java.lang.Math.abs(lat - mi.center.latDec)/mi.sizeKm &lt; minDistLat ;
+-							lonNearer = java.lang.Math.abs(lon - mi.center.lonDec)/mi.sizeKm &lt; minDistLon;
++							latNearer = java.lang.Math.abs(ll.latDec - mi.center.latDec)/mi.sizeKm &lt; minDistLat ;
++							lonNearer = java.lang.Math.abs(ll.lonDec - mi.center.lonDec)/mi.sizeKm &lt; minDistLon;
+ 							if ( latNearer &amp;&amp; lonNearer) better = true; // for faster processing: if lat and lon are nearer then the distancance doesn't need to be calculated
+ 							else {
+ 								if ( (latNearer || lonNearer )) { 
+-									if (bestMap == null || mi.center.getDistanceRad(lat, lon) &lt; bestMap.center.getDistanceRad(lat, lon) ) better = true;
++									if (bestMap == null || mi.center.getDistanceRad(ll) &lt; bestMap.center.getDistanceRad(ll) ) better = true;
+ 								}
+ 							}
+ 						}
+ 					}
+ 					if (better) {
+-						minDistLat = java.lang.Math.abs(lat - mi.center.latDec)/mi.sizeKm;
+-						minDistLon = java.lang.Math.abs(lon - mi.center.lonDec)/mi.sizeKm;
++						minDistLat = java.lang.Math.abs(ll.latDec - mi.center.latDec)/mi.sizeKm;
++						minDistLon = java.lang.Math.abs(ll.lonDec - mi.center.lonDec)/mi.sizeKm;
+ 						bestMap = mi;
+ 						// Vm.debug(&quot;better&quot;+ i);
+ 					}
+@@ -218,7 +218,7 @@
+ 						if ( latNearer &amp;&amp; lonNearer) better = true; // for faster processing: if lat and lon are nearer then the distancance doesn't need to be calculated
+ 						else {
+ 							if ( (latNearer || lonNearer )) { 
+-								if (mi.center.getDistanceRad(topleft.latDec, topleft.lonDec) &lt; fittingmap.center.getDistanceRad(topleft.latDec, topleft.lonDec) ) better = true;
++								if (mi.center.getDistanceRad(topleft) &lt; fittingmap.center.getDistanceRad(topleft) ) better = true;
+ 							}
+ 						}
+ 
+@@ -248,7 +248,7 @@
+ 	 * @param moreDetails true: find map with more details == higher resolustion = lower scale / false find map with less details = better overview
+ 	 * @return
+ 	 */
+-	public MapInfoObject getMapChangeResolution(double lat, double lon, Rect screen, float curScale, boolean moreDetails){
++	public MapInfoObject getMapChangeResolution(CWPoint ll, Rect screen, float curScale, boolean moreDetails){
+ 		if (size() == 0) return null;
+ 		long start = new Time().getTime();
+ 		InfoBox progressBox = null;
+@@ -262,7 +262,7 @@
+ 		boolean better = false;
+ 		Area screenArea = null; // getAreaForScreen(screen, lat, lon, bestMap.scale, bestMap);
+ 		float lastscale = -1;
+-		String cmp = &quot;FF1&quot;+Area.getEasyFindString(new CWPoint(lat, lon), 30);
++		String cmp = &quot;FF1&quot;+Area.getEasyFindString(ll, 30);
+ 		for (int i=size()-1; i &gt;= 0 ;i--) { 
+ 			if (!showprogress &amp;&amp; ((i &amp; 31) == 0) &amp;&amp; (new Time().getTime()-start  &gt; 100) ) { // reason for (i &amp; 7 == 0): test time only after i is incremented 15 times
+ 				showprogress = true;      
+@@ -279,28 +279,28 @@
+ 			} catch (IOException ex) {continue; } // could not read .wfl-file
+ 			if (mi.fileNameWFL == &quot;&quot;) continue; // exclude &quot;maps&quot; without image // TODO make this a boolean in MapInfoObject
+ 			if (screenArea == null || !scaleEquals(lastscale, mi)) {
+-				screenArea = getAreaForScreen(screen, lat, lon, mi.scale, mi);
++				screenArea = getAreaForScreen(screen, ll, mi.scale, mi);
+ 				lastscale = mi.scale;
+ 			}
+ 			if (screenArea.isOverlapping(mi)) { // is on screen
+ 				if (bestMap == null || !scaleEquals(mi, bestMap)) { // different scale than known bestMap?
+-					if (mi.isInBound(lat, lon) &amp;&amp; (      // more details wanted and this map has more details?                                // less details than bestmap
++					if (mi.isInBound(ll) &amp;&amp; (      // more details wanted and this map has more details?                                // less details than bestmap
+ 							(moreDetails &amp;&amp; (curScale &gt; mi.scale * scaleTolerance) &amp;&amp; (bestMap == null || mi.scale &gt; bestMap.scale * scaleTolerance ) ) // higher resolution wanted and mi has higher res and a lower res than bestmap, because we dont want to overjump one resolution step
+ 							|| (!moreDetails &amp;&amp; (curScale *  scaleTolerance &lt; mi.scale) &amp;&amp; (bestMap == null || mi.scale * scaleTolerance &lt; bestMap.scale) ) // lower resolution wanted and mi has lower res and a higher res than bestmap, because we dont want to overjump one resolution step
+ 					) )	better = true;	// inbound and higher resolution if higher res wanted -&gt; better
+ 				} else { // same scale as bestmap -&gt; look if naerer 
+-					latNearer = java.lang.Math.abs(lat - mi.center.latDec)/mi.sizeKm &lt; minDistLat ;
+-					lonNearer = java.lang.Math.abs(lon - mi.center.lonDec)/mi.sizeKm &lt; minDistLon;
++					latNearer = java.lang.Math.abs(ll.latDec - mi.center.latDec)/mi.sizeKm &lt; minDistLat ;
++					lonNearer = java.lang.Math.abs(ll.lonDec - mi.center.lonDec)/mi.sizeKm &lt; minDistLon;
+ 					if ( latNearer &amp;&amp; lonNearer) better = true; // for faster processing: if lat and lon are nearer then the distancance doesn't need to be calculated
+ 					else {
+ 						if ( (latNearer || lonNearer )) { 
+-							if (bestMap == null || mi.center.getDistanceRad(lat, lon) &lt; bestMap.center.getDistanceRad(lat, lon) ) better = true;
++							if (bestMap == null || mi.center.getDistanceRad(ll) &lt; bestMap.center.getDistanceRad(ll) ) better = true;
+ 						}
+ 					}
+ 				} // same scale
+ 				if (better) {
+-					minDistLat = java.lang.Math.abs(lat - mi.center.latDec)/mi.sizeKm;
+-					minDistLon = java.lang.Math.abs(lon - mi.center.lonDec)/mi.sizeKm;
++					minDistLat = java.lang.Math.abs(ll.latDec - mi.center.latDec)/mi.sizeKm;
++					minDistLon = java.lang.Math.abs(ll.lonDec - mi.center.lonDec)/mi.sizeKm;
+ 					bestMap = mi;
+ 					// Vm.debug(&quot;better&quot;+ i);
+ 				}
+@@ -322,9 +322,9 @@
+ 	 * @param map map for which the screen edges are wanted
+ 	 * @return
+ 	 */
+-	private Area getAreaForScreen(Rect a, double lat, double lon, float scale, MapInfoObject map) {
++	private Area getAreaForScreen(Rect a, CWPoint ll, float scale, MapInfoObject map) {
+ 		Area ret = null;
+-		Point xy = map.calcMapXY(lat, lon);
++		Point xy = map.calcMapXY(ll);
+ 		Point topleft = new Point(xy.x - a.x, xy.y - a.y);
+ 		ret = new Area(map.calcLatLon(topleft), map.calcLatLon(topleft.x+a.width, topleft.y+a.height));
+ 		return ret; 
+
+Modified: trunk/src/CacheWolf/navi/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MovingMap.java	2007-11-15 19:22:56 UTC (rev 1066)
++++ trunk/src/CacheWolf/navi/MovingMap.java	2007-11-16 18:32:23 UTC (rev 1067)
+@@ -59,10 +59,10 @@
+ 	Graphics DistanceImageGraphics;
+ 	AniImage ScaleImage;
+ 	Graphics ScaleImageGraphics;
+-	MapImage posCircle = new MapImage(&quot;position_green.png&quot;);
++	MapSymbol posCircle = new MapSymbol(&quot;position_green.png&quot;, &quot;gps-position&quot;, new CWPoint());
+ 	public static final String MARK_CACHE_IMAGE = &quot;mark_cache.png&quot;;
+ 	int posCircleX = 0, posCircleY = 0, lastCompareX = Integer.MAX_VALUE, lastCompareY = Integer.MAX_VALUE;
+-	double posCircleLat, posCircleLon;
++	//double posCircleLat, posCircleLon;
+ 	FontMetrics fm;
+ 
+ 	boolean dontUpdatePos = false; // this is only internaly used to avoid multi-threading problems
+@@ -135,8 +135,6 @@
+ 		mmp.addImage(posCircle);
+ 		mmp.startDragResolution = 5;
+ 		mapsloaded = false;
+-		posCircleLat = -361;
+-		posCircleLon = -361; // make them invalid
+ 		//updateDistance(); // fill Rect with transparent color
+ 		scaleWanted = 1;
+ 		mapChangeModus = HIGHEST_RESOLUTION_GPS_DEST;
+@@ -162,9 +160,12 @@
+ 		buttonImageLensActivatedZoomOut.setLocation(w - buttonImageLensActivatedZoomOut.getWidth()-10, h/2 - buttonImageLensActivatedZoomOut.getHeight()/2 );
+ 		DistanceImage.setLocation(0, h - DistanceImage.getHeight());
+ 		ScaleImage.setLocation(w - ScaleImage.getWidth(), h - ScaleImage.getHeight());
+-		if (mmp.mapImage != null) mmp.mapImage.move(mmp.mapImage.locAlways.x, mmp.mapImage.locAlways.y); // this is necessary to make a new decision if it is still on the screen (and actually mor important because MapImage only now gets to know the screen size) 
+-		if (posCircle != null) posCircle.move(posCircle.locAlways.x, posCircle.locAlways.y); // this is necessary to make a new decision if it is still on the screen (and actually mor important because MapImage only now gets to know the screen size) 
++		if (mmp.mapImage != null) mmp.mapImage.screenDimChanged(); 
++		if (posCircle != null) posCircle.screenDimChanged(); 
+ 		if (tracks != null) addOverlaySet();
++		for (int i = symbols.size() -1; i &gt;= 0; i-- ) {
++			((MapSymbol)symbols.get(i)).screenDimChanged();
++		}
+ 	}
+ 
+ 	boolean loadingMapList = false;
+@@ -237,9 +238,9 @@
+ 	public void updateDistance(boolean repaint) {
+ 		DistanceImageGraphics.setColor(DistanceImage.transparentColor);
+ 		DistanceImageGraphics.fillRect(0, 0, DistanceImage.location.width,DistanceImage.location.height);
+-		if (gotoPos != null &amp;&amp; posCircleLat &gt;= -360)
++		if (gotoPos != null &amp;&amp; posCircle.where.isValid())
+ 		{
+-			double currentDistance = (new CWPoint(gotoPos.lat, gotoPos.lon).getDistance(posCircleLat, posCircleLon));
++			double currentDistance = gotoPos.where.getDistance(posCircle.where);
+ 			if (currentDistance != lastDistance)
+ 			{
+ 				lastDistance = currentDistance;
+@@ -285,7 +286,7 @@
+ 
+ 	public void forceMapLoad() {
+ 		forceMapLoad = true;
+-		updatePosition(posCircleLat, posCircleLon); // this sets forceMapLoad to false after loading a map
++		updatePosition(posCircle.where); // this sets forceMapLoad to false after loading a map
+ 	}
+ 
+ 	public final FormFrame myExec() {
+@@ -300,7 +301,7 @@
+ 				ch = (CacheHolder) cacheDB.get(i);
+ 				if (ch.is_Checked &amp;&amp; !ch.is_filtered &amp;&amp; ch != mainT.ch) {
+ 					int ct = Convert.parseInt(ch.type);
+-					addSymbol(ch.CacheName, ch, myTableModel.cacheImages[ct], ch.pos.latDec, ch.pos.lonDec);
++					if (ch.pos.isValid()) addSymbol(ch.CacheName, ch, myTableModel.cacheImages[ct], ch.pos);
+ 				}
+ 			}
+ 		}
+@@ -321,9 +322,9 @@
+ 			if (!markedCache.is_Checked) removeMapSymbol(markedCache);
+ 		}
+ 		if (ch != null) {
+-			addSymbol(&quot;selectedCache&quot;, MARK_CACHE_IMAGE, ch.pos.latDec, ch.pos.lonDec);
++			addSymbol(&quot;selectedCache&quot;, MARK_CACHE_IMAGE, ch.pos);
+ 			int ct = Convert.parseInt(ch.type);
+-			addSymbolIfNecessary(ch.CacheName, ch, myTableModel.cacheImages[ct], ch.pos.latDec, ch.pos.lonDec);
++			addSymbolIfNecessary(ch.CacheName, ch, myTableModel.cacheImages[ct], ch.pos);
+ 		}
+ 		markedCache = ch;
+ 	}
+@@ -370,14 +371,14 @@
+ 
+ 
+ 	public void addMissingOverlays() {
+-		if (currentMap == null || posCircleLat &lt; -360 || width == 0 || height == 0) return; // height == 0 happens if this is called before the form ist displayed on the screen
++		if (currentMap == null || (!posCircle.where.isValid()) || width == 0 || height == 0) return; // height == 0 happens if this is called before the form ist displayed on the screen
+ 		if (TrackOverlays == null) {
+ 			TrackOverlays = new TrackOverlay[9];
+ 			TrackOverlaySetCenterTopLeft = ScreenXY2LatLon(100, 100);
+ 		}
+ 		boolean saveGPSIgnoreStatus = dontUpdatePos; // avoid multi-threading problems
+ 		dontUpdatePos = true;
+-		Point upperleftOf4 = getXYonScreen(TrackOverlaySetCenterTopLeft.latDec, TrackOverlaySetCenterTopLeft.lonDec); // TrackOverlay[4] == center of Trackoverlays 
++		Point upperleftOf4 = getXYonScreen(TrackOverlaySetCenterTopLeft); // TrackOverlay[4] == center of Trackoverlays 
+ 		//upperleftOf4.x = (upperleftOf4.x + 1* width) % (width * 2) - 1 * width;
+ 		//upperleftOf4.y = (upperleftOf4.y + 1* height) % (height * 2) - 1 * height;
+ 		int i;
+@@ -405,7 +406,7 @@
+ 		TrackOverlays[ov]=null;
+ 	}
+ 	public void rearangeOverlays() {
+-		Point oldp = getXYonScreen(TrackOverlaySetCenterTopLeft.latDec, TrackOverlaySetCenterTopLeft.lonDec);
++		Point oldp = getXYonScreen(TrackOverlaySetCenterTopLeft);
+ 		if (TrackOverlays[1].isOnScreen()) { // oben raus
+ 			TrackOverlaySetCenterTopLeft.set(ScreenXY2LatLon(oldp.x, oldp.y - 2* height));
+ 			destroyOverlay(6);
+@@ -570,7 +571,7 @@
+ 		if (TrackOverlays == null || TrackOverlays[4] == null) return;
+ 		//	Point upperleft = getMapXYPosition();
+ 		Point posOnScreen;
+-		posOnScreen = getXYonScreen(TrackOverlays[4].topLeft.latDec, TrackOverlays[4].topLeft.lonDec);
++		posOnScreen = getXYonScreen(TrackOverlays[4].topLeft);
+ 		Dimension ws = mmp.getSize(null);
+ 		int ww = ws.width;
+ 		int wh = ws.height;
+@@ -626,7 +627,7 @@
+ 
+ 	public void moveScreenXYtoLatLon(Point s, CWPoint c, boolean repaint) {
+ 		Point mappos = getMapPositionOnScreen();
+-		Point onscreenpos = getXYonScreen(c.latDec, c.lonDec);
++		Point onscreenpos = getXYonScreen(c);
+ 		if (mmp != null &amp;&amp; mmp.mapImage != null) mmp.mapImage.move(mappos.x - onscreenpos.x + s.x, mappos.y - onscreenpos.y + s.y);
+ 		mapMoved(s.x - onscreenpos.x, s.y - onscreenpos.y);
+ 		if (repaint) mmp.repaintNow();
+@@ -658,11 +659,11 @@
+ 	 * @return
+ 	 */
+ 	public Point getMapPositionOnScreen() {
+-		if (currentMap == null || posCircleLon &lt; -360) return new Point(pref.myAppWidth +1, pref.myAppHeight +1); // in case no calculation is possible return somthing outside of the screen
++		if (currentMap == null || !posCircle.where.isValid()) return new Point(pref.myAppWidth +1, pref.myAppHeight +1); // in case no calculation is possible return somthing outside of the screen
+ 		Point mapPos = new Point(); 
+ 		//if (mmp.mapImage != null) mmp.mapImage.getLocation(mapPos);
+ 		//else {
+-		Point mapposint = currentMap.calcMapXY(posCircleLat, posCircleLon);
++		Point mapposint = currentMap.calcMapXY(posCircle.where);
+ 		mapPos.x = posCircleX - mapposint.x;
+ 		mapPos.y = posCircleY - mapposint.y;
+ 		//}
+@@ -675,9 +676,9 @@
+ 	 * @param lon
+ 	 * @return
+ 	 */
+-	public Point getXYonScreen(double lat, double lon){
++	public Point getXYonScreen(TrackPoint ll){
+ 		if (currentMap == null) return null;
+-		Point coords = currentMap.calcMapXY(lat, lon);
++		Point coords = currentMap.calcMapXY(ll);
+ 		Point mapPos = getMapPositionOnScreen();
+ 		//		Vm.debug(&quot;getXYinMap, posCiLat: &quot;+posCircleLat+&quot;poscLOn: &quot;+ posCircleLon+&quot;gotoLat: &quot;+ lat + &quot;gotoLon: &quot;+ lon+&quot; mapPosX: &quot;+mapPos.x+&quot;mapposY&quot;+mapPos.y);
+ 		return new Point(coords.x + mapPos.x, coords.y + mapPos.y);
+@@ -693,50 +694,39 @@
+ 		if (symbols == null) return;
+ 		Point pOnScreen;
+ 		MapSymbol symb;
+-		int ww = this.width;
+-		int wh = this.height;
+ 		int w, h;
+ 		for (int i=symbols.size()-1; i&gt;=0; i--) {
+ 			symb = (MapSymbol)symbols.get(i);
+-			pOnScreen = getXYonScreen(symb.lat, symb.lon);
++			pOnScreen = getXYonScreen(symb.where);
+ 			w=symb.getWidth();
+ 			h=symb.getHeight();
+-			if (pOnScreen.x+w &gt;= 0 &amp;&amp; pOnScreen.x &lt;= ww &amp;&amp; pOnScreen.y+h &gt;= 0 &amp;&amp;  pOnScreen.y &lt;= wh) 
+-			{
+-				symb.properties &amp;= ~mImage.IsInvisible;
+-				symb.move(pOnScreen.x-w/2, pOnScreen.y-h/2);
+-			}
+-			else 
+-			{symb.properties |= mImage.IsInvisible;
+-			symb.move(30, 30);
+-			}
+-			//symb.pic.move(ww+1, wh+1);
++			symb.move(pOnScreen.x-w/2, pOnScreen.y-h/2);
+ 		}
+ 	}
+ 
+-	public MapSymbol addSymbol(String name, String filename, double lat, double lon) {
++	public MapSymbol addSymbol(String name, String filename, CWPoint where) {
+ 		if (symbols==null) symbols=new Vector();
+-		MapSymbol ms = new MapSymbol(name, filename, lat, lon);
++		MapSymbol ms = new MapSymbol(name, filename, where);
+ 		ms.loadImage();
+ 		ms.properties |= AniImage.AlwaysOnTop;
+-		Point pOnScreen = getXYonScreen(lat, lon);
++		Point pOnScreen = getXYonScreen(where);
+ 		ms.setLocation(pOnScreen.x-ms.getWidth()/2, pOnScreen.y-ms.getHeight()/2);
+ 		symbols.add(ms);
+ 		mmp.addImage(ms);
+ 		return ms;
+ 	}
+ 	
+-	public void addSymbolIfNecessary(String name, Object mapObject, Image imSymb, double lat, double lon) {
++	public void addSymbolIfNecessary(String name, Object mapObject, Image imSymb, CWPoint where) {
+ 		if (findMapSymbol(name) &gt;= 0) return;
+-		else addSymbol(name, mapObject, imSymb, lat, lon);
++		else addSymbol(name, mapObject, imSymb, where);
+ 		
+ 	}
+ 		
+-	public void addSymbol(String name, Object mapObject, Image imSymb, double lat, double lon) {
++	public void addSymbol(String name, Object mapObject, Image imSymb, CWPoint ll) {
+ 		if (symbols==null) symbols=new Vector();
+-		MapSymbol ms = new MapSymbol(name, mapObject, imSymb, lat, lon);
++		MapSymbol ms = new MapSymbol(name, mapObject, imSymb, ll);
+ 		ms.properties = AniImage.AlwaysOnTop;
+-		Point pOnScreen=getXYonScreen(lat, lon);
++		Point pOnScreen = getXYonScreen(ll);
+ 		if (pOnScreen != null) ms.setLocation(pOnScreen.x-ms.getWidth()/2, pOnScreen.y-ms.getHeight()/2);
+ 		symbols.add(ms);
+ 		mmp.addImage(ms);
+@@ -744,13 +734,13 @@
+ 
+ 	public void destChanged(CWPoint d) {
+ 		if(!running || (d == null &amp;&amp; gotoPos == null) || 
+-				(d != null &amp;&amp; gotoPos != null &amp;&amp; d.latDec == gotoPos.lat &amp;&amp; d.lonDec == gotoPos.lon)) return;
++				(d != null &amp;&amp; gotoPos != null &amp;&amp; gotoPos.where.equals(d))) return;
+ 		removeGotoPosition();
+ 		if (d == null || !d.isValid() ) return;
+-		gotoPos = addSymbol(&quot;goto&quot;, &quot;goto_map.png&quot;, d.latDec, d.lonDec);
++		gotoPos = addSymbol(&quot;goto&quot;, &quot;goto_map.png&quot;, d);
+ 		//updateDistance(); - this is called from updatePosition
+ 		forceMapLoad = true;
+-		if (this.width != 0) updatePosition(posCircleLat, posCircleLon); // dirty hack: if this.width == 0, then the symbols are not on the screen and get hidden by updateSymbolPositions
++		if (this.width != 0) updatePosition(posCircle.where); // dirty hack: if this.width == 0, then the symbols are not on the screen and get hidden by updateSymbolPositions
+ 	}
+ 
+ 	public void removeGotoPosition() {
+@@ -759,7 +749,7 @@
+ 
+ 	public CWPoint getGotoPos(){
+ 		if (gotoPos == null) return null;
+-		return new CWPoint(gotoPos.lat, gotoPos.lon);
++		return new CWPoint(gotoPos.where);
+ 	}
+ 
+ 	public void removeAllMapSymbolsButGoto(){
+@@ -812,10 +802,9 @@
+ 	 * 
+ 	 * @param  
+ 	 */
+-	public void updateOnlyPosition(double lat, double lon, boolean updateOverlay){
++	public void updateOnlyPosition(CWPoint where, boolean updateOverlay){
+ 		//Point oldMapPos = getMapPositionOnScreen();
+-		posCircleLat = lat;
+-		posCircleLon = lon;
++		posCircle.where.set(where);
+ 		Point mapPos = getMapPositionOnScreen();
+ 		//Vm.debug(&quot;mapx = &quot; + mapx);
+ 		//Vm.debug(&quot;mapy = &quot; + mapy);
+@@ -837,19 +826,19 @@
+ 	/**
+ 	 * Method to laod the best map for lat/lon and move the map so that the posCircle is at lat/lon
+ 	 */
+-	public void updatePosition(double lat, double lon){
++	public void updatePosition(CWPoint where){
+ 		if (dontUpdatePos || loadingMapList) return; // avoid multi-threading problems
+-		Vm.debug(&quot;updatepos, lat: &quot;+lat+&quot; lon: &quot;+lon);
++		Vm.debug(&quot;updatepos, lat: &quot;+where.latDec+&quot; lon: &quot;+where.lonDec);
+ 		if (!mapsloaded) {
+-			loadMaps(Global.getPref().getMapLoadPath(), lat);
++			loadMaps(Global.getPref().getMapLoadPath(), where.latDec);
+ 			lastCompareX = Integer.MAX_VALUE;
+ 			lastCompareY = Integer.MAX_VALUE;
+ 			autoSelectMap = true;
+-			setBestMap(lat, lon, true);
++			setBestMap(where, true);
+ 			forceMapLoad = false;
+ 			return;
+ 		}
+-		updateOnlyPosition(lat, lon, true);
++		updateOnlyPosition(where, true);
+ 		if (!autoSelectMap) return;
+ 		Point mapPos = getMapPositionOnScreen();
+ 		boolean screenNotCompletlyCovered =  mmp.mapImage == null || (mmp.mapImage != null &amp;&amp; ( mapPos.y &gt; 0 || mapPos.x &gt; 0 || mapPos.y+mmp.mapImage.getHeight()&lt;this.height	|| mapPos.x+mmp.mapImage.getWidth()&lt;this.width));
+@@ -859,7 +848,7 @@
+ 				// more then 1/10 of screen moved since last time we tried to find a better map
+ 				lastCompareX = mapPos.x;
+ 				lastCompareY = mapPos.y;
+-				setBestMap(lat, lon, screenNotCompletlyCovered);
++				setBestMap(where, screenNotCompletlyCovered);
+ 				forceMapLoad = false;
+ 			}
+ 		}
+@@ -872,7 +861,7 @@
+ 			directionArrows.setDirections((float)myNavigation.gpsPos.getBearing(myNavigation.destination),
+ 					(float)myNavigation.skyOrientationDir.lonDec, (float)myNavigation.gpsPos.getBear());
+ 			setGpsStatus(MovingMap.gotFix);
+-			updatePosition(myNavigation.gpsPos.latDec, myNavigation.gpsPos.lonDec);
++			updatePosition(myNavigation.gpsPos);
+ 			ShowLastAddedPoint(myNavigation.curTrack);
+ 		}
+ 		if (fix == 0 &amp;&amp; myNavigation.gpsPos.getSats()== 0) 	setGpsStatus(MovingMap.lostFix);
+@@ -909,10 +898,10 @@
+ 	 * @param loadIfSameScale false: will not change the map if the better map has the same scale as the current - this is used not to change the map if it covers already the screen completely
+ 	 * true: willchange the map, regardless of change in scale
+ 	 */
+-	public void setBestMap(double lat, double lon, boolean loadIfSameScale) {
++	public void setBestMap(CWPoint where, boolean loadIfSameScale) {
+ 		if (inBestMap) return;
+ 		inBestMap = true;
+-		Object [] s = getRectForMapChange(lat, lon);
++		Object [] s = getRectForMapChange(where);
+ 		CWPoint cll = (CWPoint) s[0]; 
+ 		Rect screen = (Rect) s[1]; 
+ 		MapInfoObject newmap = null;
+@@ -920,25 +909,25 @@
+ 		wantMapTest = true;
+ 		switch (mapChangeModus) {
+ 		case NORMAL_KEEP_RESOLUTION: 
+-			newmap = maps.getBestMap(cll.latDec, cll.lonDec, screen, scaleWanted, false);
++			newmap = maps.getBestMap(cll, screen, scaleWanted, false);
+ 			if (newmap == null) newmap = currentMap;
+ 			if (MapsList.scaleEquals(scaleWanted, newmap)) wantMapTest = false;
+ 			break;
+-		case HIGHEST_RESOLUTION: newmap = maps.getBestMap(cll.latDec, cll.lonDec, screen, 0.000001f, false); break;
++		case HIGHEST_RESOLUTION: newmap = maps.getBestMap(cll, screen, 0.000001f, false); break;
+ 		case HIGHEST_RESOLUTION_GPS_DEST: 
+-			if (gotoPos!= null &amp;&amp; GpsStatus != noGPS &amp;&amp; posCircleLat&gt;= -90 &amp;&amp; posCircleLat &lt;= 90 &amp;&amp; posCircleLon &gt;= -360 &amp;&amp; posCircleLon &lt;= 360) {
+-				newmap = maps.getMapForArea(new CWPoint(posCircleLat, posCircleLon), new CWPoint(gotoPos.lat, gotoPos.lon)); // TODO use home-coos if no gps? - consider start from details panel and from gotopanel
+-				if (newmap == null) newmap = maps.getBestMap(cll.latDec, cll.lonDec, screen, 10000000000000000000000000000000000f, false); // use map with most available overview if no map containing PosCircle and GotoPos is available
++			if (gotoPos!= null &amp;&amp; GpsStatus != noGPS &amp;&amp; posCircle.where.isValid()) {
++				newmap = maps.getMapForArea(posCircle.where, gotoPos.where); // TODO use home-coos if no gps? - consider start from details panel and from gotopanel
++				if (newmap == null) newmap = maps.getBestMap(cll, screen, 10000000000000000000000000000000000f, false); // use map with most available overview if no map containing PosCircle and GotoPos is available
+ 			}
+ 			//	either Goto-Pos or GPS-Pos not set
+-			else newmap = maps.getBestMap(cll.latDec, cll.lonDec, screen, 0.000001f, false); 
++			else newmap = maps.getBestMap(cll, screen, 0.000001f, false); 
+ 			break;
+ 		default: (new MessageBox(&quot;Error&quot;, &quot;Programmfehler: \nillegal mapChangeModus: &quot; + mapChangeModus, MessageBox.OKB)).execute(); break;
+ 		}
+ 		if ( newmap != null &amp;&amp; (currentMap == null || !currentMap.mapName.equals(newmap.mapName)) ) {
+ 			if (loadIfSameScale || !MapsList.scaleEquals(currentMap.scale / currentMap.zoomFactor, newmap) ) {
+ 				Vm.debug(&quot;better map found&quot;);
+-				setMap(newmap, lat, lon);
++				setMap(newmap, where);
+ 				moveScreenXYtoLatLon(new Point(screen.x, screen.y), cll, true);
+ 			}
+ 			inBestMap = false;
+@@ -946,11 +935,10 @@
+ 		}
+ 		if (currentMap == null &amp;&amp; newmap == null) {
+ 			// (new MessageBox(&quot;Information&quot;, &quot;F&#252;r die aktuelle Position steht keine Karte zur Verf&#252;ng, bitte w&#228;hlen Sie eine manuell&quot;, MessageBox.OKB)).execute();
+-			posCircleLat = cll.latDec;
+-			posCircleLon = cll.lonDec; // choosemap calls setmap with posCircle-coos
++			posCircle.where.set(cll); // choosemap calls setmap with posCircle-coos
+ 			try {
+-				setMap( ((MapListEntry)maps.elementAt(maps.getCount() - 4)).getMap(), lat, lon); // beware: &quot;-4&quot; only works if the empty maps were added last see MapsList.addEmptyMaps
+-			} catch (IOException e) { (new MessageBox(&quot;Error&quot;, &quot;setBestMap: problem in: setMap( ((MapListEntry)maps.elementAt(maps.getCount() - 4)).getMap(), lat, lon) lat/lon:&quot; + lat+&quot;/&quot;+lon, MessageBox.OKB)).exec(); }
++				setMap( ((MapListEntry)maps.elementAt(maps.getCount() - 4)).getMap(), where); // beware: &quot;-4&quot; only works if the empty maps were added last see MapsList.addEmptyMaps
++			} catch (IOException e) { (new MessageBox(&quot;Error&quot;, &quot;setBestMap: problem in: setMap( ((MapListEntry)maps.elementAt(maps.getCount() - 4)).getMap(), lat, lon) lat/lon:&quot; + where.toString(), MessageBox.OKB)).exec(); }
+ 			while (currentMap == null) {
+ 				mmp.chooseMap(); // force the user to select a scale // TODO empty maps on top?
+ 				if (currentMap == null) (new MessageBox(&quot;Error&quot;, &quot;Moving map cannot run without a map - please select one. \n You can select an empty map&quot;, MessageBox.OKB)).execute();
+@@ -963,7 +951,7 @@
+ 		scaleWanted = currentMap.scale;
+ 		if (mapChangeModus == modus) return;
+ 		mapChangeModus = modus;
+-		if (modus != NORMAL_KEEP_RESOLUTION) setBestMap(posCircleLat, posCircleLon, true);
++		if (modus != NORMAL_KEEP_RESOLUTION) setBestMap(posCircle.where, true);
+ 	}
+ 	/**
+ 	 * method to get a point on the screen which must be included in the map
+@@ -975,7 +963,7 @@
+ 	 * @param lon
+ 	 * @return
+ 	 */
+-	public Object[] getRectForMapChange(double lat, double lon) {
++	public Object[] getRectForMapChange(CWPoint ll) {
+ 		int w = (width != 0 ? width : pref.myAppWidth); // width == 0 happens if this routine is run before the windows is on the screen
+ 		int h = (height != 0 ? height : pref.myAppHeight);
+ 		int x, y;
+@@ -983,7 +971,7 @@
+ 		if (posCircleX &gt;= 0 &amp;&amp; posCircleX &lt;= w &amp;&amp; posCircleY &gt;= 0 &amp;&amp; posCircleY &lt;= h) {
+ 			x = posCircleX; // posCircle is inside the screen
+ 			y = posCircleY; // TODO eigentlich interessiert, ob nach dem evtl. Kartenwechsel PosCircle on Screen ist. So wie es jetzt ist, kann 2mal der gleiche Aufruf zum laden unterschiedlicher Karten f&#252;hren, wenn vorher PosCircle nicht auf dem SChirm war, nach dem ersten Laden aber schon.
+-			cll = new CWPoint(lat, lon);
++			cll = new CWPoint(ll);
+ 		} else { // when posCircle out of screen - use centre of screen as point which as to be included in the map
+ 			cll = ScreenXY2LatLon(w/2, h/2);
+ 			x = w/2;
+@@ -1001,15 +989,15 @@
+ 	 * @return
+ 	 */
+ 	public void loadMoreDetailedMap(boolean betterOverview){
+-		Object [] s = getRectForMapChange(posCircleLat, posCircleLon);
++		Object [] s = getRectForMapChange(posCircle.where);
+ 		CWPoint cll = (CWPoint) s[0]; 
+ 		Rect screen = (Rect) s[1]; 
+ 		//Rect screen = new Rect(posCircleX, posCircleY, (width != 0 ? width : pref.myAppWidth), (height != 0 ? height : pref.myAppHeight));
+-		MapInfoObject m = maps.getMapChangeResolution(cll.latDec, cll.lonDec, screen, currentMap.scale / currentMap.zoomFactor, !betterOverview);
++		MapInfoObject m = maps.getMapChangeResolution(cll, screen, currentMap.scale / currentMap.zoomFactor, !betterOverview);
+ 		if (m != null) {
+ 			boolean saveGpsIgnStatus = dontUpdatePos;
+ 			dontUpdatePos = true;
+-			setMap(m, posCircleLat, posCircleLon);
++			setMap(m, posCircle.where);
+ 			setResModus(MovingMap.NORMAL_KEEP_RESOLUTION);
+ 			dontUpdatePos = saveGpsIgnStatus;
+ 		}
+@@ -1024,14 +1012,14 @@
+ 		}
+ 		MapInfoObject newmap = maps.getMapForArea(sur.topleft, sur.buttomright);
+ 		if (newmap == null ) { // no map that includs all caches is available -&gt; load map with lowest resolution
+-			Object [] s = getRectForMapChange(posCircleLat, posCircleLon);
++			Object [] s = getRectForMapChange(posCircle.where);
+ 			CWPoint cll = (CWPoint) s[0]; 
+ 			Rect screen = (Rect) s[1]; 
+-			newmap = maps.getBestMap(cll.latDec, cll.lonDec, screen, Float.MAX_VALUE -1, false);
++			newmap = maps.getBestMap(cll, screen, Float.MAX_VALUE -1, false);
+ 		}
+ 		boolean saveGpsIgnStatus = dontUpdatePos;
+ 		dontUpdatePos = true;
+-		setMap(newmap, posCircleLat, posCircleLon);
++		setMap(newmap, posCircle.where);
+ 		setResModus(MovingMap.NORMAL_KEEP_RESOLUTION);
+ 		dontUpdatePos = saveGpsIgnStatus;
+ 	}
+@@ -1059,7 +1047,7 @@
+ 		autoSelectMap = true;
+ 		forceMapLoad = true;
+ 		showMap();
+-		if (myNavigation.gpsPos.Fix &lt;=0) updatePosition(posCircleLat, posCircleLon);
++		if (myNavigation.gpsPos.Fix &lt;=0) updatePosition(posCircle.where);
+ 		else updateGps(myNavigation.gpsPos.getFix());
+ 	}
+ 
+@@ -1069,9 +1057,9 @@
+ 	 * @param lat move map so that lat/lon is in the centre / -361: don't adust to lat/lon
+ 	 * @param lon -361: don't adust to lat/lon
+ 	 */
+-	public void setMap(MapInfoObject newmap, double lat, double lon) {
++	public void setMap(MapInfoObject newmap, CWPoint where) {
+ 		if (currentMap != null &amp;&amp; newmap.mapName.equals(currentMap.mapName) &amp;&amp; !forceMapLoad) { // note: newmap.mapName == currentMap.mapName won't work because they are different String containing the same text 
+-			updateOnlyPosition(lat, lon, true); 
++			updateOnlyPosition(where, true); 
+ 			return;
+ 		}
+ 		Vm.showWait(true);
+@@ -1112,7 +1100,7 @@
+ 			mmp.images.moveToBack(mmp.mapImage);
+ 			addOverlaySet();
+ 			forceMapLoad = true; // forces updateOnlyPosition to redraw
+-			updateOnlyPosition(lat, lon, false);
++			updateOnlyPosition(where, false);
+ 			forceMapLoad = false;
+ 			directionArrows.setMap(currentMap);
+ 			updateScale();
+@@ -1126,7 +1114,7 @@
+ 				mmp.mapImage = null; mapImage1to1 = mmp.mapImage;
+ 			}
+ 			addOverlaySet();
+-			updateOnlyPosition(lat, lon, false);
++			updateOnlyPosition(where, false);
+ 			inf.close(0);
+ 			Vm.showWait(false);
+ 			(new MessageBox(&quot;Error&quot;, &quot;Could not load map: &quot;+ newmap.getImageFilename(), MessageBox.OKB)).execute();
+@@ -1138,7 +1126,7 @@
+ 				mmp.mapImage = null; mapImage1to1 = mmp.mapImage;
+ 			}
+ 			addOverlaySet();
+-			updateOnlyPosition(lat, lon, false);
++			updateOnlyPosition(where, false);
+ 			inf.close(0);
+ 			Vm.showWait(false);
+ 			(new MessageBox(&quot;Error&quot;, &quot;Not enough memory to load map: &quot;+ newmap.getImageFilename()+&quot;\nYou can try to close\n all prgrams and \nrestart CacheWolf&quot;, MessageBox.OKB)).execute();
+@@ -1150,7 +1138,7 @@
+ 				mmp.mapImage = null; mapImage1to1 = mmp.mapImage;
+ 			}
+ 			addOverlaySet();
+-			updateOnlyPosition(lat, lon, false); // TODO this doesn't work correctly if the resolution changed, I guess because the pixels of PosCircle will be interpreted from the new resolution, but should be interpreted using the old resolution to test: select a map with a much greater value of m per pixel manually 
++			updateOnlyPosition(where, false); // TODO this doesn't work correctly if the resolution changed, I guess because the pixels of PosCircle will be interpreted from the new resolution, but should be interpreted using the old resolution to test: select a map with a much greater value of m per pixel manually 
+ 			inf.close(0);
+ 			Vm.showWait(false);
+ 			(new MessageBox(&quot;Error&quot;, &quot;Not enough ressources to load map: &quot;+ newmap.getImageFilename()+&quot;\nYou can try to close\n all prgrams and \nrestart CacheWolf&quot;, MessageBox.OKB)).execute();
+@@ -1484,7 +1472,7 @@
+ 	public void doPaint(Graphics g,Rect area) {
+ 		super.doPaint(g, area);
+ 		if (mm.gotoPos != null) {
+-			Point dest = mm.getXYonScreen(mm.gotoPos.lat, mm.gotoPos.lon);
++			Point dest = mm.getXYonScreen(mm.gotoPos.where);
+ 			g.setPen(new Pen(Color.DarkBlue, Pen.SOLID, 3));
+ 			g.drawLine(mm.posCircleX, mm.posCircleY, dest.x, dest.y);
+ 		}
+@@ -1498,14 +1486,14 @@
+ 		if(l.execute() == FormBase.IDOK){
+ //			Vm.debug(&quot;Trying map: &quot; + l.selectedMap.fileName);
+ 			mm.autoSelectMap = false;
+-			if (l.selectedMap.isInBound(mm.posCircleLat, mm.posCircleLon) || l.selectedMap.getImageFilename().length()==0) {
+-				mm.setMap(l.selectedMap, mm.posCircleLat, mm.posCircleLon);
++			if (l.selectedMap.isInBound(mm.posCircle.where) || l.selectedMap.getImageFilename().length()==0) {
++				mm.setMap(l.selectedMap, mm.posCircle.where);
+ 				mm.setResModus(MovingMap.NORMAL_KEEP_RESOLUTION);
+ 				mm.ignoreGps = false;
+ 			} else {
+ 				mm.setGpsStatus(MovingMap.noGPS);
+ 				mm.ignoreGps = true;
+-				mm.setMap(l.selectedMap, mm.posCircleLat, mm.posCircleLon); 
++				mm.setMap(l.selectedMap, mm.posCircle.where); 
+ 				if (mm.currentMap.fileNameWFL.length() &gt; 0)
+ 					mm.setCenterOfScreen(l.selectedMap.center, true); // if map has an image
+ 				mm.setResModus(MovingMap.NORMAL_KEEP_RESOLUTION);
+@@ -1641,7 +1629,7 @@
+ 							fc.setTitle((String)MyLocale.getMsg(4200,&quot;Select map directory:&quot;));
+ 							if(fc.execute() != FileChooser.IDCANCEL){
+ 								Global.getPref().saveCustomMapsPath(fc.getChosen().toString());
+-								mm.loadMaps(Global.getPref().getMapLoadPath(), mm.posCircleLat);
++								mm.loadMaps(Global.getPref().getMapLoadPath(), mm.posCircle.where.latDec);
+ 								mm.forceMapLoad();
+ 							}
+ 						}
+@@ -1688,7 +1676,7 @@
+ 						}
+ 						if (action == moveToDestMI) {
+ 							mapsMenu.close();
+-							mm.setCenterOfScreen(new CWPoint(mm.gotoPos.lat, mm.gotoPos.lon), true);
++							mm.setCenterOfScreen(mm.gotoPos.where, true);
+ 						}
+ 						if (action == moveToGpsMI) {
+ 							mapsMenu.close();
+
+Modified: trunk/src/CacheWolf/navi/TrackOverlay.java
+===================================================================
+--- trunk/src/CacheWolf/navi/TrackOverlay.java	2007-11-15 19:22:56 UTC (rev 1066)
++++ trunk/src/CacheWolf/navi/TrackOverlay.java	2007-11-16 18:32:23 UTC (rev 1067)
+@@ -165,9 +165,7 @@
+ 
+ 	public TrackPoint calcLatLonInImage (double x, double y) {
+ 		// see trans.calcLatLon(p);
+-		TrackPoint ll = new TrackPoint(); 
+-		ll.latDec = (double)x * trans.affine[0] + (double)y * trans.affine[2] + topLeft.latDec;
+-		ll.lonDec = (double)x * trans.affine[1] + (double)y * trans.affine[3] + topLeft.lonDec;
++		TrackPoint ll = new TrackPoint(trans.calcLatLon((int)x, (int)y)); 
+ 		return ll;
+ 	}
+ 
+
+Modified: trunk/src/CacheWolf/navi/TrackPoint.java
+===================================================================
+--- trunk/src/CacheWolf/navi/TrackPoint.java	2007-11-15 19:22:56 UTC (rev 1066)
++++ trunk/src/CacheWolf/navi/TrackPoint.java	2007-11-16 18:32:23 UTC (rev 1067)
+@@ -33,6 +33,15 @@
+ 	public boolean equals(TrackPoint tp) {
+ 		return latDec == tp.latDec &amp;&amp; lonDec == tp.lonDec;
+ 	}
++	
++	/**
++	 * Returns true if the coordinates are valid
++	 */
++	public boolean isValid() {
++		return 	latDec &lt;= 90.0 &amp;&amp; latDec &gt;= -90.0 &amp;&amp;
++				lonDec &lt;= 360 &amp;&amp; lonDec &gt;= -360;
++	}
+ 
++
+ }
+ 
+
+Modified: trunk/src/CacheWolf/navi/TransformCoordinates.java
+===================================================================
+--- trunk/src/CacheWolf/navi/TransformCoordinates.java	2007-11-15 19:22:56 UTC (rev 1066)
++++ trunk/src/CacheWolf/navi/TransformCoordinates.java	2007-11-16 18:32:23 UTC (rev 1067)
+@@ -110,14 +110,14 @@
+ 	 * @return
+ 	 */
+ 	public static CWPoint germanGkToWgs84(GkPoint gk) {
+-/*		if (gk.northing &lt;= 6089288.064 &amp;&amp; gk.northing &gt;= 5585291.767 &amp;&amp; // these coordinates are transformed ones from the invers routine
++		if (gk.northing &lt;= 6089288.064 &amp;&amp; gk.northing &gt;= 5585291.767 &amp;&amp; // these coordinates are transformed ones from the invers routine
+ 				( gk.getStripe() == 4 &amp;&amp; gk.getGkEasting() &gt;= 4404124.247 &amp;&amp; gk.getGkEasting() &lt;= 4679300.398) ||
+ 				( gk.getStripe() == 5 &amp;&amp; gk.getGkEasting() &gt;= 5211904.597 &amp;&amp; gk.getGkEasting() &lt;= 5466056.603)
+ 			) return gkToWgs84(gk, GK_GERMANY_2001);
+ 		if (gk.northing &lt;= 6097247.910 &amp;&amp; gk.northing &gt;= 5800464.725 )return gkToWgs84(gk, GK_NORD_GERMANY);
+ 		if (gk.northing &lt;= 5800464.725 &amp;&amp; gk.northing &gt;= 5577963.555 )return gkToWgs84(gk, GK_NORD_GERMANY);
+ 		if (gk.northing &lt;= 5577963.555 &amp;&amp; gk.northing &gt;= 5207294.028 )return gkToWgs84(gk, GK_NORD_GERMANY);
+-	*/	return  gkToWgs84(gk, GK_GERMANY_2001); 	//TODO use more lokalized transformparameters, which can be obtained from the Landesvermessungs&#228;mter
++		return  gkToWgs84(gk, GK_GERMANY_2001); 	//TODO use more lokalized transformparameters, which can be obtained from the Landesvermessungs&#228;mter
+ 	}
+ 
+ 	/**
+@@ -134,12 +134,12 @@
+ 		return  wgs84ToGk(ll, getGermanGkTransformParameters(ll)); 	
+ 	}
+ 	
+-	public static TransformParameters getGermanGkTransformParameters(CWPoint ll) {
+-	/*	if (FORMER_GDR.isInBound(ll)) return GK_GERMANY_2001; // exlcude former GDR from the splitting germany in north/middel/south
++	public static TransformParameters getGermanGkTransformParameters(TrackPoint ll) {
++		if (FORMER_GDR.isInBound(ll)) return GK_GERMANY_2001; // exlcude former GDR from the splitting germany in north/middel/south
+ 		if (ll.latDec &lt;= 55 &amp;&amp; ll.latDec &gt;= 52.33333334 ) return  GK_NORD_GERMANY;
+ 		if (ll.latDec &lt;= 52.33333334  &amp;&amp; ll.latDec &gt;= 50.33333334 ) return  GK_MID_GERMANY;
+ 		if (ll.latDec &lt;= 50.33333334  &amp;&amp; ll.latDec &gt;= 47) return  GK_MID_GERMANY;
+-	*/	return GK_GERMANY_2001;
++		return GK_GERMANY_2001;
+ 	}
+ 	
+ 	/**
+@@ -181,7 +181,7 @@
+ 	 * @param stripe stripe to force to, otherwise -1 will determine the stripe automatically
+ 	 * @return
+ 	 */ // TODO find out what about the Krassowski in former GDR?
+-	public static GkPoint wgs84ToGk(CWPoint ll, TransformParameters gk2wgs84, int stripe, int stripewidth) {
++	public static GkPoint wgs84ToGk(TrackPoint ll, TransformParameters gk2wgs84, int stripe, int stripewidth) {
+ 		XyzCoordinates wgsxyz = latLon2xyz(ll, 0, WGS84);
+ 		XyzCoordinates gkxyz = transform(wgsxyz, new TransformParameters(gk2wgs84, true));
+ 		CWPoint gkll = xyz2Latlon(gkxyz, BESSEL);
+@@ -211,7 +211,7 @@
+ 	 * @return
+ 	 * @throws IllegalArgumentException if EPSG code is not german GK or unsupported
+ 	 */
+-	public static GkPoint wgs84ToGermanGk(CWPoint wgs84, int epsgcode) throws IllegalArgumentException {
++	public static GkPoint wgs84ToGermanGk(TrackPoint wgs84, int epsgcode) throws IllegalArgumentException {
+ 		return wgs84ToGk(wgs84, getGermanGkTransformParameters(wgs84), getGermanGkStripeEpsg(epsgcode), 3);
+ 	}
+ 	
+@@ -227,7 +227,7 @@
+ 		return stripe; 
+ 	}
+ 	
+-	private static XyzCoordinates latLon2xyz(CWPoint ll, double alt, Ellipsoid ellipsoid) {
++	private static XyzCoordinates latLon2xyz(TrackPoint ll, double alt, Ellipsoid ellipsoid) {
+ 		if (!ll.isValid()) throw new IllegalArgumentException(&quot;latLon2xyz: invalid lat-lon&quot;);
+ 		double e2 = (ellipsoid.a * ellipsoid.a - ellipsoid.b * ellipsoid.b)/(ellipsoid.a * ellipsoid.a);
+ 		double N = ellipsoid.a/ Math.sqrt(1 - e2 * Math.pow(Math.sin(ll.latDec / 180*Math.PI), 2));
+@@ -379,13 +379,6 @@
+ 	}
+ }
+ 
+-class Ellipsoid {
+-	public double a, b;
+-	public Ellipsoid(double ai, double bi) {
+-		a = ai;
+-		b = bi;
+-	}
+-}
+ 
+ class TransformParameters {
+ 	// shift parameter in meter
+
+Added: trunk/src/CacheWolf/navi/TransformCoordinatesProperties.java
+===================================================================
+--- trunk/src/CacheWolf/navi/TransformCoordinatesProperties.java	2007-11-15 19:22:56 UTC (rev 1066)
++++ trunk/src/CacheWolf/navi/TransformCoordinatesProperties.java	2007-11-16 18:32:23 UTC (rev 1067)
+@@ -0,0 +1,74 @@
++package CacheWolf.navi;
++
++import ewe.io.IOException;
++import ewe.io.InputStream;
++import ewe.sys.Convert;
++import ewe.util.Properties;
++import CacheWolf.CWPoint;
++
++public class TransformCoordinatesProperties extends Properties {
++	public int epsgCode;
++	
++	public TransformCoordinatesProperties(InputStream is) throws IOException {
++		super();
++		load(is);
++		epsgCode = Convert.toInt(getProperty(&quot;EpsgCode&quot;, &quot;-1&quot;));
++		if (epsgCode == -1) throw new IllegalArgumentException(&quot;EPSG code missing in: &quot; + is.getName());
++	}
++	
++	public TransformCoordinatesProperties(int epsgcodei) {
++		if (!TransformCoordinates.isSupported(epsgcodei)) throw new IllegalArgumentException(&quot;EPSG code &quot; + epsgcodei + &quot;not supported&quot;);
++		epsgCode = epsgcodei;
++	}
++
++	/**
++	 * return ll transformed into the desired coordinate reference system
++	 * if the prjection is Gau&#223;-Kr&#252;ger, easting will be put in lonDec and
++	 * northing in latDec
++	 * @param ll
++	 * @return
++	 */
++	public static TrackPoint fromWgs84(TrackPoint ll, int epsgCode) {
++		TrackPoint ret;
++		switch (epsgCode) {
++		case TransformCoordinates.EPSG_WGS84:
++		case TransformCoordinates.EPSG_ETRS89:
++			ret = ll;
++			break;
++		case TransformCoordinates.EPSG_GK2:
++		case TransformCoordinates.EPSG_GK3:
++		case TransformCoordinates.EPSG_GK4:
++		case TransformCoordinates.EPSG_GK5:
++			GkPoint xy = TransformCoordinates.wgs84ToGermanGk(ll, epsgCode);
++			ret = new CWPoint(xy.northing, xy.getGkEasting());
++			break;
++		default: throw new IllegalArgumentException(&quot;fromWgs84: EPSG code &quot; + epsgCode + &quot;not supported&quot;);
++		}
++		return ret;
++	}
++
++	/**
++	 * convert any supported coordinate reference system WGS84
++	 * if p is a Gau&#223;-Kr&#252;ger point, put latdec = northing, londec = easting 
++	 * @param p
++	 * @return
++	 */
++	public static CWPoint toWgs84(CWPoint p, int epsgCode) {
++		CWPoint ret;
++		switch (epsgCode) {
++		case TransformCoordinates.EPSG_WGS84:
++		case TransformCoordinates.EPSG_ETRS89:
++			ret = p;
++			break;
++		case TransformCoordinates.EPSG_GK2:
++		case TransformCoordinates.EPSG_GK3:
++		case TransformCoordinates.EPSG_GK4:
++		case TransformCoordinates.EPSG_GK5:
++			GkPoint xy = new GkPoint(p.lonDec, p.latDec);
++			ret = TransformCoordinates.germanGkToWgs84(xy);
++			break;
++		default: throw new IllegalArgumentException(&quot;ToWgs84: EPSG code &quot; + epsgCode + &quot;not supported&quot;);
++		}
++		return ret;
++	}
++}
+\ No newline at end of file
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000959.html">[Cachewolf-svn] r1066 - trunk/res_noewe
+</A></li>
+	<LI>Next message: <A HREF="000961.html">[Cachewolf-svn] r1068 - trunk/res_noewe
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#960">[ date ]</a>
+              <a href="thread.html#960">[ thread ]</a>
+              <a href="subject.html#960">[ subject ]</a>
+              <a href="author.html#960">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

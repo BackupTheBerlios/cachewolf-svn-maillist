@@ -1,0 +1,226 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1909 - in trunk/src: CacheWolf CacheWolf/imp utils
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-June/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1909%20-%20in%20trunk/src%3A%20CacheWolf%20CacheWolf/imp%20utils&In-Reply-To=%3C200906152236.n5FMajLk012576%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001826.html">
+   <LINK REL="Next"  HREF="001828.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1909 - in trunk/src: CacheWolf CacheWolf/imp utils</H1>
+    <B>greiol at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1909%20-%20in%20trunk/src%3A%20CacheWolf%20CacheWolf/imp%20utils&In-Reply-To=%3C200906152236.n5FMajLk012576%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1909 - in trunk/src: CacheWolf CacheWolf/imp utils">greiol at mail.berlios.de
+       </A><BR>
+    <I>Tue Jun 16 00:36:45 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001826.html">[Cachewolf-svn] r1908 - trunk/src/CacheWolf/navi
+</A></li>
+        <LI>Next message: <A HREF="001828.html">[Cachewolf-svn] r1910 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1827">[ date ]</a>
+              <a href="thread.html#1827">[ thread ]</a>
+              <a href="subject.html#1827">[ subject ]</a>
+              <a href="author.html#1827">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: greiol
+Date: 2009-06-16 00:36:41 +0200 (Tue, 16 Jun 2009)
+New Revision: 1909
+
+Added:
+   trunk/src/CacheWolf/imp/Rating.java
+Modified:
+   trunk/src/CacheWolf/Preferences.java
+   trunk/src/utils/CWWrapper.java
+Log:
+added preliminary support for external cache rating scripts
+
+===&gt;&gt; bitte feedback &lt;&lt;===
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2009-06-15 10:40:15 UTC (rev 1908)
++++ trunk/src/CacheWolf/Preferences.java	2009-06-15 22:36:41 UTC (rev 1909)
+@@ -1,4 +1,5 @@
+ package CacheWolf;
++
+ import CacheWolf.navi.Metrics;
+ import utils.FileBugfix;
+ import ewe.io.*;
+@@ -219,7 +220,9 @@
+ 	public boolean downloadPics = true;
+ 	/** Download TB information when loading cache data */
+ 	public boolean downloadTBs = true;
+-
++	/** external Cacherating software */
++	public String rater;
++	
+ 	//////////////////////////////////////////////
+ 	/** The debug switch (Can be used to activate dormant code) by adding
+ 	 * the line: &lt;pre&gt;&lt;debug value=&quot;true&quot;&gt;&lt;/pre&gt;
+@@ -423,6 +426,9 @@
+ 		else if (name.equals(&quot;locale&quot;)) {
+ 			language = atts.getValue(&quot;language&quot;);
+ 		}
++		else if (name.equals(&quot;rater&quot;)) {
++			rater = atts.getValue(&quot;tool&quot;);
++		}
+ 		else if (name.equals(&quot;FILTERDATA&quot;)) {
+ 			// Creating a filter object and reading the saved data
+ 			String id = SafeXML.strxmldecode(atts.getValue(&quot;id&quot;));
+@@ -523,7 +529,7 @@
+ 				entry = (MapEntry) itPath.next();
+ 				outp.print(&quot;    &lt;impPath key = \&quot;&quot; + SafeXML.strxmlencode(entry.getKey().toString()) + &quot;\&quot; value = \&quot;&quot; + SafeXML.strxmlencode(entry.getValue().toString().replace('\\', '/')) + &quot;\&quot;/&gt;\n&quot;);
+ 			}
+-
++			outp.print(&quot;    &lt;rater tool=\&quot;&quot;.concat(rater).concat(&quot;\&quot;/&gt;\n&quot;));
+ 			outp.print(&quot;&lt;/preferences&gt;&quot;);
+ 			outp.close();
+ 		} catch (Exception e) {
+
+Added: trunk/src/CacheWolf/imp/Rating.java
+===================================================================
+--- trunk/src/CacheWolf/imp/Rating.java	2009-06-15 10:40:15 UTC (rev 1908)
++++ trunk/src/CacheWolf/imp/Rating.java	2009-06-15 22:36:41 UTC (rev 1909)
+@@ -0,0 +1,58 @@
++package CacheWolf.imp;
++
++import CacheWolf.CacheType;
++import CacheWolf.Global;
++import CacheWolf.CacheHolder;
++import utils.CWWrapper;
++import ewe.sys.Handle;
++import ewe.ui.*;
++
++/*
++ * get rating for a cache from an external tool
++ */
++public class Rating {
++
++	String rater;
++
++	public Rating() {
++		rater = Global.getPref().rater;
++	}
++	
++	/**
++	 * call the tool defined by Global.getPref().rater with a visible waypoint as parameter
++	 * wait for tool to finish, catch exit code and write it to CacheHolder.numRecommended
++	 */
++	public void run() {
++		if (null == rater) return;
++		
++		ProgressBarForm pbf = new ProgressBarForm();
++		Handle h = new Handle();
++		
++		int totalWaypoints = Global.getProfile().cacheDB.countVisible();
++		int countWaypoints = 0;
++		
++		pbf.showMainTask = false;
++		pbf.setTask(h,&quot;Rating ...&quot;);
++		pbf.exec();
++		
++		for(int i = 0; i&lt;Global.getProfile().cacheDB.size(); i++){
++			CacheHolder ch=Global.getProfile().cacheDB.get(i);
++			if (ch.isVisible()) {
++				if (!ch.isAddiWpt() &amp;&amp; ch.getType() != CacheType.CW_TYPE_CUSTOM) {
++					int rate;
++					try {
++						rate = CWWrapper.exec(rater, ch.getWayPoint(), true);
++						ch.setNumRecommended(rate);
++					} catch (Exception ex) {
++						ex.printStackTrace();
++					}
++				}
++				countWaypoints++;
++				h.progress = (float)countWaypoints/(float)totalWaypoints;
++				h.changed();
++			}
++		}
++		
++	}
++
++}
+
+Modified: trunk/src/utils/CWWrapper.java
+===================================================================
+--- trunk/src/utils/CWWrapper.java	2009-06-15 10:40:15 UTC (rev 1908)
++++ trunk/src/utils/CWWrapper.java	2009-06-15 22:36:41 UTC (rev 1909)
+@@ -20,21 +20,25 @@
+ 	 * @throws ewe.io.IOException
+ 	 */
+ 	public static void exec(String cmd, String arg) throws ewe.io.IOException{
++		exec(cmd, arg, false);
++	}
++	
++	public static int exec(String cmd, String arg, boolean wait) throws ewe.io.IOException {
+ 		if (Vm.getPlatform().equals(&quot;WinCE&quot;) ||
+-		    Vm.getPlatform().equals(&quot;Win32&quot;)) {
+-			/* we need extra quotes here, see vm/nmwin32_c.c */
+-			if (arg.indexOf(&quot; &quot;) &gt; -1)
+-				arg = &quot;\&quot;&quot; + arg + &quot;\&quot;&quot;;
+-		} else if (Vm.getPlatform().equals(&quot;Java&quot;)) {
+-			/* on win32 we need extra quotes here to support filenames whith spaces
+-			 * (see ewe/sys/Vm.java)			 *
+-			 * on linux (and os x?) we must not have extra quotes, filenames with spaces are unsupported
+-			 * */
+-			if (cmd.indexOf(&quot; &quot;) &gt; -1)
+-				cmd = &quot;\&quot;&quot; + cmd + &quot;\&quot;&quot;;
+-			if (arg.indexOf(&quot; &quot;) &gt; -1)
+-				arg = &quot;\&quot;&quot; + arg + &quot;\&quot;&quot;;
+-		}
+-		Vm.exec(cmd, arg, 0, false);
++			    Vm.getPlatform().equals(&quot;Win32&quot;)) {
++				/* we need extra quotes here, see vm/nmwin32_c.c */
++				if (arg.indexOf(&quot; &quot;) &gt; -1)
++					arg = &quot;\&quot;&quot; + arg + &quot;\&quot;&quot;;
++			} else if (Vm.getPlatform().equals(&quot;Java&quot;)) {
++				/* on win32 we need extra quotes here to support filenames whith spaces
++				 * (see ewe/sys/Vm.java)			 *
++				 * on linux (and os x?) we must not have extra quotes, filenames with spaces are unsupported
++				 * */
++				if (cmd.indexOf(&quot; &quot;) &gt; -1)
++					cmd = &quot;\&quot;&quot; + cmd + &quot;\&quot;&quot;;
++				if (arg.indexOf(&quot; &quot;) &gt; -1)
++					arg = &quot;\&quot;&quot; + arg + &quot;\&quot;&quot;;
++			}
++		return Vm.exec(cmd, arg, 0, wait);
+ 	}
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001826.html">[Cachewolf-svn] r1908 - trunk/src/CacheWolf/navi
+</A></li>
+	<LI>Next message: <A HREF="001828.html">[Cachewolf-svn] r1910 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1827">[ date ]</a>
+              <a href="thread.html#1827">[ thread ]</a>
+              <a href="subject.html#1827">[ subject ]</a>
+              <a href="author.html#1827">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

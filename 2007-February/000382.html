@@ -1,0 +1,153 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r571 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r571%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702121818.l1CIIHwF011503%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000381.html">
+   <LINK REL="Next"  HREF="000383.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r571 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r571%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702121818.l1CIIHwF011503%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r571 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Mon Feb 12 19:18:17 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000381.html">[Cachewolf-svn] r570 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000383.html">[Cachewolf-svn] r572 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#382">[ date ]</a>
+              <a href="thread.html#382">[ thread ]</a>
+              <a href="subject.html#382">[ subject ]</a>
+              <a href="author.html#382">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-02-12 19:17:59 +0100 (Mon, 12 Feb 2007)
+New Revision: 571
+
+Modified:
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/myTableControl.java
+Log:
+Bugfix: Die Filter im Kontextmenue der Listenansicht und im Filtermenue (&quot;Selektierte&quot;) sind jetzt inkremental, d.h.
+sie bewahren den is_filtered Zustand fuer alle Caches die markiert bzw. nichtmarkiert sind.
+So kann man sich eine beliebige eigene Auswahl zusammenfiltern
+
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2007-02-12 17:56:01 UTC (rev 570)
++++ trunk/src/CacheWolf/MainMenu.java	2007-02-12 18:17:59 UTC (rev 571)
+@@ -112,9 +112,9 @@
+ 		filterMenuItems[2] = filtInvert  = new MenuItem(MyLocale.getMsg(115,&quot;Invert&quot;)); 
+ 		filterMenuItems[3] = filtClear   = new MenuItem(MyLocale.getMsg(116,&quot;Clear&quot;));
+ 		filterMenuItems[4] = mnuSeparator;
+-		filterMenuItems[5] = filtBlack   = new MenuItem(MyLocale.getMsg(161,&quot;Show Blacklist&quot;));
++		filterMenuItems[5] = filtSelected = new MenuItem(MyLocale.getMsg(160,&quot;Selected&quot;));
+ 		filterMenuItems[6] = mnuSeparator;
+-		filterMenuItems[7] = filtSelected = new MenuItem(MyLocale.getMsg(160,&quot;Selected&quot;));
++		filterMenuItems[7] = filtBlack   = new MenuItem(MyLocale.getMsg(161,&quot;Show Blacklist&quot;));
+ 		
+ 		///////////////////////////////////////////////////////////////////////
+ 		// Create a combined &quot;Filter and Search&quot; pulldown menu for devices with small screens
+@@ -125,9 +125,9 @@
+ 		filterAndSearchMenuItems[2]=filtInvert;
+ 		filterAndSearchMenuItems[3]=filtClear;
+ 		filterAndSearchMenuItems[4]=mnuSeparator;
+-		filterAndSearchMenuItems[5]=filtBlack;
+-		filterAndSearchMenuItems[6]=filtSelected;
+-		filterAndSearchMenuItems[7]=mnuSeparator;
++		filterAndSearchMenuItems[5]=filtSelected;
++		filterAndSearchMenuItems[6]=mnuSeparator;
++		filterAndSearchMenuItems[7]=filtBlack;
+ 		filterAndSearchMenuItems[8]=mnuSeparator;
+ 		filterAndSearchMenuItems[9]=search;
+ 		filterAndSearchMenuItems[10]=searchClr;
+@@ -433,6 +433,16 @@
+ 				flt.clearFilter();
+ 				tbp.refreshTable();
+ 			}
++			if(mev.selectedItem == filtSelected){ // incremental filter
++				CacheHolder ch;
++				for(int i = cacheDB.size()-1; i&gt;=0; i--){
++					ch = (CacheHolder)cacheDB.get(i);
++					// This is an incremental filter, i.e. it keeps the existing filter
++					// status and only adds the marked caches to the filtered set
++					ch.is_filtered = ch.is_Checked || ch.is_filtered;
++				}
++				tbp.refreshTable();
++			}
+ 			if(mev.selectedItem == filtBlack){
+ 				filtBlack.modifiers^=MenuItem.Checked;
+ 				Filter.showBlacklisted=!Filter.showBlacklisted;
+@@ -440,15 +450,6 @@
+ 				ssc.clearSearch();// Clear search &amp; restore filter status
+ 				tbp.refreshTable();
+ 			}
+-			if(mev.selectedItem == filtSelected){
+-				CacheHolder ch;
+-				for(int i = cacheDB.size()-1; i&gt;=0; i--){
+-					ch = (CacheHolder)cacheDB.get(i);
+-					ch.is_filtered = ch.is_Checked;
+-					//cacheDB.set(i, ch);
+-				}
+-				tbp.refreshTable();
+-			}
+ 			///////////////////////////////////////////////////////////////////////
+ 			// &quot;Organize&quot; pulldown menu
+ 			///////////////////////////////////////////////////////////////////////
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2007-02-12 17:56:01 UTC (rev 570)
++++ trunk/src/CacheWolf/myTableControl.java	2007-02-12 18:17:59 UTC (rev 571)
+@@ -77,7 +77,9 @@
+ 		if (selectedItem.toString().equals(MyLocale.getMsg(1011,&quot;Filter&quot;))){
+ 			for(int i = cacheDB.size()-1; i &gt;=0; i--){
+ 				ch = (CacheHolder)cacheDB.get(i);
+-				ch.is_filtered = !ch.is_Checked;
++				// incremental filter. Keeps status of all marked caches and
++				// adds unmarked caches to filtered list
++				ch.is_filtered = !ch.is_Checked || ch.is_filtered;
+ 			}
+ 			tbp.refreshTable();
+ 		}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000381.html">[Cachewolf-svn] r570 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000383.html">[Cachewolf-svn] r572 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#382">[ date ]</a>
+              <a href="thread.html#382">[ thread ]</a>
+              <a href="subject.html#382">[ subject ]</a>
+              <a href="author.html#382">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

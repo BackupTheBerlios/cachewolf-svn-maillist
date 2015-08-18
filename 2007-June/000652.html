@@ -1,0 +1,185 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r765 - in trunk: resources src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-June/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r765%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200706301112.l5UBCn8d014113%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000651.html">
+   <LINK REL="Next"  HREF="000653.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r765 - in trunk: resources src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r765%20-%20in%20trunk%3A%20resources%20src/CacheWolf&In-Reply-To=%3C200706301112.l5UBCn8d014113%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r765 - in trunk: resources src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sat Jun 30 13:12:49 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000651.html">[Cachewolf-svn] r764 - in trunk: resources resources/attributes	src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000653.html">[Cachewolf-svn] r766 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#652">[ date ]</a>
+              <a href="thread.html#652">[ thread ]</a>
+              <a href="subject.html#652">[ subject ]</a>
+              <a href="author.html#652">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-06-30 13:12:41 +0200 (Sat, 30 Jun 2007)
+New Revision: 765
+
+Modified:
+   trunk/resources/cachewolf.Languages.cfg
+   trunk/src/CacheWolf/AttributesViewer.java
+   trunk/src/CacheWolf/DetailsPanel.java
+   trunk/src/CacheWolf/myTableModel.java
+Log:
+DetailPanel: Button fuer Notizen als Icon zur obersten Zeile hinzufuegt. 
+Difficulty/Terrain werden jetzt auch angezeigt (nicht editierbar).
+
+Modified: trunk/resources/cachewolf.Languages.cfg
+===================================================================
+--- trunk/resources/cachewolf.Languages.cfg	2007-06-30 09:38:24 UTC (rev 764)
++++ trunk/resources/cachewolf.Languages.cfg	2007-06-30 11:12:41 UTC (rev 765)
+@@ -109,6 +109,7 @@
+ 		348=Eigene Bilder hinzuf%fcgen
+ 		349=Blacklist-Status umschalten
+ 		350=Zeitstempel zu Notizen hinzuf%fcgen
++		351=Notizen hinzuf%fcgen/%e4ndern
+ 		400=Dekodieren
+ 		500=Umschalten
+ 		600=Pr%e4ferenzen
+@@ -542,6 +543,7 @@
+ 		348=Add user pictures
+ 		349=Toggle Blacklist status
+ 		350=Add timestamp to notes
++		351=Add/Edit notes
+ 		400=Dekode
+ 		500=Switch
+ 		600=Preferences
+
+Modified: trunk/src/CacheWolf/AttributesViewer.java
+===================================================================
+--- trunk/src/CacheWolf/AttributesViewer.java	2007-06-30 09:38:24 UTC (rev 764)
++++ trunk/src/CacheWolf/AttributesViewer.java	2007-06-30 11:12:41 UTC (rev 765)
+@@ -37,7 +37,7 @@
+ 		Rect r = new Rect(0,0,TILESIZE * ICONS_PER_ROW,TILESIZE * ICONROWS); // As on GC: 6 wide, 2 high
+ 		iap.virtualSize = r;
+ 		iap.setFixedSize(TILESIZE * ICONS_PER_ROW,TILESIZE * ICONROWS);
+-		addLast(mInfo=new mLabel(&quot;Attributes:&quot;),HSTRETCH,HFILL);
++		addLast(mInfo=new mLabel(MyLocale.getMsg(2600,&quot;Attributes:&quot;)),HSTRETCH,HFILL);
+ 		addLast(iap,CellConstants.HSTRETCH,CellConstants.FILL);
+ 	}
+ 	private InteractivePanel iap=new attInteractivePanel();
+
+Modified: trunk/src/CacheWolf/DetailsPanel.java
+===================================================================
+--- trunk/src/CacheWolf/DetailsPanel.java	2007-06-30 09:38:24 UTC (rev 764)
++++ trunk/src/CacheWolf/DetailsPanel.java	2007-06-30 11:12:41 UTC (rev 765)
+@@ -39,7 +39,8 @@
+ 	mImage imgBlack;
+ 	mImage imgBlackNo;
+ 	mImage imgShowBug, imgShowBugNo,imgNewWpt,imgGoto;
+-	mImage imgShowMaps,imgAddImages;
++	mImage imgShowMaps,imgAddImages,imgNotes;
++	mLabel lblDiff, lblTerr;
+ 	
+ 	public DetailsPanel(){
+ 		pref = Global.getPref();
+@@ -74,7 +75,10 @@
+ 		imgBlack = new mImage(&quot;is_black.png&quot;); imgBlack.transparentColor=Color.White;
+ 		pnlTools.addNext(btnBlack=new mButton(imgBlackNo)); 
+ 		btnBlack.setToolTip(MyLocale.getMsg(349,&quot;Toggle Blacklist status&quot;));
+-		// Button 7: Date/time stamp
++		// Button 7: Notes
++		pnlTools.addNext(btnNotes=new mButton(imgNotes=new mImage(&quot;notes.gif&quot;))); imgNotes.transparentColor=Color.DarkBlue;
++		btnNotes.setToolTip(MyLocale.getMsg(351,&quot;Add/Edit notes&quot;));
++		// Button 8: Date/time stamp
+ 		pnlTools.addLast(btnAddDateTime = new mButton(new mImage(&quot;date_time.png&quot;))); 
+ 		btnAddDateTime.setToolTip(MyLocale.getMsg(350,&quot;Add timestamp to notes&quot;));
+ 		//showMap.modify(Control.Disabled,0);
+@@ -86,9 +90,12 @@
+ 		////////////////////
+ 
+ 		this.addNext(new mLabel(MyLocale.getMsg(300,&quot;Type:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.NORTHWEST));
+-		this.addLast(chcType,CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		this.addNext(chcType,CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		this.addLast(lblDiff=new mLabel(MyLocale.getMsg(1000,&quot;D&quot;)+&quot;: 5.5&quot;),CellConstants.DONTSTRETCH,(CellConstants.DONTFILL|CellConstants.EAST));
++		
+ 		this.addNext(new mLabel(MyLocale.getMsg(301,&quot;Size:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		this.addLast(chcSize,CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		this.addNext(chcSize,CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		this.addLast(lblTerr=new mLabel(MyLocale.getMsg(1001,&quot;T&quot;)+&quot;: 5.5&quot;),CellConstants.DONTSTRETCH,(CellConstants.DONTFILL|CellConstants.EAST));
+ 		
+ 		this.addNext(new mLabel(MyLocale.getMsg(302,&quot;Waypoint:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		this.addLast(inpWaypoint.setTag(Control.SPAN, new Dimension(2,1)),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+@@ -116,8 +123,8 @@
+ 		cp.addLast(btnFoundDate=new mButton(new mImage(&quot;calendar.png&quot;)),DONTSTRETCH,DONTFILL);
+ 		this.addLast(cp,DONTSTRETCH,HFILL).setTag(Control.SPAN, new Dimension(2,1));
+ 		
+-		btnNotes = new mButton(&quot;Notes&quot;);
+-		this.addLast(btnNotes.setTag(Control.SPAN, new Dimension(3,1)),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
++		//btnNotes = new mButton(&quot;Notes&quot;);
++		//this.addLast(btnNotes.setTag(Control.SPAN, new Dimension(3,1)),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 		//this.addNext(new mLabel(MyLocale.getMsg(308,&quot;Notes:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		//this.addLast(btnCenter = new mButton(MyLocale.getMsg(309,&quot;Make Center&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ //		this.addLast(btnDelete = new mButton(MyLocale.getMsg(310,&quot;Delete&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+@@ -180,6 +187,8 @@
+ 		if(chD.CacheSize.equals(&quot;None&quot;)) chcSize.setInt(7);
+ 		if(chD.CacheSize.equals(&quot;Not chosen&quot;)) chcSize.setInt(7);
+ 		attV.showImages(chD.attributes);
++		lblTerr.setText((chD.terrain.length()&gt;0) ? (MyLocale.getMsg(1001,&quot;T&quot;)+&quot;: &quot;+chD.terrain) : &quot;&quot;);
++		lblDiff.setText((chD.hard.length()&gt;0)    ? (MyLocale.getMsg(1000,&quot;D&quot;)+&quot;: &quot;+chD.hard) : &quot;&quot;); 
+ 	}
+ 	
+ 	
+
+Modified: trunk/src/CacheWolf/myTableModel.java
+===================================================================
+--- trunk/src/CacheWolf/myTableModel.java	2007-06-30 09:38:24 UTC (rev 764)
++++ trunk/src/CacheWolf/myTableModel.java	2007-06-30 11:12:41 UTC (rev 765)
+@@ -100,7 +100,7 @@
+ 	 *
+ 	 */
+ 	public void setColumnNamesAndWidths() {
+-		String [] spName = {&quot; &quot;,&quot;?&quot;,MyLocale.getMsg(1000,&quot;D&quot;),&quot;T&quot;,MyLocale.getMsg(1002,&quot;Waypoint&quot;),&quot;Name&quot;,MyLocale.getMsg(1004,&quot;Location&quot;),MyLocale.getMsg(1005,&quot;Owner&quot;),MyLocale.getMsg(1006,&quot;Hidden&quot;),MyLocale.getMsg(1007,&quot;Status&quot;),MyLocale.getMsg(1008,&quot;Dist&quot;),MyLocale.getMsg(1009,&quot;Bear&quot;)};
++		String [] spName = {&quot; &quot;,&quot;?&quot;,MyLocale.getMsg(1000,&quot;D&quot;),MyLocale.getMsg(1001,&quot;T&quot;),MyLocale.getMsg(1002,&quot;Waypoint&quot;),&quot;Name&quot;,MyLocale.getMsg(1004,&quot;Location&quot;),MyLocale.getMsg(1005,&quot;Owner&quot;),MyLocale.getMsg(1006,&quot;Hidden&quot;),MyLocale.getMsg(1007,&quot;Status&quot;),MyLocale.getMsg(1008,&quot;Dist&quot;),MyLocale.getMsg(1009,&quot;Bear&quot;)};
+ 		// [0]TickBox, [1]Type, [2]Distance, [3]Terrain, [4]waypoint, [5]name, [6]coordinates, 
+ 		// [7]owner, [8]datehidden, [9]status, [10]distance, [11]bearing
+ 		Preferences pref=Global.getPref();
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000651.html">[Cachewolf-svn] r764 - in trunk: resources resources/attributes	src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000653.html">[Cachewolf-svn] r766 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#652">[ date ]</a>
+              <a href="thread.html#652">[ thread ]</a>
+              <a href="subject.html#652">[ subject ]</a>
+              <a href="author.html#652">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

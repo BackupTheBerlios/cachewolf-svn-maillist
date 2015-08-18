@@ -1,0 +1,942 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r512 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r512%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702042335.l14NZSKV005656%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000305.html">
+   <LINK REL="Next"  HREF="000307.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r512 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r512%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702042335.l14NZSKV005656%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r512 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Mon Feb  5 00:35:28 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000305.html">[Cachewolf-svn] r511 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000307.html">[Cachewolf-svn] r513 - in trunk: resources src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#306">[ date ]</a>
+              <a href="thread.html#306">[ thread ]</a>
+              <a href="subject.html#306">[ subject ]</a>
+              <a href="author.html#306">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-02-05 00:35:16 +0100 (Mon, 05 Feb 2007)
+New Revision: 512
+
+Modified:
+   trunk/src/CacheWolf/CalcPanel.java
+   trunk/src/CacheWolf/DetailsPanel.java
+   trunk/src/CacheWolf/GotoPanel.java
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/MovingMap.java
+   trunk/src/CacheWolf/myTableControl.java
+   trunk/src/CacheWolf/myTableModel.java
+Log:
+MainTab/DetailsPanel: Bugfix (diverse nullPointerExceptions) und Vereinfachung
+Neuangelegte Wegpunkte werden sofort gespeichert
+TODO: Weitere Verbesserungen DetailsPanel fuer Addi Behandlung
+
+Modified: trunk/src/CacheWolf/CalcPanel.java
+===================================================================
+--- trunk/src/CacheWolf/CalcPanel.java	2007-02-04 22:46:00 UTC (rev 511)
++++ trunk/src/CacheWolf/CalcPanel.java	2007-02-04 23:35:16 UTC (rev 512)
+@@ -44,7 +44,6 @@
+ 	// Needed for creation of new waypoint
+ 	Vector cacheDB;
+ 	MainTab mainT;
+-	DetailsPanel detP;
+ 	Preferences pref;
+ 	Profile profile;
+ 	// different panels to avoid spanning
+@@ -55,8 +54,13 @@
+ 	int currFormat;
+ 	mButton btnChangeLatLon;
+ 	
+-	public CalcPanel()
+-	{
++	public CalcPanel()	{
++		pref = Global.getPref();
++		profile=Global.getProfile();
++		mainT = Global.mainTab;
++		cacheDB = profile.cacheDB;
++		
++		
+ 		TopP.addNext(chkDD =new mCheckBox(&quot;d.d&#176;&quot;),CellConstants.DONTSTRETCH, CellConstants.WEST);
+ 		TopP.addNext(chkDMM =new mCheckBox(&quot;d&#176;m.m\'&quot;),CellConstants.DONTSTRETCH, CellConstants.WEST);
+ 		TopP.addNext(chkDMS =new mCheckBox(&quot;d&#176;m\'s\&quot;&quot;),CellConstants.DONTSTRETCH,CellConstants.WEST);
+@@ -113,13 +117,8 @@
+ 		return;
+ 	}
+ 	
+-	public void setFields(CacheHolder ch, MainTab mt,DetailsPanel dp, Preferences p, Profile prof){
+-		pref = p;
+-		profile=prof;
+-		mainT = mt;
+-		detP = dp;
+-		cacheDB = profile.cacheDB;
+-		
++	// ch must be not null
++	public void setFields(CacheHolder ch){
+ 		currFormat = CWPoint.DMM;
+ 		if (ch.LatLon.length()== 0) coordInp.set(0,0);
+ 		else coordInp.set(ch.LatLon, CWPoint.CW);
+@@ -161,7 +160,7 @@
+ 				coordOut = coordInp.project(bd.degrees, bd.distance);
+ 				ch.LatLon = coordOut.toString();
+ 				ch.pos.set(coordOut);
+-				detP.newWaypoint(ch, mainT);
++				mainT.newWaypoint(ch);
+ 			}
+ 			
+ 			if (ev.target == btnGoto){
+
+Modified: trunk/src/CacheWolf/DetailsPanel.java
+===================================================================
+--- trunk/src/CacheWolf/DetailsPanel.java	2007-02-04 22:46:00 UTC (rev 511)
++++ trunk/src/CacheWolf/DetailsPanel.java	2007-02-04 23:35:16 UTC (rev 512)
+@@ -9,122 +9,117 @@
+ /**
+ *	Class to create the panel to show the cache details.&lt;br&gt;
+ *	Also allows for creation of a custom waypoint.&lt;br&gt;
+-*	Class ID = 300
++*
++*   
+ */
+ public class DetailsPanel extends CellPanel{
+-	mInput wayPoint = new mInput();
+-	mInput wayName = new mInput();
++	mInput inpWaypoint = new mInput();
++	mInput inpName = new mInput();
+ 	mButton btnWayLoc = new mButton();
+-	mInput wayHidden = new mInput();
+-	mInput wayOwner = new mInput();
+-	//mInput wayStatus = new mInput();
+-	
+-	mButton btnDelete,btnCenter, addDateTime;
+-	mChoice wayType = new mChoice(new String[]{&quot;Custom&quot;, &quot;Traditional&quot;, &quot;Multi&quot;, &quot;Virtual&quot;, &quot;Letterbox&quot;, &quot;Event&quot;, &quot;Mega Event&quot;, &quot;Mystery&quot;, &quot;Webcam&quot;, &quot;Locationless&quot;, &quot;CITO&quot;, &quot;Earthcache&quot;, &quot;Parking&quot;, &quot;Stage&quot;, &quot;Question&quot;, &quot;Final&quot;,&quot;Trailhead&quot;,&quot;Reference&quot;},0);
+-	mChoice waySize = new mChoice(new String[]{&quot;&quot;, &quot;Micro&quot;, &quot;Small&quot;, &quot;Regular&quot;, &quot;Large&quot;,&quot;Other&quot;,&quot;Very Large&quot;,&quot;None&quot;},0);
+-	mComboBox wayStatus = new mComboBox(new String[]{&quot;&quot;, MyLocale.getMsg(313,&quot;Flag 1&quot;), MyLocale.getMsg(314,&quot;Flag 2&quot;), MyLocale.getMsg(315,&quot;Flag 3&quot;), MyLocale.getMsg(316,&quot;Flag 4&quot;), MyLocale.getMsg(317,&quot;Search&quot;), MyLocale.getMsg(318,&quot;Found&quot;), MyLocale.getMsg(319,&quot;Not Found&quot;), MyLocale.getMsg(320,&quot;Owner&quot;)},0);
+-	mButton btCrWp, showBug, showMap, btnGoto, addPicture, btnBlack, btNotes;
++	mInput inpHidden = new mInput();
++	mInput inpOwner = new mInput();
++	mButton btnDelete,btnCenter, btnAddDateTime;
++	mChoice chcType = new mChoice(new String[]{&quot;Custom&quot;, &quot;Traditional&quot;, &quot;Multi&quot;, &quot;Virtual&quot;, &quot;Letterbox&quot;, &quot;Event&quot;, &quot;Mega Event&quot;, &quot;Mystery&quot;, &quot;Webcam&quot;, &quot;Locationless&quot;, &quot;CITO&quot;, &quot;Earthcache&quot;, &quot;Parking&quot;, &quot;Stage&quot;, &quot;Question&quot;, &quot;Final&quot;,&quot;Trailhead&quot;,&quot;Reference&quot;},0);
++	mChoice chcSize = new mChoice(new String[]{&quot;&quot;, &quot;Micro&quot;, &quot;Small&quot;, &quot;Regular&quot;, &quot;Large&quot;,&quot;Other&quot;,&quot;Very Large&quot;,&quot;None&quot;},0);
++	mComboBox chcStatus = new mComboBox(new String[]{&quot;&quot;, MyLocale.getMsg(313,&quot;Flag 1&quot;), MyLocale.getMsg(314,&quot;Flag 2&quot;), MyLocale.getMsg(315,&quot;Flag 3&quot;), MyLocale.getMsg(316,&quot;Flag 4&quot;), MyLocale.getMsg(317,&quot;Search&quot;), MyLocale.getMsg(318,&quot;Found&quot;), MyLocale.getMsg(319,&quot;Not Found&quot;), MyLocale.getMsg(320,&quot;Owner&quot;)},0);
++	mButton btnNewWpt, btnShowBug, btnShowMap, btnGoto, btnAddPicture, btnBlack, btnNotes, btnSave, btnCancel;
+ 	Vector cacheDB;
+ 	CacheHolder thisCache;
+-	CellPanel toolP = new CellPanel();
+-	public boolean dirty_notes = false;
+-	public boolean dirty_details = false;
+-	public boolean dirty_newOrDelete = false;
+-	public boolean dirty_delete = false;
+-	public boolean dirty_status = false;
+-	boolean newWp = false;
+-	public boolean blackStatus = false;
+-	MainTab mainT;
++	CellPanel pnlTools = new CellPanel(); 
++	
++	private boolean dirty_notes = false;
++	private boolean dirty_details = false;
++	private boolean blackStatus = false;
+ 	Preferences pref; // Test
+ 	Profile profile;
+ 	mImage mIsBlack;
+ 	mImage mNoBlack;
+ 	
+ 	public DetailsPanel(){
+-		//String welcomeMessage = MyLocale.getMsg(1,&quot;how about that?&quot;);
+-		
+-		toolP.addNext(btCrWp = new mButton(MyLocale.getMsg(311,&quot;Create Waypoint&quot;)),CellConstants.DONTSTRETCH, CellConstants.WEST);
+-		toolP.addNext(btnGoto = new mButton(&quot;Goto&quot;),CellConstants.DONTSTRETCH, CellConstants.WEST);
++		pref = Global.getPref();
++		profile=Global.getProfile();
++		cacheDB = profile.cacheDB;
++		////////////////////
++		// Tools
++		////////////////////
++		pnlTools.addNext(btnNewWpt = new mButton(MyLocale.getMsg(311,&quot;Create Waypoint&quot;)),CellConstants.DONTSTRETCH, CellConstants.WEST);
++		pnlTools.addNext(btnGoto = new mButton(&quot;Goto&quot;),CellConstants.DONTSTRETCH, CellConstants.WEST);
+ 		mImage mI = new mImage(&quot;bug.gif&quot;);
+ 		mImage mI2 = new mImage(&quot;globe_small.gif&quot;);
+ 		
+ 		mImage mI4 = new mImage(&quot;images.gif&quot;);
+ 		mNoBlack = new mImage(&quot;no_black.png&quot;);
+ 		mIsBlack = new mImage(&quot;is_black.png&quot;);
+-		showBug = new mButton((IImage)mI);
+-		showMap = new mButton((IImage)mI2);
++		btnShowBug = new mButton((IImage)mI);
++		btnShowMap = new mButton((IImage)mI2);
+ 		
+-		addDateTime = new mButton((IImage)new mImage(&quot;date_time.png&quot;));
+-		addPicture = new mButton((IImage)mI4);
++		btnAddDateTime = new mButton((IImage)new mImage(&quot;date_time.png&quot;));
++		btnAddPicture = new mButton((IImage)mI4);
+ 		btnBlack = new mButton((IImage)mNoBlack);
+-		toolP.addNext(showBug,CellConstants.DONTSTRETCH, CellConstants.WEST);
+-		showBug.modify(Control.Disabled,0);
+-		toolP.addNext(showMap,CellConstants.DONTSTRETCH, CellConstants.WEST);
+-		toolP.addNext(addPicture,CellConstants.DONTSTRETCH, CellConstants.WEST);
+-		toolP.addNext(btnBlack,CellConstants.DONTSTRETCH, CellConstants.WEST);
+-		toolP.addLast(addDateTime,CellConstants.DONTSTRETCH, CellConstants.WEST);
++		pnlTools.addNext(btnShowBug,CellConstants.DONTSTRETCH, CellConstants.WEST);
++		btnShowBug.modify(Control.Disabled,0);
++		pnlTools.addNext(btnShowMap,CellConstants.DONTSTRETCH, CellConstants.WEST);
++		pnlTools.addNext(btnAddPicture,CellConstants.DONTSTRETCH, CellConstants.WEST);
++		pnlTools.addNext(btnBlack,CellConstants.DONTSTRETCH, CellConstants.WEST);
++		pnlTools.addLast(btnAddDateTime,CellConstants.DONTSTRETCH, CellConstants.WEST);
+ 		//showMap.modify(Control.Disabled,0);
+-		this.addLast(toolP,CellConstants.DONTSTRETCH, CellConstants.WEST).setTag(SPAN,new Dimension(3,1));;
++		this.addLast(pnlTools,CellConstants.DONTSTRETCH, CellConstants.WEST).setTag(SPAN,new Dimension(3,1));;
+ 		
++		////////////////////
++		// Main body of screen
++		////////////////////
++
+ 		this.addNext(new mLabel(MyLocale.getMsg(300,&quot;Type:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.NORTHWEST));
+-		this.addLast(wayType,CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		this.addLast(chcType,CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		this.addNext(new mLabel(MyLocale.getMsg(301,&quot;Size:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		this.addLast(waySize,CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		this.addLast(chcSize,CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		
+ 		this.addNext(new mLabel(MyLocale.getMsg(302,&quot;Waypoint:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		this.addLast(wayPoint.setTag(Control.SPAN, new Dimension(2,1)),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
++		this.addLast(inpWaypoint.setTag(Control.SPAN, new Dimension(2,1)),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 		
+ 		this.addNext(new mLabel(MyLocale.getMsg(303,&quot;Name:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		this.addLast(wayName.setTag(Control.SPAN, new Dimension(2,1)),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
++		this.addLast(inpName.setTag(Control.SPAN, new Dimension(2,1)),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 		
+ 		this.addNext(new mLabel(MyLocale.getMsg(304,&quot;Location:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		this.addLast(btnWayLoc.setTag(Control.SPAN, new Dimension(2,1)),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 		
+ 		this.addNext(new mLabel(MyLocale.getMsg(305,&quot;Hidden on:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		this.addLast(wayHidden.setTag(Control.SPAN, new Dimension(2,1)),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
++		this.addLast(inpHidden.setTag(Control.SPAN, new Dimension(2,1)),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 		
+ 		this.addNext(new mLabel(MyLocale.getMsg(306,&quot;Owner:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		this.addLast(wayOwner.setTag(Control.SPAN, new Dimension(2,1)),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
++		this.addLast(inpOwner.setTag(Control.SPAN, new Dimension(2,1)),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 		
+ 		this.addNext(new mLabel(MyLocale.getMsg(307,&quot;Status:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+-		this.addLast(wayStatus.setTag(Control.SPAN, new Dimension(2,1)),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
++		this.addLast(chcStatus.setTag(Control.SPAN, new Dimension(2,1)),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 		
+-		btNotes = new mButton(&quot;Notes&quot;);
+-		this.addLast(btNotes.setTag(Control.SPAN, new Dimension(3,1)),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
++		btnNotes = new mButton(&quot;Notes&quot;);
++		this.addLast(btnNotes.setTag(Control.SPAN, new Dimension(3,1)),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 		//this.addNext(new mLabel(MyLocale.getMsg(308,&quot;Notes:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		//this.addLast(btnCenter = new mButton(MyLocale.getMsg(309,&quot;Make Center&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ //		this.addLast(btnDelete = new mButton(MyLocale.getMsg(310,&quot;Delete&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
+ 		
+ 	}
+ 	
++	public boolean isDirty() {
++		return dirty_notes || dirty_details;
++	}
++	
++	
+ 	/**
+ 	*	Set the values to display.
+ 	*/
+-	public void setDetails(CacheHolder ch, MainTab mt){
+-		if (this.newWp){
+-			this.newWp = false;
+-			btCrWp.setText(MyLocale.getMsg(312,&quot;Save&quot;));
+-			return;
+-		}
+-		else {
+-			btCrWp.setText(MyLocale.getMsg(311,&quot;Create Waypoint&quot;));
+-		}
+-		pref = Global.getPref();
+-		profile=Global.getProfile();
+-		mainT = mt;
+-		cacheDB = profile.cacheDB;
++	public void setDetails(CacheHolder ch){
+ 		thisCache = ch;
+ 		dirty_notes = false;
+ 		dirty_details = false;
+-		dirty_newOrDelete = false; // Cache has been created/deleted but not saved
+-		wayPoint.setText(ch.wayPoint);
+-		wayName.setText(ch.CacheName);
++		inpWaypoint.setText(ch.wayPoint);
++		inpName.setText(ch.CacheName);
+ 	    btnWayLoc.setText(ch.pos.toString());
+-		wayHidden.setText(ch.DateHidden);
+-		wayOwner.setText(ch.CacheOwner);
+-		wayStatus.setText(ch.CacheStatus);
++		inpHidden.setText(ch.DateHidden);
++		inpOwner.setText(ch.CacheOwner);
++		chcStatus.setText(ch.CacheStatus);
+ 		
+-		wayType.setInt(transType(ch.type));
++		chcType.setInt(transType(ch.type));
+ 		if(ch.is_black){
+ 			btnBlack.image = mIsBlack;
+ 		} else {
+@@ -133,57 +128,25 @@
+ 		blackStatus=ch.is_black; 
+ 		btnBlack.repaintNow();
+ 		if(ch.has_bug == true) {
+-			showBug.modify(Control.Disabled,1);
++			btnShowBug.modify(Control.Disabled,1);
+ 		} else {
+-			showBug.modify(Control.Disabled,0);
++			btnShowBug.modify(Control.Disabled,0);
+ 		}
+-		showBug.repaintNow();
+-		if(ch.CacheSize.equals(&quot;Micro&quot;)) waySize.setInt(1);
+-		if(ch.CacheSize.equals(&quot;Small&quot;)) waySize.setInt(2);
+-		if(ch.CacheSize.equals(&quot;Regular&quot;)) waySize.setInt(3);
+-		if(ch.CacheSize.equals(&quot;Large&quot;)) waySize.setInt(4);
+-		if(ch.CacheSize.equals(&quot;Other&quot;)) waySize.setInt(5);
+-		if(ch.CacheSize.equals(&quot;Very Large&quot;)) waySize.setInt(6);
+-		if(ch.CacheSize.equals(&quot;None&quot;)) waySize.setInt(7);
+-		if(ch.CacheSize.equals(&quot;Not chosen&quot;)) waySize.setInt(7);
++		btnShowBug.repaintNow();
++		if(ch.CacheSize.equals(&quot;Micro&quot;)) chcSize.setInt(1);
++		if(ch.CacheSize.equals(&quot;Small&quot;)) chcSize.setInt(2);
++		if(ch.CacheSize.equals(&quot;Regular&quot;)) chcSize.setInt(3);
++		if(ch.CacheSize.equals(&quot;Large&quot;)) chcSize.setInt(4);
++		if(ch.CacheSize.equals(&quot;Other&quot;)) chcSize.setInt(5);
++		if(ch.CacheSize.equals(&quot;Very Large&quot;)) chcSize.setInt(6);
++		if(ch.CacheSize.equals(&quot;None&quot;)) chcSize.setInt(7);
++		if(ch.CacheSize.equals(&quot;Not chosen&quot;)) chcSize.setInt(7);
+ 
+-		if(ch.is_found == true) wayStatus.setText(MyLocale.getMsg(318,&quot;Found&quot;));
++		if(ch.is_found == true) chcStatus.setText(MyLocale.getMsg(318,&quot;Found&quot;));
+ 	}
+ 	
+-	private String getNewWayPointName(Vector DB){
+-		String strWp=null;
+-		long  lgWp=1;
+-		//Create new waypoint,look if not in db
+-		for(int i = 0;i &lt; DB.size();i++){
+-			strWp = &quot;CW&quot; + MyLocale.formatLong(lgWp, &quot;0000&quot;);
+-			if(((CacheHolder)DB.get(i)).wayPoint.indexOf(strWp) &gt;=0 ){
+-				//waypoint exists in database
+-				lgWp++;
+-				i = -1; // Because i++ will be executed next, so we start the loop with 0
+-			}
+-		}
+-		return strWp;
+-	}
+ 	
+ 	/**
+-	 * this is called from goto / MovingMap and so on to 
+-	 * offer the user the possibility of entering an new waypoint
+-	 * at a given position
+-	 * 
+-	 * @param ch
+-	 * @param mt
+-	 */
+-	public void newWaypoint(CacheHolder ch, MainTab mt){
+-		this.profile = Global.getProfile();
+-		ch.wayPoint = getNewWayPointName(profile.cacheDB);
+-		ch.type = &quot;0&quot;;
+-		ch.CacheSize = &quot;None&quot;;
+-		setDetails(ch, mt);
+-		this.newWp = true;
+-		cacheDB.add(thisCache);
+-		mt.select(this);
+-	}
+-	/**
+ 	*	Translate the cache type to the value in the cache type dropdown
+ 	*	control.
+ 	*/
+@@ -252,50 +215,20 @@
+ 		return ret;
+ 	}
+ 	
+-	private void saveWpt() {
+-		//Vm.debug(&quot;Sollte speichern&quot;);
+-		//CacheHolder ch = new CacheHolder();
+-		thisCache.wayPoint = wayPoint.getText();
+-		thisCache.CacheName = wayName.getText();
+-		thisCache.pos = new CWPoint(btnWayLoc.getText(),CWPoint.REGEX);
+-		thisCache.LatLon = thisCache.pos.toString();
+-		thisCache.DateHidden = wayHidden.getText();
+-		thisCache.CacheOwner = wayOwner.getText();
+-		thisCache.CacheStatus = wayStatus.getText();
+-		thisCache.type = transSelect(wayType.getInt());
+-		//cacheDB.add(ch);
+-		
+-		if(thisCache.CacheNotes.length()&gt;0){
+-			thisCache.saveCacheDetails(profile.dataDir);
+-		}
+-		
+-		profile.buildReferences();
+-		dirty_newOrDelete = true;
+-		mainT.selectAndActive(cacheDB.size()-1);
+-	}
+-	
+ 	/**
+ 	*	Method to react to a user input.
+ 	*/
+ 	public void onEvent(Event ev){
+-		if(ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.FOCUS_OUT){
+-			dirty_status = true;
++		if (ev instanceof DataChangeEvent ) {
++			dirty_details = true;
+ 		}
+-		/**
+-		*	User changed status.
+-		*/
+-		/**
+-		*	User wishes to either delete a cache or to set the cache as
+-		*	a center location.&lt;br&gt;
+-		*	Also possible: the user created a custom waypoint.
+-		*/
+ 		if(ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.PRESSED){
+-			
+-			if(ev.target == btNotes){
++			if(ev.target == btnNotes){
++				dirty_notes=true;
+ 				NotesScreen nsc = new NotesScreen(thisCache);
+ 				nsc.execute(this.getFrame(), Gui.CENTER_FRAME);
+ 			}
+-			if(ev.target == showMap){
++			else if(ev.target == btnShowMap){
+ 				try {
+ 					MapDetailForm mdf = new MapDetailForm(thisCache.wayPoint, pref, profile);
+ 					mdf.execute();
+@@ -304,21 +237,22 @@
+ 					tmp.exec();
+ 				}
+ 			}
+-			if(ev.target == showBug){
++			else if(ev.target == btnShowBug){
+ 				InfoScreen is = new InfoScreen(thisCache.Bugs, &quot;Travelbugs&quot;, false, pref);
+ 				is.execute();
+ 			}
+-			if (ev.target == btnCenter){
++			else if (ev.target == btnCenter){
+ 				CWPoint cp=new CWPoint(thisCache.LatLon);
+ 				if (!cp.isValid()){
+ 					MessageBox tmpMB = new MessageBox(MyLocale.getMsg(312,&quot;Error&quot;), MyLocale.getMsg(4111,&quot;Coordinates must be entered in the format N DD MM.MMM E DDD MM.MMM&quot;), MessageBox.OKB);
+ 					tmpMB.exec();
+ 				} else {				
+ 					pref.curCentrePt.set(cp);
+-					mainT.updateBearDist();
++					Global.mainTab.updateBearDist();
+ 				}
+ 			}
+-			if (ev.target == addDateTime){
++			else if (ev.target == btnAddDateTime){
++				dirty_notes=true;
+ 				String note = thisCache.CacheNotes;
+ 				Time dtm = new Time();
+ 				dtm.getTime();
+@@ -329,10 +263,10 @@
+ 				thisCache.CacheNotes = note;
+ 				thisCache.saveCacheDetails( Global.getProfile().dataDir);
+ 			}
+-			if (ev.target == addPicture){
++			else if (ev.target == btnAddPicture){
+ 				thisCache.addUserImage(profile);
+ 			}
+-			if(ev.target == btnBlack){
++			else if(ev.target == btnBlack){
+ 				if(thisCache.is_black) {
+ 					thisCache.is_black = false;
+ 					btnBlack.image = mNoBlack;
+@@ -344,41 +278,57 @@
+ 				blackStatus = thisCache.is_black;
+ 				btnBlack.repaintNow();
+ 			}
+-			if (ev.target == btCrWp){
+-				if(btCrWp.getText().equals(MyLocale.getMsg(312,&quot;Save&quot;))){
+-					saveWpt();
+-				}
+-				if(btCrWp.getText().equals(MyLocale.getMsg(311,&quot;Create Waypoint&quot;))){
+-					thisCache = new CacheHolder();
+-					dirty_newOrDelete = true;
+-					wayPoint.setText(getNewWayPointName(cacheDB));
+-					wayName.setText(&quot;&quot;);
+-					btnWayLoc.setText(&quot;N hh dd.mmm E hh dd.mmm&quot;);
+-					wayHidden.setText(&quot;&quot;);
+-					wayOwner.setText(&quot;&quot;);
+-					wayStatus.setText(&quot;&quot;);
+-					wayType.setInt(0);
+-					waySize.setInt(7);
+-					thisCache.wayPoint = wayPoint.getText();
+-					cacheDB.add(thisCache);
+-				}
+-				if(btCrWp.getText().equals(MyLocale.getMsg(312,&quot;Save&quot;))) btCrWp.setText(MyLocale.getMsg(311,&quot;Create Waypoint&quot;));
+-				else btCrWp.setText(MyLocale.getMsg(312,&quot;Save&quot;));
++			else if (ev.target == btnNewWpt){
++				Global.mainTab.newWaypoint(new CacheHolder());
+ 			}
+-			if (ev.target == btnGoto){
++			else if (ev.target == btnGoto){
+ 				// TODO if something changed saveWpt();
+-				mainT.gotoPoint(thisCache.LatLon);
++				Global.mainTab.gotoPoint(thisCache.LatLon);
+ 			}
+-			if (ev.target == btnWayLoc){
++			else if (ev.target == btnWayLoc){
+ 				CWPoint coords = new CWPoint(btnWayLoc.getText(),CWPoint.CW);
+ 				CoordsScreen cs = new CoordsScreen();
+ 				cs.setFields(coords, CWPoint.CW);
+ 				if (cs.execute()== CoordsScreen.IDOK){
+ 					coords = cs.getCoords();
++					thisCache.pos.set(coords);
+ 					btnWayLoc.setText(coords.toString());
+ 				}
+ 			}
+-
++			ev.consumed=true;
+ 		}
+ 	}
++	
++	public void saveDirtyWaypoint() {
++		CacheHolder ch;
++		  ch = (CacheHolder)cacheDB.get(Global.mainTab.tbP.getSelectedCache());
++		  ch.CacheStatus = chcStatus.getText();
++		  ch.is_found = ch.CacheStatus.equals(MyLocale.getMsg(318,&quot;Found&quot;));
++		  ch.is_black = blackStatus;
++		  ch.wayPoint = inpWaypoint.getText().trim();
++		  ch.CacheName = inpName.getText().trim();
++		  ch.LatLon = new CWPoint(btnWayLoc.getText(),CWPoint.CW).toString();
++		  ch.DateHidden = inpHidden.getText().trim();
++		  ch.CacheOwner = inpOwner.getText().trim();
++		  ch.is_owned = pref.myAlias.equals(ch.CacheOwner);
++		  ch.type = transSelect(chcType.getInt());
++		  if (CacheType.isAddiWpt(ch.type)) 
++			  profile.buildReferences();
++		  // set status also on addi wpts
++		  if (ch.hasAddiWpt()){
++			  CacheHolder addiWpt;
++			  for (int i=0;i&lt;ch.addiWpts.getCount();i++){
++				  addiWpt = (CacheHolder)ch.addiWpts.get(i);
++				  addiWpt.CacheStatus = ch.CacheStatus;
++				  addiWpt.is_found = ch.is_found;
++				  addiWpt.is_owned = ch.is_owned;
++			  }
++		  }
++		  if (dirty_notes) ch.saveCacheDetails(profile.dataDir);
++		  dirty_notes=false;
++		  dirty_details=false;
++		  
++		  Global.mainTab.tbP.refreshTable();
++		  ////Vm.debug(&quot;New status updated!&quot;);
++	}
+ }
+
+Modified: trunk/src/CacheWolf/GotoPanel.java
+===================================================================
+--- trunk/src/CacheWolf/GotoPanel.java	2007-02-04 22:46:00 UTC (rev 511)
++++ trunk/src/CacheWolf/GotoPanel.java	2007-02-04 23:35:16 UTC (rev 512)
+@@ -616,7 +616,7 @@
+ 				CacheHolder ch = new CacheHolder();
+ 				ch.LatLon = gpsPosition.toString();
+ 				ch.pos = new CWPoint(gpsPosition);
+-				detP.newWaypoint(ch,mainT);
++				mainT.newWaypoint(ch);
+ 			}
+ 			// change destination waypoint
+ 			if (ev.target == btnGoto){
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2007-02-04 22:46:00 UTC (rev 511)
++++ trunk/src/CacheWolf/MainMenu.java	2007-02-04 23:35:16 UTC (rev 512)
+@@ -206,6 +206,7 @@
+ 			if(mev.selectedItem == mnuOpenProfile){
+ 				if (pref.selectProfile(profile,Preferences.PROFILE_SELECTOR_FORCED_ON,false)) {
+ 					profile.cacheDB.clear();
++					tbp.setSelectedCache(-1);
+ 					profile.readIndex();
+ 					pref.curCentrePt.set(profile.centre);
+ 					filtBlack.modifiers&amp;=~MenuItem.Checked;
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2007-02-04 22:46:00 UTC (rev 511)
++++ trunk/src/CacheWolf/MainTab.java	2007-02-04 23:35:16 UTC (rev 512)
+@@ -1,5 +1,6 @@
+ package CacheWolf;
+ 
++import ewe.sys.Vm;
+ import ewe.ui.*;
+ import ewe.fx.*;
+ import ewe.util.*;
+@@ -16,9 +17,9 @@
+ 	DescriptionPanel descP= new DescriptionPanel();
+ 	HintLogPanel hintLP = new HintLogPanel();
+ 	TablePanel tbP;
+-	Vector cDB;
++	Vector cacheDB;
+ 	DetailsPanel detP = new DetailsPanel();
+-	CalcPanel calcP = new CalcPanel();
++	CalcPanel calcP;
+ 	Preferences pref;
+ 	Profile profile;
+ 	GotoPanel gotoP; 
+@@ -26,7 +27,7 @@
+ 	ImagePanel imageP;
+ 	SolverPanel solverP;
+ 	String lastselected = new String();
+-	CacheHolder ch = new CacheHolder();
++	CacheHolder ch =null;
+ 	MainMenu mnuMain;
+ 	
+ 	public MainTab(MainMenu mainMenu,StatusBar statBar){
+@@ -35,12 +36,11 @@
+ 		pref = Global.getPref();
+ 		profile=Global.getProfile();
+ 		if (!pref.tabsAtTop) tabLocation=SOUTH;
+-		cDB = profile.cacheDB;
++		cacheDB = profile.cacheDB;
+ 		MyLocale.setSIPButton();
+-		ch.wayPoint = &quot;null&quot;;
+ 		//Don't expand tabs if the screen is very narrow, i.e. HP IPAQ 65xx, 69xx
+ 		if (MyLocale.getScreenWidth() &lt;= 240) this.dontExpandTabs=true;
+-
++		calcP = new CalcPanel(); // Init here so that Global.MainT is already set
+ 		Card c = this.addCard(tbP = new TablePanel(pref, profile, statBar), MyLocale.getMsg(1200,&quot;List&quot;), null);
+ 		
+ 		c = this.addCard(detP, MyLocale.getMsg(1201,&quot;Details&quot;), null);
+@@ -80,16 +80,49 @@
+ 		this.selectAndExpand(0);
+ 	}
+ 	
++	/** Update the distances of all caches to the center and display a message 
++	 */
+ 	public void updateBearDist(){
+ 		tbP.pref = pref;
+ 		profile.updateBearingDistance();
+ 		tbP.refreshTable();
++		(new MessageBox(MyLocale.getMsg(327,&quot;Information&quot;), MyLocale.getMsg(1024,&quot;Entfernungen in der Listenansicht \nvom aktuellen Standpunkt aus \nneu berechnet&quot;).replace('~','\n'), MessageBox.OKB)).execute();
+ 	}
+ 	
+ 	public void gotoPoint(String LatLon) {
+ 		gotoP.setDestinationAndSwitch(LatLon);
+ 	}
++
++	public void openDesciptionPanel(CacheHolder chi) {
++        MyLocale.setSIPOff();
++        descP.setText(chi);
++    }
+ 	
++	
++	/**
++	 * this is called from goto / MovingMap / CalcPanel and so on to 
++	 * offer the user the possibility of entering an new waypoint
++	 * at a given position. ch must already been preset with a valid
++	 * CacheHolder object
++	 * 
++	 * @param ch
++	 */
++	public void newWaypoint(CacheHolder ch){
++		if (detP.isDirty()) detP.saveDirtyWaypoint();
++		String waypoint= ch.wayPoint = profile.getNewWayPointName();
++		ch.type = &quot;0&quot;;
++		ch.CacheSize = &quot;None&quot;;
++		cacheDB.add(ch);
++		Global.mainTab.tbP.myMod.updateRows();
++		Global.mainTab.tbP.setSelectedCache(profile.getCacheIndex(waypoint));
++		//Global.mainTab.tbP.refreshTable();
++		if (this.cardPanel.selectedItem==1) { // Detailpanel already selected
++			postEvent(new MultiPanelEvent(MultiPanelEvent.SELECTED,detP,0));
++		} else	
++			select(detP);
++	}
++	
++	
+ 	public void onEvent(Event ev)
+ 		{
+ 		  ////Vm.debug(ev.toString());
+@@ -101,130 +134,74 @@
+ //				  Vm.setSIP(0);
+ 				  MyLocale.setSIPOff();
+ 			  }
+-			  //if(this.getSelectedItem() == 0){
+-				  //Vm.debug(Convert.toString(cDB.size()));
+-				  //Vm.debug(&quot;Panel 0&quot;);
+-				  if(detP.dirty_newOrDelete) {
+-					  tbP.refreshTable();
+-					  //Vm.debug(&quot;Panel 0.1&quot;);
+-					  detP.dirty_newOrDelete = false;
+-					  detP.dirty_status = false;
+-				  }
+-				  if(detP.dirty_status == true){ // Details were edited
+-					  //Vm.debug(&quot;Panel 0.2&quot;);
+-					  ch = (CacheHolder)cDB.get(tbP.getSelectedCache());
+-					  ch.CacheStatus = detP.wayStatus.getText();
+-					  ch.is_found = ch.CacheStatus.equals(MyLocale.getMsg(318,&quot;Found&quot;));
+-					  ch.is_black = detP.blackStatus;
+-					  ch.wayPoint = detP.wayPoint.getText();
+-					  ch.CacheName = detP.wayName.getText();
+-					  ch.pos.set(detP.btnWayLoc.getText(),CWPoint.CW);
+-					  ch.LatLon = ch.pos.toString();
+-					  ch.DateHidden = detP.wayHidden.getText();
+-					  ch.CacheOwner = detP.wayOwner.getText();
+-					  if(pref.myAlias.equals(ch.CacheOwner)) ch.is_owned = true;
+-					  
+-					  ch.type = detP.transSelect(detP.wayType.getInt());
+-					  // set status also on addi wpts
+-					  if (ch.hasAddiWpt()){
+-						  CacheHolder addiWpt;
+-						  for (int i=0;i&lt;ch.addiWpts.getCount();i++){
+-							  addiWpt = (CacheHolder)ch.addiWpts.get(i);
+-							  addiWpt.CacheStatus = ch.CacheStatus;
+-							  addiWpt.is_found = ch.is_found;
+-							  addiWpt.is_owned = ch.is_owned;
++			  if(detP.isDirty()) {
++				  detP.saveDirtyWaypoint();
++			  }
++			  if(this.getSelectedItem() != 0){
++				  if (tbP.getSelectedCache()&gt;=cacheDB.size())
++					  ch=null;
++				  else {
++					  ch = (CacheHolder)cacheDB.get(tbP.getSelectedCache());
++					  try {
++						  if(ch.wayPoint.equals(lastselected) == false){
++							  ch.readCache(profile.dataDir);
++							  lastselected = ch.wayPoint;
+ 						  }
++					  } catch(Exception e){
++						//Vm.debug(&quot;Error loading: &quot;+ch.wayPoint);
+ 					  }
+-					  cDB.set(tbP.getSelectedCache(), ch);
+-					  detP.dirty_status = false;
+-					  tbP.refreshTable();
+-					  ////Vm.debug(&quot;New status updated!&quot;);
+ 				  }
+-			  //}
+-			  if(this.getSelectedItem() != 0){
+-				  try{
+-					  ch = (CacheHolder)cDB.get(tbP.getSelectedCache());
+-					  if(ch.wayPoint.equals(lastselected) == false){
+-						  //OperationTimer opt = new OperationTimer();
+-						  //opt.start(&quot;Reading: &quot;);
+-						  ch.readCache(profile.dataDir);
+-						  //opt.end();
+-						  ////Vm.debug(opt.toString());
+-						  lastselected = ch.wayPoint;
++			  }
++			  // If no cache is selected, create a new one
++			  switch (this.getSelectedItem()) {
++				  case 1:  // DetailsPanel
++					  if (ch==null) newWaypoint(ch=new CacheHolder());
++					  MyLocale.setSIPButton();
++					  detP.setDetails(ch);
++				      break;
++				  case 2: // Description Panel
++					  if (ch!=null) {
++						  MyLocale.setSIPOff();
++						  descP.setText(ch);
+ 					  }
+-				  } catch(Exception e){
+-					//Vm.debug(&quot;Error loading: &quot;+ch.wayPoint);
+-				  }
++					  break;
++				  case 3: // Picture Panel
++					  if (ch!=null) {
++						  MyLocale.setSIPOff();
++						  imageP.setImages(ch);
++					  }
++					  break;
++				  case 4:  // Log Hint Panel
++					  if (ch!=null) {
++						  MyLocale.setSIPOff();
++						  hintLP.setText(ch);
++					  }
++					  break;
++				  case 5:  // CalcPanel
++					  if (ch!=null) {
++						  MyLocale.setSIPButton();
++						  calcP.setFields(ch);
++					  }
++					  break;
++				  
++				  case 6: // GotoPanel
++					  MyLocale.setSIPButton();
++				      break;
++				  case 7:  // Solver Panel
++					  MyLocale.setSIPButton();
++					  solverP.setCh(ch);
++				      break;
++				  case 8:  // Cache Radar Panel
++					  MyLocale.setSIPOff();
++					  radarP.setParam(pref, cacheDB, ch==null?&quot;&quot;:ch.wayPoint);
++					  radarP.drawThePanel();
++				      break;
+ 			  }
+-			  if(this.getSelectedItem() == 1){ // DetailsPanel
+-				  MyLocale.setSIPButton();
+-				  detP.setDetails(ch, this);
+-			  }
+-			  if(this.getSelectedItem() == 2) { // Description Panel
+-				  openDesciptionPanel(ch);
+-			  }
+-			  if(this.getSelectedItem() == 3) { // Picture Panel
+-				  MyLocale.setSIPOff();
+-				  imageP.setImages(ch);
+-				  if(detP.dirty_newOrDelete) {
+-					  tbP.refreshTable();
+-					  detP.dirty_newOrDelete = false;
+-				  }
+-			  }
+-			  if(this.getSelectedItem() == 4) { // Log Hint Panel
+-				  MyLocale.setSIPOff();
+-				  hintLP.setText(ch);
+-				  if(detP.dirty_newOrDelete) {
+-					  tbP.refreshTable();
+-					  detP.dirty_newOrDelete = false;
+-				  }
+-			  }
+-			  if(this.getSelectedItem() == 5){ // CalcPanel
+-				  MyLocale.setSIPButton();
+-				  calcP.setFields(ch, this, detP, pref, profile);
+-				  //calcP.activateFields(CWPoint.DMM);
+-				  }
+-			  
+-			  if(this.getSelectedItem() == 6){ // GotoPanel
+-				  MyLocale.setSIPButton();
+-				  }
+-
+-
+-			  if(this.getSelectedItem() == 7) { // Solver Panel
+-				  MyLocale.setSIPButton();
+-				  solverP.setCh(ch);
+-				  if(detP.dirty_newOrDelete) {
+-					  tbP.refreshTable();
+-					  detP.dirty_newOrDelete = false;
+-				  }
+-			  }
+-			  if(this.getSelectedItem() == 8) { // Cache Radar Panel
+-				  MyLocale.setSIPOff();
+-				  if(detP.dirty_newOrDelete) {
+-					  //tbP.refreshTable();
+-					  detP.dirty_newOrDelete = false;
+-				  }
+-				  radarP.setParam(pref, cDB, ch.wayPoint);
+-				  radarP.drawThePanel();
+-			  }
+-		  }
+-		  
+-		  super.onEvent(ev); //Make sure you call this.
+ 		}
+-		
+-		/*
+-		public void resizeTo(int w, int h){
+-			//super.resizeTo(w,h);
+-			////Vm.debug(Convert.toString(w));
+-		}
+-		*/
+-	public void openDesciptionPanel(CacheHolder chi) {
+-		MyLocale.setSIPOff();
+-		descP.setText(chi);
+-		if(detP.dirty_newOrDelete) {
+-			tbP.refreshTable();
+-			detP.dirty_newOrDelete = false;
+-		}
++		  super.onEvent(ev); //Make sure you call this.
+ 	}
++
++	
++	
+ }
+ 
+
+Modified: trunk/src/CacheWolf/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/MovingMap.java	2007-02-04 22:46:00 UTC (rev 511)
++++ trunk/src/CacheWolf/MovingMap.java	2007-02-04 23:35:16 UTC (rev 512)
+@@ -1542,7 +1542,7 @@
+ 						mm.postEvent(close);
+ 						CacheHolder newWP = new CacheHolder();
+ 						newWP.pos = mm.ScreenXY2LatLon(saveMapLoc.x, saveMapLoc.y);
+-						mm.gotoPanel.mainT.detP.newWaypoint(newWP, mm.gotoPanel.mainT);
++						mm.gotoPanel.mainT.newWaypoint(newWP);
+ 
+ 					}
+ 
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2007-02-04 22:46:00 UTC (rev 511)
++++ trunk/src/CacheWolf/myTableControl.java	2007-02-04 23:35:16 UTC (rev 512)
+@@ -168,20 +168,8 @@
+ 	}
+ 	
+ 	public void penDoubleClicked(Point where) {
+-		//Global.mainTab.select(Global.mainTab.descP);
+-		openCacheDesc();
++		Global.mainTab.select(Global.mainTab.descP);
+ 	}
+ 
+-	void openCacheDesc() {
+-			CacheHolder ch;
+-			ch = (CacheHolder)tbp.cacheDB.get(tbp.getSelectedCache());
+-			try{
+-				ch.readCache(profile.dataDir);
+-			}catch(IOException ex){	
+-				(new MessageBox(&quot;Error&quot;, &quot;Cannot read cache data\n&quot;+ex.toString()+&quot;\n in cache: &quot;+ch.wayPoint,MessageBox.OKB)).execute(); 
+-			}
+-			tbp.myMaintab.select(tbp.myMaintab.descP);
+-		
+-	}
+ 	
+ }
+
+Modified: trunk/src/CacheWolf/myTableModel.java
+===================================================================
+--- trunk/src/CacheWolf/myTableModel.java	2007-02-04 22:46:00 UTC (rev 511)
++++ trunk/src/CacheWolf/myTableModel.java	2007-02-04 23:35:16 UTC (rev 512)
+@@ -322,7 +322,7 @@
+ 					}
+ 					
+ 				}
+-				updateRows();
++				//updateRows();
+ 				// Don't consume the event. Why ?
+ 			}
+ 			if(cell.y == -1){
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000305.html">[Cachewolf-svn] r511 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000307.html">[Cachewolf-svn] r513 - in trunk: resources src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#306">[ date ]</a>
+              <a href="thread.html#306">[ thread ]</a>
+              <a href="subject.html#306">[ subject ]</a>
+              <a href="author.html#306">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

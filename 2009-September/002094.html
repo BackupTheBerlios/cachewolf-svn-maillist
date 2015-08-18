@@ -1,0 +1,254 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2170 - trunk/src/CacheWolf/imp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-September/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2170%20-%20trunk/src/CacheWolf/imp&In-Reply-To=%3C200909091809.n89I9SYV018649%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002093.html">
+   <LINK REL="Next"  HREF="002095.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2170 - trunk/src/CacheWolf/imp</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2170%20-%20trunk/src/CacheWolf/imp&In-Reply-To=%3C200909091809.n89I9SYV018649%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2170 - trunk/src/CacheWolf/imp">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Wed Sep  9 20:09:28 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002093.html">[Cachewolf-svn] r2169 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="002095.html">[Cachewolf-svn] r2171 - trunk/src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2094">[ date ]</a>
+              <a href="thread.html#2094">[ thread ]</a>
+              <a href="subject.html#2094">[ subject ]</a>
+              <a href="author.html#2094">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2009-09-09 20:09:27 +0200 (Wed, 09 Sep 2009)
+New Revision: 2170
+
+Modified:
+   trunk/src/CacheWolf/imp/OCXMLImporter.java
+Log:
+Opencaching download importer: show different languages if provided in the description and hints
+
+Modified: trunk/src/CacheWolf/imp/OCXMLImporter.java
+===================================================================
+--- trunk/src/CacheWolf/imp/OCXMLImporter.java	2009-09-09 16:42:13 UTC (rev 2169)
++++ trunk/src/CacheWolf/imp/OCXMLImporter.java	2009-09-09 18:09:27 UTC (rev 2170)
+@@ -72,7 +72,6 @@
+ 	String strData = new String();
+ 	int picCnt;
+ 	boolean incUpdate = true; // complete or incremental Update
+-	boolean ignoreDesc = false;
+ 	boolean askForOptions = true;
+ 	Hashtable DBindexID = new Hashtable();
+ 
+@@ -85,9 +84,12 @@
+ 	boolean loggerRecommended;
+ 	int logtype;
+ 	String user;
++
++	/** Temporarly save the values from XML */
+ 	double longitude;
++	/** Temporarly save the values from XML: set to the language of the description which is currently parsed */
++	String processingDescLang;
+ 
+-
+ 	public OCXMLImporter(Preferences p,Profile prof)
+ 	{
+ 		pref = p;
+@@ -427,19 +429,18 @@
+ 
+ 	}
+ 	
++
+ 	private void startCacheDesc(String name, AttributeList atts){
+ 		inf.setInfo(MyLocale.getMsg(1611,&quot;Importing cache description:&quot;)+&quot; &quot; + numDescImported);
+ 		if (name.equals(&quot;cachedesc&quot;)){
+-			ignoreDesc = false;
+ 		}
+ 
+ 		if (name.equals(&quot;desc&quot;)){
+ 			holder.setHTML(atts.getValue(&quot;html&quot;).equals(&quot;1&quot;)?true:false);
+ 		}
+-
+-		if (name.equals(&quot;language&quot;) &amp;&amp; !atts.getValue(&quot;id&quot;).equals(&quot;DE&quot;)){
+-			if (holder.getFreshDetails().LongDescription.length()&gt; 0) ignoreDesc = true; // TODO &quot;DE&quot; in preferences adjustable
+-			else ignoreDesc = false;
++		
++		if (name.equals(&quot;language&quot;)) {
++			processingDescLang = atts.getValue(&quot;id&quot;);
+ 		}
+ 	}
+ 
+@@ -471,8 +472,6 @@
+ 		}
+ 	}
+ 
+-	// TODO Do we have to release the &quot;holder&quot; cache details ?
+-	// for details see: <A HREF="http://www.geoclub.de/viewtopic.php?f=40&amp;t=33289">http://www.geoclub.de/viewtopic.php?f=40&amp;t=33289</A>
+ 	private void endCache(String name){
+ 		if (name.equals(&quot;cache&quot;)){
+ 			holder.setLastSync(dateOfthisSync.format(&quot;yyyyMMddHHmmss&quot;));
+@@ -550,66 +549,71 @@
+ 	}
+ 
+ 	private void endCacheDesc(String name){
+-
+-		if (!ignoreDesc){
+-			if (name.equals(&quot;cachedesc&quot;)){
+-				if (pref.downloadPics &amp;&amp; holder.is_HTML()) {
+-					String fetchUrl, imgTag, imgAltText;
+-					Regex imgRegexUrl = new Regex(&quot;(&lt;img[^&gt;]*src=[\&quot;\']([^&gt;^\&quot;^\']*)[^&gt;]*&gt;|&lt;img[^&gt;]*src=([^&gt;^\&quot;^\'^ ]*)[^&gt;]*&gt;)&quot;); //  Ergebnis enthlt keine Anfhrungszeichen
+-					Regex imgRegexAlt = new Regex(&quot;(?:alt=[\&quot;\']([^&gt;^\&quot;^\']*)|alt=([^&gt;^\&quot;^\'^ ]*))&quot;); // get alternative text for Pic
+-					imgRegexAlt.setIgnoreCase(true);
+-					imgRegexUrl.setIgnoreCase(true);
+-					int descIndex=0;
+-					int numDownloaded=1;
+-					while (imgRegexUrl.searchFrom(holder.getFreshDetails().LongDescription, descIndex)) { // &quot;img&quot; found
+-						imgTag=imgRegexUrl.stringMatched(1); // (1) enthlt das gesamte &lt;img ...&gt;-tag
+-						fetchUrl=imgRegexUrl.stringMatched(2); // URL in Anfhrungszeichen in (2) falls ohne in (3) Ergebnis ist auf jeden Fall ohne Anfhrungszeichen 
+-						if (fetchUrl==null) { fetchUrl=imgRegexUrl.stringMatched(3); }
+-						if (fetchUrl==null) { // TODO Fehler ausgeben: nicht abgedeckt ist der Fall, dass in einem Cache Links auf Bilder mit unterschiedlichen URL, aber gleichem Dateinamen sind.
+-							inf.addWarning(MyLocale.getMsg(1617, &quot;Ignoriere Fehler in html-Cache-Description: \&quot;&lt;img\&quot; without \&quot;src=\&quot; in cache &quot;+holder.getWayPoint()));
+-							continue;
+-						}
+-						inf.setInfo(MyLocale.getMsg(1611,&quot;Importing cache description:&quot;)+&quot; &quot; + numDescImported + &quot;\n&quot;+MyLocale.getMsg(1620, &quot;downloading embedded images: &quot;) + numDownloaded++);
+-						if (imgRegexAlt.search(imgTag)) {
+-							imgAltText=imgRegexAlt.stringMatched(1);
+-							if (imgAltText==null)	imgAltText=imgRegexAlt.stringMatched(2);
+-							// kein alternativer Text als Bildberschrift -&gt; Dateiname
+-						} else { 
+-							if (fetchUrl.toLowerCase().indexOf(&quot;opencaching.&quot;) &gt; 0 || fetchUrl.toLowerCase().indexOf(&quot;geocaching.com&quot;) &gt; 0) //wenn von Opencaching oder geocaching ist Dateiname doch nicht so toll, weil nur aus Nummer bestehend 
+-								imgAltText = new String(&quot;No image title&quot;);
+-							else imgAltText = fetchUrl.substring(fetchUrl.lastIndexOf(&quot;/&quot;)+1);
+-						}
+-						descIndex = imgRegexUrl.matchedTo();
+-						getPic(fetchUrl, imgAltText);
++		if (name.equals(&quot;cachedesc&quot;)){
++			if (pref.downloadPics &amp;&amp; holder.is_HTML()) {
++				String fetchUrl, imgTag, imgAltText;
++				Regex imgRegexUrl = new Regex(&quot;(&lt;img[^&gt;]*src=[\&quot;\']([^&gt;^\&quot;^\']*)[^&gt;]*&gt;|&lt;img[^&gt;]*src=([^&gt;^\&quot;^\'^ ]*)[^&gt;]*&gt;)&quot;); //  Ergebnis enthlt keine Anfhrungszeichen
++				Regex imgRegexAlt = new Regex(&quot;(?:alt=[\&quot;\']([^&gt;^\&quot;^\']*)|alt=([^&gt;^\&quot;^\'^ ]*))&quot;); // get alternative text for Pic
++				imgRegexAlt.setIgnoreCase(true);
++				imgRegexUrl.setIgnoreCase(true);
++				int descIndex=0;
++				int numDownloaded=1;
++				while (imgRegexUrl.searchFrom(holder.getFreshDetails().LongDescription, descIndex)) { // &quot;img&quot; found
++					imgTag=imgRegexUrl.stringMatched(1); // (1) enthlt das gesamte &lt;img ...&gt;-tag
++					fetchUrl=imgRegexUrl.stringMatched(2); // URL in Anfhrungszeichen in (2) falls ohne in (3) Ergebnis ist auf jeden Fall ohne Anfhrungszeichen 
++					if (fetchUrl==null) { fetchUrl=imgRegexUrl.stringMatched(3); }
++					if (fetchUrl==null) { // TODO Fehler ausgeben: nicht abgedeckt ist der Fall, dass in einem Cache Links auf Bilder mit unterschiedlichen URL, aber gleichem Dateinamen sind.
++						inf.addWarning(MyLocale.getMsg(1617, &quot;Ignoriere Fehler in html-Cache-Description: \&quot;&lt;img\&quot; without \&quot;src=\&quot; in cache &quot;+holder.getWayPoint()));
++						continue;
+ 					}
++					inf.setInfo(MyLocale.getMsg(1611,&quot;Importing cache description:&quot;)+&quot; &quot; + numDescImported + &quot;\n&quot;+MyLocale.getMsg(1620, &quot;downloading embedded images: &quot;) + numDownloaded++);
++					if (imgRegexAlt.search(imgTag)) {
++						imgAltText=imgRegexAlt.stringMatched(1);
++						if (imgAltText==null)	imgAltText=imgRegexAlt.stringMatched(2);
++						// no alternative text as image title -&gt; use filename
++					} else { 
++						if (fetchUrl.toLowerCase().indexOf(&quot;opencaching.&quot;) &gt; 0 || fetchUrl.toLowerCase().indexOf(&quot;geocaching.com&quot;) &gt; 0) //wenn von Opencaching oder geocaching ist Dateiname doch nicht so toll, weil nur aus Nummer bestehend 
++							imgAltText = new String(&quot;No image title&quot;);
++						else imgAltText = fetchUrl.substring(fetchUrl.lastIndexOf(&quot;/&quot;)+1);
++					}
++					descIndex = imgRegexUrl.matchedTo();
++					getPic(fetchUrl, imgAltText);
+ 				}
+-				holder.getFreshDetails().hasUnsavedChanges = true; //saveCacheDetails(profile.dataDir);
+-				return;
+ 			}
++			holder.getFreshDetails().hasUnsavedChanges = true;
++			return;
++		}
+ 
+ 
+-			if (name.equals(&quot;cacheid&quot;)){
+-				// load cachedata
+-				holder = getHolder(strData);
+-				holder.setUpdated(true);
+-				return;
+-			}
++		if (name.equals(&quot;cacheid&quot;)){
++			// load cachedata
++			holder = getHolder(strData);
++			return;
++		}
+ 
+-			if (name.equals(&quot;shortdesc&quot;)){
+-				holder.getFreshDetails().LongDescription = strData;
+-				return;
+-			}
++		if (name.equals(&quot;shortdesc&quot;)){
++			String linebraek; 
+ 
+-			if (name.equals(&quot;desc&quot;)){ // &lt;/desc&gt;
+-				if (holder.is_HTML())	holder.getFreshDetails().LongDescription +=SafeXML.cleanback(strData);
+-				else holder.getFreshDetails().LongDescription +=strData;
+-				return;
+-			}
+-			if (name.equals(&quot;hint&quot;)){
+-				holder.getFreshDetails().Hints = Common.rot13(strData);
+-				return;
+-			}
++			if (holder.is_HTML())	linebraek = &quot;&lt;br&gt;\n&quot;;
++			else 					linebraek = &quot;\n&quot;;
++
++			if (holder.is_updated())	holder.getFreshDetails().LongDescription += linebraek + processingDescLang + &quot;:&quot; +  linebraek + strData; // if a long description is already updated, then this one is likely to be in another language
++			else 					 	holder.getFreshDetails().LongDescription =              processingDescLang + &quot;:&quot; +  linebraek + strData; 
++			return;
+ 		}
++
++		if (name.equals(&quot;desc&quot;)){ // &lt;/desc&gt;
++			if (holder.is_HTML())	holder.getFreshDetails().LongDescription +=SafeXML.cleanback(strData);
++			else holder.getFreshDetails().LongDescription +=strData;
++			return;
++		}
++		if (name.equals(&quot;hint&quot;)){
++			if (holder.is_updated()) 	
++				holder.getFreshDetails().Hints += &quot;\n&quot; +  processingDescLang + &quot;: &quot; + Common.rot13(strData);
++			else						holder.getFreshDetails().Hints = Common.rot13(strData);
++			holder.setUpdated(true); // remark: this is used in &quot;shortdesc&quot; to decide weather the description should be appended or replaced
++			return;
++		}
+ 	}
+ 
+ 	private String createPicFilename(String fetchURL) {
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002093.html">[Cachewolf-svn] r2169 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="002095.html">[Cachewolf-svn] r2171 - trunk/src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2094">[ date ]</a>
+              <a href="thread.html#2094">[ thread ]</a>
+              <a href="subject.html#2094">[ subject ]</a>
+              <a href="author.html#2094">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

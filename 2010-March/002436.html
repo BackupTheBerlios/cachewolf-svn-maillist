@@ -1,0 +1,520 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2511 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2010-March/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2511%20-%20trunk/src/CacheWolf&In-Reply-To=%3C201003082206.o28M6Oll007265%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002435.html">
+   <LINK REL="Next"  HREF="002437.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2511 - trunk/src/CacheWolf</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2511%20-%20trunk/src/CacheWolf&In-Reply-To=%3C201003082206.o28M6Oll007265%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2511 - trunk/src/CacheWolf">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Mon Mar  8 23:06:24 CET 2010</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002435.html">[Cachewolf-svn] r2510 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="002437.html">[Cachewolf-svn] r2512 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2436">[ date ]</a>
+              <a href="thread.html#2436">[ thread ]</a>
+              <a href="subject.html#2436">[ subject ]</a>
+              <a href="author.html#2436">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2010-03-08 23:06:22 +0100 (Mon, 08 Mar 2010)
+New Revision: 2511
+
+Added:
+   trunk/src/CacheWolf/InputScreen.java
+Modified:
+   trunk/src/CacheWolf/CalcPanel.java
+   trunk/src/CacheWolf/CoordsScreen.java
+Log:
+touch input for coordinates (testversion)
+
+Modified: trunk/src/CacheWolf/CalcPanel.java
+===================================================================
+--- trunk/src/CacheWolf/CalcPanel.java	2010-03-08 22:05:13 UTC (rev 2510)
++++ trunk/src/CacheWolf/CalcPanel.java	2010-03-08 22:06:22 UTC (rev 2511)
+@@ -2,6 +2,8 @@
+ 
+ import CacheWolf.navi.Metrics;
+ import CacheWolf.navi.TransformCoordinates;
++import CacheWolf.InputScreen;
++import ewe.sys.Vm;
+ import ewe.ui.*;
+ import ewe.ui.formatted.TextDisplay;
+ import ewe.fx.Dimension;
+@@ -53,6 +55,7 @@
+ 	CellPanel BottomP = new CellPanel();
+ 	
+ 	String lastWaypoint = &quot;&quot;;
++	boolean bBearing, bDistance;
+ 	
+ 	int currFormat;
+ 	mButton btnChangeLatLon;
+@@ -186,6 +189,23 @@
+ 	public void onEvent(Event ev){
+ 
+ 		//Vm.debug(ev.toString());
++		if(ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.FOCUS_IN &amp;&amp; Vm.isMobile()){
++			if (ev.target == inpBearing &amp;&amp; !bBearing){
++				bBearing = true;
++				InputScreen inpScreen = new InputScreen(inpBearing, MyLocale.getMsg(1403,&quot;Bearing&quot;));
++				inpScreen.execute();
++				bDistance = false;
++			}
++			
++			if (ev.target == inpDistance &amp;&amp; !bDistance){
++				bDistance = true;
++				InputScreen inpScreen = new InputScreen(inpDistance, MyLocale.getMsg(1404,&quot;Distance&quot;));
++				inpScreen.execute();
++				bBearing = false;
++			}
++		}
++		
++		
+ 		if(ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.PRESSED){
+ 			if (ev.target == chkFormat 
+ 					|| ((ev.type == ControlEvent.PRESSED) &amp;&amp; (ev.target == localCooSystem )) ) {
+
+Modified: trunk/src/CacheWolf/CoordsScreen.java
+===================================================================
+--- trunk/src/CacheWolf/CoordsScreen.java	2010-03-08 22:05:13 UTC (rev 2510)
++++ trunk/src/CacheWolf/CoordsScreen.java	2010-03-08 22:06:22 UTC (rev 2511)
+@@ -4,6 +4,7 @@
+ import CacheWolf.navi.Navigate;
+ import CacheWolf.navi.ProjectedPoint;
+ import CacheWolf.navi.TransformCoordinates;
++import CacheWolf.InputScreen;
+ import ewe.ui.*;
+ import ewe.fx.Dimension;
+ import ewe.sys.*;
+@@ -24,12 +25,24 @@
+ 	mInput inpUTMZone, inpUTMNorthing, inpUTMEasting;
+ 	mInput inpText;
+ 	mButton btnCancel, btnApply, btnCopy, btnPaste, btnParse, btnGps, btnClear, btnSearch;
++	InputScreen inpScreen;
++
+ 	CWPoint coordInp = new CWPoint();
+ 	CellPanel topLinePanel = new CellPanel();
+ 	CellPanel mainPanel = new CellPanel();
+ 	int exitKeys[]={75009};
+ 	int currFormat;
+ 
++	boolean bNSDeg = false;
++	boolean bNSm = false;
++	boolean	bNSs = false;
++	boolean bEWDeg = false;
++	boolean bEWm = false;
++	boolean bEWs = false;
++	boolean bUTMNorthing = false;
++	boolean bUTMEasting = false;
++	
++
+ 	private boolean allowInvalid = false;
+ 
+ 	public CoordsScreen(boolean allowInvalidCoords)
+@@ -116,27 +129,30 @@
+ 		//add Panels
+ 		this.addLast(mainPanel,CellConstants.DONTSTRETCH, CellConstants.WEST);
+ 		chcNS.takeFocus(ControlConstants.ByKeyboard);
++		
++		
+ 	}
+ 
+ 	public void activateFields(int format){
+-		inpEWDeg.wantReturn=false; inpEWm.wantReturn=false; inpEWs.wantReturn=false; inpUTMNorthing.wantReturn=false;
++		//inpEWDeg.wantReturn=false; inpEWm.wantReturn=false; inpEWs.wantReturn=false; inpUTMNorthing.wantReturn=false;
++
+ 		switch (format){
+ 		case TransformCoordinates.DD:
+ 			enable(chcNS); enable(inpNSDeg); disable(inpNSm); disable(inpNSs);
+ 			enable(chcEW); enable(inpEWDeg); disable(inpEWm); disable(inpEWs);
+-			inpEWDeg.wantReturn=true;
++			//inpEWDeg.wantReturn=true;
+ 			disable(inpUTMZone); disable(inpUTMNorthing); disable(inpUTMEasting);
+ 			break;
+ 		case TransformCoordinates.DMM: 	
+ 			enable(chcNS); enable(inpNSDeg); enable(inpNSm); disable(inpNSs);
+ 			enable(chcEW); enable(inpEWDeg); enable(inpEWm); disable(inpEWs);
+-			inpEWm.wantReturn=true;
++			//inpEWm.wantReturn=true;
+ 			disable(inpUTMZone); disable(inpUTMNorthing); disable(inpUTMEasting);
+ 			break;
+ 		case TransformCoordinates.DMS: 	
+ 			enable(chcNS); enable(inpNSDeg); enable(inpNSm); enable(inpNSs);
+ 			enable(chcEW); enable(inpEWDeg); enable(inpEWm); enable(inpEWs);
+-			inpEWs.wantReturn=true;
++			//inpEWs.wantReturn=true;
+ 			disable(inpUTMZone); disable(inpUTMNorthing); disable(inpUTMEasting);
+ 			break;
+ 		default: 	
+@@ -145,7 +161,7 @@
+ 			if (TransformCoordinates.localSystems[localCooSystem.getInt()].zoneSeperatly) enable(inpUTMZone);
+ 			else disable(inpUTMZone); 
+ 			enable(inpUTMNorthing); enable(inpUTMEasting);
+-			inpUTMNorthing.wantReturn=true;
++			//inpUTMNorthing.wantReturn=true;
+ 			break;
+ 		}
+ 
+@@ -216,12 +232,86 @@
+ 	}
+ 
+ 
++	
+ 	public void onEvent(Event ev){
+ 
+ 		//Vm.debug(ev.toString());
+ 		// Ensure that the Enter key moves to the appropriate field
+ 		// for Checkboxes and Choice controls this is done via the exitKeys
+ 		// For input fields we use the wantReturn field
++
++		if(ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.FOCUS_IN  &amp;&amp; Vm.isMobile()){
++		//if(ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.FOCUS_IN){
++			if (ev.target == inpNSDeg &amp;&amp; !bNSDeg){
++				bNSDeg = true;
++				if(chkFormat.getSelectedIndex() == 0)
++					inpScreen = new InputScreen(inpNSDeg,&quot;Format: d.d&#176;&quot;);
++				else
++					inpScreen = new InputScreen(inpNSDeg,&quot;Format: d&#176;&quot;);					
++				inpScreen.execute();
++				bNSm = bNSs = bEWDeg = bEWm = bEWs = bUTMNorthing = bUTMEasting = false;
++			}
++			
++			if (ev.target == inpNSm &amp;&amp; !bNSm){
++				bNSm = true;
++				if(chkFormat.getSelectedIndex() == 2)
++					inpScreen = new InputScreen(inpNSm,&quot;Format: m&quot;);
++				else
++					inpScreen = new InputScreen(inpNSm,&quot;Format: m.s&quot;);					
++				inpScreen.execute();
++				bNSDeg = bNSs = bEWDeg = bEWm = bEWs = bUTMNorthing = bUTMEasting = false;
++			}
++			
++			if (ev.target == inpNSs &amp;&amp; !bNSs){
++				bNSs = true;
++				inpScreen = new InputScreen(inpNSs,&quot;Format: s&quot;);
++				inpScreen.execute();
++				bNSDeg = bNSm = bEWDeg = bEWm = bEWs = bUTMNorthing = bUTMEasting = false;
++			}
++			
++			if (ev.target == inpEWDeg &amp;&amp; !bEWDeg){
++				bEWDeg = true;
++				if(chkFormat.getSelectedIndex() == 0)
++					inpScreen = new InputScreen(inpEWDeg,&quot;Format: d.d&#176;&quot;);
++				else
++					inpScreen = new InputScreen(inpEWDeg,&quot;Format: d&#176;&quot;);	
++				inpScreen.execute();
++				bNSDeg = bNSm = bNSs = bEWm = bEWs = bUTMNorthing = bUTMEasting = false;
++			}
++			
++			if (ev.target == inpEWm &amp;&amp; !bEWm){
++				bEWm = true;
++				if(chkFormat.getSelectedIndex() == 2)
++					inpScreen = new InputScreen(inpEWm,&quot;Format: m&quot;);
++				else
++					inpScreen = new InputScreen(inpEWm,&quot;Format: m.s&quot;);
++				inpScreen.execute();
++				bNSDeg = bNSm = bNSs = bEWDeg = bEWs = bUTMNorthing = bUTMEasting = false;
++			}
++			
++			if (ev.target == inpEWs &amp;&amp; !bEWs){
++				bEWs = true;
++				inpScreen = new InputScreen(inpEWs,&quot;Format: s&quot;);
++				inpScreen.execute();
++				bNSDeg = bNSm = bNSs = bEWDeg = bEWm = bUTMNorthing = bUTMEasting = false;
++			}
++
++			if (ev.target == inpUTMNorthing &amp;&amp; !bUTMNorthing){
++				bUTMNorthing = true;
++				inpScreen = new InputScreen(inpUTMNorthing,&quot;Format: &quot; + MyLocale.getMsg(1401,&quot;Northing&quot;));
++				inpScreen.execute();
++				bNSDeg = bNSm = bNSs = bEWDeg = bEWm = bEWs = bUTMEasting = false;
++			}
++			
++			if (ev.target == inpUTMEasting &amp;&amp; !bUTMEasting){
++				bUTMEasting = true;
++				inpScreen = new InputScreen(inpUTMEasting,&quot;Format: &quot; + MyLocale.getMsg(1402,&quot;Easting&quot;));
++				inpScreen.execute();
++				bNSDeg = bNSm = bNSs = bEWDeg = bEWm = bEWs = bUTMNorthing = false;
++			}
++			
++		}
++			
+ 		if(ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.EXITED){
+ 			if (((ControlEvent)ev).target==chkDD || ((ControlEvent)ev).target==chkDMM ||
+ 					((ControlEvent)ev).target==chkDMS) Gui.takeFocus(chcNS,ControlConstants.ByKeyboard);	
+@@ -233,6 +323,7 @@
+ 			if (((ControlEvent)ev).target==inpEWDeg || ((ControlEvent)ev).target==inpEWm ||
+ 					((ControlEvent)ev).target==inpEWs || ((ControlEvent)ev).target==inpUTMNorthing) Gui.takeFocus(btnApply,ControlConstants.ByKeyboard);	
+ 			
++			
+ 			if (ev.target == chkFormat || ev.target == localCooSystem){
+ 				if (ev.target == localCooSystem) chkFormat.selectIndex(3);
+ 				readFields(coordInp);
+@@ -314,6 +405,7 @@
+ 		}
+ 		super.onEvent(ev);
+ 	}
++	
+ 
+ 	private static final int[] formatSelToLocalSystem = {
+ 		TransformCoordinates.DD,
+
+Added: trunk/src/CacheWolf/InputScreen.java
+===================================================================
+--- trunk/src/CacheWolf/InputScreen.java	2010-03-08 22:05:13 UTC (rev 2510)
++++ trunk/src/CacheWolf/InputScreen.java	2010-03-08 22:06:22 UTC (rev 2511)
+@@ -0,0 +1,210 @@
++package CacheWolf;
++
++import ewe.ui.*;
++import ewe.fx.Font;
++
++/**
++*	Class for entering coordinates&lt;br&gt;
++*	Class IDs 1400 and 600 (same as calc panel and preferences screen)&lt;br&gt;
++*/
++
++
++public class InputScreen extends Form {
++
++	String sText = &quot;&quot;;
++	mButton btn9, btn8, btn7, btn6, btn5, btn4, btn3, btn2, btn1, btn0, btnPoint, btnOk, btnDEL, btnDELAll;
++	mInput inpText = new mInput();
++	CellPanel mainPanel = new CellPanel();
++	mLabel lblValueShow = new mLabel(&quot;0.0&quot;);
++	mLabel lblTextShow = new mLabel(&quot;Info&quot;);
++
++
++	public InputScreen(mInput inpAnz, String sAnz)
++	{
++		inpText = inpAnz;
++		lblValueShow.setText(inpText.getText());
++		lblTextShow.setText(sAnz);
++		//inpText.setText(sText);
++		InitInputScreen();
++	}
++
++	private void InitInputScreen()
++	{
++		int sw = MyLocale.getScreenWidth(); int sh = MyLocale.getScreenHeight();
++		Preferences pref = Global.getPref();int fs = pref.fontSize;
++		int psx; int psy;
++		if((sw&gt;300) &amp;&amp; (sh&gt;300)){
++			// larger screens: size according to fontsize
++			psx=240;psy=260;
++			if(fs &gt; 12){psx=300;psy=330;}
++			if(fs &gt; 17){psx=400;psy=340;}
++			if(fs &gt; 23){psx=500;psy=350;}
++			this.setPreferredSize(psx,psy);
++		}
++		else{
++			// small screens: fixed size
++			if (sh&gt;240)
++				this.setPreferredSize(240,260);
++			else
++				this.setPreferredSize(240,240);
++		}
++
++		this.setTitle(&quot;InputConsole&quot;);
++		mainPanel.addLast(lblValueShow,CellConstants.DONTSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
++		mainPanel.addLast(lblTextShow,CellConstants.DONTSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
++		btn7 = new mButton(&quot; 7 &quot;);
++		mainPanel.addNext(btn7,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
++		btn8 = new mButton(&quot; 8 &quot;);
++		mainPanel.addNext(btn8,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
++		btn9 = new mButton(&quot; 9 &quot;);
++		mainPanel.addNext(btn9,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
++		btnDEL = new mButton(&quot;DEL&quot;);
++		mainPanel.addLast(btnDEL,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
++		btn4 = new mButton(&quot; 4 &quot;);
++		mainPanel.addNext(btn4,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
++		btn5 = new mButton(&quot; 5 &quot;);
++		mainPanel.addNext(btn5,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
++		btn6 = new mButton(&quot; 6 &quot;);
++		mainPanel.addNext(btn6,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
++		btnDELAll = new mButton(&quot;DEL All&quot;);
++		mainPanel.addLast(btnDELAll,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
++		btn1 = new mButton(&quot; 1 &quot;);
++		mainPanel.addNext(btn1,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
++		btn2 = new mButton(&quot; 2 &quot;);
++		mainPanel.addNext(btn2,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
++		btn3 = new mButton(&quot; 3 &quot;);
++		mainPanel.addLast(btn3,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
++		btn0 = new mButton(&quot; 0 &quot;);
++		mainPanel.addNext(btn0,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
++		btnPoint = new mButton(&quot; . &quot;);
++		mainPanel.addNext(btnPoint,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
++		btnOk = new mButton(&quot;OK&quot;);
++		mainPanel.addLast(btnOk,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
++
++		this.addLast(mainPanel,CellConstants.HSTRETCH | CellConstants.VSTRETCH, (CellConstants.HFILL| CellConstants.VFILL));
++		btnOk.takeFocus(ControlConstants.ByRequest);
++
++		int inpFontSize = ( 6 * pref.fontSize ) / 2;
++		Font inpNewFont = new Font(&quot;Helvetica&quot;, Font.PLAIN, inpFontSize );
++		lblValueShow.setFont(inpNewFont);
++
++		int btnFontSize = ( 3 * pref.fontSize ) / 2;
++		Font btnNewFont = new Font(&quot;Helvetica&quot;, Font.PLAIN, btnFontSize );
++		lblTextShow.setFont(btnNewFont);
++		btnPoint.setFont(btnNewFont);
++		btn9.setFont(btnNewFont);
++		btn8.setFont(btnNewFont);
++		btn7.setFont(btnNewFont);
++		btn6.setFont(btnNewFont);
++		btn5.setFont(btnNewFont);
++		btn4.setFont(btnNewFont);
++		btn3.setFont(btnNewFont);
++		btn2.setFont(btnNewFont);
++		btn1.setFont(btnNewFont);
++		btn0.setFont(btnNewFont);
++		btnOk.setFont(btnNewFont);
++		btnDEL.setFont(btnNewFont);
++		btnDELAll.setFont(btnNewFont);
++
++	}
++
++	public void onEvent(Event ev){
++		if(ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.PRESSED){
++			if (ev.target == btn1){
++			   sText = lblValueShow.getText();
++			   sText += &quot;1&quot;;
++			   //inpText.setText(sText);
++			   lblValueShow.setText(sText);
++			}
++
++			if (ev.target == btn2){
++			   sText = lblValueShow.getText();
++			   sText += &quot;2&quot;;
++			   //inpText.setText(sText);
++			   lblValueShow.setText(sText);
++			}
++
++			if (ev.target == btn3){
++			   sText = lblValueShow.getText();
++			   sText += &quot;3&quot;;
++			   //inpText.setText(sText);
++			   lblValueShow.setText(sText);
++			}
++
++			if (ev.target == btn4){
++			   sText = lblValueShow.getText();
++			   sText += &quot;4&quot;;
++			   //inpText.setText(sText);
++			   lblValueShow.setText(sText);
++			}
++
++			if (ev.target == btn5){
++			   sText = lblValueShow.getText();
++			   sText += &quot;5&quot;;
++			   //inpText.setText(sText);
++			   lblValueShow.setText(sText);
++			}
++
++			if (ev.target == btn6){
++			   sText = lblValueShow.getText();
++			   sText += &quot;6&quot;;
++			   //inpText.setText(sText);
++			   lblValueShow.setText(sText);
++			}
++
++			if (ev.target == btn7){
++			   sText = lblValueShow.getText();
++			   sText += &quot;7&quot;;
++			   //inpText.setText(sText);
++			   lblValueShow.setText(sText);
++			}
++
++			if (ev.target == btn8){
++			   sText = lblValueShow.getText();
++			   sText += &quot;8&quot;;
++			   //inpText.setText(sText);
++			   lblValueShow.setText(sText);
++			}
++
++			if (ev.target == btn9){
++			   sText = lblValueShow.getText();
++			   sText += &quot;9&quot;;
++			   //inpText.setText(sText);
++			   lblValueShow.setText(sText);
++			}
++
++			if (ev.target == btn0){
++			   sText = lblValueShow.getText();
++			   sText += &quot;0&quot;;
++			   //inpText.setText(sText);
++			   lblValueShow.setText(sText);
++			}
++
++			if (ev.target == btnPoint){
++			   sText = lblValueShow.getText();
++			   sText += &quot;.&quot;;
++			   //inpText.setText(sText);
++			   lblValueShow.setText(sText);
++			}
++
++			if (ev.target == btnOk ){
++				inpText.setText(lblValueShow.getText());
++				this.close(0);
++			}
++
++			if (ev.target == btnDEL){
++			   sText = lblValueShow.getText();
++			   if(sText != &quot;&quot;)
++				sText = sText.substring(0, sText.length()-1);
++			   //inpText.setText(sText);
++			   lblValueShow.setText(sText);
++			}
++
++			if (ev.target == btnDELAll){
++			   //inpText.setText(&quot;&quot;);
++				lblValueShow.setText(&quot;&quot;);
++			}
++		}
++	}
++
++}
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002435.html">[Cachewolf-svn] r2510 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="002437.html">[Cachewolf-svn] r2512 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2436">[ date ]</a>
+              <a href="thread.html#2436">[ thread ]</a>
+              <a href="subject.html#2436">[ subject ]</a>
+              <a href="author.html#2436">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

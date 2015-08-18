@@ -1,0 +1,625 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1808 - in trunk: res_noewe/languages src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-May/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1808%20-%20in%20trunk%3A%20res_noewe/languages%20src/CacheWolf&In-Reply-To=%3C200905151828.n4FISVHN012130%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001725.html">
+   <LINK REL="Next"  HREF="001727.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1808 - in trunk: res_noewe/languages src/CacheWolf</H1>
+    <B>engywuck at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1808%20-%20in%20trunk%3A%20res_noewe/languages%20src/CacheWolf&In-Reply-To=%3C200905151828.n4FISVHN012130%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1808 - in trunk: res_noewe/languages src/CacheWolf">engywuck at mail.berlios.de
+       </A><BR>
+    <I>Fri May 15 20:28:31 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001725.html">[Cachewolf-svn] r1807 - in experiments/greiol: resources	src/CacheWolf src/CacheWolf/navi src/exp
+</A></li>
+        <LI>Next message: <A HREF="001727.html">[Cachewolf-svn] r1809 - in experiments/greiol/src: CacheWolf exp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1726">[ date ]</a>
+              <a href="thread.html#1726">[ thread ]</a>
+              <a href="subject.html#1726">[ subject ]</a>
+              <a href="author.html#1726">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: engywuck
+Date: 2009-05-15 20:28:26 +0200 (Fri, 15 May 2009)
+New Revision: 1808
+
+Modified:
+   trunk/res_noewe/languages/DE.cfg
+   trunk/res_noewe/languages/EN.cfg
+   trunk/res_noewe/languages/FR.cfg
+   trunk/res_noewe/languages/NL.cfg
+   trunk/src/CacheWolf/Filter.java
+   trunk/src/CacheWolf/FilterScreen.java
+   trunk/src/CacheWolf/MainMenu.java
+   trunk/src/CacheWolf/Profile.java
+Log:
+Filtering of Cache Status field is now possible.
+
+Modified: trunk/res_noewe/languages/DE.cfg
+===================================================================
+--- trunk/res_noewe/languages/DE.cfg	2009-05-15 16:37:22 UTC (rev 1807)
++++ trunk/res_noewe/languages/DE.cfg	2009-05-15 18:28:26 UTC (rev 1808)
+@@ -110,6 +110,7 @@
+ 		218=Auch in Beschreibung/Notizen
+ 		219=Suche...
+ 		220=Pr%fcfe Notizen und L%f6ser
++		299=Regul%e4rer Ausdruck
+ 		300=Type:
+ 		301=Gr%f6%dfe:
+ 		302=Wegpunkt:
+
+Modified: trunk/res_noewe/languages/EN.cfg
+===================================================================
+--- trunk/res_noewe/languages/EN.cfg	2009-05-15 16:37:22 UTC (rev 1807)
++++ trunk/res_noewe/languages/EN.cfg	2009-05-15 18:28:26 UTC (rev 1808)
+@@ -110,6 +110,7 @@
+ 		218=Also in description/notes
+ 		219=Searching...
+ 		220=Check notes and solver
++		299=Regular expression
+ 		300=Type:
+ 		301=Size:
+ 		302=Waypoint:
+
+Modified: trunk/res_noewe/languages/FR.cfg
+===================================================================
+--- trunk/res_noewe/languages/FR.cfg	2009-05-15 16:37:22 UTC (rev 1807)
++++ trunk/res_noewe/languages/FR.cfg	2009-05-15 18:28:26 UTC (rev 1808)
+@@ -107,6 +107,7 @@
+ 		218=Aussi dans description/notes
+ 		219=Cherchant...
+ 		220=V%e9rifier notes et resoudeur
++		299=Expression rationnelle
+ 		300=Type:
+ 		301=Gabarit:
+ 		302=Waypoint:
+
+Modified: trunk/res_noewe/languages/NL.cfg
+===================================================================
+--- trunk/res_noewe/languages/NL.cfg	2009-05-15 16:37:22 UTC (rev 1807)
++++ trunk/res_noewe/languages/NL.cfg	2009-05-15 18:28:26 UTC (rev 1808)
+@@ -99,6 +99,7 @@
+ 		218=Ook in opmerkingen/beschrijving
+ 		219=Zoeken...
+ 		220=Onderzoek opmerkingen en oplosser
++		299=Reguliere expressie
+ 		300=Type:
+ 		301=Grote:
+ 		302=Waypoint:
+
+Modified: trunk/src/CacheWolf/Filter.java
+===================================================================
+--- trunk/src/CacheWolf/Filter.java	2009-05-15 16:37:22 UTC (rev 1807)
++++ trunk/src/CacheWolf/Filter.java	2009-05-15 18:28:26 UTC (rev 1808)
+@@ -84,6 +84,9 @@
+ 	
+ 	private boolean foundByMe;
+ 	private boolean notFoundByMe;
++
++	private String cacheStatus;
++	private boolean useRegexp;
+ 	
+ 	private boolean ownedByMe;
+ 	private boolean notOwnedByMe;
+@@ -252,6 +255,9 @@
+ 		notFoundByMe = profile.getFilterVar().charAt(6) == '1';
+ 		notOwnedByMe = profile.getFilterVar().charAt(7) == '1';
+ 		typeMatchPattern=0;
++		cacheStatus  = profile.getFilterStatus();
++		useRegexp    = profile.getFilterUseRegexp();
++		
+ 		String filterType=profile.getFilterType();
+ 		if (filterType.charAt(0) == '1') typeMatchPattern|=TRADITIONAL;
+ 		if (filterType.charAt(1) == '1') typeMatchPattern|=MULTI;
+@@ -570,6 +576,21 @@
+ 			        }
+ 		        }
+ 	        }
++	        if (!cacheStatus.equals(&quot;&quot;)) {
++	        	if (!useRegexp) {
++	        		if (ch.getCacheStatus().toLowerCase().indexOf(cacheStatus.toLowerCase())&lt;0) {
++	        			cacheFiltered = true;
++	        			break;
++	        		}
++	        	} else {
++	        		Regex rex=new Regex(cacheStatus.toLowerCase());
++	        		rex.search(ch.getCacheStatus().toLowerCase());
++	        		if (rex.stringMatched()==null) {
++	        			cacheFiltered = true;
++	        			break;
++	        		}
++	        	}
++	        }
+ 	        break;
+         } while (true);
+ 		return cacheFiltered;
+@@ -594,12 +615,12 @@
+ 		Global.getProfile().setFilterActive(FILTER_INACTIVE);
+ 	}
+ 
+-	public boolean hasFilter() {
++		public boolean hasFilter() {
+ 		Profile prof=Global.getProfile();
+-		return !(prof.getFilterType().equals(Profile.FILTERTYPE) &amp;&amp;
+-		    prof.getFilterRose().equals(Profile.FILTERROSE) &amp;&amp;
+-		    prof.getFilterVar().equals(Profile.FILTERVAR) &amp;&amp;
+-		    prof.getFilterSize().equals(Profile.FILTERSIZE) &amp;&amp;
++		return !(prof.getFilterType().equals(FilterData.FILTERTYPE) &amp;&amp;
++		    prof.getFilterRose().equals(FilterData.FILTERROSE) &amp;&amp;
++		    prof.getFilterVar().equals(FilterData.FILTERVAR) &amp;&amp;
++		    prof.getFilterSize().equals(FilterData.FILTERSIZE) &amp;&amp;
+ 		    prof.getFilterDist().equals(&quot;L&quot;) &amp;&amp;
+ 		    prof.getFilterDiff().equals(&quot;L&quot;) &amp;&amp;
+ 		    prof.getFilterTerr().equals(&quot;L&quot;) &amp;&amp;
+
+Modified: trunk/src/CacheWolf/FilterScreen.java
+===================================================================
+--- trunk/src/CacheWolf/FilterScreen.java	2009-05-15 16:37:22 UTC (rev 1807)
++++ trunk/src/CacheWolf/FilterScreen.java	2009-05-15 18:28:26 UTC (rev 1808)
+@@ -26,6 +26,8 @@
+ 	                  chkArchived,chkNotArchived, chkAvailable,chkNotAvailable,
+ 					  chkNW, chkNNW , chkN , chkNNE, chkNE, chkENE, chkE, chkESE, chkSE, chkSSE, chkS,
+ 					  chkSSW, chkSW, chkWSW, chkW, chkWNW,chkWherigo;
++	private mComboBox chcStatus;
++	private mCheckBox chkUseRegexp;
+ 	
+ 	private mInput inpDist, inpTerr, inpDiff;
+ 
+@@ -142,6 +144,10 @@
+ 		pnlAttributes.addNext(chkOwned = new mCheckBox(MyLocale.getMsg(707,&quot;Owned&quot;)), CellConstants.DONTSTRETCH, CellConstants.FILL);
+ 		pnlAttributes.addLast(chkNotOwned = new mCheckBox(MyLocale.getMsg(732,&quot;Anderer Besitzer&quot;)), CellConstants.DONTSTRETCH, CellConstants.FILL);
+ 
++		pnlAttributes.addNext(new mLabel(MyLocale.getMsg(307,&quot;Status:&quot;)),CellConstants.DONTSTRETCH, (CellConstants.DONTFILL|CellConstants.WEST));
++		pnlAttributes.addLast(chcStatus = new mComboBox(new String[]{&quot;&quot;, MyLocale.getMsg(313,&quot;Flag 1&quot;), MyLocale.getMsg(314,&quot;Flag 2&quot;), MyLocale.getMsg(315,&quot;Flag 3&quot;), MyLocale.getMsg(316,&quot;Flag 4&quot;), MyLocale.getMsg(317,&quot;Search&quot;), MyLocale.getMsg(318,&quot;Found&quot;), MyLocale.getMsg(319,&quot;Not Found&quot;), MyLocale.getMsg(320,&quot;Owner&quot;)},0),CellConstants.HSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
++		pnlAttributes.addLast(chkUseRegexp = new mCheckBox(MyLocale.getMsg(299,&quot;Regular expression&quot;)));
++		
+ 		//////////////////////////
+ 		// Panel 3 - Cache ratings
+ 		//////////////////////////
+@@ -311,18 +317,17 @@
+ 	}
+ 	
+ 	
+-	public void setData(){
+-		Profile prof=Global.getProfile();
++	public void setData(FilterData data){
+ 
+ 		//////////////////////////
+ 		// Panel 1 - Bearing &amp; Distance
+ 		//////////////////////////
+-		if (prof.getFilterDist().length()&gt;1) {
+-			if (prof.getFilterDist().charAt(0)=='L')
++		if (data.getFilterDist().length()&gt;1) {
++			if (data.getFilterDist().charAt(0)=='L')
+ 				chcDist.select(0);
+ 			else
+ 				chcDist.select(1);
+-			String dist = prof.getFilterDist().substring(1);
++			String dist = data.getFilterDist().substring(1);
+ 			if (Global.getPref().metricSystem == Metrics.IMPERIAL) {
+ 				double distValue = java.lang.Double.valueOf(dist).doubleValue();
+ 				double newDistValue = Metrics.convertUnit(distValue, Metrics.KILOMETER, Metrics.MILES);
+@@ -333,7 +338,7 @@
+ 			chcDist.select(0);
+ 			inpDist.setText(&quot;&quot;);
+ 		}
+-		String fltRose=prof.getFilterRose();
++		String fltRose=data.getFilterRose();
+ 		chkNW.state   = fltRose.charAt(0) == '1';
+ 		chkNNW.state  = fltRose.charAt(1) == '1';
+ 		chkN.state    = fltRose.charAt(2) == '1';
+@@ -357,7 +362,7 @@
+ 		//////////////////////////
+ 		// Panel 2 - Cache attributes
+ 		//////////////////////////
+-		String fltVar=prof.getFilterVar();
++		String fltVar=data.getFilterVar();
+ 		chkArchived.state      = fltVar.charAt(0) == '1';
+ 		chkAvailable.state     = fltVar.charAt(1) == '1';
+ 		chkFound.state         = fltVar.charAt(2) == '1';
+@@ -366,31 +371,33 @@
+ 		chkNotAvailable.state  = fltVar.charAt(5) == '1';
+ 		chkNotFound.state      = fltVar.charAt(6) == '1';
+ 		chkNotOwned.state      = fltVar.charAt(7) == '1';
++		chcStatus.setText(data.getFilterStatus());
++		chkUseRegexp.setState(data.useRegexp());
+ 
+ 		//////////////////////////
+ 		// Panel 3 - Cache ratings
+ 		//////////////////////////
+-		if (prof.getFilterDiff().length()&gt;1) {
+-			if (prof.getFilterDiff().charAt(0)=='L')
++		if (data.getFilterDiff().length()&gt;1) {
++			if (data.getFilterDiff().charAt(0)=='L')
+ 				chcDiff.select(0);
+-			else if (prof.getFilterDiff().charAt(0)=='=')
++			else if (data.getFilterDiff().charAt(0)=='=')
+ 				chcDiff.select(1);
+ 			else
+ 				chcDiff.select(2);
+-			inpDiff.setText(prof.getFilterDiff().substring(1));
++			inpDiff.setText(data.getFilterDiff().substring(1));
+ 		} else {
+ 			chcDiff.select(0);
+ 			inpDiff.setText(&quot;&quot;);
+ 		}
+ 
+-		if (prof.getFilterTerr().length()&gt;1) {
+-			if (prof.getFilterTerr().charAt(0)=='L')
++		if (data.getFilterTerr().length()&gt;1) {
++			if (data.getFilterTerr().charAt(0)=='L')
+ 				chcTerr.select(0);
+-			else if (prof.getFilterTerr().charAt(0)=='=')
++			else if (data.getFilterTerr().charAt(0)=='=')
+ 				chcTerr.select(1);
+ 			else
+ 				chcTerr.select(2);
+-			inpTerr.setText(prof.getFilterTerr().substring(1));
++			inpTerr.setText(data.getFilterTerr().substring(1));
+ 		} else {
+ 			chcTerr.select(0);
+ 			inpTerr.setText(&quot;&quot;);
+@@ -401,7 +408,7 @@
+ 		// Panel 4 - Cache types
+ 		//////////////////////////
+ 		
+-		String fltType=prof.getFilterType();
++		String fltType=data.getFilterType();
+ 		chkTrad.state       = fltType.charAt(0) == '1';
+ 		chkMulti.state      = fltType.charAt(1) == '1';
+ 		chkVirtual.state    = fltType.charAt(2) == '1';
+@@ -432,7 +439,7 @@
+ 		//////////////////////////
+ 		// Panel 6 - Cache container
+ 		//////////////////////////
+-		String fltSize=prof.getFilterSize();
++		String fltSize=data.getFilterSize();
+ 		chkMicro.state      = fltSize.charAt(0) == '1';
+ 		chkSmall.state      = fltSize.charAt(1) == '1';
+ 		chkRegular.state    = fltSize.charAt(2) == '1';
+@@ -447,8 +454,8 @@
+ 		//////////////////////////
+ 		// Panel 8 - Cache attributes
+ 		//////////////////////////
+-		attV.setSelectionMasks( prof.getFilterAttrYes(), prof.getFilterAttrNo() );
+-		chcAttrib.select(prof.getFilterAttrChoice());
++		attV.setSelectionMasks( data.getFilterAttrYes(), data.getFilterAttrNo() );
++		chcAttrib.select(data.getFilterAttrChoice());
+ 		
+ 		// Adjust colors of buttons depending on which filters are active
+ 		setColors();
+@@ -474,7 +481,8 @@
+ 		
+ 		// Panel 2 - Cache attributes
+ 		if (!( chkArchived.state    &amp;&amp; chkAvailable.state    &amp;&amp; chkFound.state    &amp;&amp; chkOwned.state &amp;&amp;
+-			   chkNotArchived.state &amp;&amp; chkNotAvailable.state &amp;&amp; chkNotFound.state &amp;&amp; chkNotOwned.state))
++			   chkNotArchived.state &amp;&amp; chkNotAvailable.state &amp;&amp; chkNotFound.state &amp;&amp; chkNotOwned.state &amp;&amp;
++			   chcStatus.getText().equals(&quot;&quot;)))
+ 			btnAttributes.backGround=COLOR_FILTERACTIVE;
+ 		else
+ 			btnAttributes.backGround=COLOR_FILTERINACTIVE;
+@@ -668,6 +676,9 @@
+ 				pfl.setFilterAttrYes(attV.selectionMaskYes);
+ 				pfl.setFilterAttrNo(attV.selectionMaskNo);
+ 				pfl.setFilterAttrChoice(chcAttrib.selectedIndex);
++				pfl.setFilterStatus(chcStatus.getText());
++				pfl.setFilterUseRegexp(chkUseRegexp.getState());
++				// FIXME Das geht bestimmt auch &#252;ber Filter-Objekte
+ 				Filter flt = new Filter();
+ 				flt.setFilter();
+ 				flt.doFilter();
+
+Modified: trunk/src/CacheWolf/MainMenu.java
+===================================================================
+--- trunk/src/CacheWolf/MainMenu.java	2009-05-15 16:37:22 UTC (rev 1807)
++++ trunk/src/CacheWolf/MainMenu.java	2009-05-15 18:28:26 UTC (rev 1808)
+@@ -526,7 +526,7 @@
+ 				tbp.refreshTable();
+ 			}
+ 			if(mev.selectedItem == filtCreate){
+-				scnFilter.setData();
++				scnFilter.setData(profile.getCurrentFilter());
+ 				scnFilter.execute(father.getFrame(), Gui.CENTER_FRAME);
+ 				tbp.refreshTable();
+ 			}
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2009-05-15 16:37:22 UTC (rev 1807)
++++ trunk/src/CacheWolf/Profile.java	2009-05-15 18:28:26 UTC (rev 1808)
+@@ -45,33 +45,12 @@
+ 	public final static boolean SHOW_PROGRESS_BAR = true;
+ 	public final static boolean NO_SHOW_PROGRESS_BAR = false;
+ 
+-	// When extending the filter check &quot;normaliseFilters&quot;
+-	// which ensures backward compatibility. Normally no change should be needed
+-	public final static String FILTERTYPE = &quot;1111111111111111111&quot;;
+-	public final static String FILTERROSE = &quot;1111111111111111&quot;;
+-	public final static String FILTERVAR = &quot;11111111&quot;;
+-	public final static String FILTERSIZE = &quot;111111&quot;;
+-
+-	private String filterType = new String(FILTERTYPE);
+-	private String filterRose = new String(FILTERROSE);
+-	private String filterSize = new String(FILTERSIZE);
+-
+-	// filter settings for archived ... owner (section) in filterscreen
+-	private String filterVar = new String(FILTERVAR);
+-	private String filterDist = new String(&quot;L&quot;);
+-	private String filterDiff = new String(&quot;L&quot;);
+-	private String filterTerr = new String(&quot;L&quot;);
+-
+-	// Saved filterstatus - is only refreshed from class Filter when Profile is saved
++	private FilterData currentFilter = new FilterData();
+ 	private int filterActive = Filter.FILTER_INACTIVE;
+ 	private boolean filterInverted = false;
+ 	private boolean showBlacklisted = false;
+ 	private boolean showSearchResult = false;
+ 
+-	private long filterAttrYes = 0l;
+-	private long filterAttrNo = 0l;
+-	private int filterAttrChoice = 0;
+-
+ 	public boolean selectionChanged = true; // (&quot;H&#228;ckchen&quot;) used by movingMap to get to knao if it should update the caches in the map 
+ 	/** True if the profile has been modified and not saved
+ 	 * The following modifications set this flag: New profile centre, Change of waypoint data 
+@@ -206,7 +185,8 @@
+ 					&quot;\&quot; rose = \&quot;&quot;+getFilterRose()+&quot;\&quot; type = \&quot;&quot;+getFilterType()+
+ 					&quot;\&quot; var = \&quot;&quot;+getFilterVar()+&quot;\&quot; dist = \&quot;&quot;+getFilterDist().replace('&quot;',' ')+&quot;\&quot; diff = \&quot;&quot;+
+ 					getFilterDiff()+&quot;\&quot; terr = \&quot;&quot;+getFilterTerr()+&quot;\&quot; size = \&quot;&quot;+getFilterSize()+&quot;\&quot; attributesYes = \&quot;&quot;+getFilterAttrYes()+
+-					&quot;\&quot; attributesNo = \&quot;&quot;+getFilterAttrNo()+&quot;\&quot; attributesChoice = \&quot;&quot;+getFilterAttrChoice()+&quot;\&quot; showBlacklist = \&quot;&quot;+showBlacklisted()+&quot;\&quot; /&gt;\n&quot;);
++					&quot;\&quot; attributesNo = \&quot;&quot;+getFilterAttrNo()+&quot;\&quot; attributesChoice = \&quot;&quot;+getFilterAttrChoice()+&quot;\&quot; showBlacklist = \&quot;&quot;+showBlacklisted()+
++					&quot;\&quot; status = \&quot;&quot;+SafeXML.clean(getFilterStatus())+&quot;\&quot; useRegexp = \&quot;&quot;+getFilterUseRegexp()+&quot;\&quot; /&gt;\n&quot;);
+ 			detfile.print(&quot;    &lt;SYNCOC date = \&quot;&quot;+getLast_sync_opencaching()+&quot;\&quot; dist = \&quot;&quot;+getDistOC()+&quot;\&quot;/&gt;\n&quot;);
+ 			detfile.print(&quot;    &lt;SPIDERGC dist = \&quot;&quot; + getDistGC() + &quot;\&quot;/&gt;\n&quot;);
+ 			int size = cacheDB.size();
+@@ -321,6 +301,8 @@
+ 					if (attr != null &amp;&amp; !attr.equals(&quot;&quot;))
+ 						setFilterAttrChoice(Convert.parseInt(attr));
+ 					setShowBlacklisted(Boolean.valueOf(ex.findNext()).booleanValue());
++					setFilterStatus(SafeXML.cleanback(ex.findNext()));
++					setFilterUseRegexp(Boolean.valueOf(ex.findNext()).booleanValue());
+ 				}
+ 			}
+ 			in.close();
+@@ -336,7 +318,8 @@
+ 		} catch (IOException e){
+ 			Global.getPref().log(&quot;Problem reading index.xml in dir: &quot;+dataDir,e,true); 
+ 		}
+-		normaliseFilters();
++		// FIXME Brauchen wir das noch? Und wenn ja: Hier?
++		//normaliseFilters();
+ 		resetUnsavedChanges();
+ 	}
+ 
+@@ -543,95 +526,69 @@
+ 
+ 	}
+ 
+-	/**
+-	 * Ensure that all filters have the proper length so that the 'charAt' access in the filter do
+-	 * not cause nullPointer Exceptions
+-	 */
+-	private void normaliseFilters() {
+-		String manyOnes = &quot;11111111111111111111111111111&quot;;
+-		if (getFilterRose().length() &lt; FILTERROSE.length()) {
+-			setFilterRose((getFilterRose() + manyOnes).substring(0, FILTERROSE.length()));
+-		}
+-		if (getFilterVar().length() &lt; FILTERVAR.length()) {
+-			setFilterVar((getFilterVar() + manyOnes).substring(0, FILTERVAR.length()));
+-		}
+-		if (getFilterType().length() &lt; FILTERTYPE.length()) {
+-			setFilterType((getFilterType() + manyOnes).substring(0, FILTERTYPE.length()));
+-		}
+-		if (getFilterSize().length() &lt; FILTERSIZE.length()) {
+-			setFilterSize((getFilterSize() + manyOnes).substring(0, FILTERSIZE.length()));
+-		}
+-		if (getFilterDist().length() == 0)
+-			setFilterDist(&quot;L&quot;);
+-		if (getFilterDiff().length() == 0)
+-			setFilterDiff(&quot;L&quot;);
+-		if (getFilterTerr().length() == 0)
+-			setFilterTerr(&quot;L&quot;);
+-	}
+-
+ 	// Getter and Setter for private properties
+ 
+ 	public String getFilterType() {
+-		return filterType;
++		return currentFilter.getFilterType();
+ 	}
+ 
+ 	public void setFilterType(String filterType) {
+-		this.notifyUnsavedChanges(!filterType.equals(this.filterType));
+-		this.filterType = filterType;
++		this.notifyUnsavedChanges(!filterType.equals(this.getFilterType()));
++		this.currentFilter.setFilterType(filterType);
+ 	}
+ 
+ 	public String getFilterRose() {
+-		return filterRose;
++		return currentFilter.getFilterRose();
+ 	}
+ 
+ 	public void setFilterRose(String filterRose) {
+-		this.notifyUnsavedChanges(!filterRose.equals(this.filterRose));
+-		this.filterRose = filterRose;
++		this.notifyUnsavedChanges(!filterRose.equals(this.getFilterRose()));
++		this.currentFilter.setFilterRose(filterRose);
+ 	}
+ 
+ 	public String getFilterSize() {
+-		return filterSize;
++		return currentFilter.getFilterSize();
+ 	}
+ 
+ 	public void setFilterSize(String filterSize) {
+-		this.notifyUnsavedChanges(!filterSize.equals(this.filterSize));
+-		this.filterSize = filterSize;
++		this.notifyUnsavedChanges(!filterSize.equals(this.getFilterSize()));
++		this.currentFilter.setFilterSize(filterSize);
+ 	}
+ 
+ 	public String getFilterVar() {
+-		return filterVar;
++		return currentFilter.getFilterVar();
+ 	}
+ 
+ 	public void setFilterVar(String filterVar) {
+-		this.notifyUnsavedChanges(!filterVar.equals(this.filterVar));
+-		this.filterVar = filterVar;
++		this.notifyUnsavedChanges(!filterVar.equals(this.getFilterVar()));
++		this.currentFilter.setFilterVar(filterVar);
+ 	}
+ 
+ 	public String getFilterDist() {
+-		return filterDist;
++		return currentFilter.getFilterDist();
+ 	}
+ 
+ 	public void setFilterDist(String filterDist) {
+-		this.notifyUnsavedChanges(!filterDist.equals(this.filterDist));
+-		this.filterDist = filterDist;
++		this.notifyUnsavedChanges(!filterDist.equals(this.getFilterDist()));
++		this.currentFilter.setFilterDist(filterDist);
+ 	}
+ 
+ 	public String getFilterDiff() {
+-		return filterDiff;
++		return currentFilter.getFilterDiff();
+ 	}
+ 
+ 	public void setFilterDiff(String filterDiff) {
+-		this.notifyUnsavedChanges(!filterDiff.equals(this.filterDiff));
+-		this.filterDiff = filterDiff;
++		this.notifyUnsavedChanges(!filterDiff.equals(this.getFilterDiff()));
++		this.currentFilter.setFilterDiff(filterDiff);
+ 	}
+ 
+ 	public String getFilterTerr() {
+-		return filterTerr;
++		return currentFilter.getFilterTerr();
+ 	}
+ 
+ 	public void setFilterTerr(String filterTerr) {
+-		this.notifyUnsavedChanges(!filterTerr.equals(this.filterTerr));
+-		this.filterTerr = filterTerr;
++		this.notifyUnsavedChanges(!filterTerr.equals(this.getFilterTerr()));
++		this.currentFilter.setFilterTerr(filterTerr);
+ 	}
+ 
+ 	public int getFilterActive() {
+@@ -680,33 +637,52 @@
+ 	public void setShowSearchResult(boolean showSearchResult){
+ 		this.showSearchResult = showSearchResult;
+ 	}
++
+ 	public long getFilterAttrYes() {
+-		return filterAttrYes;
++		return currentFilter.getFilterAttrYes();
+ 	}
+ 
+ 	public void setFilterAttrYes(long filterAttrYes) {
+-		this.notifyUnsavedChanges(filterAttrYes != this.filterAttrYes);
+-		this.filterAttrYes = filterAttrYes;
++		this.notifyUnsavedChanges(filterAttrYes != this.getFilterAttrYes());
++		this.currentFilter.setFilterAttrYes(filterAttrYes);
+ 	}
+ 
+ 	public long getFilterAttrNo() {
+-		return filterAttrNo;
++		return currentFilter.getFilterAttrNo();
+ 	}
+ 
+ 	public void setFilterAttrNo(long filterAttrNo) {
+-		this.notifyUnsavedChanges(filterAttrNo != this.filterAttrNo);
+-		this.filterAttrNo = filterAttrNo;
++		this.notifyUnsavedChanges(filterAttrNo != this.getFilterAttrNo());
++		this.currentFilter.setFilterAttrNo(filterAttrNo);
+ 	}
+ 
+ 	public int getFilterAttrChoice() {
+-		return filterAttrChoice;
++		return currentFilter.getFilterAttrChoice();
+ 	}
+ 
+ 	public void setFilterAttrChoice(int filterAttrChoice) {
+-		this.notifyUnsavedChanges(filterAttrChoice != this.filterAttrChoice);
+-		this.filterAttrChoice = filterAttrChoice;
++		this.notifyUnsavedChanges(filterAttrChoice != this.getFilterAttrChoice());
++		this.currentFilter.setFilterAttrChoice(filterAttrChoice);
+ 	}
+ 
++	public String getFilterStatus() {
++    	return currentFilter.getFilterStatus();
++    }
++
++	public void setFilterStatus(String filterStatus) {
++		this.notifyUnsavedChanges(filterStatus != this.getFilterStatus());
++    	this.currentFilter.setFilterStatus(filterStatus);
++    }
++
++	public boolean getFilterUseRegexp() {
++    	return currentFilter.useRegexp();
++    }
++
++	public void setFilterUseRegexp(boolean useRegexp) {
++		this.notifyUnsavedChanges(useRegexp != this.getFilterUseRegexp());
++    	this.currentFilter.setUseRegexp(useRegexp);
++    }
++	
+ 	public String getLast_sync_opencaching() {
+ 		return last_sync_opencaching;
+ 	}
+@@ -734,4 +710,11 @@
+ 		this.distGC = distGC;
+ 	}
+ 
++	public FilterData getCurrentFilter() {
++    	return currentFilter;
++    }
++
++	public void setCurrentFilter(FilterData currentFilter) {
++    	this.currentFilter = currentFilter;
++    }
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001725.html">[Cachewolf-svn] r1807 - in experiments/greiol: resources	src/CacheWolf src/CacheWolf/navi src/exp
+</A></li>
+	<LI>Next message: <A HREF="001727.html">[Cachewolf-svn] r1809 - in experiments/greiol/src: CacheWolf exp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1726">[ date ]</a>
+              <a href="thread.html#1726">[ thread ]</a>
+              <a href="subject.html#1726">[ subject ]</a>
+              <a href="author.html#1726">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

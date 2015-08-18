@@ -1,0 +1,201 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2194 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-September/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2194%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200909162314.n8GNE3On012781%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002117.html">
+   <LINK REL="Next"  HREF="002119.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2194 - trunk/src/CacheWolf</H1>
+    <B>araber95 at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2194%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200909162314.n8GNE3On012781%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2194 - trunk/src/CacheWolf">araber95 at mail.berlios.de
+       </A><BR>
+    <I>Thu Sep 17 01:14:03 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002117.html">[Cachewolf-svn] r2193 - trunk/src/CacheWolf/navi
+</A></li>
+        <LI>Next message: <A HREF="002119.html">[Cachewolf-svn] r2195 - trunk/src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2118">[ date ]</a>
+              <a href="thread.html#2118">[ thread ]</a>
+              <a href="subject.html#2118">[ subject ]</a>
+              <a href="author.html#2118">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: araber95
+Date: 2009-09-17 01:13:59 +0200 (Thu, 17 Sep 2009)
+New Revision: 2194
+
+Modified:
+   trunk/src/CacheWolf/Preferences.java
+   trunk/src/CacheWolf/Profile.java
+Log:
+Changed setting mapspath for profile to index.xml . path is always relativ to basedir/maps otherwise empty meaning using path of preferences.
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2009-09-16 18:52:33 UTC (rev 2193)
++++ trunk/src/CacheWolf/Preferences.java	2009-09-16 23:13:59 UTC (rev 2194)
+@@ -448,7 +448,7 @@
+ 			if (tmp != null) solverDegMode=Boolean.valueOf(tmp).booleanValue();
+ 		}
+ 		else if (name.equals(&quot;mapspath&quot;)) {
+-			customMapsPath=atts.getValue(&quot;dir&quot;).replace('\\', '/');			
++			customMapsPath=atts.getValue(&quot;dir&quot;).replace('\\', '/');
+ 		}
+ 		else if (name.equals(&quot;debug&quot;)) debug=Boolean.valueOf(atts.getValue(&quot;value&quot;)).booleanValue();
+ 
+@@ -646,37 +646,26 @@
+ 	 * @return custom Maps Path, null if not set
+ 	 */
+ 	public String getCustomMapsPath() {
+-	   return customMapsPath;
+-	}
+-
+-	private void saveProfilePreferences() {
+-		PrintWriter outp;
+-		try{
+-			outp = new PrintWriter(new BufferedWriter(new FileWriter(new FileBugfix(pathToProfile + &quot;profpref.xml&quot;).getAbsolutePath())));
+-			outp.print(&quot;&lt;?xml version=\&quot;1.0\&quot; encoding=\&quot;ISO-8859-1\&quot;?&gt;\n&quot;);
+-			outp.print(&quot;&lt;preferences&gt;\n&quot;);
+-			outp.print(&quot;    &lt;mapspath dir = \&quot;&quot; + customMapsPath + &quot;\&quot;/&gt;\n&quot;);
+-			outp.print(&quot;&lt;/preferences&gt;&quot;);
+-			outp.close();
+-		}catch(Exception e){
++	   String s = Global.getProfile().getRelativeCustomMapsPath();
++	   if (s.equals(&quot;&quot;)) {
++		   return customMapsPath;
++		} else {
++			String t = absoluteBaseDir+&quot;maps&quot;;
++			return t+s;
+ 		}
+-	}	
+-	
+-	private void getProfilePreferences() {
+-		String fn = new FileBugfix(pathToProfile + &quot;profpref.xml&quot;).getAbsolutePath();
+-		try{
+-			ewe.io.Reader r = new ewe.io.InputStreamReader(new ewe.io.FileInputStream(fn));
+-			parse(r);
+-			r.close();
+-		}catch(Exception e){
+-		}
+ 	}
+ 	
+ 	public void saveCustomMapsPath(String mapspath_) {
+ 		if (customMapsPath == null || !customMapsPath.equals(mapspath_)) {
+ 			customMapsPath=new String(mapspath_).replace('\\', '/');
+ 			savePreferences();
+-			saveProfilePreferences();
++			String s = absoluteBaseDir+&quot;maps&quot;;
++			if (customMapsPath.indexOf(s)==0) {
++				String t=customMapsPath.substring(s.length(), customMapsPath.length());
++				Global.getProfile().setRelativeCustomMapsPath(t);
++			} else {
++				Global.getProfile().setRelativeCustomMapsPath(&quot;&quot;);
++			}
+ 		}
+ 	}
+ 
+@@ -849,7 +838,6 @@
+ 		prof.dataDir=prof.dataDir.replace('\\','/');
+ 		if (!prof.dataDir.endsWith(&quot;/&quot;)) prof.dataDir+='/';
+ 		pathToProfile=prof.dataDir;
+-		getProfilePreferences();
+ 		savePreferences();
+ 		return true;
+ 	}
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2009-09-16 18:52:33 UTC (rev 2193)
++++ trunk/src/CacheWolf/Profile.java	2009-09-16 23:13:59 UTC (rev 2194)
+@@ -47,6 +47,9 @@
+ 	/** Distance for geocaching caches */
+ 	private String distGC = new String();
+ 
++	/** path to the maps of the profile relative to the maps root */
++	private String relativeCustomMapsPath = new String();
++
+ 	public final static boolean SHOW_PROGRESS_BAR = true;
+ 	public final static boolean NO_SHOW_PROGRESS_BAR = false;
+ 
+@@ -112,6 +115,7 @@
+ 		setLast_sync_opencaching(&quot;&quot;);
+ 		setDistOC(&quot;&quot;);
+ 		setDistGC(&quot;&quot;);
++		setRelativeCustomMapsPath(&quot;&quot;);
+ 		resetUnsavedChanges();
+ 	}
+ 
+@@ -195,6 +199,7 @@
+ 			detfile.print(this.getCurrentFilter().toXML(&quot;&quot;));
+ 			detfile.print(&quot;    &lt;SYNCOC date = \&quot;&quot;+getLast_sync_opencaching()+&quot;\&quot; dist = \&quot;&quot;+getDistOC()+&quot;\&quot;/&gt;\n&quot;);
+ 			detfile.print(&quot;    &lt;SPIDERGC dist = \&quot;&quot; + getDistGC() + &quot;\&quot;/&gt;\n&quot;);
++			detfile.print(&quot;    &lt;mapspath relativeDir = \&quot;&quot; + relativeCustomMapsPath + &quot;\&quot;/&gt;\n&quot;);
+ 			int size = cacheDB.size();
+ 			for (int i = 0; i &lt; size; i++) {
+ 				if (showprogress) {
+@@ -292,6 +297,9 @@
+ 					setLast_sync_opencaching(text.substring(start,text.indexOf(&quot;\&quot;&quot;,start)));
+ 					start=text.indexOf(&quot;dist = \&quot;&quot;)+8;
+ 					setDistOC(text.substring(start,text.indexOf(&quot;\&quot;&quot;,start)));
++				} else if (text.indexOf(&quot;mapspath&quot;)&gt;=0) {
++					int start=text.indexOf(&quot;relativeDir = \&quot;&quot;)+15;
++					setRelativeCustomMapsPath(text.substring(start,text.indexOf(&quot;\&quot;&quot;,start)));
+ 				} else if (text.indexOf(&quot;&lt;SPIDERGC&quot;)&gt;=0) {
+ 					int start=text.indexOf(&quot;dist = \&quot;&quot;)+8;
+ 					setDistGC(text.substring(start,text.indexOf(&quot;\&quot;&quot;,start)));
+@@ -763,6 +771,15 @@
+ 		this.distGC = distGC;
+ 	}
+ 
++	public String getRelativeCustomMapsPath() {
++		return relativeCustomMapsPath;
++	}
++	
++	public void setRelativeCustomMapsPath(String relativeCustomMapsPath) {
++		relativeCustomMapsPath=SafeXML.clean(relativeCustomMapsPath.replace('\\','/'));
++		this.notifyUnsavedChanges(!relativeCustomMapsPath.equals(this.relativeCustomMapsPath));
++		this.relativeCustomMapsPath = relativeCustomMapsPath;
++	}
+ 	/**
+ 	 * Returns the currently active FilterData object for the profile.
+ 	 * @return Object representing the setting of the filter
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002117.html">[Cachewolf-svn] r2193 - trunk/src/CacheWolf/navi
+</A></li>
+	<LI>Next message: <A HREF="002119.html">[Cachewolf-svn] r2195 - trunk/src/CacheWolf/imp
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2118">[ date ]</a>
+              <a href="thread.html#2118">[ thread ]</a>
+              <a href="subject.html#2118">[ subject ]</a>
+              <a href="author.html#2118">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

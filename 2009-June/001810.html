@@ -1,0 +1,462 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1892 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-June/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1892%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200906110922.n5B9M2hh010595%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001809.html">
+   <LINK REL="Next"  HREF="001811.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1892 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1892%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200906110922.n5B9M2hh010595%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1892 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Thu Jun 11 11:22:02 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001809.html">[Cachewolf-svn] r1891 - trunk/src/exp
+</A></li>
+        <LI>Next message: <A HREF="001811.html">[Cachewolf-svn] r1893 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1810">[ date ]</a>
+              <a href="thread.html#1810">[ thread ]</a>
+              <a href="subject.html#1810">[ subject ]</a>
+              <a href="author.html#1810">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2009-06-11 11:22:00 +0200 (Thu, 11 Jun 2009)
+New Revision: 1892
+
+Modified:
+   trunk/src/CacheWolf/Preferences.java
+   trunk/src/CacheWolf/myTableModel.java
+Log:
+Bugfix: Field listColWidth grew by two elements on each start of CW. (See <A HREF="http://www.geoclub.de/viewtopic.php?f=40&amp;t=34967">http://www.geoclub.de/viewtopic.php?f=40&amp;t=34967</A>)
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2009-06-11 02:33:29 UTC (rev 1891)
++++ trunk/src/CacheWolf/Preferences.java	2009-06-11 09:22:00 UTC (rev 1892)
+@@ -154,7 +154,7 @@
+ 	/** The list of visible columns in the list view */
+ 	public String listColMap=&quot;0,1,2,3,4,5,6,7,8,9,10,11,12&quot;;
+ 	/** The widths for each column in list view */
+-	public String listColWidth=&quot;15,20,20,25,92,177,144,83,60,105,50,104,22,30,30&quot;;
++	public String listColWidth=&quot;15,20,20,25,92,177,144,83,60,105,50,104,22,30,30,30,30,30&quot;;
+ 	/** The columns which are to be displayed in TravelbugsJourneyScreen. See also TravelbugJourney */
+ 	public String travelbugColMap=&quot;1,4,5,6,8,9,10,7&quot;;
+ 	/** The column widths for the travelbug journeys. */
+@@ -320,8 +320,8 @@
+ 		}
+ 		else if (name.equals(&quot;listview&quot;)) {
+ 			listColMap=atts.getValue(&quot;colmap&quot;);
+-			listColWidth=atts.getValue(&quot;colwidths&quot;)+&quot;,30,30&quot;; // append default values for older versions
+-			if((new StringTokenizer(listColWidth,&quot;,&quot;)).countTokens()&lt;18) listColWidth+=&quot;,30,30&quot;; // for older versions
++			listColWidth=atts.getValue(&quot;colwidths&quot;);
++			while ((new StringTokenizer(listColWidth,&quot;,&quot;)).countTokens()&lt;myTableModel.N_COLUMNS) listColWidth+=&quot;,30&quot;; // for older versions
+ 		}
+ 		else if(name.equals(&quot;proxy&quot;)) {
+ 			myproxy = atts.getValue(&quot;prx&quot;);
+@@ -523,7 +523,7 @@
+ 				entry = (MapEntry) itPath.next();
+ 				outp.print(&quot;    &lt;impPath key = \&quot;&quot; + SafeXML.strxmlencode(entry.getKey().toString()) + &quot;\&quot; value = \&quot;&quot; + SafeXML.strxmlencode(entry.getValue().toString().replace('\\', '/')) + &quot;\&quot;/&gt;\n&quot;);
+ 			}
+-			
++
+ 			outp.print(&quot;&lt;/preferences&gt;&quot;);
+ 			outp.close();
+ 		} catch (Exception e) {
+@@ -815,14 +815,14 @@
+ 		}
+ 		return dir;
+ 	}
+-	
++
+ 	private Hashtable importerPaths = new Hashtable();
+-	
++
+ 	public void setImporterPath(String importer, String directory) {
+ 		importerPaths.put(importer, directory);
+ 		savePreferences();
+ 	}
+-	
++
+ 	public String getImporterPath(String importer) {
+ 		String dir = (String) importerPaths.get(importer);
+ 		if (null == dir) dir = Global.getProfile().dataDir;
+@@ -830,7 +830,7 @@
+ 	}
+ 
+ 	/**
+-	 * &lt;code&gt;True&lt;/code&gt; or &lt;code&gt;false&lt;/code&gt;, depending if a filter with the given ID is 
++	 * &lt;code&gt;True&lt;/code&gt; or &lt;code&gt;false&lt;/code&gt;, depending if a filter with the given ID is
+ 	 * saved in the preferences.
+ 	 * @param filterID ID of the filter to check
+ 	 * @return True or false
+@@ -838,9 +838,9 @@
+ 	public boolean hasFilter(String filterID) {
+ 		return this.filterList.containsKey(filterID);
+ 	}
+-	
++
+ 	/**
+-	 * Returns the FilterData object saved with the given ID. The ID is not saved in the object, 
++	 * Returns the FilterData object saved with the given ID. The ID is not saved in the object,
+ 	 * so it may be resaved under another ID.
+ 	 * @param filterID ID of the FilterData object
+ 	 * @return FilterData object
+@@ -848,9 +848,9 @@
+ 	public FilterData getFilter(String filterID) {
+ 		return (FilterData)this.filterList.get(filterID);
+ 	}
+-	
++
+ 	/**
+-	 * Adds a FilterData object to the list. If a FilterData object is already saved unter the 
++	 * Adds a FilterData object to the list. If a FilterData object is already saved unter the
+ 	 * given ID, the old object is removed and the new one is set at its place.
+ 	 * @param filterID ID to associate with the filter object
+ 	 * @param filter FilterData object
+@@ -858,7 +858,7 @@
+ 	public void addFilter(String filterID, FilterData filter) {
+ 		this.filterList.put(filterID, filter);
+ 	}
+-	
++
+ 	/**
+ 	 * Removed the FilterData object which is saved with the given ID. If no such FilterData object
+ 	 * exists, nothing happens.
+@@ -867,7 +867,7 @@
+ 	public void removeFilter(String filterID) {
+ 		this.filterList.remove(filterID);
+ 	}
+-	
++
+ 	/**
+ 	 * Returns an array of ID of saved FilterData objects.
+ 	 * @return Array of IDs
+
+Modified: trunk/src/CacheWolf/myTableModel.java
+===================================================================
+--- trunk/src/CacheWolf/myTableModel.java	2009-06-11 02:33:29 UTC (rev 1891)
++++ trunk/src/CacheWolf/myTableModel.java	2009-06-11 09:22:00 UTC (rev 1892)
+@@ -13,7 +13,7 @@
+ * 20061212 salzkammergut, patch to speed up scrolling, Used MyLocale
+ */
+ public class myTableModel extends TableModel{
+-	
++
+ 	// Colors for Cache status (BG unless otherwise stated)
+ 	private static final Color COLOR_FLAGED		= new Color(255,255,0);
+ 	private static final Color COLOR_FOUND		= new Color(152,251,152);
+@@ -28,9 +28,11 @@
+ 	private Color lastColorFG                   = new Color(0,0,0);
+ 	private int lastRow = -2;
+ 	private CacheDB cacheDB;
++	/** The max number of columns in the list view */
++	public static final int N_COLUMNS = 18;
+ 	/** How the columns are mapped onto the list view. If colMap[i]=j, it means that
+-	 * the element j (as per the list below) is visible in column i. 
+-	 * [0]TickBox, [1]Type, [2]Distance, [3]Terrain, [4]waypoint, [5]name, [6]coordinates, 
++	 * the element j (as per the list below) is visible in column i.
++	 * [0]TickBox, [1]Type, [2]Distance, [3]Terrain, [4]waypoint, [5]name, [6]coordinates,
+ 	 * [7]owner, [8]datehidden, [9]status, [10]distance, [11]bearing, [12] Size, [13] # of OC recommend.
+ 	 * [14] OC index, [15] Solver exists, [16] Note exists, [17] # Additionals
+ 	 */
+@@ -43,7 +45,7 @@
+ 			MyLocale.getMsg(1008,&quot;Dist&quot;),MyLocale.getMsg(1009,&quot;Bear&quot;),MyLocale.getMsg(1017,&quot;S&quot;),
+ 			MyLocale.getMsg(1026,&quot;#Rec&quot;),MyLocale.getMsg(1027,&quot;OC-IDX&quot;),MyLocale.getMsg(1038,&quot;S&quot;),
+ 			MyLocale.getMsg(1040,&quot;N&quot;),MyLocale.getMsg(1047,&quot;A&quot;)};
+-	
++
+ 	private static Image noFindLogs[] = new Image[4];
+ 	public static mImage red, blue, yellow; // skull, green
+ 	private Image checkboxTicked,checkboxUnticked;
+@@ -56,18 +58,18 @@
+ 	private mImage[] sizePics = new mImage[CacheSize.CW_TOTAL_SIZE_IMAGES];
+ 	/** This is the modifier (Shift &amp; Control key status) for Pen Events
+ 	 * it is set in myTableControl.onEvent */
+-	public int penEventModifiers; 
+-	
++	public int penEventModifiers;
++
+ //	private int lastRow=-1;
+ 	private myTableControl tcControl;
+ 	public boolean showExtraWptInfo=true;
+-	
++
+ 	public myTableModel(myTableControl tc, FontMetrics fm){
+ 		super();
+ 		cacheDB = Global.getProfile().cacheDB;
+ 		fm = this.fm;
+ 		tcControl = tc;
+-		setColumnNamesAndWidths(); 
++		setColumnNamesAndWidths();
+ 		this.numRows = cacheDB.size();
+ 		//Dimension selrow = new Dimension(-1,1);
+ 		//this.cursorSize = selrow;
+@@ -83,30 +85,30 @@
+ 		bug = new mImage(&quot;bug_table.png&quot;);bug.transparentColor=Color.DarkBlue;
+ 		checkboxTicked = new Image(&quot;checkboxTicked.png&quot;);
+ 		checkboxUnticked= new Image(&quot;checkboxUnticked.png&quot;);
+-		
++
+ //		picSizeMicro=new mImage(&quot;sizeMicro.png&quot;); picSizeMicro.transparentColor=Color.White;
+ //		picSizeSmall=new mImage(&quot;sizeSmall.png&quot;); picSizeSmall.transparentColor=Color.White;
+ //		picSizeReg=new mImage(&quot;sizeReg.png&quot;); picSizeReg.transparentColor=Color.White;
+ //		picSizeLarge=new mImage(&quot;sizeLarge.png&quot;); picSizeLarge.transparentColor=Color.White;
+ //		picSizeVLarge=new mImage(&quot;sizeVLarge.png&quot;); picSizeVLarge.transparentColor=Color.White;
+ //		picSizeNonPhysical=new mImage(&quot;sizeNonPhysical.png&quot;); picSizeNonPhysical.transparentColor=Color.White;
+-		
++
+ 		for (byte i = 0; i &lt; CacheSize.CW_TOTAL_SIZE_IMAGES; i++) {
+ 			sizePics[i] = new mImage(CacheSize.sizeImageForId(i));
+ 			sizePics[i].transparentColor=Color.White;
+ 		}
+-				
++
+ 		picHasSolver=new mImage(&quot;solver_exists.png&quot;); picHasSolver.transparentColor=Color.White;
+ 		picHasNotes=new mImage(&quot;notes_exist.png&quot;); picHasNotes.transparentColor=Color.White;
+ //		updateRows();
+ 	}
+-	
++
+ 	/**
+ 	 * Sets the column names and widths from preferences
+ 	 *
+ 	 */
+ 	public void setColumnNamesAndWidths() {
+-		colMap=TableColumnChooser.str2Array(Global.getPref().listColMap,0,17,0, -1);
++		colMap=TableColumnChooser.str2Array(Global.getPref().listColMap,0,N_COLUMNS-1,0, -1);
+ 		colWidth=TableColumnChooser.str2Array(Global.getPref().listColWidth,10,1024,50, colMap.length);
+ 		numCols=colMap.length;
+ 		clearCellAdjustments();
+@@ -116,7 +118,7 @@
+ 		else
+ 			tcControl.setMenuSmall();
+ 	}
+-	
++
+ 	/**
+ 	 * Return the column widths as a comma delimited string for storing in the preferences
+ 	 * @return
+@@ -128,8 +130,8 @@
+ 		}
+ 		clearCellAdjustments();
+ 		// Convert to string
+-		StringBuffer sb=new StringBuffer(40);
+-		for (int i=0; i&lt;colWidth.length; i++) {
++		StringBuffer sb=new StringBuffer(100);
++		for (int i=0; i&lt;N_COLUMNS; i++) {
+ 			if (sb.length()!=0) sb.append(',');
+ 			sb.append(colWidth[i]);
+ 		}
+@@ -151,7 +153,7 @@
+ 				if (ch.isAddiWpt()){ // unfiltered Addi Wpt
+ 					// check if main wpt is filtered
+ 					if(ch.mainCache != null) { // parent exists
+-						if (! ch.mainCache.isVisible()) 
++						if (! ch.mainCache.isVisible())
+ 							sortDB.add(ch); // Unfiltered Addi Wpt with filtered Main Wpt, show it on its own
+ 						// else Main cache is not filtered, Addi will be added below main cache further down
+ 					} else { //Addi without main Cache
+@@ -172,14 +174,14 @@
+ 		cacheDB.rebuild(sortDB, notVisibleDB);
+ 		this.numRows = sortDB.getCount();
+ 	}
+-	
++
+ 	/**
+ 	 * Method to set the row color of the table displaying the cache list, depending on different
+ 	 * flags set to the cache.
+ 	 */
+ 	/*
+ 	 * (non-Javadoc)
+-	 * 
++	 *
+ 	 * @see ewe.ui.TableModel#getCellAttributes(int, int, boolean, ewe.ui.TableCellAttributes)
+ 	 */
+ 	public TableCellAttributes getCellAttributes(int row, int col, boolean isSelected,
+@@ -234,7 +236,7 @@
+ 				};
+ 			} else  {
+ 				// Here: We already had this row.
+-				// Take color computed for last column 
++				// Take color computed for last column
+ 				ta.fillColor = lastColorBG;
+ 				ta.foreground = lastColorFG;
+ 			}
+@@ -246,7 +248,7 @@
+ 	}
+ 
+ 	/**
+-	 * Determines the arithmetic mean value of two colors and stores the result in the 
++	 * Determines the arithmetic mean value of two colors and stores the result in the
+ 	 * third color.
+ 	 * @param colorMerged Resulting color
+ 	 * @param colorA First color to merge. May be same object as &lt;code&gt;colorMerged&lt;/code&gt;.
+@@ -262,13 +264,13 @@
+ 	}
+ 
+ 	public int calculateColWidth(int col){
+-		if(col == -1) 
++		if(col == -1)
+         	return 0;
+         else if (col&lt;numCols)
+         	return colWidth[colMap[col]];
+         else return 0;
+ 	}
+-	
++
+ 	/**
+ 	 * Need to override this method with a null return to avoid
+ 	 * getCellData being called twice on each access to a cell.
+@@ -286,9 +288,9 @@
+ 			if(ch!=null /*ch.isVisible()*/){ // Check of visibility needed here??
+ 				switch(colMap[col]) { // Faster than using column names
+ 					case 0: // Checkbox
+-						if (ch.is_Checked) 
+-							return checkboxTicked; 
+-						else 
++						if (ch.is_Checked)
++							return checkboxTicked;
++						else
+ 							return checkboxUnticked;
+ 					case 1: // Type
+ 						return GuiImageBroker.getTypeImage(ch.getType());
+@@ -316,14 +318,14 @@
+ 						return ch.getWayPoint();
+ 					case 5: // Cachename
+ 						// Fast return for majority of case
+-						if (!showExtraWptInfo || (ch.has_bugs() == false &amp;&amp; ch.getNoFindLogs()==0)) return ch.getCacheName(); 
++						if (!showExtraWptInfo || (ch.has_bugs() == false &amp;&amp; ch.getNoFindLogs()==0)) return ch.getCacheName();
+ 						// Now need more checks
+ 						IconAndText wpVal = new IconAndText();
+ 						if(ch.has_bugs() == true) wpVal.addColumn(bug);
+ 						if(ch.getNoFindLogs() &gt; 0){
+-							if (ch.getNoFindLogs() &gt; noFindLogs.length) 
++							if (ch.getNoFindLogs() &gt; noFindLogs.length)
+ 								wpVal.addColumn(noFindLogs[noFindLogs.length-1]);
+-							else 
++							else
+ 								wpVal.addColumn(noFindLogs[ch.getNoFindLogs()-1]);
+ 						}
+ 						wpVal.addColumn(ch.getCacheName());
+@@ -350,12 +352,12 @@
+ 						if (ch.getWayPoint().startsWith(&quot;OC&quot;))
+ 							return Convert.formatInt(ch.getNumRecommended());
+ 						return null;
+-					case 14: // OC rating	
++					case 14: // OC rating
+ 						if (ch.getWayPoint().startsWith(&quot;OC&quot;))
+ 							return Convert.formatInt(ch.recommendationScore);
+ 						return null;
+ 					case 15: // Is solver filled?
+-					    if (ch.hasSolver()) return picHasSolver; else return null; 
++					    if (ch.hasSolver()) return picHasSolver; else return null;
+ 					case 16: // Does note exist?
+ 						if (ch.hasNote()) return picHasNotes; else return null;
+ 					case 17: // Number of Additional Waypoints;
+@@ -372,7 +374,7 @@
+ 	}
+ 		return null;
+ 	}
+-	
++
+ 	public boolean penPressed(Point onTable,Point cell){
+ 		boolean retval = false;
+ 		if (cell==null) return false;
+@@ -398,10 +400,10 @@
+ 				// column it is mapped into
+ 				int mappedCol=colMap[cell.x];
+ 				if (mappedCol==0) { // Click on Tickbox header
+-					// Hide/unhide the additional information about a waypoint such as 
++					// Hide/unhide the additional information about a waypoint such as
+ 					// travelbugs/number of notfound logs/yellow circle/red circle etc.
+ 					// This helps on small PDA screens
+-					showExtraWptInfo=!showExtraWptInfo; 
++					showExtraWptInfo=!showExtraWptInfo;
+ 					this.table.repaint();
+ 					return true;
+ 				}
+@@ -420,7 +422,7 @@
+ 	/*					tcControl.scrollToVisible(rownum, 0);
+ 						tcControl.clearSelectedCells(new Vector());
+ 						for(int i= 0; i &lt; MAXCOLUMNS; i++){
+-							tcControl.addToSelection(rownum,i); 
++							tcControl.addToSelection(rownum,i);
+ 						}
+ 		*/			}
+ 				}
+@@ -434,7 +436,7 @@
+ 			}
+ 		return retval;
+ 	}
+-	
++
+ 	/** Toggle the select status for a group of caches
+ 	 * If from==to, the addi Waypoints are also toggled if the cache is a main waypoint
+ 	 * If from!=to, each cache is toggled irrespective of its type (main or addi)
+@@ -447,7 +449,7 @@
+ 		boolean singleRow= from == to;
+ 		for (int j=from; j&lt;=to; j++) {
+ 			ch=cacheDB.get(j);
+-			ch.is_Checked= !ch.is_Checked; 
++			ch.is_Checked= !ch.is_Checked;
+ 			tcControl.repaintCell(j, x);
+ 			// set the ceckbox also for addi wpts
+ 			if (ch.hasAddiWpt() &amp;&amp; singleRow){
+@@ -460,13 +462,13 @@
+ 						tcControl.repaintCell(cacheDB.getIndex(addiWpt), x);
+ 					}
+ 				}
+-				
++
+ 			}
+-		}		
++		}
+ 	}
+ 	public void select(int row,int col,boolean selectOn) {
+ 		//super.select(row, col, selectOn);
+ 		tcControl.cursorTo(row, col, true);
+ 	}
+-		
++
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001809.html">[Cachewolf-svn] r1891 - trunk/src/exp
+</A></li>
+	<LI>Next message: <A HREF="001811.html">[Cachewolf-svn] r1893 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1810">[ date ]</a>
+              <a href="thread.html#1810">[ thread ]</a>
+              <a href="subject.html#1810">[ subject ]</a>
+              <a href="author.html#1810">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

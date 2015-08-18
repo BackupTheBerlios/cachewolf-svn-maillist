@@ -1,0 +1,252 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2085 - trunk/src/utils
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-August/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2085%20-%20trunk/src/utils&In-Reply-To=%3C200908160634.n7G6Y0NO013877%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002006.html">
+   <LINK REL="Next"  HREF="002008.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2085 - trunk/src/utils</H1>
+    <B>greiol at BerliOS</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2085%20-%20trunk/src/utils&In-Reply-To=%3C200908160634.n7G6Y0NO013877%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2085 - trunk/src/utils">greiol at mail.berlios.de
+       </A><BR>
+    <I>Sun Aug 16 08:34:00 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002006.html">[Cachewolf-svn] r2084 - in trunk/src/CacheWolf: . imp
+</A></li>
+        <LI>Next message: <A HREF="002008.html">[Cachewolf-svn] r2086 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2007">[ date ]</a>
+              <a href="thread.html#2007">[ thread ]</a>
+              <a href="subject.html#2007">[ subject ]</a>
+              <a href="author.html#2007">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: greiol
+Date: 2009-08-16 08:33:59 +0200 (Sun, 16 Aug 2009)
+New Revision: 2085
+
+Modified:
+   trunk/src/utils/CWWrapper.java
+   trunk/src/utils/MessageBoxFixed.java
+   trunk/src/utils/MutableInteger.java
+Log:
+organize imports
+reduce visibility of properties, methods and parameters
+
+Modified: trunk/src/utils/CWWrapper.java
+===================================================================
+--- trunk/src/utils/CWWrapper.java	2009-08-15 20:23:32 UTC (rev 2084)
++++ trunk/src/utils/CWWrapper.java	2009-08-16 06:33:59 UTC (rev 2085)
+@@ -1,6 +1,7 @@
+ package utils;
+-import ewe.sys.*;
+ 
++import ewe.sys.Vm;
++
+ /**
+  * Class built as a wrapper for the buggy^Winconsistent Vm.exec
+  * in EWE Version 1.49
+@@ -11,34 +12,65 @@
+  * Unix VM: cmd must not be quoted, arg can be only one
+  * Win* VM: cmd may be quoted, arg are whitespace-split
+  */
+-public class CWWrapper {
++public final class CWWrapper {
++	
++	/** reference to this object */
++	private static CWWrapper ref;
++	
+ 	/**
++	 * thou shallst not instantiate this object
++	 */
++	private CWWrapper() {}
++	
++	/**
++	 * give a singleton reference to this object to whoever needs one. create one, if not done so already.
++	 * @return reference to CWWrapper
++	 */
++	public static synchronized CWWrapper getCWWrapper() {
++		if (ref == null) {
++			ref = new CWWrapper();
++		}
++		return ref;
++	}
++	
++	/**
+ 	 * Apply needed quotes around the command or the argument,
+ 	 * then call Vm.exec() appropriately.
+ 	 * @param cmd
+ 	 * @param arg (only one argument)
+ 	 * @throws ewe.io.IOException
+ 	 */
+-	public static void exec(String cmd, String arg) throws ewe.io.IOException{
++	public static void exec(final String cmd, final String arg) throws ewe.io.IOException{
+ 		exec(cmd, arg, false);
+ 	}
+ 	
+-	public static int exec(String cmd, String arg, boolean wait) throws ewe.io.IOException {
++	public static int exec(String cmd, String arg, final boolean wait) throws ewe.io.IOException {
+ 		if (Vm.getPlatform().equals(&quot;WinCE&quot;) ||
+ 			    Vm.getPlatform().equals(&quot;Win32&quot;)) {
+ 				/* we need extra quotes here, see vm/nmwin32_c.c */
+-				if (arg.indexOf(&quot; &quot;) &gt; -1)
++				if (arg.indexOf(' ') &gt; -1) {
+ 					arg = &quot;\&quot;&quot; + arg + &quot;\&quot;&quot;;
++				}
+ 			} else if (Vm.getPlatform().equals(&quot;Java&quot;)) {
+ 				/* on win32 we need extra quotes here to support filenames whith spaces
+ 				 * (see ewe/sys/Vm.java)			 *
+ 				 * on linux (and os x?) we must not have extra quotes, filenames with spaces are unsupported
+ 				 * */
+-				if (cmd.indexOf(&quot; &quot;) &gt; -1)
++				if (cmd.indexOf(' ') &gt; -1) {
+ 					cmd = &quot;\&quot;&quot; + cmd + &quot;\&quot;&quot;;
+-				if (arg.indexOf(&quot; &quot;) &gt; -1)
++				}
++					
++				if (arg.indexOf(' ') &gt; -1) {
+ 					arg = &quot;\&quot;&quot; + arg + &quot;\&quot;&quot;;
++				}
+ 			}
+ 		return Vm.exec(cmd, arg, 0, wait);
+ 	}
++
++	/**
++	 * just make sure no one tries funny things with us
++	 */
++	public Object clone() throws CloneNotSupportedException {
++		throw new CloneNotSupportedException(); 
++	}
+ }
+
+Modified: trunk/src/utils/MessageBoxFixed.java
+===================================================================
+--- trunk/src/utils/MessageBoxFixed.java	2009-08-15 20:23:32 UTC (rev 2084)
++++ trunk/src/utils/MessageBoxFixed.java	2009-08-16 06:33:59 UTC (rev 2085)
+@@ -14,37 +14,31 @@
+  * you get in the ewe-vm the exception: ewe.sys Event Direction Exception: This Task cannot be done within a timer tick &lt;br&gt;
+  * when you use the normal MessageBox
+  * @author pfeffer
++ * 
++ * FIXME: add javadoc!
+  *
+  */
+ public class MessageBoxFixed {
+-	String title, text;
+-	int type;
+-	int ret;
+-	boolean done;
+-	static int debug = 0;
+-	public MessageBoxFixed(String title_, String text_, int type_) {
++	private String title, text;
++	private int type;
++	private int ret;
++	private boolean done;
++
++	public MessageBoxFixed(final String title_, final String text_, final int type_) {
+ 		set(title_, text_, type_);
+ 	}
+-	public void set(String title_, String text_, int type_) {
++
++	public void set(final String title_, final String text_, final int type_) {
+ 		title = title_;
+ 		text = text_;
+ 		type = type_;
+ 	}
+ 
+ 	public int execute() {
+-		//Vm.debug(&quot;aufruf: &quot; + debug);
+-		//debug++;
+-/*	// this code is a beginning of code to determine, if a new mThread is needed
+- 		Vm.debug(&quot;t .&quot; + mThread.inThread());
+-		MessageBox mb = new MessageBox(title,  text, type);
+-		ret = mb.execute();
+-*/
+-		MBThread t = new MBThread();  // start a new thread is necessary because the simple ewe v1.49 threading model doesn't allow displaying of a messageBox in this kind of thread
++		final MBThread t = new MBThread();  // start a new thread is necessary because the simple ewe v1.49 threading model doesn't allow displaying of a messageBox in this kind of thread
+ 		t.start();
+ 		done = false;
+ 		while (!done) {
+-			//Vm.debug(&quot;A&quot;);
+-			//mThread.yield(100); // this seem to be without effect in ewe-vm v1.49
+ 			try { mThread.sleep(100); } catch (InterruptedException e) {
+ 		//		Vm.debug(&quot;interrupted&quot;); // never reached, even if interrupted is explicitly called
+ 			}
+
+Modified: trunk/src/utils/MutableInteger.java
+===================================================================
+--- trunk/src/utils/MutableInteger.java	2009-08-15 20:23:32 UTC (rev 2084)
++++ trunk/src/utils/MutableInteger.java	2009-08-16 06:33:59 UTC (rev 2085)
+@@ -1,6 +1,3 @@
+-/**
+- * 
+- */
+ package utils;
+ 
+ import ewe.util.Intable;
+@@ -11,12 +8,13 @@
+  */
+ public class MutableInteger implements Intable {
+ 
+-	int value;
++	private int value;
++	
+ 	public MutableInteger() {
+ 		value = -1;
+ 	}
+ 	
+-	public MutableInteger(int initialValue) {
++	public MutableInteger(final int initialValue) {
+ 		value = initialValue;
+ 	}
+ 
+@@ -24,8 +22,8 @@
+ 		return value;
+ 	}
+ 	
+-	public void setInt(int value) {
+-		this.value = value;
++	public void setInt(final int newValue) {
++		value = newValue;
+ 	}
+ 
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002006.html">[Cachewolf-svn] r2084 - in trunk/src/CacheWolf: . imp
+</A></li>
+	<LI>Next message: <A HREF="002008.html">[Cachewolf-svn] r2086 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2007">[ date ]</a>
+              <a href="thread.html#2007">[ thread ]</a>
+              <a href="subject.html#2007">[ subject ]</a>
+              <a href="author.html#2007">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

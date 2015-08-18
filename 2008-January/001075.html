@@ -1,0 +1,183 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1182 - in trunk: res_noewe/languages src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1182%20-%20in%20trunk%3A%20res_noewe/languages%20src/CacheWolf&In-Reply-To=%3C200801152015.m0FKFQr8020911%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001074.html">
+   <LINK REL="Next"  HREF="001076.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1182 - in trunk: res_noewe/languages src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1182%20-%20in%20trunk%3A%20res_noewe/languages%20src/CacheWolf&In-Reply-To=%3C200801152015.m0FKFQr8020911%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1182 - in trunk: res_noewe/languages src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Tue Jan 15 21:15:26 CET 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001074.html">[Cachewolf-svn] r1181 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001076.html">[Cachewolf-svn] r1183 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1075">[ date ]</a>
+              <a href="thread.html#1075">[ thread ]</a>
+              <a href="subject.html#1075">[ subject ]</a>
+              <a href="author.html#1075">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2008-01-15 21:15:21 +0100 (Tue, 15 Jan 2008)
+New Revision: 1182
+
+Modified:
+   trunk/res_noewe/languages/DE.cfg
+   trunk/res_noewe/languages/EN.cfg
+   trunk/src/CacheWolf/Parser.java
+Log:
+Bugfix for project-Function
+See <A HREF="http://www.geoclub.de/ftopic21548.html">http://www.geoclub.de/ftopic21548.html</A>
+
+Modified: trunk/res_noewe/languages/DE.cfg
+===================================================================
+--- trunk/res_noewe/languages/DE.cfg	2008-01-08 18:44:38 UTC (rev 1181)
++++ trunk/res_noewe/languages/DE.cfg	2008-01-15 20:15:21 UTC (rev 1182)
+@@ -378,6 +378,7 @@
+ 		1736=Laden
+ 		1737=Speichern
+ 		1738=Speichern als	
++		1739=Winkel muss im Bereich [0;2*PI] sein
+ 		1800=Georeferenzierte Karten herunterladen
+ 		1801=Kacheln herunterladen
+ 		2000=GPX Export
+
+Modified: trunk/res_noewe/languages/EN.cfg
+===================================================================
+--- trunk/res_noewe/languages/EN.cfg	2008-01-08 18:44:38 UTC (rev 1181)
++++ trunk/res_noewe/languages/EN.cfg	2008-01-15 20:15:21 UTC (rev 1182)
+@@ -378,6 +378,7 @@
+ 		1736=Load
+ 		1737=Save
+ 		1738=SaveAs	
++		1739=Projection degrees must be in interval [0;2*PI]
+ 		1800=Download georeferenced maps
+ 		1801=Download tiles
+ 		2000=GPX Export
+
+Modified: trunk/src/CacheWolf/Parser.java
+===================================================================
+--- trunk/src/CacheWolf/Parser.java	2008-01-08 18:44:38 UTC (rev 1181)
++++ trunk/src/CacheWolf/Parser.java	2008-01-15 20:15:21 UTC (rev 1182)
+@@ -356,7 +356,7 @@
+ ///////////////////////////////////////////
+ 	
+ 	/** If we are in DEGree mode, convert the argument to RADiants, if not leave it unchanged */
+-	private double convertInput(double arg) {
++	private double makeRadiant(double arg) {
+ 		if (Global.getPref().solverDegMode)
+ 			return arg*java.lang.Math.PI/180.0;
+ 		else
+@@ -364,7 +364,7 @@
+ 	}
+ 	
+ 	/** If we are in DEGree mode, convert the argument to degrees */
+-	private double convertOutput(double arg) {
++	private double makeDegree(double arg) {
+ 		if (Global.getPref().solverDegMode)
+ 			return arg/java.lang.Math.PI*180.0;
+ 		else
+@@ -378,7 +378,9 @@
+  		if (!isValidCoord(coordA)) err(MyLocale.getMsg(1712,&quot;Invalid coordinate: &quot;)+coordA);
+ 		if (!isValidCoord(coordB)) err(MyLocale.getMsg(1712,&quot;Invalid coordinate: &quot;)+coordB);
+ 	   	cwPt.set(coordA);
+-	   	return convertOutput(cwPt.getBearing(new CWPoint(coordB))*java.lang.Math.PI/180.0);
++	   	double angleDeg=cwPt.getBearing(new CWPoint(coordB));
++	   	// getBearing returns a result in degrees
++	   	return Global.getPref().solverDegMode ? angleDeg : angleDeg * java.lang.Math.PI/180.0;
+     }
+ 
+     /** Get or set the current centre */
+@@ -594,8 +596,14 @@
+     private String funcProject() throws Exception {
+     	double distance=popCalcStackAsNumber(0);
+     	if (distance&lt;0) err(MyLocale.getMsg(1718,&quot;Cannot project a negative distance&quot;));
+-    	double degrees=convertInput(popCalcStackAsNumber(0));
+-    	if (degrees&lt;0 || degrees&gt;2*java.lang.Math.PI) err(MyLocale.getMsg(1719,&quot;Projection degrees must be in interval [0;360]&quot;));
++    	double degrees=popCalcStackAsNumber(0);
++    	// If we are not in degree mode, arg is in radiants ==&gt; convert it
++    	if (!Global.getPref().solverDegMode) degrees=degrees * 180.0 / java.lang.Math.PI; 
++    	if (degrees&lt;0 || degrees&gt;360) 
++    		if (Global.getPref().solverDegMode) 
++    			err(MyLocale.getMsg(1719,&quot;Projection degrees must be in interval [0;360]&quot;));
++    		else
++    			err(MyLocale.getMsg(1739,&quot;Projection degrees must be in interval [0;2*PI]&quot;));
+     	String coord=popCalcStackAsString();
+ 		if (!isValidCoord(coord)) err(MyLocale.getMsg(1712,&quot;Invalid coordinate: &quot;)+coord);
+     	cwPt.set(coord);
+@@ -990,14 +998,14 @@
+ 	
+ 	private void executeFunction(String funcName, int nargs, fnType funcDef) throws Exception {
+ 		if (!funcDef.nargsValid(nargs)) err(MyLocale.getMsg(1727,&quot;Invalid number of arguments&quot;));
+-	         if (funcDef.alias.equals(&quot;asin&quot;)) calcStack.add(new java.lang.Double(convertOutput(java.lang.Math.asin(popCalcStackAsNumber(0)))));
++	         if (funcDef.alias.equals(&quot;asin&quot;)) calcStack.add(new java.lang.Double(makeDegree(java.lang.Math.asin(popCalcStackAsNumber(0)))));
+ 	 	else if (funcDef.alias.equals(&quot;abs&quot;)) calcStack.add(new java.lang.Double(java.lang.Math.abs(popCalcStackAsNumber(0))));
+-	    else if (funcDef.alias.equals(&quot;acos&quot;)) calcStack.add(new java.lang.Double(convertOutput(java.lang.Math.acos(popCalcStackAsNumber(0)))));
+-	    else if (funcDef.alias.equals(&quot;atan&quot;)) calcStack.add(new java.lang.Double(convertOutput(java.lang.Math.atan(popCalcStackAsNumber(0)))));
++	    else if (funcDef.alias.equals(&quot;acos&quot;)) calcStack.add(new java.lang.Double(makeDegree(java.lang.Math.acos(popCalcStackAsNumber(0)))));
++	    else if (funcDef.alias.equals(&quot;atan&quot;)) calcStack.add(new java.lang.Double(makeDegree(java.lang.Math.atan(popCalcStackAsNumber(0)))));
+ 	    else if (funcDef.alias.equals(&quot;bearing&quot;)) calcStack.add(new java.lang.Double(funcBearing()));
+ 	    else if (funcDef.alias.equals(&quot;center&quot;)) funcCenter(nargs);
+ 	    else if (funcDef.alias.equals(&quot;cls&quot;)) funcCls();
+-	    else if (funcDef.alias.equals(&quot;cos&quot;)) calcStack.add(new java.lang.Double(java.lang.Math.cos(convertInput(popCalcStackAsNumber(0)))));
++	    else if (funcDef.alias.equals(&quot;cos&quot;)) calcStack.add(new java.lang.Double(java.lang.Math.cos(makeRadiant(popCalcStackAsNumber(0)))));
+ 	    else if (funcDef.alias.equals(&quot;count&quot;)) funcCount();
+ 	    else if (funcDef.alias.equals(&quot;cp&quot;)) calcStack.add(funcCp());     
+ 	    else if (funcDef.alias.equals(&quot;ct&quot;)) calcStack.add(new java.lang.Double(funcCrossTotal(nargs)));
+@@ -1021,11 +1029,11 @@
+ 	    else if (funcDef.alias.equals(&quot;rot13&quot;)) calcStack.add(Common.rot13(popCalcStackAsString()));
+ //	    else if (funcDef.alias.equals(&quot;rs&quot;)) funcRequireSemicolon(nargs);
+ 	    else if (funcDef.alias.equals(&quot;show&quot;));
+-	    else if (funcDef.alias.equals(&quot;sin&quot;)) calcStack.add(new java.lang.Double(java.lang.Math.sin(convertInput(popCalcStackAsNumber(0)))));
++	    else if (funcDef.alias.equals(&quot;sin&quot;)) calcStack.add(new java.lang.Double(java.lang.Math.sin(makeRadiant(popCalcStackAsNumber(0)))));
+ 	    else if (funcDef.alias.equals(&quot;skeleton&quot;)) funcSkeleton(nargs);
+ 	    else if (funcDef.alias.equals(&quot;sqrt&quot;)) calcStack.add(new java.lang.Double(funcSqrt())); 
+ 	    else if (funcDef.alias.equals(&quot;sval&quot;)) calcStack.add(funcSval(popCalcStackAsString()));
+-	    else if (funcDef.alias.equals(&quot;tan&quot;)) calcStack.add(new java.lang.Double(java.lang.Math.tan(convertInput(popCalcStackAsNumber(0)))));
++	    else if (funcDef.alias.equals(&quot;tan&quot;)) calcStack.add(new java.lang.Double(java.lang.Math.tan(makeRadiant(popCalcStackAsNumber(0)))));
+ 	    else if (funcDef.alias.equals(&quot;uc&quot;)) calcStack.add(popCalcStackAsString().toUpperCase());
+ 	    else if (funcDef.alias.equals(&quot;val&quot;)) calcStack.add(new java.lang.Double(funcVal(popCalcStackAsString())));
+ 	    else err(MyLocale.getMsg(1728,&quot;Function not yet implemented: &quot;)+funcName);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001074.html">[Cachewolf-svn] r1181 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001076.html">[Cachewolf-svn] r1183 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1075">[ date ]</a>
+              <a href="thread.html#1075">[ thread ]</a>
+              <a href="subject.html#1075">[ subject ]</a>
+              <a href="author.html#1075">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

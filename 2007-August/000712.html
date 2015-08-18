@@ -1,0 +1,229 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r822 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-August/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r822%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200708170057.l7H0vQu8010340%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000711.html">
+   <LINK REL="Next"  HREF="000713.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r822 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r822%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200708170057.l7H0vQu8010340%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r822 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Fri Aug 17 02:57:26 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000711.html">[Cachewolf-svn] r821 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000713.html">[Cachewolf-svn] r823 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#712">[ date ]</a>
+              <a href="thread.html#712">[ thread ]</a>
+              <a href="subject.html#712">[ subject ]</a>
+              <a href="author.html#712">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-08-17 02:57:22 +0200 (Fri, 17 Aug 2007)
+New Revision: 822
+
+Added:
+   trunk/src/CacheWolf/TableForm.java
+Modified:
+   trunk/src/CacheWolf/MainForm.java
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/Map.java
+   trunk/src/CacheWolf/MapsList.java
+   trunk/src/CacheWolf/TablePanel.java
+Log:
+* The menu bar is now only shown in the cache list to make more space in all other panels
+* some clean up
+
+Modified: trunk/src/CacheWolf/MainForm.java
+===================================================================
+--- trunk/src/CacheWolf/MainForm.java	2007-08-16 22:41:50 UTC (rev 821)
++++ trunk/src/CacheWolf/MainForm.java	2007-08-17 00:57:22 UTC (rev 822)
+@@ -46,20 +46,21 @@
+ 	}
+ 	
+ 	public void doIt(){
+-		CellPanel [] p = addToolbar();
++	//	CellPanel [] p = addToolbar();
+ 		Global.mainForm=this;
+ 		//this.title = &quot;CacheWolf &quot; + Version.getRelease();
+ 		this.exitSystemOnClose = true;
+ 		this.resizable = true;
+ 		this.moveable = true;
++		this.windowFlagsToSet = Window.FLAG_MAXIMIZE_ON_PDA;
+ 		if(Vm.isMobile() == true) {
+-
+ 			//this.windowFlagsToSet = Window.FLAG_FULL_SCREEN;
+ 			this.resizable = false;
+ 			this.moveable = false;
+-			this.windowFlagsToClear=WindowConstants.FLAG_HAS_TITLE; //TODO don't clear this to use original windows haedline ?
+-		} else 
+-			this.setPreferredSize(800, 600);
++			this.windowFlagsToClear = WindowConstants.FLAG_HAS_TITLE; //TODO don't clear this to use original windows haedline ?
++		}
++		Rect screen = ((ewe.fx.Rect) (Window.getGuiInfo(Window.INFO_SCREEN_RECT,null,new ewe.fx.Rect(),0)));
++		if ( screen.height &gt;= 600 &amp;&amp; screen.width &gt;= 800) this.setPreferredSize(800, 600);
+ 		this.resizeOnSIP = true;
+ 		// Load CacheList
+ 		InfoBox infB = new InfoBox(&quot;CacheWolf&quot;,MyLocale.getMsg(5000,&quot;Loading Cache-List&quot;));
+@@ -101,9 +102,10 @@
+ 		pnlMainTab.addLast(mTab,STRETCH,FILL);
+ 		
+ 		mTab.dontAutoScroll=true;
+-		p[0].addLast(mMenu);
++		//p[0].addLast(mMenu);
+ 		//p[0].addLast(mMenu,CellConstants.DONTSTRETCH, CellConstants.FILL);
+-		p[1].addLast(split,STRETCH,FILL);
++		//p[1].addLast(split,STRETCH,FILL);
++		this.addLast(split,STRETCH,FILL);
+ 		/*
+ 		if (pref.menuAtTop) {
+ 			this.addLast(mMenu,CellConstants.DONTSTRETCH, CellConstants.FILL);
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2007-08-16 22:41:50 UTC (rev 821)
++++ trunk/src/CacheWolf/MainTab.java	2007-08-17 00:57:22 UTC (rev 822)
+@@ -48,7 +48,8 @@
+ 		//Don't expand tabs if the screen is very narrow, i.e. HP IPAQ 65xx, 69xx
+ 		if (MyLocale.getScreenWidth() &lt;= 240) this.dontExpandTabs=true;
+ 		calcP = new CalcPanel(); // Init here so that Global.MainT is already set
+-		Card c = this.addCard(tbP = new TablePanel(pref, profile, statBar), MyLocale.getMsg(1200,&quot;List&quot;), null);
++		tbP = new TablePanel(pref, profile, statBar);
++		Card c = this.addCard(new TableForm(tbP), MyLocale.getMsg(1200,&quot;List&quot;), null);
+ 
+ 		c = this.addCard(detP, MyLocale.getMsg(1201,&quot;Details&quot;), null);
+ 		c.iconize(new Image(&quot;details.gif&quot;),true);
+
+Modified: trunk/src/CacheWolf/Map.java
+===================================================================
+--- trunk/src/CacheWolf/Map.java	2007-08-16 22:41:50 UTC (rev 821)
++++ trunk/src/CacheWolf/Map.java	2007-08-17 00:57:22 UTC (rev 822)
+@@ -348,7 +348,7 @@
+ 							gcpG.bitMapX = gcp4.bitMapX;
+ 							gcpG.bitMapY = gcp4.bitMapY;
+ 							addGCP(gcpG);
+-							
++							/* already read from image file itself
+ 							// get dimensions of image
+ 							while ( (line = inMap.readLine()) != null){
+ 								if (line.startsWith(&quot;IWH&quot;)){
+@@ -357,7 +357,7 @@
+ 									imageHeight = Convert.toInt(parts[3]);
+ 								}
+ 							}
+-
++							 */
+ 							evalGCP();
+ 							//Vm.debug(&quot;Saving .map file to: &quot; + mapsPath + &quot;/&quot; + rawFileName + &quot;.wfl&quot;);
+ 							wfl.saveWFL(mapsPath, rawFileName);
+
+Modified: trunk/src/CacheWolf/MapsList.java
+===================================================================
+--- trunk/src/CacheWolf/MapsList.java	2007-08-16 22:41:50 UTC (rev 821)
++++ trunk/src/CacheWolf/MapsList.java	2007-08-17 00:57:22 UTC (rev 822)
+@@ -27,7 +27,7 @@
+ 		super(); // forget already loaded maps
+ 		//if (mmp.mapImage != null) 
+ 		String dateien[];
+-		File files = new FileBugfix(mapsPath);
++		FileBugfix files = new FileBugfix(mapsPath);
+ 		String rawFileName = new String();
+ 		String[] dirstmp = files.list(null, File.LIST_DIRECTORIES_ONLY);
+ 		Vector dirs;
+@@ -39,7 +39,7 @@
+ 		for (int j = dirs.size()-1; j &gt;= 0; j--) {
+ 			files = new FileBugfix(mapsPath+&quot;/&quot;+dirs.get(j));
+ 			//ewe.sys.Vm.debug(&quot;mapd-Dirs:&quot;+files);
+-			dateien = files.listMultiple(&quot;*.wfl,892z3rihugkdfhgflhldghoeighoig8&quot;, File.LIST_FILES_ONLY); //&quot;*.xyz&quot; doesn't work on some systems and &quot;*&quot; doesn't on others -&gt; use null (for all files) and filter yourself
++			dateien = files.list(&quot;*.wfl&quot;, File.LIST_FILES_ONLY); //&quot;*.xyz&quot; doesn't work on some systems -&gt; use FileBugFix
+ 			for(int i = 0; i &lt; dateien.length;i++){
+ 				// if (!dateien[i].endsWith(&quot;.wfl&quot;)) continue;
+ 				rawFileName = dateien[i].substring(0, dateien[i].lastIndexOf(&quot;.&quot;));
+
+Added: trunk/src/CacheWolf/TableForm.java
+===================================================================
+--- trunk/src/CacheWolf/TableForm.java	2007-08-16 22:41:50 UTC (rev 821)
++++ trunk/src/CacheWolf/TableForm.java	2007-08-17 00:57:22 UTC (rev 822)
+@@ -0,0 +1,12 @@
++package CacheWolf;
++
++import ewe.ui.CellPanel;
++import ewe.ui.Editor;
++
++public class TableForm extends Editor {
++	public TableForm(TablePanel tp) {
++		CellPanel[] menuList = addToolbar();
++		menuList[0].addLast(Global.mainForm.mMenu);
++		menuList[1].addLast(tp); 
++	}
++}
+
+Modified: trunk/src/CacheWolf/TablePanel.java
+===================================================================
+--- trunk/src/CacheWolf/TablePanel.java	2007-08-16 22:41:50 UTC (rev 821)
++++ trunk/src/CacheWolf/TablePanel.java	2007-08-17 00:57:22 UTC (rev 822)
+@@ -54,8 +54,8 @@
+ 	/** Mark the row as selected so that myTableModel can color it grey */
+ 	public void selectRow(int row) {
+ 		setSelectedCache(row);
+-		tc.addToSelection(row,0); 
+-		tc.addToSelection(row,myMod.MAXCOLUMNS-1);
++//		tc.addToSelection(row,0); 
++//		tc.addToSelection(row,myMod.MAXCOLUMNS-1);
+ 		// Ensure that the highlighted row is visible (e.g. when coming from radar panel)
+ 		tc.scrollToVisible(row,0);
+ 		// Next line needed for key scrolling 
+@@ -78,8 +78,9 @@
+ 	public void selectFirstRow() {
+ 		myMod.cursorSize=new Dimension(-1,1);
+ 		if (cacheDB.size()&gt;0) {
+-			tc.addToSelection(0,0); 
+-			tc.addToSelection(0,myMod.MAXCOLUMNS-1);
++			tc.cursorTo(0, -1, true);
++//			tc.addToSelection(0,0); 
++//			tc.addToSelection(0,myMod.MAXCOLUMNS-1);
+ 		}
+ 	}
+ 	
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000711.html">[Cachewolf-svn] r821 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000713.html">[Cachewolf-svn] r823 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#712">[ date ]</a>
+              <a href="thread.html#712">[ thread ]</a>
+              <a href="subject.html#712">[ subject ]</a>
+              <a href="author.html#712">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

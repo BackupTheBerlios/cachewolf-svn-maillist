@@ -1,0 +1,221 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r576 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r576%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702131757.l1DHvVc3012558%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000386.html">
+   <LINK REL="Next"  HREF="000388.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r576 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r576%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702131757.l1DHvVc3012558%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r576 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Tue Feb 13 18:57:31 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000386.html">[Cachewolf-svn] r575 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000388.html">[Cachewolf-svn] r577 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#387">[ date ]</a>
+              <a href="thread.html#387">[ thread ]</a>
+              <a href="subject.html#387">[ subject ]</a>
+              <a href="author.html#387">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-02-13 18:57:21 +0100 (Tue, 13 Feb 2007)
+New Revision: 576
+
+Modified:
+   trunk/src/CacheWolf/Filter.java
+   trunk/src/CacheWolf/FilterScreen.java
+   trunk/src/CacheWolf/Profile.java
+Log:
+Filter: Standardeinstellung jetzt: Anzeige der Addis. Auch bei Filter loeschen werden jetzt die Addis angezeigt
+
+Modified: trunk/src/CacheWolf/Filter.java
+===================================================================
+--- trunk/src/CacheWolf/Filter.java	2007-02-13 15:36:12 UTC (rev 575)
++++ trunk/src/CacheWolf/Filter.java	2007-02-13 17:57:21 UTC (rev 576)
+@@ -304,6 +304,10 @@
+ 	public void doFilter(){
+ 		Vector cacheDB=Global.getProfile().cacheDB;
+ 		if (cacheDB.size()==0) return;
++		if (!hasFilter()) { // If the filter was completely reset, we can just clear it
++			clearFilter();
++			return;
++		}
+ 		CacheHolder ch;
+ 		int cacheTypePattern;
+ 		int cacheRosePattern;
+@@ -444,7 +448,7 @@
+ 			}
+ 			
+ 		} // for
+-		if (hasFilter())filterActive=true;
++		filterActive=true;
+ 	}
+ 	
+ 	/**
+@@ -473,7 +477,7 @@
+ 		CacheHolder ch;
+ 		for(int i = cacheDB.size()-1; i &gt;=0 ; i--){
+ 			ch = (CacheHolder)cacheDB.get(i);
+-			ch.is_filtered=(ch.is_black^showBlacklisted) || CacheType.isAddiWpt(ch.type); // Always filter blacklisted caches
++			ch.is_filtered=(ch.is_black^showBlacklisted) ; // Always filter blacklisted caches
+ 		}
+ 		filterActive=false;
+ 		filterInverted=false;
+
+Modified: trunk/src/CacheWolf/FilterScreen.java
+===================================================================
+--- trunk/src/CacheWolf/FilterScreen.java	2007-02-13 15:36:12 UTC (rev 575)
++++ trunk/src/CacheWolf/FilterScreen.java	2007-02-13 17:57:21 UTC (rev 576)
+@@ -288,7 +288,6 @@
+ 			chcDist.select(0);
+ 			inpDist.setText(&quot;&quot;);
+ 		}
+-		// If filter has been corrupted, pad it to 11 characters
+ 		String fltRose=prof.filterRose;
+ 		chkNW.state   = fltRose.charAt(0) == '1';
+ 		chkNNW.state  = fltRose.charAt(1) == '1';
+@@ -441,16 +440,29 @@
+ 
+ 		// Panel 5 - Addi Waypoints
+ 		if (chkParking.state || chkStage.state || chkQuestion.state || 
+-			chkFinal.state || chkTrailhead.state || chkReference.state )
++			chkFinal.state || chkTrailhead.state || chkReference.state ) { // At least one tick
+ 			btnAddi.backGround=COLOR_FILTERACTIVE;
+-		else
+-			btnAddi.backGround=COLOR_FILTERINACTIVE;
++			addiWptChk.state=true;
++			if (chkParking.state &amp;&amp; chkStage.state &amp;&amp;  chkQuestion.state &amp;&amp; 
++				chkFinal.state &amp;&amp; chkTrailhead.state &amp;&amp; chkReference.state ) { // All ticked?
++				addiWptChk.bgColor=Color.White;
++				btnAddi.backGround=COLOR_FILTERINACTIVE;
++			} else {	
++				addiWptChk.bgColor=Color.LightGray;
++			}
++		} else { // All not ticked
++			btnAddi.backGround=COLOR_FILTERACTIVE;
++			addiWptChk.bgColor=Color.White;
++			addiWptChk.state=false;
++		}
+ 		btnAddi.repaint();
+ 
+ 		// Panel 4 - Cache types
++		boolean allAddis=(chkParking.state &amp;&amp; chkStage.state &amp;&amp;  chkQuestion.state &amp;&amp; 
++		chkFinal.state &amp;&amp; chkTrailhead.state &amp;&amp; chkReference.state) ;
+ 		if (!(chkTrad.state &amp;&amp; chkMulti.state &amp;&amp; 	chkVirtual.state &amp;&amp; chkLetter.state &amp;&amp;
+ 		      chkEvent.state &amp;&amp; chkWebcam.state &amp;&amp; chkMystery.state &amp;&amp; chkEarth.state &amp;&amp;
+-		      chkLocless.state &amp;&amp; chkMega.state &amp;&amp; chkCustom.state) ) 
++		      chkLocless.state &amp;&amp; chkMega.state &amp;&amp; chkCustom.state &amp;&amp; allAddis) ) 
+ 			btnTypes.backGround=COLOR_FILTERACTIVE;
+ 		else
+ 			btnTypes.backGround=COLOR_FILTERINACTIVE;
+@@ -462,23 +474,6 @@
+ 			btnTypes.backGround=COLOR_FILTERALL;
+ 		btnTypes.repaint();
+ 
+-		// Panel 5 - Addi Waypoints
+-		if (chkParking.state || chkStage.state || chkQuestion.state || 
+-			chkFinal.state || chkTrailhead.state || chkReference.state ) { // At least one tick
+-			btnAddi.backGround=COLOR_FILTERACTIVE;
+-			addiWptChk.state=true;
+-			if (chkParking.state &amp;&amp; chkStage.state &amp;&amp;  chkQuestion.state &amp;&amp; 
+-				chkFinal.state &amp;&amp; chkTrailhead.state &amp;&amp; chkReference.state ) { // All ticked?
+-				addiWptChk.bgColor=Color.White;
+-			} else {	
+-				addiWptChk.bgColor=Color.LightGray;
+-			}
+-		} else { // All not ticked
+-			btnAddi.backGround=COLOR_FILTERINACTIVE;
+-			addiWptChk.bgColor=Color.White;
+-			addiWptChk.state=false;
+-		}
+-		btnAddi.repaint();
+ 			
+ 		// Panel 6 - Cache container
+ 		if (!(chkMicro.state &amp;&amp; chkSmall.state &amp;&amp; chkRegular.state &amp;&amp; 
+@@ -595,17 +590,6 @@
+ 				} else { 
+ 					pfl.filterTerr=&quot;G&quot;+inpTerr.getText();
+ 				}
+-/*				if(lastChc.selectedIndex == 0) 
+-					flt.daysdirec = Filter.FOUND;
+-				else 
+-					flt.daysdirec = Filter.NOTFOUND;
+-*/
+-				// Need to think about saving it here. If yes, we also need to save filter when we clear it.
+-				// Maybe better to auto-save index upon exit
+-				//InfoBox infB = new InfoBox(&quot;Info&quot;,MyLocale.getMsg(713,&quot;Saving filter&quot;));
+-				//infB.exec();
+-				//pfl.saveIndex(Global.getPref());
+-				//infB.close(0);
+ 				Filter flt = new Filter();
+ 				flt.setFilter();
+ 				flt.doFilter();
+
+Modified: trunk/src/CacheWolf/Profile.java
+===================================================================
+--- trunk/src/CacheWolf/Profile.java	2007-02-13 15:36:12 UTC (rev 575)
++++ trunk/src/CacheWolf/Profile.java	2007-02-13 17:57:21 UTC (rev 576)
+@@ -43,7 +43,7 @@
+ 	public final static boolean SHOW_PROGRESS_BAR = true;
+ 	public final static boolean NO_SHOW_PROGRESS_BAR = false;
+ 	
+-	public final static String FILTERTYPE=&quot;11111111111000000&quot;;
++	public final static String FILTERTYPE=&quot;11111111111111111&quot;;
+ 	public final static String FILTERROSE=&quot;1111111111111111&quot;;
+ 	public final static String FILTERVAR=&quot;11111111&quot;;
+ 	public final static String FILTERSIZE=&quot;111111&quot;;
+@@ -417,9 +417,8 @@
+ 		if (filterVar.length()&lt;8) { 
+ 			filterVar=(filterVar+&quot;11111111&quot;).substring(0,8); 
+ 		}  
+-		if (filterType.length()&lt;16) { 
+-			filterType=(filterType+&quot;11111111111111111&quot;).substring(0,11);
+-			filterType=(filterType+&quot;000000&quot;).substring(0,17);
++		if (filterType.length()&lt;17) { 
++			filterType=(filterType+&quot;11111111111111111111111&quot;).substring(0,17);
+ 		} 
+ 		if (filterSize.length()&lt;6) {
+ 			filterSize=(filterSize+&quot;111111&quot;).substring(0,6);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000386.html">[Cachewolf-svn] r575 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000388.html">[Cachewolf-svn] r577 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#387">[ date ]</a>
+              <a href="thread.html#387">[ thread ]</a>
+              <a href="subject.html#387">[ subject ]</a>
+              <a href="author.html#387">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

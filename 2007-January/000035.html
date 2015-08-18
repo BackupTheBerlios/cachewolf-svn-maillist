@@ -1,0 +1,570 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r356 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-January/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r356%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701071625.l07GP2EM028489%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000039.html">
+   <LINK REL="Next"  HREF="000036.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r356 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r356%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200701071625.l07GP2EM028489%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r356 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Sun Jan  7 17:25:02 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000039.html">[Cachewolf-svn] r355 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000036.html">[Feature #3021] Bilder l&#246;schen
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#35">[ date ]</a>
+              <a href="thread.html#35">[ thread ]</a>
+              <a href="subject.html#35">[ subject ]</a>
+              <a href="author.html#35">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-01-07 17:24:58 +0100 (Sun, 07 Jan 2007)
+New Revision: 356
+
+Modified:
+   trunk/src/CacheWolf/ImagePanel.java
+   trunk/src/CacheWolf/ImagePanelImage.java
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/Preferences.java
+Log:
+Cachebilder und Benutzerbilder koennen in ImagePanel jetzt auch mit rechter Maustaste geloescht werden um Platz zu sparen.
+Geloeschte Bilder koennen ueber eine Option in pref.xml ausgeblendet werden (muss noch in PreferencesScreen nachgetragen werden).
+
+Modified: trunk/src/CacheWolf/ImagePanel.java
+===================================================================
+--- trunk/src/CacheWolf/ImagePanel.java	2007-01-07 14:17:39 UTC (rev 355)
++++ trunk/src/CacheWolf/ImagePanel.java	2007-01-07 16:24:58 UTC (rev 356)
+@@ -3,6 +3,8 @@
+ import ewe.sys.*;
+ import ewe.fx.*;
+ import ewe.ui.*;
++import ewe.io.*;
++import ewe.util.*;
+ 
+ 
+ /**
+@@ -10,23 +12,28 @@
+ *	allows the user to click on an image that will then be displayed in its original size
+ *	as long as the image fits the application size. If the application size is not sufficient
+ *	then the image will be scaled to the available screen size.
++*   A right mouseclick on an image will open a dialogue to delete the file. 
+ */
+ public class ImagePanel extends InteractivePanel{
++	/** Picture to replace deleted pictures */
++	private final String NO_IMAGE=&quot;no_picture.png&quot;;
++	/** Minimum time (msec) to recognize a long pen down event (=right mouse key) */
++	private final int LONG_PEN_DOWN_DURATION=500;
++
+ 	Preferences pref;
+ 	Profile profile;
++	//private final int thumb_max_size = 300;
++	//private final int thumb_min_size = 100;
++	private final int padding = 20;
++	private int thumb_size = 0;
++	private int locX, locY, locCounter;
++	/** Start and duration of pen-pressed event to simulate right mouse key */
++	private long start, duration=0;
+ 	
+-	int thumb_max_size = 300;
+-	int thumb_min_size = 100;
+-	int padding = 20;
+-	int thumb_size = 0;
+ 	/**
+ 	* Constructor to create the image panel.&lt;p&gt;
+-	* Also calculates the possible sizes for the
+-	* thumbnail view.
+ 	*/
+-	public ImagePanel(Preferences p, Profile prof){
+-		pref = p;
+-		profile=prof;
++	public ImagePanel(){
+ 	}
+ 	
+ 	/**
+@@ -35,17 +42,12 @@
+ 	* @see MainTab#onEvent(Event ev)
+ 	*/
+ 	public void setImages(CacheHolder cache){
+-		String imgText = new String();
+-		AniImage AimgText;
+-		double dummyC = 0;
++		pref = Global.getPref();
++		profile=Global.getProfile();
+ 		Vm.showWait(true);
+-		ImageList liste = images;
++		clearImages();
+ 		thumb_size = (int)((pref.myAppWidth-2*padding) / 3);
+ 		thumb_size = thumb_size - padding;
+-		int lgr = liste.size();
+-		for(int i = 0; i&lt;lgr;i++){
+-			this.removeImage((AniImage)liste.get(0));
+-		}
+ 		int rowCounter = cache.Images.size() + cache.UserImages.size();
+ 		rowCounter = (int)(rowCounter/3)+1;
+ 		Rect r = new Rect(new Dimension(pref.myAppWidth,rowCounter*thumb_size+rowCounter*padding+padding));
+@@ -53,13 +55,45 @@
+ 		//this.setPreferredSize(pref.myAppWidth, rowCounter*thumb_size+rowCounter*padding+40);
+ 		this.checkScrolls();
+ 		this.refresh();
++		addTitle(MyLocale.getMsg(340,&quot;Cache Images:&quot;));
++		locY = 20;
++		locX = padding;
++		addImages(cache.Images,cache.ImagesText);
++		// load user images
++		if(locCounter==1 || locCounter ==2) locY = locY + thumb_size;
++		//Vm.debug(&quot;thumb_size: &quot; + Convert.toString(thumb_size));
++		//Vm.debug(&quot;locy after: &quot; + Convert.toString(locY));
++		addTitle(MyLocale.getMsg(341,&quot;User Images:&quot;));
++		locY = locY + 20;
++		locX = padding;
++		locCounter = 0;
++		addImages(cache.UserImages,cache.UserImagesText);
++		
++		this.refresh();
++		Vm.showWait(false);
++		//this.repaintNow();
++	}
++
++	/**
++	 * Clear the images in the panel
++	 *
++	 */
++	private void clearImages() {
++		int lgr = images.size();
++		for(int i = 0; i&lt;lgr;i++){
++			this.removeImage((AniImage)images.get(0));
++		}
++	}
++	
++	/**
++	 * Add a title above the cache images and above the user images
++	 * @param title Title to add (&quot;cache images&quot; or &quot;user images&quot;)
++	 */
++	private void addTitle(String title) {
+ 		AniImage aImg;
+-		String location = new String();
+ 		Font font = new Font(&quot;Verdana&quot;, Font.BOLD, 20);
+ 		FontMetrics fm = getFontMetrics();
+-		
+-		// load cache images
+-		int stringWidth = fm.getTextWidth(&quot;Cache Images&quot;);
++		int stringWidth = fm.getTextWidth(title);
+ 		int stringHeight = fm.getHeight();
+ 		Image img = new Image(stringWidth*2,stringHeight+5);
+ 		Graphics g = new Graphics(img);
+@@ -67,20 +101,32 @@
+ 		g.fillRect(0,0,stringWidth*2,stringHeight+5);
+ 		g.setColor(new Color(0,0,0));
+ 		g.setFont(font);
+-		g.drawText(&quot;Cache Images:&quot;, 0,0);
++		g.drawText(title, 0,0);
+ 		g.free();
+ 		aImg = new AniImage(img);
+ 		addImage(aImg);
+ 		aImg.refresh();
++	}
++	
++	/**
++	 * Add the images to the panel. Can add both normal and user images
++	 * @param images Vector of images or userImages
++	 * @param imagesText Vector of image texts or user image texts
++	 */
++	private void addImages(Vector images, Vector imagesText) {
++		String location, imgText;
+ 		mImage mI;
+-		int locX, locY;
+-		int scaleX, scaleY = 0;
+-		locY = 20;
+-		locX = padding;
+-		int locCounter = 0;
++		int scaleX, scaleY;
++		double dummyC;
+ 		ImagePanelImage ipi;
+-		for(int i = 0; i&lt;cache.Images.size(); i++){
+-			location = profile.dataDir + (String)cache.Images.get(i);
++		AniImage AimgText;
++		
++		for(int i = 0; i&lt;images.size(); i++){
++			location = profile.dataDir + (String)images.get(i);
++			if (!(new File(location)).exists()) {
++				location=NO_IMAGE;
++				if (!pref.showDeletedImages) continue; // Don't show the deleted Image if user does not want it
++			}
+ 			try{
+ 				mI = new mImage(location);
+ 				// actuall new mImage(location); should do the following &quot;if&quot; but it doesn't anyhow
+@@ -107,18 +153,21 @@
+ 				mI = mI.scale(scaleX,scaleY,null,0);
+ 				ipi = new ImagePanelImage(mI);
+ 				ipi.fileName = location; // this is set only to easily identify the filename of the image clicked
+-
+ 				ipi.setLocation(locX, locY);
+ 				addImage(ipi);
+ 				//Name of picture:
+-				if(cache.ImagesText.size()&gt;i){
+-					imgText = SafeXML.cleanback((String)cache.ImagesText.get(i));
++				if(imagesText.size()&gt;i){
++					if (location.equals(NO_IMAGE))
++						imgText=MyLocale.getMsg(342,&quot;Deleted&quot;);
++					else
++						imgText = SafeXML.cleanback((String)imagesText.get(i));
+ 					if(imgText.length()==0) imgText = &quot;???&quot;;
+ 					AimgText = new AniImage();
+ 					AimgText = getImageText(imgText);
+ 					AimgText.setLocation(locX,locY+scaleY);
+ 					addImage(AimgText);
+ 					AimgText.refresh();
++					ipi.imageText = imgText; 
+ 				}
+ 				ipi.refresh();
+ 				locX = locX + thumb_size + padding;
+@@ -130,103 +179,15 @@
+ 					locY = locY+thumb_size+padding;
+ 				}
+ 			}catch(IllegalArgumentException imex){ // file not found, could not decode etc.
+-				Locale l = Vm.getLocale();
+-				LocalResource lr = l.getLocalResource(&quot;cachewolf.Languages&quot;,true);
+-				MessageBox tmp = new MessageBox((String)lr.get(321,&quot;Fehler&quot;), (String)lr.get(322,&quot;Kann Bild/Karte nicht laden&quot;)+&quot;:\n&quot;+imex.getMessage(), MessageBox.OKB); // @todo: language support
++				MessageBox tmp = new MessageBox(MyLocale.getMsg(321,&quot;Fehler&quot;), MyLocale.getMsg(322,&quot;Kann Bild/Karte nicht laden&quot;)+&quot;:\n&quot;+imex.getMessage(), MessageBox.OKB); // @todo: language support
+ 				tmp.exec();
+ 			} catch (OutOfMemoryError e) { // TODO show an error icon in the panel instead of nothing
+-				(new MessageBox(&quot;Error&quot;,&quot;Not enough free memory to load cache image:\n&quot;+location,MessageBox.OKB)).exec();
++				(new MessageBox(MyLocale.getMsg(321,&quot;Error&quot;),MyLocale.getMsg(343,&quot;Not enough free memory to load cache image&quot;)+&quot;:\n&quot;+location,MessageBox.OKB)).exec();
+ 			} catch (SystemResourceException e) { // TODO show an error icon in the panel instead of nothing
+-				(new MessageBox(&quot;Error&quot;,&quot;Not enough free memory to load cache image:\n&quot;+location,MessageBox.OKB)).exec();
++				(new MessageBox(MyLocale.getMsg(321,&quot;Error&quot;),MyLocale.getMsg(343,&quot;Not enough free memory to load cache image&quot;)+&quot;\n&quot;+location,MessageBox.OKB)).exec();
+ 			}
+ 		} //for
+-		//Vm.debug(&quot;LocCounter: &quot; +Convert.toString(locCounter));
+-		//Vm.debug(&quot;locy before: &quot; + Convert.toString(locY));
+ 		
+-		// load user images
+-		if(locCounter==1 || locCounter ==2) locY = locY + thumb_size;
+-		//Vm.debug(&quot;thumb_size: &quot; + Convert.toString(thumb_size));
+-		//Vm.debug(&quot;locy after: &quot; + Convert.toString(locY));
+-		stringWidth = fm.getTextWidth(&quot;User Images&quot;);
+-		Image img2 = new Image(stringWidth*2,stringHeight+5);
+-		Graphics g2 = new Graphics(img2);
+-		g2.setColor(new Color(195,195,195));
+-		g2.fillRect(0,0,stringWidth*2,stringHeight+5);
+-		g2.setColor(new Color(0,0,0));
+-		g2.setFont(font);
+-		g2.drawText(&quot;User Images:&quot;, 0,0);
+-		g2.free();
+-		aImg = new AniImage(img2);
+-		aImg.setLocation(0, locY);
+-		addImage(aImg);
+-		aImg.refresh();
+-		locY = locY + 20;
+-		locX = padding;
+-		locCounter = 0;
+-		for(int i = 0; i&lt;cache.UserImages.size(); i++){
+-			location = profile.dataDir + (String)cache.UserImages.get(i);
+-			//Vm.debug(location);
+-			try{
+-				mI = new mImage(location);
+-				if (mI.getWidth() &lt;= 0 || mI.getHeight() &lt;= 0 ) throw new IllegalArgumentException(location);
+-				scaleX = thumb_size;
+-				scaleY = thumb_size;
+-				dummyC = 0;
+-				if(mI.getWidth()&gt;mI.getHeight()){
+-					scaleX = thumb_size;
+-					dummyC = (double)mI.getHeight()/ (double)mI.getWidth();
+-					dummyC = dummyC * (double)thumb_size;
+-					scaleY = (int)dummyC;
+-				}
+-				if(mI.getWidth() &lt;= mI.getHeight()){
+-					scaleY = thumb_size;
+-					dummyC = (double)mI.getWidth()/(double)mI.getHeight();
+-					dummyC = dummyC * (double)thumb_size;
+-					scaleX = (int)dummyC;
+-				}
+-				if(mI.getWidth() &lt;= thumb_size){
+-					scaleX = mI.getWidth();
+-					scaleY = mI.getHeight();
+-				}
+-				mI = mI.scale(scaleX,scaleY,null,0);
+-				ipi = new ImagePanelImage(mI);
+-				ipi.fileName = location;
+-				ipi.setLocation(locX, locY);
+-				addImage(ipi);
+-				//Name of picture:
+-				if(cache.UserImagesText.size()&gt;i){
+-					imgText = (String)cache.UserImagesText.get(i);
+-					if(imgText.length()==0) imgText = &quot;???&quot;;
+-					AimgText = new AniImage();
+-					AimgText = getImageText(imgText);
+-					AimgText.setLocation(locX,locY+scaleY);
+-					addImage(AimgText);
+-					AimgText.refresh();
+-				}
+-				ipi.refresh();
+-				locX = locX + thumb_size + padding;
+-				locCounter++;
+-				if(locCounter &gt; 2) {
+-					locCounter = 0;
+-					locX = padding;
+-					locY = locY+thumb_size+padding;
+-				}
+-			}catch(IllegalArgumentException imex){ // file not found, could not decode etc.
+-				Locale l = Vm.getLocale();
+-				LocalResource lr = l.getLocalResource(&quot;cachewolf.Languages&quot;,true);
+-				MessageBox tmp = new MessageBox((String)lr.get(321,&quot;Fehler&quot;), (String)lr.get(322,&quot;Kann Bild/Karte nicht laden&quot;)+&quot;:\n&quot;+imex.getMessage(), MessageBox.OKB); // @todo: language support
+-				tmp.exec();
+-			} catch (OutOfMemoryError e) { // TODO show an error icon in the panel instead of nothing 
+-				(new MessageBox(&quot;Error&quot;,&quot;Not enough free memory to load user image:\n&quot;+location,MessageBox.OKB)).exec();
+-			} catch (SystemResourceException e) { // TODO show an error icon in the panel instead of nothing
+-				(new MessageBox(&quot;Error&quot;,&quot;Not enough free memory to load cache image:\n&quot;+location,MessageBox.OKB)).exec();
+-			}
+-		} //for
+-		
+-		
+-		this.refresh();
+-		Vm.showWait(false);
+-		//this.repaintNow();
+ 	}
+ 	
+ 	private AniImage getImageText(String text){
+@@ -245,29 +206,59 @@
+ 		AniImage a = new AniImage(img);
+ 		return a;
+ 	}
++
++	
+ 	/**
+ 	* React to when a user clicks an image.
+-	* Will open a new window displaying the image scaled
+-	* to window size if the image is larger, otherwise
+-	* the true size is displayed.
++	* If left mouse key is clicked, will open a new window displaying the image scaled
++	* to window size if the image is larger, otherwise the true size is displayed.
++	* If right mouse key is clicked, a dialogue to delete the image wil be displayed
+ 	*/
+ 	public void imageClicked(AniImage which, Point pos){
+-		String fn = new String();
+-		if(which instanceof ImagePanelImage){
+-			ImagePanelImage ich = (ImagePanelImage)which;
+-			fn = ich.fileName;
+-			try {
+-				ImageDetailForm iF = new ImageDetailForm(fn, pref);
+-				iF.execute(null, Gui.CENTER_FRAME);
+-			} catch (IllegalArgumentException e) {
+-				Locale l = Vm.getLocale();
+-				LocalResource lr = l.getLocalResource(&quot;cachewolf.Languages&quot;,true);
+-				MessageBox tmp = new MessageBox((String)lr.get(321,&quot;Fehler&quot;), (String)lr.get(322,&quot;Kann Bild/Karte nicht finden&quot;), MessageBox.OKB); // @todo: language support
+-				tmp.exec();
+-			} catch (OutOfMemoryError e) {
+-				(new MessageBox(&quot;Error&quot;,&quot;Not enough free memory to load image\n&quot;+fn,MessageBox.OKB)).exec();
++//		Vm.debug(&quot;Clicked&quot;+pos.x+&quot;,&quot;+pos.y+&quot; &quot;+(((Control.currentPenEvent.modifiers&amp;PenEvent.RIGHT_BUTTON)==PenEvent.RIGHT_BUTTON)?&quot;RIGHT&quot;:&quot;LEFT&quot;) );
++		if ((Control.currentPenEvent.modifiers&amp;PenEvent.RIGHT_BUTTON)==PenEvent.RIGHT_BUTTON || duration&gt;LONG_PEN_DOWN_DURATION) {
++			// Right button pressed - delete image to conserve space
++			if (which instanceof ImagePanelImage &amp;&amp; !((ImagePanelImage)which).fileName.equals(NO_IMAGE)) {
++				MessageBox mBox = new MessageBox (MyLocale.getMsg(144,&quot;Warning&quot;),MyLocale.getMsg(344,&quot;Delete image&quot;)+&quot; \&quot;&quot;+((ImagePanelImage)which).imageText+&quot;\&quot;?&quot;, MessageBox.IDYES |MessageBox.IDNO);
++				if (mBox.execute() == MessageBox.IDOK){
++						//Vm.debug(&quot;Deleting &quot;+((ImagePanelImage)which).fileName);
++						try {
++							File f=new File(((ImagePanelImage)which).fileName);
++							f.delete();
++							removeImage(which);
++						} catch(Exception e) {};
++				}
+ 			}
+-			
++		} else { 
++			String fn = new String();
++			if(which instanceof ImagePanelImage){
++				ImagePanelImage ich = (ImagePanelImage)which;
++				fn = ich.fileName;
++				try {
++					ImageDetailForm iF = new ImageDetailForm(fn, pref);
++					iF.execute(null, Gui.CENTER_FRAME);
++				} catch (IllegalArgumentException e) {
++					MessageBox tmp = new MessageBox(MyLocale.getMsg(321,&quot;Fehler&quot;), MyLocale.getMsg(322,&quot;Kann Bild/Karte nicht finden&quot;), MessageBox.OKB); // @todo: language support
++					tmp.exec();
++				} catch (OutOfMemoryError e) {
++					(new MessageBox(MyLocale.getMsg(321,&quot;Error&quot;),MyLocale.getMsg(343,&quot;Not enough free memory to load cache image&quot;)+&quot;\n&quot;+fn,MessageBox.OKB)).exec();
++				}
++			}
+ 		}
+ 	}
+-}
++
++	/**
++	 * Create a &quot;pen held down&quot; event on hardware that does not support a right mouse key (e.g. Windows Mobile)
++	 * by measuring the time between pen down and pen up events. This is used in imageClicked to differentiate 
++	 * between left and right mouse keys.
++	 */
++	public void onPenEvent(PenEvent ev) {
++		if (ev.type==PenEvent.PEN_DOWN) {
++			start = Vm.getTimeStampLong();
++		}
++		if (ev.type==PenEvent.PEN_UP) {
++			duration=Vm.getTimeStampLong()-start;
++		}
++		super.onPenEvent(ev);
++	}
++}
+\ No newline at end of file
+
+Modified: trunk/src/CacheWolf/ImagePanelImage.java
+===================================================================
+--- trunk/src/CacheWolf/ImagePanelImage.java	2007-01-07 14:17:39 UTC (rev 355)
++++ trunk/src/CacheWolf/ImagePanelImage.java	2007-01-07 16:24:58 UTC (rev 356)
+@@ -10,6 +10,7 @@
+ */
+ public class ImagePanelImage extends AniImage{
+ 	public String fileName = new String();
++	public String imageText = null;
+ 	public ImagePanelImage(mImage i){
+ 		super(i);
+ 	}
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2007-01-07 14:17:39 UTC (rev 355)
++++ trunk/src/CacheWolf/MainTab.java	2007-01-07 16:24:58 UTC (rev 356)
+@@ -47,7 +47,7 @@
+ 		c = this.addCard(descP, MyLocale.getMsg(1202,&quot;Description&quot;), null);
+ 		c.iconize(new Image(&quot;descr.gif&quot;),true);
+ 		
+-		c = this.addCard(new ScrollBarPanel(imageP = new ImagePanel(pref, profile)), MyLocale.getMsg(1203,&quot;Images&quot;), null);
++		c = this.addCard(new ScrollBarPanel(imageP = new ImagePanel()), MyLocale.getMsg(1203,&quot;Images&quot;), null);
+ 		c.iconize(new Image(&quot;images.gif&quot;),true);
+ 		
+ 		c = this.addCard(hintLP, MyLocale.getMsg(1204,&quot;Hints &amp; Logs&quot;), null);
+
+Modified: trunk/src/CacheWolf/Preferences.java
+===================================================================
+--- trunk/src/CacheWolf/Preferences.java	2007-01-07 14:17:39 UTC (rev 355)
++++ trunk/src/CacheWolf/Preferences.java	2007-01-07 16:24:58 UTC (rev 356)
+@@ -42,6 +42,7 @@
+ 	public String myAlias2 = new String();
+ 	/** The path to the browser */
+ 	public String browser = new String();
++	public boolean showDeletedImages=true; /* Used in ImagePanel */
+ 		
+ 	public int myAppHeight = 0;
+ 	public int myAppWidth = 0;
+@@ -181,61 +182,6 @@
+ 		savePreferences();
+ 		return true;
+ 		
+-/*		
+-		//Check if there are &quot;profiles&quot; entries. If yes display a form
+-		//so the user may choose a profile.
+-		try{
+-		if(showProfileSelector){
+-			if(profiles[0].equals(&quot;null&quot;)) profiles[0] = &quot;&quot;;
+-			if(profiles[1].equals(&quot;null&quot;)) profiles[1] = &quot;&quot;;
+-			if(profiles[2].equals(&quot;null&quot;)) profiles[2] = &quot;&quot;;
+-			if(profiles[3].equals(&quot;null&quot;)) profiles[3] = &quot;&quot;;
+-			if(profiles[0].length()&gt;0 ||
+-			   profiles[1].length()&gt;0 ||
+-			   profiles[2].length()&gt;0 ||
+-			   profiles[3].length()&gt;0){
+-				   Vm.showWait(false);
+-				   Form f = new ProfilesForm(profiles);
+-				   int code = f.execute(); // 0 for cancel, 1-4 for profile
+-				   currProfile = code;
+-				   Vm.showWait(true);
+-				   if(code &gt; 0){
+-					   if(profiles[code-1].length()&gt;0){
+-							mydatadir = profdirs[code-1];
+-							if(lastSyncOC[code-1] == null || lastSyncOC[code-1].endsWith(&quot;null&quot;)){
+-								last_sync_opencaching = &quot;20050801000000&quot;;
+-							}
+-							else {
+-								last_sync_opencaching = lastSyncOC[code-1];
+-							}
+-							if(lastDistOC[code-1] == null || lastDistOC[code-1].endsWith(&quot;null&quot;)){
+-								distOC = &quot;0&quot;;
+-							}
+-							else {
+-								distOC = lastDistOC[code-1];
+-							}
+-							curCentrePt.set(lats[code-1]+&quot; &quot;+longs[code-1]);
+-							// Copy it into profile
+-							prof.last_sync_opencaching=last_sync_opencaching;
+-							prof.distOC=distOC;
+-							prof.centre.set(lats[code-1]+&quot; &quot;+longs[code-1]);
+-							prof.dataDir=profdirs[code-1];
+-					   }
+-				   } else {
+-					   // No profile selected
+-					   prof.dataDir=mydatadir;
+-				   }
+-				   //if(mydatadir.indexOf('.') &gt; 0){
+-				   //String cwd = File.getProgramDirectory();
+-				   //mydatadir = cwd + &quot;/&quot; + mydatadir.substring(1, mydatadir.length()-2);
+-				   //Vm.debug(&quot;Datadir? &quot; + mydatadir);
+-				   //}
+-			   }
+-		}
+-		}catch(Exception e){
+-			Vm.debug(e.toString());
+-		}
+-*/		
+ 	}
+ 	
+ 	/**
+@@ -406,6 +352,9 @@
+ 			tmp = atts.getValue(&quot;width&quot;);
+ 			if (tmp != null) tableWidth[11] = Convert.parseInt(tmp);
+ 		}
++		if (name.equals(&quot;imagepanel&quot;)) {
++			showDeletedImages = Boolean.valueOf(atts.getValue(&quot;showdeletedimages&quot;)).booleanValue();
++		}
+ 	}
+ 
+ 	public void characters( char ch[], int start, int length )
+@@ -473,6 +422,7 @@
+ 			outp.print(&quot;    &lt;fixedsip state = \&quot;&quot;+fixSIP+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;garmin connection = \&quot;&quot;+garminConn+&quot;\&quot;/&gt;\n&quot;);
+ 			outp.print(&quot;    &lt;lastprofile autoreload=\&quot;&quot;+autoReloadLastProfile+&quot;\&quot;&gt;&quot;+lastProfile+&quot;&lt;/lastprofile&gt;\n&quot;); //RB
++			outp.print(&quot;    &lt;imagepanel showdeletedimages=\&quot;&quot;+showDeletedImages+&quot;\&quot;/&gt;&quot;);
+ 			outp.print(&quot;    &lt;opencaching downloadPicsOC=\&quot;&quot;+downloadPicsOC+&quot;\&quot; downloadMaps=\&quot;&quot;+downloadMapsOC+&quot;\&quot; downloadMissing=\&quot;&quot;+downloadmissingOC+&quot;\&quot;/&gt;\n&quot;);
+ 			// Obsolete data kept for backward compatibility
+ 			//outp.print(&quot;	&lt;syncOC date = \&quot;&quot; + last_sync_opencaching + &quot;\&quot; dist = \&quot;&quot; + distOC +  &quot;\&quot;/&gt;\n&quot;);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000039.html">[Cachewolf-svn] r355 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000036.html">[Feature #3021] Bilder l&#246;schen
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#35">[ date ]</a>
+              <a href="thread.html#35">[ thread ]</a>
+              <a href="subject.html#35">[ subject ]</a>
+              <a href="author.html#35">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

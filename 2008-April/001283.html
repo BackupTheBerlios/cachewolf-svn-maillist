@@ -1,0 +1,186 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1389 - in trunk/src: CacheWolf/navi utils
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2008-April/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1389%20-%20in%20trunk/src%3A%20CacheWolf/navi%20utils&In-Reply-To=%3C200804191251.m3JCpbao022298%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001282.html">
+   <LINK REL="Next"  HREF="001284.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1389 - in trunk/src: CacheWolf/navi utils</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1389%20-%20in%20trunk/src%3A%20CacheWolf/navi%20utils&In-Reply-To=%3C200804191251.m3JCpbao022298%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1389 - in trunk/src: CacheWolf/navi utils">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Sat Apr 19 14:51:37 CEST 2008</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001282.html">[Cachewolf-svn] r1388 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="001284.html">[Cachewolf-svn] r1390 - trunk/resources
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1283">[ date ]</a>
+              <a href="thread.html#1283">[ thread ]</a>
+              <a href="subject.html#1283">[ subject ]</a>
+              <a href="author.html#1283">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2008-04-19 14:51:34 +0200 (Sat, 19 Apr 2008)
+New Revision: 1389
+
+Modified:
+   trunk/src/CacheWolf/navi/MapsList.java
+   trunk/src/utils/FileBugfix.java
+Log:
+MovingMap: Bug fixed: in some cases an error message &quot;cannot start map - null&quot; appeared - this is avoided now
+
+Modified: trunk/src/CacheWolf/navi/MapsList.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MapsList.java	2008-04-19 11:27:09 UTC (rev 1388)
++++ trunk/src/CacheWolf/navi/MapsList.java	2008-04-19 12:51:34 UTC (rev 1389)
+@@ -48,6 +48,7 @@
+ 			files = new FileBugfix(mapsPath+&quot;/&quot;+dirs.get(j));
+ 			//ewe.sys.Vm.debug(&quot;mapd-Dirs:&quot;+files);
+ 			dateien = files.list(&quot;*.wfl&quot;, FileBase.LIST_FILES_ONLY); //&quot;*.xyz&quot; doesn't work on some systems -&gt; use FileBugFix
++			if (dateien == null) continue;
+ 			for(int i = 0; i &lt; dateien.length;i++){
+ 				// if (!dateien[i].endsWith(&quot;.wfl&quot;)) continue;
+ 				rawFileName = dateien[i].substring(0, dateien[i].lastIndexOf(&quot;.&quot;));
+
+Modified: trunk/src/utils/FileBugfix.java
+===================================================================
+--- trunk/src/utils/FileBugfix.java	2008-04-19 11:27:09 UTC (rev 1388)
++++ trunk/src/utils/FileBugfix.java	2008-04-19 12:51:34 UTC (rev 1389)
+@@ -3,6 +3,7 @@
+  */
+ package utils;
+ 
++import CacheWolf.STRreplace;
+ import ewe.io.*;
+ import ewe.util.FileComparer;
+ import ewe.util.mString;
+@@ -12,8 +13,9 @@
+  * so I get all the files wich null in spite of the mask and filter afterwords 
+  */
+ public class FileBugfix extends File{
+-	public FileBugfix(String path) 
+-	{super(path);}
++	public FileBugfix(String path) {
++		super(STRreplace.replace(path, &quot;//&quot;, &quot;/&quot;));
++	}
+ 
+ 	public String[] list(final String mask,final int listAndSortOptions)
+ 	{
+@@ -33,22 +35,25 @@
+ 		 */
+ 		return listBugFixed (compositeMask, listAndSortOptions);
+ 	}
+-	
++
+ 	public String[] listBugFixed(final String compositeMask,final int listAndSortOptions) {
++		File ewefile = ewe.sys.Vm.newFileObject();
++		ewefile.set(null, name);
++
+ 		String mask = (compositeMask == null) ? &quot;*.*&quot; : compositeMask; 
+ 		String[] found; //the following code is mainly copoed from FileBase.listmultiple to avoid recursion it is not called
+ 		char c = mask.indexOf(',') == -1 ? ';' : ',';
+ 		String masks [] = mString.split(mask,c);
+ 		String dirs [] = new String[0];
+ 		if ((listAndSortOptions &amp; LIST_FILES_ONLY) == 0)
+-			dirs = super.list(null,LIST_DIRECTORIES_ONLY); // add dirs if not only asked for files
++			dirs = ewefile.list(null,LIST_DIRECTORIES_ONLY); // add dirs if not only asked for files
+ 		if ((listAndSortOptions &amp; LIST_DIRECTORIES_ONLY) == 0)
+-			found = super.list(null,FileBase.LIST_FILES_ONLY|listAndSortOptions); // add files if not dirs only
++			found = ewefile.list(null,FileBase.LIST_FILES_ONLY|listAndSortOptions); // add files if not dirs only
+ 		else {
+ 			found = dirs; // if dirs only -&gt; aplpy masks to the dirs
+ 			dirs = new String[0]; // this line is missing in ewe FileBase.listmultiple -&gt; doubled dirs when using listmultiple with the option dirs_only
+ 		}
+-
++		if (found == null) return null;
+ 		ewe.util.FileComparer [] fcs = new ewe.util.FileComparer[masks.length];
+ 
+ 		for (int i = 0; i&lt;masks.length; i++)
+@@ -75,4 +80,46 @@
+ 		found = isMatching;
+ 		return found;
+ 	}
++
++	/**
++	 * this is needed in order to be able to use the simulated 
++	 * file system _filesystem.zip when running as applet 
++	 */
++	public boolean exists() {
++		File ewefile = ewe.sys.Vm.newFileObject();
++		ewefile.set(null, name);
++		return (ewefile.exists());
++	}
++
++	public boolean isDirectory() {
++		File ewefile = ewe.sys.Vm.newFileObject();
++		ewefile.set(null, name);
++		return (ewefile.isDirectory());
++	}
++
++	public boolean createDir() {
++		File ewefile = ewe.sys.Vm.newFileObject();
++		ewefile.set(null, name);
++		return (ewefile.createDir());
++
++	}
++	public boolean delete() {
++		File ewefile = ewe.sys.Vm.newFileObject();
++		ewefile.set(null, name);
++		return (ewefile.delete());
++	}
++	public int getLength() {
++		File ewefile = ewe.sys.Vm.newFileObject();
++		ewefile.set(null, name);
++		return (ewefile.getLength());
++	}
++
++	public String getDrivePath() {
++		File ewefile = ewe.sys.Vm.newFileObject();
++		ewefile.set(null, name);
++		return (ewefile.getDrivePath());
++	}
++
++
++
+ }
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001282.html">[Cachewolf-svn] r1388 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="001284.html">[Cachewolf-svn] r1390 - trunk/resources
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1283">[ date ]</a>
+              <a href="thread.html#1283">[ thread ]</a>
+              <a href="subject.html#1283">[ subject ]</a>
+              <a href="author.html#1283">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

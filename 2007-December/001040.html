@@ -1,0 +1,158 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r1147 - in trunk/src: CacheWolf exp
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-December/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1147%20-%20in%20trunk/src%3A%20CacheWolf%20exp&In-Reply-To=%3C200712151929.lBFJT14b007152%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="001039.html">
+   <LINK REL="Next"  HREF="001041.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r1147 - in trunk/src: CacheWolf exp</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r1147%20-%20in%20trunk/src%3A%20CacheWolf%20exp&In-Reply-To=%3C200712151929.lBFJT14b007152%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r1147 - in trunk/src: CacheWolf exp">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Sat Dec 15 20:29:01 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="001039.html">[Cachewolf-svn] r1146 - in trunk: res_noewe/languages src/CacheWolf	src/exp
+</A></li>
+        <LI>Next message: <A HREF="001041.html">[Cachewolf-svn] r1148 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1040">[ date ]</a>
+              <a href="thread.html#1040">[ thread ]</a>
+              <a href="subject.html#1040">[ subject ]</a>
+              <a href="author.html#1040">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-12-15 20:28:48 +0100 (Sat, 15 Dec 2007)
+New Revision: 1147
+
+Modified:
+   trunk/src/CacheWolf/CacheHolder.java
+   trunk/src/exp/Exporter.java
+Log:
+Exporter: make use of getDetails
+
+Modified: trunk/src/CacheWolf/CacheHolder.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolder.java	2007-12-15 13:34:45 UTC (rev 1146)
++++ trunk/src/CacheWolf/CacheHolder.java	2007-12-15 19:28:48 UTC (rev 1147)
+@@ -216,28 +216,40 @@
+ 	}
+ 
+ 	public void update(CacheHolder ch) {
++		update(ch, false);
++	}
++	public void update(CacheHolder ch, boolean overwrite) {
+ 		this.recommendationScore = ch.recommendationScore;
+ 		this.numFoundsSinceRecommendation = ch.numFoundsSinceRecommendation;
+ 		this.numRecommended = ch.numRecommended;
+-		/* Here we have to distinguish several cases:
++		if (overwrite) {
++			this.CacheStatus=ch.CacheStatus;
++			this.is_found = ch.is_found;
++			this.pos = ch.pos;
++			this.LatLon = ch.LatLon;
++		} else {
++			/* Here we have to distinguish several cases:
+ 	   this.is_found       this                ch               Update 'this'
+ 	   --------------------------------------------------------------------
+ 	   false               empty               yyyy-mm-dd       yes
+ 	   true                &quot;Found&quot;             yyyy-mm-dd       yes
+ 	   true                yyyy-mm-dd          yyyy-mm-dd       no (or yes)
+ 	   true                yyyy-mm-dd hh:mm    yyyy-mm-dd       no
+-		 */
+-		if (!this.is_found || this.CacheStatus.indexOf(&quot;:&quot;)&lt;0) {
+-			this.CacheStatus=ch.CacheStatus;
+-			this.is_found = ch.is_found;
+-		}this.wayPoint = ch.wayPoint;
++			 */
++			if (!this.is_found || this.CacheStatus.indexOf(&quot;:&quot;)&lt;0) {
++				this.CacheStatus=ch.CacheStatus;
++				this.is_found = ch.is_found;
++			}
++			// Don't overwrite valid coordinates with invalid ones
++			if (ch.pos.isValid() || !this.pos.isValid()) {
++				this.pos = ch.pos;
++				this.LatLon = ch.LatLon;
++			}
++		}
++		this.wayPoint = ch.wayPoint;
+ 		this.CacheName = ch.CacheName;
+ 		this.CacheOwner = ch.CacheOwner;
+-		// Don't overwrite valid coordinates with invalid ones
+-		if (ch.pos.isValid() || !this.pos.isValid()) {
+-			this.pos = ch.pos;
+-			this.LatLon = ch.LatLon;
+-		}
++
+ 		this.DateHidden = ch.DateHidden;
+ 		this.CacheSize = ch.CacheSize;
+ 		this.kilom = ch.kilom;
+
+Modified: trunk/src/exp/Exporter.java
+===================================================================
+--- trunk/src/exp/Exporter.java	2007-12-15 13:34:45 UTC (rev 1146)
++++ trunk/src/exp/Exporter.java	2007-12-15 19:28:48 UTC (rev 1147)
+@@ -99,20 +99,16 @@
+ 			PrintWriter outp =  new PrintWriter(new BufferedWriter(new FileWriter(outFile)));
+ 			str = this.header();
+ 			if (str != null) outp.print(str);
++			holder=new CacheHolderDetail();
+ 			for(int i = 0; i&lt;cacheDB.size(); i++){
+ 				ch=(CacheHolder)cacheDB.get(i);
+ 				if(ch.is_black == false &amp;&amp; ch.is_filtered == false){
+-					holder=new CacheHolderDetail(ch);
+ 					expCount++;
+ 					h.progress = (float)expCount/(float)counter;
+ 					h.changed();
+-					try {
+-						if (needCacheDetails) {
+-							holder.readCache(profile.dataDir);
+-						}
+-					} catch (IOException e) {
+-						continue;
+-					}
++					if (needCacheDetails) holder = ch.getCacheDetails(false, false);
++					else holder.update(ch);
++					if (needCacheDetails &amp;&amp; holder == null) continue;
+ 					switch (this.howManyParams) {
+ 					case NO_PARAMS:
+ 						str = record(holder);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="001039.html">[Cachewolf-svn] r1146 - in trunk: res_noewe/languages src/CacheWolf	src/exp
+</A></li>
+	<LI>Next message: <A HREF="001041.html">[Cachewolf-svn] r1148 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#1040">[ date ]</a>
+              <a href="thread.html#1040">[ thread ]</a>
+              <a href="subject.html#1040">[ subject ]</a>
+              <a href="author.html#1040">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

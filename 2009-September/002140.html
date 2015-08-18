@@ -1,0 +1,267 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r2216 - trunk/src/CacheWolf/navi
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2009-September/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2216%20-%20trunk/src/CacheWolf/navi&In-Reply-To=%3C200909291713.n8THDpQZ017342%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="002139.html">
+   <LINK REL="Next"  HREF="002141.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r2216 - trunk/src/CacheWolf/navi</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r2216%20-%20trunk/src/CacheWolf/navi&In-Reply-To=%3C200909291713.n8THDpQZ017342%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r2216 - trunk/src/CacheWolf/navi">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Tue Sep 29 19:13:51 CEST 2009</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="002139.html">[Cachewolf-svn] r2215 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="002141.html">[Cachewolf-svn] r2217 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2140">[ date ]</a>
+              <a href="thread.html#2140">[ thread ]</a>
+              <a href="subject.html#2140">[ subject ]</a>
+              <a href="author.html#2140">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2009-09-29 19:13:47 +0200 (Tue, 29 Sep 2009)
+New Revision: 2216
+
+Modified:
+   trunk/src/CacheWolf/navi/MapsList.java
+   trunk/src/CacheWolf/navi/MovingMap.java
+Log:
+MovingMap: quik find best map: big fixed, see <A HREF="http://www.geoclub.de/viewtopic.php?f=40&amp;t=38364">http://www.geoclub.de/viewtopic.php?f=40&amp;t=38364</A>
+
+Modified: trunk/src/CacheWolf/navi/MapsList.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MapsList.java	2009-09-28 16:21:38 UTC (rev 2215)
++++ trunk/src/CacheWolf/navi/MapsList.java	2009-09-29 17:13:47 UTC (rev 2216)
+@@ -14,7 +14,6 @@
+ import ewe.ui.FormBase;
+ import ewe.ui.MessageBox;
+ import ewe.util.Comparer;
+-import ewe.util.SubString;
+ import ewe.util.Vector;
+ import ewe.fx.*;
+ /**
+@@ -24,7 +23,7 @@
+  * start offset for language file: 4700
+  *
+  */
+-public class MapsList extends Vector {
++public final class MapsList extends Vector {
+ 	public static float scaleTolerance = 1.15f; // absolute deviations from this factor are seen to have the same scale
+ 
+ 	/**
+@@ -68,7 +67,7 @@
+ 					if (dirs.get(j).equals(&quot;.&quot;)) // the notation dir/./filename doesn't work on all platforms anyhow
+ 						tempMIO = new MapListEntry(mapsPath+&quot;/&quot;, rawFileName);
+ 					else tempMIO = new MapListEntry(mapsPath+&quot;/&quot;+dirs.get(j)+&quot;/&quot;, rawFileName);
+-					if (tempMIO.getSortEntryBBox() != null) add(tempMIO);
++					if (tempMIO.sortEntryBBox != null) add(tempMIO);
+ 					//ewe.sys.Vm.debug(tempMIO.getEasyFindString() + tempMIO.mapName);
+ 				}catch(Exception ex){ // TODO exception ist, glaub ich evtl &#252;berfl&#252;ssig
+ 					if (f == null) (f=new MessageBox(MyLocale.getMsg(144, &quot;Warning&quot;), MyLocale.getMsg(4700, &quot;Ignoring error while \n reading calibration file \n&quot;)+ex.toString(), FormBase.OKB)).exec();
+@@ -118,7 +117,7 @@
+ 		boolean showprogress = false;
+ 		String cmp = &quot;FF1&quot;+Area.getEasyFindString(ll, MAXDIGITS_IN_FF);
+ 		int guess = -1;
+-		int foundkw = -1;
++//		int foundkw = -1;
+ 		MapListEntry ml;
+ 		MapInfoObject mi;
+ 		MapInfoObject bestMap = null; // = (MapInfoObject)get(0);
+@@ -146,7 +145,7 @@
+ 				}
+ 				ml = (MapListEntry)get(i);
+ 				try {
+-					if (!Area.containsRoughly(ml.getSortEntryBBox(), cmp)) break; // TODO if no map available
++					if (!Area.containsRoughly(ml.sortEntryBBox, cmp)) break; // TODO if no map available
+ 					else { mi = ml.getMap(); /* testkw++; */}
+ 				} catch (IOException ex) {continue; } // could not read .wfl-file
+ 				better = false;
+@@ -212,8 +211,8 @@
+ 				new Comparer()
+ 				{
+ 					public int compare(Object o1, Object o2){
+-						String s1 = ((MapListEntry)o1).getSortEntryBBox();
+-						String s2 = ((MapListEntry)o2).getSortEntryBBox();
++						String s1 = ((MapListEntry)o1).sortEntryBBox;
++						String s2 = ((MapListEntry)o2).sortEntryBBox;
+ 						int ret = s1.length() - s2.length(); // sort shorter sortEntryBBox at the beginning
+ 						if (ret == 0) ret = s1.compareTo(s2);
+ 						return ret;
+@@ -224,7 +223,7 @@
+ 		int numdigits = 0;
+ 		int s = size(); // avoid calling size() for each MaplistEntry (could be some thousand times)
+ 		for (int i = 0; i &lt; s; i++) {
+-			if ( ((MapListEntry)get(i)).getSortEntryBBox().length() &gt; numdigits) {
++			if ( ((MapListEntry)get(i)).sortEntryBBox.length() &gt; numdigits) {
+ 				numDigitsStartIndex[digits_index] = i;
+ 				digits_index++;
+ 				numdigits = ((MapListEntry)get(i)).getSortEntryBBox().length();
+@@ -235,26 +234,26 @@
+ 	}
+ 
+ 	/**
+-	 *
+-	 * @param searchfor String starting with FFE1, it should be longer than any sortEntryBoxString in the list
+-	 * @return the highest index which matches the searchfor-String. Look downward from there to find the best map, llimit if there is no match
++	 * @param llimitorig lower limit to start the search from
++	 * @param ulimit upper limit to stop the search. llimit and ulimit must be set in a way that
++	 * the sortEntryBBox of each entry betwenn the limits have the same length
++	 * @param searchfor String starting with FF1, it should be longer than any sortEntryBoxString in the list
++	 * @return the highest index which matches the searchfor-String. Look downward from there to find the best map, returns llimit if there is no match
+ 	 */
+ 	private int quickfind(String searchfor, int llimitorig, int ulimit) {
+ 		int llimit = llimitorig;
+ 		int test;
+-		String cmp = ((MapListEntry)this.get(llimit)).sortEntryBBox; 
+-		int comp = cmp.compareTo(searchfor);
++		String cmp = ((MapListEntry)this.get(llimit)).sortEntryBBox;
++		String sshort = searchfor.substring(0, cmp.length());
++		int comp;
+ //		int testskw = 0;
+-		if ( cmp.compareTo(searchfor.substring(0, cmp.length())) &gt; 0 ||
+-			 ((MapListEntry)this.get(ulimit)).sortEntryBBox.compareTo(searchfor.substring(0, cmp.length())) &lt; 0)
+-		if ( ((MapListEntry)this.get(llimit)).getSortEntryBBox().compareTo(searchfor) &gt; 0 ||
+-			 ((MapListEntry)this.get(ulimit)).getSortEntryBBox().compareTo(searchfor) &lt; 0)
++		if ( cmp.compareTo(sshort) &gt; 0 ||
++			 ((MapListEntry)this.get(ulimit)).sortEntryBBox.compareTo(sshort) &lt; 0)
+ 			return llimit; // if searchfor is not in the range, return llimit (llimit because getBestMap counts downward, so returning llimit will cause it to do only 1 test
+ 		while (ulimit - llimit &gt; 1) {
+ 	//		testskw++;
+ 			test = (ulimit + llimit) / 2;
+-			cmp = ((MapListEntry)this.get(test)).getSortEntryBBox();
+-
++			cmp = ((MapListEntry)this.get(test)).sortEntryBBox;
+ 			comp = cmp.compareTo(searchfor);
+ 			if ( comp &gt; 0 ) { // test &gt; searchfor
+ 				ulimit = test;
+@@ -265,10 +264,14 @@
+ 					ulimit = test;
+ 				}
+ 			}
+-		}
+-		if ( comp &lt; 0) llimit = ulimit;
+-	     // if the found mapListEntry doesn't contain the searchfor, then there is no map containing it.
+-		if (!searchfor.startsWith(((MapListEntry)this.get(llimit)).getSortEntryBBox())) llimit = llimitorig;
++		} // searchfor is between llimit and ulimit OR is at ulimit or higher OR at llimit or lower 
++		// we want to return the highest index of the map which starts with searchfor 
++		comp = ((MapListEntry)this.get(ulimit)).sortEntryBBox.compareTo(searchfor);
++		if ( (comp &lt;= 0) &amp;&amp; searchfor.startsWith(((MapListEntry)this.get(ulimit)).sortEntryBBox) ) 
++			llimit = ulimit; // search for is on ulimit or higher
++	     
++		if (!searchfor.startsWith(((MapListEntry)this.get(llimit)).sortEntryBBox)) 
++			llimit = llimitorig; // if the found mapListEntry doesn't contain the searchfor, then there is no map containing it.
+ 		// Vm.debug(&quot;quickfind: testskw: &quot; + testskw + &quot;, searched for: &quot; + searchfor);
+ 		return llimit;
+ 	}
+@@ -304,7 +307,7 @@
+ 			}
+ 			ml = (MapListEntry)get(i);
+ 			try {
+-				if (!Area.containsRoughly(ml.getSortEntryBBox(), cmp)) continue; // TODO if no map available
++				if (!Area.containsRoughly(ml.sortEntryBBox, cmp)) continue; // TODO if no map available
+ 				else { mi = ml.getMap();}
+ 			} catch (IOException ex) {continue; } // could not read .wfl-file
+ 			better = false;
+@@ -374,7 +377,7 @@
+ 			better = false;
+ 			ml = (MapListEntry)get(i);
+ 			try {
+-				if (!Area.containsRoughly(ml.getSortEntryBBox(), cmp)) continue; // TODO if no map available
++				if (!Area.containsRoughly(ml.sortEntryBBox, cmp)) continue; // TODO if no map available
+ 				else { mi = ml.getMap();}
+ 			} catch (IOException ex) {continue; } // could not read .wfl-file
+ 			if (mi.fileNameWFL == &quot;&quot;) continue; // exclude &quot;maps&quot; without image // TODO make this a boolean in MapInfoObject
+@@ -513,12 +516,13 @@
+ 	
+ }
+ 
+-class MapListEntry /*implements Comparable */ {
++final class MapListEntry /*implements Comparable */ {
+ 	public String sortEntryBBox;
+ 	//String sortEntry;
+ 	public String filename;
+ 	String path;
+ 	MapInfoObject map;
++	
+ 	static int rename = 0;
+ 	static int renameCounter = 0;
+ 	static InfoBox renameProgressInfoB = null;
+@@ -539,7 +543,7 @@
+ 		try {
+ 			if (filenamei.startsWith(&quot;FF1&quot;)) sortEntryBBox = filenamei.substring(0, filenamei.indexOf(&quot;E-&quot;));
+ 		} catch (IndexOutOfBoundsException ex) {
+-			Global.getPref().log(&quot;Ignored Exception&quot;, ex, true);
++			// Global.getPref().log(&quot;Ignored Exception&quot;, ex, true);
+ 		}
+ 		if (sortEntryBBox == null ) { //|| sortEntryScaleCenterPx.length() &lt; 16) {
+ 			try {
+@@ -611,13 +615,5 @@
+ 		if (other == null) return 1;
+ 		return this.sortEntryBBox.compareTo(((MapListEntry)other).sortEntryBBox);
+ 	} */
+-
+-	public String getSortEntryBBox() {
+-		return sortEntryBBox;
+-	}
+-
+-	public String getFilename() {
+-		return filename;
+-	}
+ }
+ 
+
+Modified: trunk/src/CacheWolf/navi/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/navi/MovingMap.java	2009-09-28 16:21:38 UTC (rev 2215)
++++ trunk/src/CacheWolf/navi/MovingMap.java	2009-09-29 17:13:47 UTC (rev 2216)
+@@ -23,7 +23,7 @@
+ /**
+  *	Class to handle a moving map.
+  */
+-public class MovingMap extends Form {
++public final class MovingMap extends Form {
+ 	public final static int gotFix = 4; //green
+ 	public final static int lostFix = 3; //yellow
+ 	public final static int noGPSData = 2; // red
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="002139.html">[Cachewolf-svn] r2215 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="002141.html">[Cachewolf-svn] r2217 - trunk/src/CacheWolf/navi
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#2140">[ date ]</a>
+              <a href="thread.html#2140">[ thread ]</a>
+              <a href="subject.html#2140">[ subject ]</a>
+              <a href="author.html#2140">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

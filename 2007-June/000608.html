@@ -1,0 +1,211 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r732 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-June/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r732%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200706061910.l56JAHjW025387%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000607.html">
+   <LINK REL="Next"  HREF="000609.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r732 - trunk/src/CacheWolf</H1>
+    <B>salzkammergut at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r732%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200706061910.l56JAHjW025387%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r732 - trunk/src/CacheWolf">salzkammergut at mail.berlios.de
+       </A><BR>
+    <I>Wed Jun  6 21:10:17 CEST 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000607.html">[Cachewolf-svn] r731 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000609.html">[Cachewolf-svn] r733 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#608">[ date ]</a>
+              <a href="thread.html#608">[ thread ]</a>
+              <a href="subject.html#608">[ subject ]</a>
+              <a href="author.html#608">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: salzkammergut
+Date: 2007-06-06 21:10:09 +0200 (Wed, 06 Jun 2007)
+New Revision: 732
+
+Modified:
+   trunk/src/CacheWolf/CacheHolderDetail.java
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/SolverPanel.java
+Log:
+Solver: Die Solverbefehle werden im Cache gespeichert und automatisch mit dem Cache geladen/gespeichert.
+Es ist daher nicht mehr notwendig die Befehle in die Notes zu kopieren.
+
+Modified: trunk/src/CacheWolf/CacheHolderDetail.java
+===================================================================
+--- trunk/src/CacheWolf/CacheHolderDetail.java	2007-06-05 23:38:33 UTC (rev 731)
++++ trunk/src/CacheWolf/CacheHolderDetail.java	2007-06-06 19:10:09 UTC (rev 732)
+@@ -27,10 +27,11 @@
+ 	  public Vector CacheIcons = new Vector();
+ 	  public String Bugs = EMPTY;
+ 	  public String URL = EMPTY;
++	  public String Solver = EMPTY;
+ 	  
+ 	 public CacheHolderDetail() {
+ 	 }
+-	 public CacheHolderDetail(String wpt) {super(wpt); }
++	 //public CacheHolderDetail(String wpt) {super(wpt); }
+ 	 public CacheHolderDetail(CacheHolder ch) {
+ 		 super(ch);
+ 	 }
+@@ -131,6 +132,7 @@
+ 			}else break;
+ 		 }
+ 		 noFindLogs = z;
++		 this.Solver=newCh.Solver;
+ 	 	return this;
+ 	  }
+ 	  
+@@ -291,7 +293,8 @@
+ 					URL = &quot;<A HREF="http://www.geocaching.com/seek/cache_details.aspx?wp=">http://www.geocaching.com/seek/cache_details.aspx?wp=</A>&quot;+ wayPoint + &quot;&amp;Submit6=Find&amp;log=y&quot;;
+ 				}
+ 			}
+-
++			ex = new Extractor(text, &quot;&lt;SOLVER&gt;&lt;![CDATA[&quot;, &quot;]]&gt;&lt;/SOLVER&gt;&quot;, 0, true);
++			Solver=ex.findNext();
+ 		}
+ 		
+ 		/**
+@@ -370,6 +373,7 @@
+ 				  detfile.print(Bugs+&quot;\n&quot;);
+ 				  detfile.print(&quot;]]&gt;&lt;/BUGS&gt;\n&quot;);
+ 				  detfile.print(&quot;&lt;URL&gt;&lt;![CDATA[&quot;+URL+&quot;]]&gt;&lt;/URL&gt;\r\n&quot;);
++				  detfile.print(&quot;&lt;SOLVER&gt;&lt;![CDATA[&quot;+Solver+&quot;]]&gt;&lt;/SOLVER&gt;\r\n&quot;);
+ 				  detfile.print(&quot;&lt;/CACHEDETAILS&gt;\n&quot;);
+ 				} // if length
+ 			} catch (Exception e){
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2007-06-05 23:38:33 UTC (rev 731)
++++ trunk/src/CacheWolf/MainTab.java	2007-06-06 19:10:09 UTC (rev 732)
+@@ -278,6 +278,10 @@
+ 		if(detP.isDirty()) {
+ 			detP.saveDirtyWaypoint();
+ 		}
++		if (solverP.isDirty()) {
++			chD.Solver=solverP.getInstructions();
++			chD.saveCacheDetails(Global.getProfile().dataDir);
++		}
+ 	}
+ 
+ 	/** Save the index file and any pending change in DetailsPanel
+
+Modified: trunk/src/CacheWolf/SolverPanel.java
+===================================================================
+--- trunk/src/CacheWolf/SolverPanel.java	2007-06-05 23:38:33 UTC (rev 731)
++++ trunk/src/CacheWolf/SolverPanel.java	2007-06-06 19:10:09 UTC (rev 732)
+@@ -22,11 +22,26 @@
+ 	Preferences pref;
+ 	Profile profile;
+ 	String currFile;
+-	CacheHolder currCh;
++	CacheHolder currChD;
+ 	Tokenizer tokenizer = new Tokenizer();
+ 	Parser parser = new Parser();
+ 	Vector msgFIFO = new Vector();
+ 	Menu mnuContext;
++	private boolean dirty=false;
++	
++	public boolean isDirty() {
++		return dirty;
++	}
++	
++	public String getInstructions() {
++		return mText.getText();
++	}
++	public void setInstructions(String text) {
++		mText.setText(text);
++		mText.repaint();
++	}
++	
++	
+ 	private class OutputPanel extends mTextPad {
+ 		MenuItem mnuClr;
+ 		OutputPanel() {
+@@ -72,16 +87,18 @@
+ 
+ 		programPanel.addLast(new ScrollBarPanel(mText = new InputPanel()));
+ 		programPanel.addNext(mBtSolve= new mButton(MyLocale.getMsg(1735,&quot;Solve!&quot;)),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+-		programPanel.addNext(btnLoad= new mButton(MyLocale.getMsg(1736,&quot;Load&quot;)),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
++		/*programPanel.addNext(btnLoad= new mButton(MyLocale.getMsg(1736,&quot;Load&quot;)),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 		programPanel.addNext(btnSave= new mButton(MyLocale.getMsg(1737,&quot;Save&quot;)),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
+ 		programPanel.addLast(btnSaveAs= new mButton(MyLocale.getMsg(1738,&quot;SaveAs&quot;)),CellConstants.DONTSTRETCH, (CellConstants.HFILL|CellConstants.WEST));
++		*/
+ 		outputPanel.addLast(new ScrollBarPanel(mOutput = new OutputPanel()));
+ 
+ 		this.addLast(split);
+ 	}
+ 	
+-	public void setCh(CacheHolder ch) {
+-		currCh=ch;
++	public void setCh(CacheHolderDetail chD) {
++		currChD=chD;
++		setInstructions(chD.Solver);
+ 	}
+ 
+ 	private void execDirectCommand() {
+@@ -104,11 +121,12 @@
+     }
+ 	
+ 	public void onEvent(Event ev){
++		if (ev.target==mText) {dirty=true; }
+ 		if(ev instanceof ControlEvent &amp;&amp; ev.type == ControlEvent.PRESSED){
+ 			if(ev.target == mBtSolve){
+ 				processCommand(mText.getText());
+ 			}
+-			if(ev.target == btnLoad){
++/*			if(ev.target == btnLoad){
+ 				FileChooser fc = new FileChooser(FileChooser.OPEN, profile.dataDir);
+ 				
+ 				fc.addMask(currCh.wayPoint + &quot;.wl&quot;);
+@@ -153,7 +171,7 @@
+ 					}
+ 				}
+ 			}
+-			
++*/			
+ 		}
+ 	}
+ 	
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000607.html">[Cachewolf-svn] r731 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000609.html">[Cachewolf-svn] r733 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#608">[ date ]</a>
+              <a href="thread.html#608">[ thread ]</a>
+              <a href="subject.html#608">[ subject ]</a>
+              <a href="author.html#608">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>

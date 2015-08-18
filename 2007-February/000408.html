@@ -1,0 +1,242 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML>
+ <HEAD>
+   <TITLE> [Cachewolf-svn] r597 - trunk/src/CacheWolf
+   </TITLE>
+   <LINK REL="Index" HREF="http://lists.berlios.de/pipermail/cachewolf-svn/2007-February/index.html" >
+   <LINK REL="made" HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r597%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702160223.l1G2NUh4011120%40sheep.berlios.de%3E">
+   <META NAME="robots" CONTENT="index,nofollow">
+   <style type="text/css">
+       pre {
+           white-space: pre-wrap;       /* css-2.1, curent FF, Opera, Safari */
+           }
+   </style>
+   <META http-equiv="Content-Type" content="text/html; charset=us-ascii">
+   <LINK REL="Previous"  HREF="000407.html">
+   <LINK REL="Next"  HREF="000409.html">
+ </HEAD>
+ <BODY BGCOLOR="#ffffff">
+   <H1>[Cachewolf-svn] r597 - trunk/src/CacheWolf</H1>
+    <B>pfeffer at mail.berlios.de</B> 
+    <A HREF="mailto:cachewolf-svn%40lists.berlios.de?Subject=Re%3A%20%5BCachewolf-svn%5D%20r597%20-%20trunk/src/CacheWolf&In-Reply-To=%3C200702160223.l1G2NUh4011120%40sheep.berlios.de%3E"
+       TITLE="[Cachewolf-svn] r597 - trunk/src/CacheWolf">pfeffer at mail.berlios.de
+       </A><BR>
+    <I>Fri Feb 16 03:23:30 CET 2007</I>
+    <P><UL>
+        <LI>Previous message: <A HREF="000407.html">[Cachewolf-svn] r596 - trunk/src/CacheWolf
+</A></li>
+        <LI>Next message: <A HREF="000409.html">[Cachewolf-svn] r598 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#408">[ date ]</a>
+              <a href="thread.html#408">[ thread ]</a>
+              <a href="subject.html#408">[ subject ]</a>
+              <a href="author.html#408">[ author ]</a>
+         </LI>
+       </UL>
+    <HR>  
+<!--beginarticle-->
+<PRE>Author: pfeffer
+Date: 2007-02-16 03:23:25 +0100 (Fri, 16 Feb 2007)
+New Revision: 597
+
+Modified:
+   trunk/src/CacheWolf/MainTab.java
+   trunk/src/CacheWolf/MovingMap.java
+   trunk/src/CacheWolf/TablePanel.java
+   trunk/src/CacheWolf/myTableControl.java
+   trunk/src/CacheWolf/myTableModel.java
+Log:
+Liste: Auswahl mit Pfeiltasten und Maus auch nach Umsortierung synchron
+Liste: ein kleines bisschen aufger?\195?\164umt, muss noch weiter gemacht werden
+
+Modified: trunk/src/CacheWolf/MainTab.java
+===================================================================
+--- trunk/src/CacheWolf/MainTab.java	2007-02-15 22:38:18 UTC (rev 596)
++++ trunk/src/CacheWolf/MainTab.java	2007-02-16 02:23:25 UTC (rev 597)
+@@ -80,7 +80,7 @@
+ 	}
+ 
+ 	public void selectAndActive(int rownum){
+-		tbP.selectAndActive(rownum);
++		tbP.selectRow(rownum);
+ 		this.selectAndExpand(0);
+ 	}
+ 
+@@ -93,12 +93,17 @@
+ 		(new MessageBox(MyLocale.getMsg(327,&quot;Information&quot;), MyLocale.getMsg(1024,&quot;Entfernungen in der Listenansicht \nvom aktuellen Standpunkt aus \nneu berechnet&quot;).replace('~','\n'), MessageBox.OKB)).execute();
+ 	}
+ 
+-	public void gotoPoint(String LatLon) {
+-		gotoP.setDestinationAndSwitch(LatLon);
++	public void gotoPoint(String LatLon) { // TODO &#252;bergabe nicht als String
++		gotoP.setDestinationAndSwitch(LatLon); 
+ 	}
+ 
+ 	public void openDesciptionPanel(CacheHolder chi) {
+ 		MyLocale.setSIPOff();
++		int row = profile.getCacheIndex(chi.wayPoint);
++		tbP.selectRow(row);
++		//tbP.tc.scrollToVisible(row, 0);
++		//tbP.selectRow(row);
++		select(descP);
+ 		descP.setText(chi);
+ 	}
+ 
+@@ -118,14 +123,14 @@
+ 		ch.type = &quot;0&quot;;
+ 		ch.CacheSize = &quot;None&quot;;
+ 		cacheDB.add(ch);
+-		Global.mainTab.tbP.myMod.updateRows();
+-		Global.mainTab.tbP.selectRow(profile.getCacheIndex(waypoint));
++		tbP.myMod.updateRows();
++		tbP.selectRow(profile.getCacheIndex(waypoint));
+ 		//Global.mainTab.tbP.refreshTable();
+ 		if (this.cardPanel.selectedItem==1) { // Detailpanel already selected
+ 			postEvent(new MultiPanelEvent(MultiPanelEvent.SELECTED,detP,0));
+ 		} else	
+ 			select(detP);
+-		Global.mainTab.tbP.refreshTable();
++		tbP.refreshTable();
+ 
+ 	}
+ 
+
+Modified: trunk/src/CacheWolf/MovingMap.java
+===================================================================
+--- trunk/src/CacheWolf/MovingMap.java	2007-02-15 22:38:18 UTC (rev 596)
++++ trunk/src/CacheWolf/MovingMap.java	2007-02-16 02:23:25 UTC (rev 597)
+@@ -1654,8 +1654,6 @@
+ 						close.type = WindowEvent.CLOSE;
+ 						mm.postEvent(close);
+ 						MainTab mainT = Global.mainTab;
+-						mainT.tbP.selectAndActive(mm.cacheDB.find(clickedCache));
+-						mainT.select(Global.mainTab.descP);
+ 						mainT.openDesciptionPanel(clickedCache);
+ 					}
+ 					if (action == newWayPointMenuItem) {
+
+Modified: trunk/src/CacheWolf/TablePanel.java
+===================================================================
+--- trunk/src/CacheWolf/TablePanel.java	2007-02-15 22:38:18 UTC (rev 596)
++++ trunk/src/CacheWolf/TablePanel.java	2007-02-16 02:23:25 UTC (rev 597)
+@@ -41,7 +41,7 @@
+ 		tc.setTableModel(myMod);
+ 	}
+ 	
+-	public void setSelectedCache(int row){
++	public void setSelectedCache(int row){ // TODO as far as i know selectedCh can be removed at all, use tc.cursor.y instead
+ 		selectedCh=null;
+ 		if (row&gt;=0)  {
+ 			selectedCh=(CacheHolder) cacheDB.get(row);
+@@ -53,10 +53,11 @@
+ 	/** Mark the row as selected so that myTableModel can color it grey */
+ 	public void selectRow(int row) {
+ 		setSelectedCache(row);
+-		tc.clearSelectedCells(null);
++	/*	tc.clearSelectedCells(null);
+ 		for(int i= 0; i &lt; myMod.MAXCOLUMNS; i++){
+ 			tc.addToSelection(row,i); 
+ 		}
++	*/	tc.cursorTo(row, tc.cursor.x+tc.listMode, true);
+ 	}
+ 	
+ 	/** Returns the index of the currently selected cache or -1 of the cache is no longer visible
+@@ -87,10 +88,12 @@
+ 		pref.savePreferences();
+ 	}
+ 	
++	/*
+ 	public void selectAndActive(int rownum){
+-		tc.scrollToVisible(rownum, 0);
++		//		tc.scrollToVisible(rownum, 0);
+ 		selectRow(rownum);  // color it in grey
+ 	}
++	*/
+ 	
+ 	public void resetModel() {
+ 		setSelectedCache(-1);
+@@ -108,7 +111,7 @@
+ 	public void refreshTable(){
+ 		myMod.updateRows();
+ 		// Check whether the currently selected cache is still visible
+-		Global.mainTab.tbP.selectRow(getSelectedCache());
++		selectRow(getSelectedCache());
+ 		tc.update(true); // Update and repaint
+ 		if (statBar!=null) statBar.updateDisplay();
+ 	}
+
+Modified: trunk/src/CacheWolf/myTableControl.java
+===================================================================
+--- trunk/src/CacheWolf/myTableControl.java	2007-02-15 22:38:18 UTC (rev 596)
++++ trunk/src/CacheWolf/myTableControl.java	2007-02-16 02:23:25 UTC (rev 597)
+@@ -35,6 +35,7 @@
+ 		cacheDB = profile.cacheDB;
+ 		pref = Global.getPref();
+ 		tbp =tablePanel;
++		allowDragSelection = false; // allow only one row to be selected at one time
+ 	}
+ 
+ 	public void penRightReleased(Point p){
+
+Modified: trunk/src/CacheWolf/myTableModel.java
+===================================================================
+--- trunk/src/CacheWolf/myTableModel.java	2007-02-15 22:38:18 UTC (rev 596)
++++ trunk/src/CacheWolf/myTableModel.java	2007-02-16 02:23:25 UTC (rev 597)
+@@ -216,14 +216,14 @@
+ 							return checkboxUnticked;
+ 					case 1: // Type
+ 						try {
+-							return (IImage) cacheImages[Convert.parseInt(ch.type)];
++							return (IImage) cacheImages[Convert.parseInt(ch.type)]; // TODO save in cacheholder as int
+ 						} catch (NumberFormatException e) { return &quot;?&quot;;}
+ 					case 2: // Difficulty;
+ 						return (String)ch.hard;
+ 					case 3: // Terrain
+ 						return (String)ch.terrain;
+ 					case 4: // Waypoint
+-						if(ch.is_update    ) return new IconAndText((IImage)red, ch.wayPoint, fm);
++						if(ch.is_update    ) return new IconAndText((IImage)red, ch.wayPoint, fm); // TODO this is for sure quite inefficient, better store it, don't create always new when the table is refreshed or only scrolled
+ 						if(ch.is_new       ) return new IconAndText((IImage)yellow, ch.wayPoint, fm);
+ 						if(ch.is_log_update) return new IconAndText((IImage)blue, ch.wayPoint, fm);
+ 						return (String)ch.wayPoint;
+@@ -297,12 +297,13 @@
+ 				if(a != null){
+ 					int rownum = Global.getProfile().getCacheIndex(ch.wayPoint);
+ 					if(rownum &gt;= 0){
+-						tcControl.scrollToVisible(rownum, 0);
++						tcControl.cursorTo(rownum, 0, true);
++	/*					tcControl.scrollToVisible(rownum, 0);
+ 						tcControl.clearSelectedCells(new Vector());
+ 						for(int i= 0; i &lt; MAXCOLUMNS; i++){
+ 							tcControl.addToSelection(rownum,i); 
+ 						}
+-					}
++		*/			}
+ 				}
+ 				Vm.showWait(false);
+ 				tcControl.update(true);
+
+
+</PRE>
+
+<!--endarticle-->
+    <HR>
+    <P><UL>
+        <!--threads-->
+	<LI>Previous message: <A HREF="000407.html">[Cachewolf-svn] r596 - trunk/src/CacheWolf
+</A></li>
+	<LI>Next message: <A HREF="000409.html">[Cachewolf-svn] r598 - trunk/src/CacheWolf
+</A></li>
+         <LI> <B>Messages sorted by:</B> 
+              <a href="date.html#408">[ date ]</a>
+              <a href="thread.html#408">[ thread ]</a>
+              <a href="subject.html#408">[ subject ]</a>
+              <a href="author.html#408">[ author ]</a>
+         </LI>
+       </UL>
+
+<hr>
+<a href="https://lists.berlios.de/mailman/listinfo/cachewolf-svn">More information about the Cachewolf-svn
+mailing list</a><br>
+</body></html>
